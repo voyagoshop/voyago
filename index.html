@@ -3496,8 +3496,7 @@ function checkHosgeldin() {
   } catch(e) {}
 }
 
-function devamEt() {
-  // Kayıtlı bilgiyle direkt giriş yap
+async function devamEt() {
   try {
     const kayit = localStorage.getItem('voyago_yolcu');
     if (!kayit) { yeniGiris(); return; }
@@ -3527,9 +3526,13 @@ function devamEt() {
     renderProgramPage(p.sefer);
     renderYemekPage(p.sefer);
     renderGazete();
+    renderMesajlar(p.sefer);
+    renderTurAnonsPano(p.sefer);
     showScreen('sa');
     startClock();
     showToast('Hoş geldiniz, ' + (p.name?p.name.split(' ')[0]:'') + '! 👋');
+    // Anket DB'den direkt kontrol et
+    await checkAnketGoster(p.sefer);
   } catch(e) {
     yeniGiris();
   }
