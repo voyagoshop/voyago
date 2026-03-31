@@ -293,7 +293,7 @@ textarea.ai2{resize:none;}
 .meeting-admin-title{font-size:13px;font-weight:600;color:var(--red);margin-bottom:10px;}
 </style>
 </head>
-<body onload="initDB()">
+<body onload="baslat()">
 
 <!-- ── LOADING EKRANI ── -->
 <div id="loading-screen" style="position:fixed;inset:0;background:linear-gradient(160deg,#0d3b6e,#1a5fa8,#2272c3);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s ease;">
@@ -3076,6 +3076,58 @@ function startLoadingAnimation(callback) {
       setTimeout(() => { hideScreen(); }, 300);
     }
   }, 700);
+}
+
+// ── BAŞLATICI ──
+function baslat() {
+  // Önce loading animasyonunu başlat
+  let loadingBitti = false;
+  let dbBitti = false;
+
+  function kontrolEt() {
+    if (loadingBitti && dbBitti) {
+      autoLogin();
+    }
+  }
+
+  // Loading: 3 saniye sayıp kapanır
+  const screen = document.getElementById('loading-screen');
+  const countEl = document.getElementById('loading-count');
+  const vehicle = document.getElementById('loading-vehicle');
+  const araclar = ['🚢','🚢','🚢','🚌','✈️'];
+  if(vehicle) vehicle.textContent = araclar[Math.floor(Math.random()*araclar.length)];
+
+  let sayi = 3;
+  const tick = setInterval(() => {
+    sayi--;
+    if(countEl) countEl.textContent = sayi > 0 ? sayi : '✓';
+    if(sayi <= 0) {
+      clearInterval(tick);
+      setTimeout(() => {
+        if(screen) {
+          screen.style.opacity = '0';
+          screen.style.transition = 'opacity .5s ease';
+          setTimeout(() => {
+            screen.style.display = 'none';
+            loadingBitti = true;
+            kontrolEt();
+          }, 500);
+        } else {
+          loadingBitti = true;
+          kontrolEt();
+        }
+      }, 300);
+    }
+  }, 750);
+
+  // DB: arka planda yükle
+  initDB().then(() => {
+    dbBitti = true;
+    kontrolEt();
+  }).catch(() => {
+    dbBitti = true;
+    kontrolEt();
+  });
 }
 
 // ── OTOMATİK GİRİŞ ──
