@@ -355,6 +355,10 @@ textarea.ai2{resize:none;}
   from { opacity:1; }
   to   { opacity:0; pointer-events:none; }
 }
+@keyframes pulse {
+  0%,100% { transform:scale(1); }
+  50%      { transform:scale(1.2); }
+}
 </style>
 
 <!-- YOLCU GİRİŞ -->
@@ -1380,6 +1384,40 @@ function startClock(){
   }
   tick();
   setInterval(tick,30000);
+
+  // Her 30 saniyede bir anket ve günlük içerik güncelle
+  setInterval(async ()=>{
+    if(!CP||!CP.sefer)return;
+    try{
+      const gunlukDB=await dbGet('gunluk',{sefer_id:CP.sefer});
+      if(gunlukDB.length>0){
+        const g=gunlukDB[0];
+        if(!DAILY[CP.sefer])DAILY[CP.sefer]=getDailyForSefer(CP.sefer);
+        const d=DAILY[CP.sefer];
+        if(g.liman_ad)d.port={name:g.liman_ad,country:g.liman_ulke||'',arival:g.varis||'',depart:g.ayrilik||''};
+        if(g.program&&g.program.length)d.program=g.program;
+        if(g.promosyonlar&&g.promosyonlar.length)d.promos=g.promosyonlar;
+        if(g.yemek&&g.yemek.length)d.yemek=g.yemek;
+        if(g.toplanti_saat)d.meeting={saat:g.toplanti_saat,yer:g.toplanti_yer||'',konu:g.toplanti_konu||''};
+        // Anket kontrolü
+        if(g.anket_aktif&&!d.anket_aktif){
+          d.anket_aktif=true;
+          const tabAnket=document.getElementById('tab-anket');
+          const nbAnket=document.getElementById('nb-anket');
+          if(tabAnket)tabAnket.style.display='block';
+          if(nbAnket){nbAnket.style.display='flex';nbAnket.style.animation='pulse 1s ease 3';}
+          renderAnket(CP.sefer);
+          showToast('Anket hazır! 📝 Lütfen doldurun.');
+        }
+        // Aktif sekmeyi yenile
+        const aktifTab=document.querySelector('.tp.active');
+        if(aktifTab){
+          if(aktifTab.id==='tab-program')renderProgramPage(CP.sefer);
+          if(aktifTab.id==='tab-yemek')renderYemekPage(CP.sefer);
+        }
+      }
+    }catch(e){}
+  }, 30000);
 }
 
 function changeKisi(type,delta){
