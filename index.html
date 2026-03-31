@@ -3742,9 +3742,17 @@ function initBildirimSefer(){
 function initRehberRaporSecim(){
   const iS=CU?.role==='super', isAcente=CU?.role==='acente', isGuide=CU?.role==='guide';
   const activeShip=isAcente||iS?ACTIVE_SHIP:CU?.ship;
-  const mv=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived');
+  // Önce gemi filtresiyle dene, boşsa tüm seferleri göster
+  let mv=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived');
+  if(!mv.length) mv=VOYAGES.filter(v=>v.status!=='archived');
   const sel=document.getElementById('rr-sefer-sel');
-  if(sel)sel.innerHTML=mv.map(v=>`<option value="${v.id}">${v.label}</option>`).join('');
+  if(sel){
+    if(mv.length){
+      sel.innerHTML=mv.map(v=>`<option value="${v.id}">${v.label} — ${v.ship||''}</option>`).join('');
+    } else {
+      sel.innerHTML='<option value="">— Sefer bulunamadı —</option>';
+    }
+  }
 }
 
 async function saveRehberRaporu(){
