@@ -3895,16 +3895,34 @@ async function anketBaslat(){
   showToast('Anket başlatıldı! Yolcular ekranında görüyor.');
 }
 
-function checkAnketGoster(sv){
+async function checkAnketGoster(sv){
   if(!CP||!sv)return;
-  // Rehber anket başlattıysa göster
-  const d=getDailyForSefer(sv);
-  if(d.anket_aktif){
-    const tabAnket=document.getElementById('tab-anket');
-    const nbAnket=document.getElementById('nb-anket');
-    if(tabAnket)tabAnket.style.display='block';
-    if(nbAnket)nbAnket.style.display='flex';
-    renderAnket(sv);
+  try{
+    // DB'den direkt oku — bellekteki veriye güvenme
+    const gunlukDB=await dbGet('gunluk',{sefer_id:sv});
+    const anketAktif=gunlukDB.length>0&&gunlukDB[0].anket_aktif===true;
+    // Belleği de güncelle
+    if(anketAktif){
+      const d=getDailyForSefer(sv);
+      d.anket_aktif=true;
+    }
+    if(anketAktif){
+      const tabAnket=document.getElementById('tab-anket');
+      const nbAnket=document.getElementById('nb-anket');
+      if(tabAnket)tabAnket.style.display='block';
+      if(nbAnket)nbAnket.style.display='flex';
+      renderAnket(sv);
+    }
+  }catch(e){
+    // Hata olursa bellekteki veriye bak
+    const d=getDailyForSefer(sv);
+    if(d.anket_aktif){
+      const tabAnket=document.getElementById('tab-anket');
+      const nbAnket=document.getElementById('nb-anket');
+      if(tabAnket)tabAnket.style.display='block';
+      if(nbAnket)nbAnket.style.display='flex';
+      renderAnket(sv);
+    }
   }
 }
 
