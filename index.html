@@ -359,6 +359,10 @@ textarea.ai2{resize:none;}
   0%,100% { transform:scale(1); }
   50%      { transform:scale(1.2); }
 }
+@keyframes countdown-flash {
+  0%,100% { opacity:1; }
+  50%      { opacity:.5; }
+}
 </style>
 
 <!-- YOLCU GİRİŞ -->
@@ -470,7 +474,7 @@ textarea.ai2{resize:none;}
 
 <!-- YOLCU UYGULAMASI -->
 <div id="sa" class="screen">
-  <div class="topbar">
+  <div class="topbar" style="padding-bottom:8px;">
     <div class="tbi">
       <div class="tbr">
         <div>
@@ -479,14 +483,17 @@ textarea.ai2{resize:none;}
           <div class="app-meta">
             <div class="app-meta-pill" id="app-date-pill">29 Mar 2026</div>
             <div class="app-meta-pill" id="app-sefer-pill">Sefer 1/4</div>
-            <div class="app-meta-pill clock" id="app-clock">00:00</div>
           </div>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+          <!-- Büyük saat -->
+          <div id="app-clock" style="font-family:'DM Serif Display',serif;font-size:28px;color:white;letter-spacing:1px;line-height:1;">00:00</div>
           <div class="tpill" id="akl">Kabin 214</div>
           <button class="lob" onclick="doLogout()">Çıkış</button>
         </div>
       </div>
+      <!-- Geri sayım şeridi -->
+      <div id="gerisayim-serit" style="margin-top:8px;display:flex;flex-direction:column;gap:5px;"></div>
     </div>
   </div>
   <div class="pc">
@@ -731,6 +738,31 @@ textarea.ai2{resize:none;}
         <button class="add-item-btn" onclick="addYemekRestoran()">+ Restoran Ekle</button>
         <button class="save-daily-btn" onclick="saveYemek()">Kaydet</button>
       </div>
+
+      <!-- GERİ SAYIM YÖNETİMİ -->
+      <div class="daily-section">
+        <div class="daily-title">⏱ Geri Sayım Göstergesi <span>Yolcu üst barında görünür</span></div>
+        <div style="font-size:12px;color:var(--t2);margin-bottom:10px;">Günlük programdan veya turlardan aktivite seçin. Yolcular kalan süreyi üstte görür.</div>
+        <div id="gerisayim-admin-liste"></div>
+        <div class="fs2" style="background:var(--bl);margin-top:8px;">
+          <div class="fst" style="color:#0c447c;margin-bottom:8px;">Yeni Geri Sayım Ekle</div>
+          <input class="ai2" type="text" id="gs-baslik" placeholder="Örn: Atina Turu, Akşam Yemeği..." style="margin-bottom:8px;">
+          <div class="two">
+            <div><label class="fl" style="margin-bottom:3px;">Hedef Saat</label><input class="ai2" type="time" id="gs-saat" style="margin:0;"></div>
+            <div><label class="fl" style="margin-bottom:3px;">Renk</label>
+              <select class="fs" id="gs-renk" style="height:40px;">
+                <option value="#1a5fa8">🔵 Mavi (tur)</option>
+                <option value="#0f6e56">🟢 Yeşil (yemek)</option>
+                <option value="#854f0b">🟠 Turuncu (önemli)</option>
+                <option value="#a32d2d">🔴 Kırmızı (acil)</option>
+                <option value="#3c3489">🟣 Mor (etkinlik)</option>
+              </select>
+            </div>
+          </div>
+          <button class="save-daily-btn" onclick="gsEkle()" style="margin-top:8px;">Geri Sayım Başlat</button>
+        </div>
+      </div>
+    </div>
     </div>
 
     <!-- TURLAR -->
@@ -1245,6 +1277,7 @@ async function initDB() {
       if(g.yemek && g.yemek.length) d.yemek = g.yemek;
       if(g.toplanti_saat) d.meeting = {saat:g.toplanti_saat,yer:g.toplanti_yer||'',konu:g.toplanti_konu||''};
       if(g.anket_aktif) d.anket_aktif = true;
+      if(g.gerisayimlar && g.gerisayimlar.length) d.gerisayimlar = g.gerisayimlar;
     });
 
     // Gazete yükle
@@ -1300,7 +1333,8 @@ async function saveDailyDB(sv) {
     toplanti_saat: d.meeting?.saat || '',
     toplanti_yer: d.meeting?.yer || '',
     toplanti_konu: d.meeting?.konu || '',
-    anket_aktif: d.anket_aktif || false
+    anket_aktif: d.anket_aktif || false,
+    gerisayimlar: d.gerisayimlar || []
   };
   if(mevcut.length > 0) {
     await dbUpdate('gunluk', {sefer_id: sv}, veri);
@@ -1450,6 +1484,8 @@ function startClock(){
   tick();
   setInterval(tick,30000);
 
+  // Geri sayım timer
+  if(CP?.sefer) startGsTimer(CP.sefer);
   // Her 30 saniyede bir anket ve günlük içerik güncelle
   setInterval(async ()=>{
     if(!CP||!CP.sefer)return;
@@ -1481,6 +1517,13 @@ function startClock(){
           if(aktifTab.id==='tab-yemek')renderYemekPage(CP.sefer);
           if(aktifTab.id==='tab-rehber')renderMesajlar(CP.sefer);
           if(aktifTab.id==='tab-turlar')renderTurAnonsPano(CP.sefer);
+        }
+        // Geri sayım DB güncelle
+        const gunlukGS=await dbGet('gunluk',{sefer_id:CP.sefer});
+        if(gunlukGS.length>0&&gunlukGS[0].gerisayimlar){
+          const d=getDailyForSefer(CP.sefer);
+          d.gerisayimlar=gunlukGS[0].gerisayimlar;
+          renderGsSerit(CP.sefer);
         }
         // Yeni mesaj kontrolü
         try{
@@ -1580,6 +1623,7 @@ function doPL(){
   renderGazete();
   renderMesajlar(sv);
   renderTurAnonsPano(sv);
+  renderGsSerit(sv);
   showScreen('sa');
   startClock();
   // Veritabanına kaydet
@@ -2395,7 +2439,7 @@ function adminTab(name){
   if(pg)pg.classList.add('active');
   if(tb)tb.classList.add('active');
   if(name==='gz')renderGazeteAdmin();
-  if(name==='gunluk')initDailyForms();
+  if(name==='gunluk'){initDailyForms();setTimeout(renderGsAdmin,200);}
   if(name==='gelecek')renderGelecekAdmin();
   if(name==='kontrol')initKontrolListesi();
   if(name==='voyago')renderVoyagoPanel();
@@ -3533,6 +3577,7 @@ async function devamEt() {
     renderGazete();
     renderMesajlar(p.sefer);
     renderTurAnonsPano(p.sefer);
+    renderGsSerit(p.sefer);
     showScreen('sa');
     startClock();
     showToast('Hoş geldiniz, ' + (p.name?p.name.split(' ')[0]:'') + '! 👋');
@@ -4166,6 +4211,116 @@ async function turAnonsSil(id){
   renderTurAnonsAdmin();
   if(CP)renderTurAnonsPano(CP.sefer);
   showToast('Anons silindi.');
+}
+
+// ══ GERİ SAYIM ══
+let gsInterval = null;
+
+function gsEkle(){
+  const baslik = document.getElementById('gs-baslik')?.value.trim();
+  const saat = document.getElementById('gs-saat')?.value;
+  const renk = document.getElementById('gs-renk')?.value || '#1a5fa8';
+  if(!baslik||!saat){showToast('Başlık ve saat gereklidir.');return;}
+  const sv = getCurrentSeferId();
+  if(!sv){showToast('Sefer seçin.');return;}
+  const d = getDailyForSefer(sv);
+  if(!d.gerisayimlar) d.gerisayimlar = [];
+  d.gerisayimlar.push({id:'gs'+Date.now(), baslik, saat, renk, aktif:true});
+  saveDailyDB(sv);
+  document.getElementById('gs-baslik').value = '';
+  renderGsAdmin();
+  renderGsSerit(CP?.sefer);
+  showToast('Geri sayım başlatıldı!');
+}
+
+function gsSil(id){
+  const sv = getCurrentSeferId();
+  if(!sv) return;
+  const d = getDailyForSefer(sv);
+  if(!d.gerisayimlar) return;
+  d.gerisayimlar = d.gerisayimlar.filter(g=>g.id!==id);
+  saveDailyDB(sv);
+  renderGsAdmin();
+  renderGsSerit(CP?.sefer);
+  showToast('Geri sayım silindi.');
+}
+
+function renderGsAdmin(){
+  const el = document.getElementById('gerisayim-admin-liste');
+  if(!el) return;
+  const sv = getCurrentSeferId();
+  if(!sv){el.innerHTML='';return;}
+  const d = getDailyForSefer(sv);
+  const liste = (d.gerisayimlar||[]).filter(g=>g.aktif);
+  if(!liste.length){el.innerHTML='<div style="font-size:12px;color:var(--t3);padding:6px 0;">Aktif geri sayım yok.</div>';return;}
+  el.innerHTML = liste.map(g=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:white;border-radius:10px;margin-bottom:6px;border-left:3px solid ${g.renk};">
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;color:var(--t);">${g.baslik}</div>
+        <div style="font-size:11px;color:var(--t2);">Hedef: ${g.saat}</div>
+      </div>
+      <div id="gs-admin-kalan-${g.id}" style="font-size:13px;font-weight:600;color:${g.renk};"></div>
+      <button onclick="gsSil('${g.id}')" style="padding:3px 9px;border-radius:20px;font-size:11px;border:1.5px solid var(--red);color:var(--red);background:transparent;cursor:pointer;">Sil</button>
+    </div>`).join('');
+}
+
+function kalanSure(hedefSaat){
+  const now = new Date();
+  const [h,m] = hedefSaat.split(':').map(Number);
+  const hedef = new Date(now);
+  hedef.setHours(h,m,0,0);
+  if(hedef <= now) hedef.setDate(hedef.getDate()+1); // ertesi gün
+  const fark = hedef - now;
+  const saatler = Math.floor(fark/3600000);
+  const dakikalar = Math.floor((fark%3600000)/60000);
+  const saniyeler = Math.floor((fark%60000)/1000);
+  return {fark, saatler, dakikalar, saniyeler,
+    metin: saatler>0 ? saatler+'s '+dakikalar+'dk' : dakikalar+'dk '+saniyeler+'sn'};
+}
+
+function renderGsSerit(sv){
+  const el = document.getElementById('gerisayim-serit');
+  if(!el||!sv) return;
+  const d = getDailyForSefer(sv);
+  const liste = (d.gerisayimlar||[]).filter(g=>g.aktif);
+  if(!liste.length){el.innerHTML='';return;}
+  el.innerHTML = liste.map(g=>{
+    const k = kalanSure(g.saat);
+    const flash = k.saatler===0&&k.dakikalar<10;
+    return `<div style="background:rgba(255,255,255,.15);border-radius:10px;padding:6px 12px;display:flex;align-items:center;gap:10px;${flash?'animation:countdown-flash 1s infinite;':''}">
+      <div style="font-size:11px;color:rgba(255,255,255,.8);flex:1;">${g.baslik}</div>
+      <div id="gs-kalan-${g.id}" style="font-size:14px;font-weight:600;color:white;background:${g.renk};padding:3px 10px;border-radius:20px;">${k.metin}</div>
+    </div>`;
+  }).join('');
+}
+
+function startGsTimer(sv){
+  if(gsInterval) clearInterval(gsInterval);
+  gsInterval = setInterval(()=>{
+    if(!sv) return;
+    const d = getDailyForSefer(sv);
+    const liste = (d.gerisayimlar||[]).filter(g=>g.aktif);
+    liste.forEach(g=>{
+      const k = kalanSure(g.saat);
+      // Yolcu şeridi
+      const el = document.getElementById('gs-kalan-'+g.id);
+      if(el){
+        el.textContent = k.metin;
+        el.style.animation = (k.saatler===0&&k.dakikalar<10)?'countdown-flash 1s infinite':'';
+      }
+      // Admin liste
+      const ael = document.getElementById('gs-admin-kalan-'+g.id);
+      if(ael) ael.textContent = k.metin;
+      // Bitince otomatik kapat
+      if(k.fark<=0){
+        g.aktif=false;
+        saveDailyDB(sv);
+        renderGsSerit(sv);
+        renderGsAdmin();
+        showToast(g.baslik+' zamanı geldi! ⏰');
+      }
+    });
+  }, 1000);
 }
 
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);}
