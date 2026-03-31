@@ -3044,36 +3044,38 @@ function startLoadingAnimation(callback) {
   const screen = document.getElementById('loading-screen');
   const countEl = document.getElementById('loading-count');
   const vehicle = document.getElementById('loading-vehicle');
-  if (!screen) { if(callback) callback(); return; }
 
   // Araç tipini rastgele seç
   const araclar = ['🚢','🚢','🚢','🚌','✈️'];
   if(vehicle) vehicle.textContent = araclar[Math.floor(Math.random()*araclar.length)];
 
-  // Geri sayım: 3 → 2 → 1 → 0
-  let sayi = 3;
-  const mesajlar = ['Hazırlanıyor...','Veriler yükleniyor...','Neredeyse hazır...','Hoş geldiniz!'];
+  function hideScreen() {
+    if(!screen) { if(callback) callback(); return; }
+    screen.style.opacity = '0';
+    screen.style.transition = 'opacity .5s ease';
+    setTimeout(() => {
+      screen.style.display = 'none';
+      if(callback) callback();
+    }, 500);
+  }
 
+  if(!screen) { if(callback) callback(); return; }
+
+  // Maksimum 4 saniye bekle — ne olursa olsun kapat
+  const maxTimer = setTimeout(() => { hideScreen(); }, 4000);
+
+  let sayi = 3;
   const interval = setInterval(() => {
     sayi--;
-    if (countEl) {
-      countEl.style.animation = 'none';
-      countEl.offsetHeight; // reflow
-      countEl.style.animation = 'fadeInDown .3s ease forwards';
+    if(countEl) {
       countEl.textContent = sayi > 0 ? sayi : '✓';
     }
-    if (sayi <= 0) {
+    if(sayi <= 0) {
       clearInterval(interval);
-      // Ekranı kapat
-      setTimeout(() => {
-        screen.style.animation = 'fadeOutScreen .6s ease forwards';
-        setTimeout(() => {
-          screen.style.display = 'none';
-          if (callback) callback();
-        }, 600);
-      }, 400);
+      clearTimeout(maxTimer);
+      setTimeout(() => { hideScreen(); }, 300);
     }
-  }, 800);
+  }, 700);
 }
 
 // ── OTOMATİK GİRİŞ ──
