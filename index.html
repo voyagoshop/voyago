@@ -807,6 +807,16 @@ textarea.ai2{resize:none;}
       <div class="wap" id="wap"><div class="wap-t">Önizleme:</div><div class="wap-b" id="wapb"></div></div>
       <button class="bwa" onclick="sendWA()"><span style="font-size:18px;">💬</span> WhatsApp Web'de Gönder</button>
       <button class="bs" onclick="sendApp()">Sadece Uygulama Bildirimi</button>
+
+      <!-- Anket başlatma -->
+      <div class="fs2" style="margin-top:14px;background:var(--pl);">
+        <div class="fst" style="color:var(--purple);">📝 Memnuniyet Anketi</div>
+        <div style="font-size:12px;color:var(--purple);margin-bottom:12px;line-height:1.5;">Bu butona bastığınızda seçili seferdeki tüm yolcuların ekranında anket belirir.</div>
+        <div class="sc3" id="anket-sefer-chips"></div>
+        <button onclick="anketBaslat()" style="width:100%;padding:12px;background:var(--purple);color:white;border:none;border-radius:12px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          📝 Anketi Başlat — Yolculara Gönder
+        </button>
+      </div>
     </div>
 
     <!-- SEFERLER -->
@@ -1175,6 +1185,7 @@ async function initDB() {
       if(g.promosyonlar && g.promosyonlar.length) d.promos = g.promosyonlar;
       if(g.yemek && g.yemek.length) d.yemek = g.yemek;
       if(g.toplanti_saat) d.meeting = {saat:g.toplanti_saat,yer:g.toplanti_yer||'',konu:g.toplanti_konu||''};
+      if(g.anket_aktif) d.anket_aktif = true;
     });
 
     // Gazete yükle
@@ -1221,7 +1232,8 @@ async function saveDailyDB(sv) {
     yemek: d.yemek || [],
     toplanti_saat: d.meeting?.saat || '',
     toplanti_yer: d.meeting?.yer || '',
-    toplanti_konu: d.meeting?.konu || ''
+    toplanti_konu: d.meeting?.konu || '',
+    anket_aktif: d.anket_aktif || false
   };
   if(mevcut.length > 0) {
     await dbUpdate('gunluk', {sefer_id: sv}, veri);
@@ -1350,6 +1362,7 @@ let GAZETE_IMGS = [];
 let REHBER_RAPORLARI_DB = [];
 let ANKETLER_DB = [];
 let KOMISYON_DB = [];
+let AKTIF_ANKET_SEFER = null; // Anket başlatıldığında set edilir
 let CU=null, CP=null, CIF='hepsi', CASF='hepsi', CTSF='hepsi', CGK2=null;
 let ACTIVE_SHIP = 'Celestyal Journey';
 let newTurImg = null;
@@ -1696,6 +1709,8 @@ function setupAdmin(){
   document.getElementById('af').innerHTML='<div class="fc active" onclick="filterPS(this,\'hepsi\')">Tümü</div>'+
     mv.map(v=>`<div class="fc" onclick="filterPS(this,'${v.id}')">${v.label.split('-')[0].trim()}</div>`).join('');
   document.getElementById('nsc').innerHTML=mv.map((v,i)=>`<div class="sch ${i===0?'active':''}" onclick="togS(this)">${v.label}</div>`).join('');
+  const anketChips=document.getElementById('anket-sefer-chips');
+  if(anketChips)anketChips.innerHTML=mv.map((v,i)=>`<div class="sch ${i===0?'active':''}" onclick="togAnketSefer(this,'${v.id}')" id="asc-${v.id}">${v.label}</div>`).join('');
   document.getElementById('tsf').innerHTML='<div class="fc active" onclick="filterTS(this,\'hepsi\')">Tümü</div>'+
     mv.map(v=>`<div class="fc" onclick="filterTS(this,'${v.id}')">${v.label.split('-')[0].trim()}</div>`).join('');
   document.getElementById('ntse').innerHTML=mv.map(v=>`<option value="${v.id}">${v.label}</option>`).join('');
@@ -3718,20 +3733,50 @@ function renderAnketRaporuAdmin(){
 }
 
 // Anket sekmesini göster (sefer son günü)
+function togAnketSefer(el,id){
+  document.querySelectorAll('#anket-sefer-chips .sch').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  AKTIF_ANKET_SEFER=id;
+}
+
+async function anketBaslat(){
+  // Seçili seferi bul
+  const aktifChip=document.querySelector('#anket-sefer-chips .sch.active');
+  const sv=AKTIF_ANKET_SEFER||(aktifChip?null:null);
+  const sefer=sv||document.querySelector('#anket-sefer-chips .sch.active')?.getAttribute('id')?.replace('asc-','');
+
+  // Aktif seferi chip'ten al
+  const chips=document.querySelectorAll('#anket-sefer-chips .sch.active');
+  let serid=null;
+  if(chips.length>0){
+    const chipText=chips[0].textContent;
+    const v=VOYAGES.find(v=>v.label.startsWith(chipText.split('-')[0].trim()));
+    serid=v?.id;
+  }
+  if(!serid){
+    // İlk aktif seferi al
+    const iS=CU?.role==='super'||CU?.role==='acente';
+    const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+    const mv=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived');
+    serid=mv[0]?.id;
+  }
+  if(!serid){showToast('Sefer bulunamadı.');return;}
+
+  // DB'ye anket aktif işaretle (gunluk tablosuna flag ekle)
+  const d=getDailyForSefer(serid);
+  d.anket_aktif=true;
+  await saveDailyDB(serid);
+
+  // Aktif anketi global'e kaydet
+  AKTIF_ANKET_SEFER=serid;
+  showToast('Anket başlatıldı! Yolcular ekranında görüyor.');
+}
+
 function checkAnketGoster(sv){
   if(!CP||!sv)return;
-  const v=VOYAGES.find(v=>v.id===sv);
-  // Tarih yoksa veya son 2 gün kaldıysa veya sefer bittiyse göster
-  let goster=false;
-  if(!v||!v.endDate){
-    goster=true; // tarih girilmemişse her zaman göster
-  } else {
-    const bugun=new Date();bugun.setHours(0,0,0,0);
-    const bitis=new Date(v.endDate);bitis.setHours(0,0,0,0);
-    const fark=Math.ceil((bitis-bugun)/(1000*60*60*24));
-    goster=(fark<=2); // son 2 gün veya bitti
-  }
-  if(goster){
+  // Rehber anket başlattıysa göster
+  const d=getDailyForSefer(sv);
+  if(d.anket_aktif){
     const tabAnket=document.getElementById('tab-anket');
     const nbAnket=document.getElementById('nb-anket');
     if(tabAnket)tabAnket.style.display='block';
