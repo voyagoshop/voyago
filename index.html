@@ -1754,7 +1754,15 @@ function renderPassTours(sv){
         <div class="th2"><div><div class="tn">${t.name}</div><span class="badge ${j?'bg':'bb'}" style="margin-top:4px;">${j?'Katiliyorum':'Katilmiyorum'}</span></div><div class="tpr">E${t.ap}</div></div>
         <div class="td">&#128205; ${t.liman} &nbsp;·&nbsp; Toplanti: ${t.saat} &nbsp;·&nbsp; ${t.gun}. gün</div>
         <div class="tpc">Toplam: <span>E${total}</span><br><span style="font-size:10px;color:var(--t3);">${det.join(' + ')}</span></div>
-        <button class="bj ${j?'joined':''}" onclick="toggleTour('${t.id}')">${j?'Katiliyorum — Iptal':'Tura Katil'}</button>
+        ${j
+          ? `<div style="display:flex;flex-direction:column;gap:6px;width:100%;">
+               <button class="bj joined" style="cursor:default;opacity:.9;">✓ Katılıyorum</button>
+               <button onclick="turIptalMesaj('${t.name}')" style="padding:8px;background:transparent;border:1.5px solid var(--border);border-radius:10px;font-size:12px;color:var(--t2);cursor:pointer;font-family:'DM Sans',sans-serif;">
+                 İptal için rehbere başvurun →
+               </button>
+             </div>`
+          : `<button class="bj" onclick="toggleTour('${t.id}')">Tura Katıl</button>`
+        }
       </div>
     </div>`;
   }).join('');
@@ -1762,11 +1770,23 @@ function renderPassTours(sv){
 
 function toggleTour(tid){
   if(!CP)return;
-  const i=CP.joinedTours.indexOf(tid);
-  if(i>=0)CP.joinedTours.splice(i,1);else CP.joinedTours.push(tid);
+  if(CP.joinedTours.includes(tid))return; // zaten katılmış, iptal yok
+  CP.joinedTours.push(tid);
   saveYolcuDB(CP);
   renderPassTours(CP.sefer);
-  showToast(i>=0?'Turdan cikildi.':'Tura katildiniz!');
+  bildirimSesi('mesaj');
+  showToast('Tura katıldınız! ✓');
+}
+
+function turIptalMesaj(turAdi){
+  // Rehber sekmesine geç ve iptal mesajı yaz
+  switchTab('rehber');
+  const input=document.getElementById('ci');
+  if(input){
+    input.value=turAdi+' turunu iptal etmek istiyorum.';
+    input.focus();
+    showToast('Mesajı göndererek rehberden iptal isteyin.');
+  }
 }
 
 // ── GAZETE ──
