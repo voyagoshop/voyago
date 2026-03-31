@@ -295,6 +295,68 @@ textarea.ai2{resize:none;}
 </head>
 <body onload="initDB()">
 
+<!-- ── LOADING EKRANI ── -->
+<div id="loading-screen" style="position:fixed;inset:0;background:linear-gradient(160deg,#0d3b6e,#1a5fa8,#2272c3);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s ease;">
+
+  <!-- Logo -->
+  <div style="text-align:center;margin-bottom:40px;">
+    <div style="font-family:'DM Serif Display',serif;font-size:42px;color:white;letter-spacing:-1px;opacity:0;animation:fadeInDown .8s ease .2s forwards;">VOYAGO</div>
+    <div style="font-size:12px;color:rgba(255,255,255,.6);letter-spacing:3px;text-transform:uppercase;margin-top:6px;opacity:0;animation:fadeInDown .8s ease .5s forwards;">Dijital Seyahat Platformu</div>
+  </div>
+
+  <!-- Animasyon sahne -->
+  <div style="width:300px;position:relative;height:80px;margin-bottom:32px;">
+    <!-- Yol çizgisi -->
+    <div style="position:absolute;bottom:18px;left:0;right:0;height:3px;background:rgba(255,255,255,.2);border-radius:2px;overflow:hidden;">
+      <div style="height:100%;background:rgba(255,255,255,.5);border-radius:2px;animation:roadAnim 2s linear infinite;width:40px;"></div>
+    </div>
+    <!-- Gemi / araç -->
+    <div id="loading-vehicle" style="position:absolute;bottom:20px;left:-60px;font-size:40px;animation:driveAnim 2.2s ease-in-out infinite;">🚢</div>
+    <!-- Dalgalar -->
+    <div style="position:absolute;bottom:6px;left:0;right:0;font-size:12px;color:rgba(255,255,255,.3);letter-spacing:4px;animation:waveAnim 1.5s ease-in-out infinite;">~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~</div>
+  </div>
+
+  <!-- Geri sayım -->
+  <div style="text-align:center;margin-bottom:20px;">
+    <div id="loading-count" style="font-size:52px;font-weight:600;color:white;font-family:'DM Serif Display',serif;line-height:1;opacity:0;animation:fadeInDown .5s ease .8s forwards;">3</div>
+    <div style="font-size:13px;color:rgba(255,255,255,.6);margin-top:8px;opacity:0;animation:fadeInDown .5s ease 1s forwards;">Hazırlanıyor...</div>
+  </div>
+
+  <!-- Nokta animasyonu -->
+  <div style="display:flex;gap:8px;opacity:0;animation:fadeInDown .5s ease 1.2s forwards;">
+    <div style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.6);animation:dotBounce 1.2s ease-in-out infinite;"></div>
+    <div style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.6);animation:dotBounce 1.2s ease-in-out .2s infinite;"></div>
+    <div style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.6);animation:dotBounce 1.2s ease-in-out .4s infinite;"></div>
+  </div>
+</div>
+
+<style>
+@keyframes fadeInDown {
+  from { opacity:0; transform:translateY(-16px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes driveAnim {
+  0%   { left:-60px; transform:scaleX(1); }
+  100% { left:320px; transform:scaleX(1); }
+}
+@keyframes roadAnim {
+  0%   { transform:translateX(-100%); }
+  100% { transform:translateX(800%); }
+}
+@keyframes waveAnim {
+  0%,100% { transform:translateX(0); }
+  50%      { transform:translateX(-8px); }
+}
+@keyframes dotBounce {
+  0%,100% { transform:translateY(0); opacity:.6; }
+  50%      { transform:translateY(-8px); opacity:1; }
+}
+@keyframes fadeOutScreen {
+  from { opacity:1; }
+  to   { opacity:0; pointer-events:none; }
+}
+</style>
+
 <!-- YOLCU GİRİŞ -->
 <div id="sl" class="screen active">
   <div style="background:linear-gradient(160deg,#0d3b6e,#1a5fa8,#2272c3);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;position:relative;">
@@ -302,7 +364,7 @@ textarea.ai2{resize:none;}
     <!-- VOYAGO logo üstte -->
     <div style="text-align:center;margin-bottom:20px;">
       <div style="font-family:'DM Serif Display',serif;font-size:36px;color:white;letter-spacing:-1px;">VOYAGO</div>
-      <div style="font-size:11px;color:rgba(255,255,255,.6);letter-spacing:2px;text-transform:uppercase;margin-top:2px;" id="login-ship-name">Celestyal Journey</div>
+      <div style="font-size:11px;color:rgba(255,255,255,.6);letter-spacing:2px;text-transform:uppercase;margin-top:2px;" id="login-ship-name"></div>
     </div>
 
     <!-- Slogan -->
@@ -1007,13 +1069,65 @@ async function initDB() {
       ship: t.gemi || '', seferler: t.sefer_listesi || [], img: t.gorsel || null
     }));
 
+    // Günlük içerikleri yükle
+    const gunlukDB = await dbGet('gunluk');
+    gunlukDB.forEach(g => {
+      if(!DAILY[g.sefer_id]) DAILY[g.sefer_id] = getDailyForSefer(g.sefer_id);
+      const d = DAILY[g.sefer_id];
+      if(g.liman_ad) d.port = {name:g.liman_ad,country:g.liman_ulke||'',arival:g.varis||'',depart:g.ayrilik||''};
+      if(g.program && g.program.length) d.program = g.program;
+      if(g.promosyonlar && g.promosyonlar.length) d.promos = g.promosyonlar;
+      if(g.yemek && g.yemek.length) d.yemek = g.yemek;
+      if(g.toplanti_saat) d.meeting = {saat:g.toplanti_saat,yer:g.toplanti_yer||'',konu:g.toplanti_konu||''};
+    });
+
     DB_READY = true;
     console.log('Veritabani hazir!');
     populateSeferler();
   } catch(e) {
     console.error('DB init hatasi:', e);
-    DB_READY = true; // hata olsa da devam et
+    DB_READY = true;
     populateSeferler();
+  }
+}
+
+async function saveDailyDB(sv) {
+  if(!sv) return;
+  const d = getDailyForSefer(sv);
+  const mevcut = await dbGet('gunluk', {sefer_id: sv});
+  const veri = {
+    sefer_id: sv,
+    liman_ad: d.port?.name || '',
+    liman_ulke: d.port?.country || '',
+    varis: d.port?.arival || '',
+    ayrilik: d.port?.depart || '',
+    program: d.program || [],
+    promosyonlar: d.promos || [],
+    yemek: d.yemek || [],
+    toplanti_saat: d.meeting?.saat || '',
+    toplanti_yer: d.meeting?.yer || '',
+    toplanti_konu: d.meeting?.konu || ''
+  };
+  if(mevcut.length > 0) {
+    await dbUpdate('gunluk', {sefer_id: sv}, veri);
+  } else {
+    await dbInsert('gunluk', veri);
+  }
+}
+
+async function saveTurDB(tur) {
+  const mevcut = await dbGet('turlar', {id: tur.id});
+  const veri = {
+    id: tur.id, ad: tur.name, liman: tur.liman,
+    saat: tur.saat, gun: tur.gun,
+    fiyat_yetiskin: tur.ap, fiyat_cocuk: tur.cp, fiyat_bebek: tur.bp,
+    gemi: tur.ship, sefer_listesi: tur.seferler,
+    gorsel: tur.img || null, acente_id: getMyAcente()
+  };
+  if(mevcut.length > 0) {
+    await dbUpdate('turlar', {id: tur.id}, veri);
+  } else {
+    await dbInsert('turlar', veri);
   }
 }
 
@@ -1215,6 +1329,14 @@ function doPL(){
   startClock();
   // Veritabanına kaydet
   saveYolcuDB(p);
+  // Tarayıcıya kaydet — bir sonraki ziyarette otomatik giriş
+  try {
+    localStorage.setItem('voyago_yolcu', JSON.stringify({
+      name: p.name, kabin: p.kabin, tel: p.tel,
+      sefer: p.sefer, adult: p.adult, child: p.child, baby: p.baby,
+      code: document.getElementById('cc').value
+    }));
+  } catch(e) {}
   if(isFirst) showToast('Check-in yapildi! Hos geldiniz, '+name.split(' ')[0]+'!');
   else showToast('Hos geldiniz, '+name.split(' ')[0]+'!');
 }
@@ -1311,6 +1433,7 @@ function toggleTour(tid){
   if(!CP)return;
   const i=CP.joinedTours.indexOf(tid);
   if(i>=0)CP.joinedTours.splice(i,1);else CP.joinedTours.push(tid);
+  saveYolcuDB(CP);
   renderPassTours(CP.sefer);
   showToast(i>=0?'Turdan cikildi.':'Tura katildiniz!');
 }
@@ -1548,6 +1671,8 @@ function savePort(){
   d.port.country=document.getElementById('port-country').value.trim();
   d.port.arival=document.getElementById('port-arival').value;
   d.port.depart=document.getElementById('port-depart').value;
+  saveDailyDB(sv);
+  saveDailyDB(sv);
   if(CP&&CP.sefer===sv)renderProgramPage(sv);
   showToast('Liman bilgisi kaydedildi!');
 }
@@ -1557,6 +1682,7 @@ function saveMeeting(){
   const d=getDailyForSefer(sv);
   d.meeting={saat:document.getElementById('m-saat').value,yer:document.getElementById('m-yer').value.trim(),konu:document.getElementById('m-konu').value.trim()};
   MEETING=d.meeting;
+  saveDailyDB(sv);
   if(CP&&CP.sefer===sv)renderProgramPage(sv);
   showToast('Toplanti bilgisi misafire gönderildi!');
 }
@@ -1598,6 +1724,7 @@ function saveProgram(){
   });
   d.program=items;
   programItems=items;
+  saveDailyDB(sv);
   if(CP&&CP.sefer===sv)renderProgramPage(sv);
   showToast('Program kaydedildi!');
 }
@@ -1628,6 +1755,7 @@ function savePromos(){
     if(title)items.push({pct,title,sub});
   });
   d.promos=items;promoItems=items;
+  saveDailyDB(sv);
   if(CP&&CP.sefer===sv)renderProgramPage(sv);
   showToast('Promosyonlar kaydedildi!');
 }
@@ -1677,6 +1805,7 @@ function saveYemek(){
   });
   const d=getDailyForSefer(sv);
   d.yemek=yemekData;
+  saveDailyDB(sv);
   if(CP&&CP.sefer===sv)renderYemekPage(sv);
   showToast('Yemek saatleri kaydedildi!');
 }
@@ -1724,7 +1853,7 @@ function renderPS(s){
   }).join('');
 }
 function toggleCI(kabin,sefer){const p=passengers.find(p=>p.kabin===kabin&&p.sefer===sefer);if(p){p.checkedIn=!p.checkedIn;renderPS(CASF);saveYolcuDB(p);showToast(p.checkedIn?'Check-in yapildi':'Geri alindi');}}
-function deletePassenger(kabin,sefer){if(!confirm('Silinsin mi?'))return;const i=passengers.findIndex(p=>p.kabin===kabin&&p.sefer===sefer);if(i>=0){passengers.splice(i,1);renderPS(CASF);showToast('Silindi.');}}
+function deletePassenger(kabin,sefer){if(!confirm('Silinsin mi?'))return;const i=passengers.findIndex(p=>p.kabin===kabin&&p.sefer===sefer);if(i>=0){passengers.splice(i,1);dbDelete('yolcular',{kabin,sefer_id:sefer});renderPS(CASF);showToast('Silindi.');}}
 function addPassenger(){
   const name=document.getElementById('ye-name').value.trim();
   const kabin=document.getElementById('ye-kabin').value.trim();
@@ -1802,7 +1931,7 @@ function renderTA(s){
   }).join('') || '<div class="es">Tur bulunamadi.</div>';
 }
 function editTurImg(input,tid){const f=input.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{const t=TOURS.find(t=>t.id===tid);if(t)t.img=e.target.result;renderTA(CTSF);showToast('Görsel güncellendi');};r.readAsDataURL(f);}
-function deleteTour(tid){if(!confirm('Silinsin mi?'))return;const i=TOURS.findIndex(t=>t.id===tid);if(i>=0){TOURS.splice(i,1);renderTA(CTSF);showToast('Tur silindi.');}}
+function deleteTour(tid){if(!confirm('Silinsin mi?'))return;const i=TOURS.findIndex(t=>t.id===tid);if(i>=0){TOURS.splice(i,1);dbDelete('turlar',{id:tid});renderTA(CTSF);showToast('Tur silindi.');}}
 function previewTurImg(input){const f=input.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{newTurImg=e.target.result;document.getElementById('tur-img-preview').innerHTML=`<img src="${e.target.result}" style="width:100%;height:70px;object-fit:cover;border-radius:8px;">`;};r.readAsDataURL(f);}
 function addTour(){
   const name=document.getElementById('ntn').value.trim();
@@ -1821,6 +1950,9 @@ function addTour(){
   document.getElementById('ntn').value='';document.getElementById('ntl').value='';
   document.getElementById('nta').value='';document.getElementById('ntc').value='';document.getElementById('ntb').value='';
   document.getElementById('tur-img-preview').innerHTML='📷 Görsel ekle';
+  const yeniTur=TOURS[TOURS.length-1];
+  saveTurDB(yeniTur);
+  saveTurDB(TOURS[TOURS.length-1]);
   renderTA(CTSF);
   const allT=TOURS.filter(t=>t.ship===activeShip);
   document.getElementById('tur-ekle-tur').innerHTML=allT.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
@@ -2905,6 +3037,101 @@ function copyRehberRaporu(guideKey){
   }catch(e){
     navigator.clipboard?.writeText(txt).then(()=>showToast('Rapor kopyalandı!')).catch(()=>showToast('Kopyalanamadı.'));
   }
+}
+
+// ── LOADING ANİMASYONU ──
+function startLoadingAnimation(callback) {
+  const screen = document.getElementById('loading-screen');
+  const countEl = document.getElementById('loading-count');
+  const vehicle = document.getElementById('loading-vehicle');
+  if (!screen) { if(callback) callback(); return; }
+
+  // Araç tipini rastgele seç
+  const araclar = ['🚢','🚢','🚢','🚌','✈️'];
+  if(vehicle) vehicle.textContent = araclar[Math.floor(Math.random()*araclar.length)];
+
+  // Geri sayım: 3 → 2 → 1 → 0
+  let sayi = 3;
+  const mesajlar = ['Hazırlanıyor...','Veriler yükleniyor...','Neredeyse hazır...','Hoş geldiniz!'];
+
+  const interval = setInterval(() => {
+    sayi--;
+    if (countEl) {
+      countEl.style.animation = 'none';
+      countEl.offsetHeight; // reflow
+      countEl.style.animation = 'fadeInDown .3s ease forwards';
+      countEl.textContent = sayi > 0 ? sayi : '✓';
+    }
+    if (sayi <= 0) {
+      clearInterval(interval);
+      // Ekranı kapat
+      setTimeout(() => {
+        screen.style.animation = 'fadeOutScreen .6s ease forwards';
+        setTimeout(() => {
+          screen.style.display = 'none';
+          if (callback) callback();
+        }, 600);
+      }, 400);
+    }
+  }, 800);
+}
+
+// ── OTOMATİK GİRİŞ ──
+function autoLogin() {
+  try {
+    const kayit = localStorage.getItem('voyago_yolcu');
+    if (!kayit) return;
+    const p = JSON.parse(kayit);
+    if (!p || !p.kabin || !p.sefer) return;
+
+    // Sefer hâlâ görünür mü kontrol et
+    const v = VOYAGES.find(v => v.id === p.sefer && v.visible && v.status !== 'archived');
+    if (!v) { localStorage.removeItem('voyago_yolcu'); return; }
+
+    // Yolcuyu bellekte oluştur
+    let yolcu = passengers.find(px => px.kabin === p.kabin && px.sefer === p.sefer);
+    if (!yolcu) {
+      yolcu = {name:p.name, kabin:p.kabin, tel:p.tel, sefer:p.sefer,
+        adult:p.adult||1, child:p.child||0, baby:p.baby||0,
+        checkedIn:true, checkinDone:true, joinedTours:[]};
+      passengers.push(yolcu);
+    }
+    CP = yolcu;
+
+    // Ekranı güncelle
+    document.getElementById('akl').textContent = 'Kabin ' + p.kabin;
+    document.getElementById('app-ship-name').textContent = v.ship || '';
+    const now = new Date();
+    document.getElementById('app-date-pill').textContent = now.toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'});
+    const visVoyages = VOYAGES.filter(vv=>vv.visible&&vv.status!=='archived'&&vv.ship===v.ship);
+    const myIdx = visVoyages.findIndex(vv=>vv.id===p.sefer)+1;
+    document.getElementById('app-sefer-pill').textContent = 'Sefer '+myIdx+'/'+visVoyages.length;
+
+    if (USERS[v.guide]) {
+      const g = USERS[v.guide];
+      document.getElementById('agn').textContent = g.name;
+      document.getElementById('aga').textContent = g.initials || g.name.slice(0,2).toUpperCase();
+      document.getElementById('aga').style.background = g.color || '#1a5fa8';
+    }
+
+    renderPassTours(p.sefer);
+    renderProgramPage(p.sefer);
+    renderYemekPage(p.sefer);
+    renderGazete();
+    showScreen('sa');
+    startClock();
+    console.log('Otomatik giris: ' + p.name);
+  } catch(e) {
+    console.error('autoLogin hatasi:', e);
+    localStorage.removeItem('voyago_yolcu');
+  }
+}
+
+// Çıkış yapınca localStorage temizle
+const _origLogout = doLogout;
+function doLogout() {
+  try { localStorage.removeItem('voyago_yolcu'); } catch(e) {}
+  CP = null; CU = null; showScreen('sl');
 }
 
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);}
