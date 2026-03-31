@@ -174,8 +174,9 @@ body{font-family:'DM Sans',sans-serif;background:#f0f4f8;color:var(--t);min-heig
 .ship-selector{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
 .ship-chip{padding:7px 16px;border:1.5px solid var(--border);border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;color:var(--t2);background:white;transition:all .2s;}
 .ship-chip.active{border-color:var(--blue);background:var(--blue);color:white;}
-.atsw{display:flex;background:white;border-radius:12px;padding:4px;margin-bottom:14px;box-shadow:var(--sh);gap:2px;flex-wrap:wrap;}
-.att{flex:1;min-width:48px;padding:7px 3px;border:none;background:transparent;font-size:10px;font-weight:500;font-family:'DM Sans',sans-serif;color:var(--t2);border-radius:8px;cursor:pointer;transition:all .2s;white-space:nowrap;text-align:center;}
+.atsw{display:grid;grid-template-columns:repeat(6,1fr);background:white;border-radius:14px;padding:6px;margin-bottom:14px;box-shadow:var(--sh);gap:3px;}
+.att{padding:7px 2px 5px;border:none;background:transparent;font-size:9px;font-weight:500;font-family:'DM Sans',sans-serif;color:var(--t2);border-radius:8px;cursor:pointer;transition:all .2s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.2;}
+.att .aico{font-size:18px;line-height:1;}
 .att.active{background:var(--blue);color:white;}
 .apg{display:none;}.apg.active{display:block;}
 .sf{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
@@ -584,22 +585,22 @@ textarea.ai2{resize:none;}
     </div>
     <div class="rs"><div class="rsb rsg" id="rbe">🧭 Rehber</div><p id="rde">Kendi seferlerinizi yönetebilirsiniz.</p></div>
     <div class="atsw">
-      <button class="att" id="atab-voyago" onclick="adminTab('voyago')" style="display:none;background:#26215c;color:white;">VOYAGO</button>
-      <button class="att active" id="atab-ci" onclick="adminTab('ci')">Check-in</button>
-      <button class="att" id="atab-gunluk" onclick="adminTab('gunluk')">Günlük</button>
-      <button class="att" id="atab-tur" onclick="adminTab('tur')">Turlar</button>
-      <button class="att" id="atab-gz" onclick="adminTab('gz')">Gazete</button>
-      <button class="att" id="atab-gelecek" onclick="adminTab('gelecek')">Fırsatlar</button>
-      <button class="att" id="atab-kontrol" onclick="adminTab('kontrol')">Tur Listesi</button>
-      <button class="att" id="atab-rehrapor" onclick="adminTab('rehrapor')">Raporlar</button>
-      <button class="att" id="atab-komisyon" onclick="adminTab('komisyon')">Komisyon</button>
-      <button class="att" id="atab-mesaj" onclick="adminTab('mesaj')">Mesajlar</button>
-      <button class="att" id="atab-turanons" onclick="adminTab('turanons')">Tur Anonsu</button>
-      <button class="att" id="atab-bil" onclick="adminTab('bil')">Bildirim</button>
-      <button class="att" id="atab-sef" onclick="adminTab('sef')">Seferler</button>
-      <button class="att" id="atab-reh" onclick="adminTab('reh')" style="display:none;">Rehberler</button>
-      <button class="att" id="atab-gemiler" onclick="adminTab('gemiler')" style="display:none;">Gemiler/Turlar</button>
-      <button class="att" id="atab-rapor" onclick="adminTab('rapor')" style="display:none;">Raporlar</button>
+      <button class="att" id="atab-voyago" onclick="adminTab('voyago')" style="display:none;background:#26215c;color:white;"><span class="aico">🌐</span>VOYAGO</button>
+      <button class="att active" id="atab-ci" onclick="adminTab('ci')"><span class="aico">✅</span>Check-in</button>
+      <button class="att" id="atab-gunluk" onclick="adminTab('gunluk')"><span class="aico">📅</span>Günlük</button>
+      <button class="att" id="atab-tur" onclick="adminTab('tur')"><span class="aico">🗺️</span>Turlar</button>
+      <button class="att" id="atab-gz" onclick="adminTab('gz')"><span class="aico">📰</span>Gazete</button>
+      <button class="att" id="atab-gelecek" onclick="adminTab('gelecek')"><span class="aico">🌟</span>Fırsatlar</button>
+      <button class="att" id="atab-kontrol" onclick="adminTab('kontrol')"><span class="aico">📋</span>Tur Listesi</button>
+      <button class="att" id="atab-rehrapor" onclick="adminTab('rehrapor')"><span class="aico">📝</span>Raporlar</button>
+      <button class="att" id="atab-komisyon" onclick="adminTab('komisyon')"><span class="aico">💰</span>Komisyon</button>
+      <button class="att" id="atab-mesaj" onclick="adminTab('mesaj')"><span class="aico">💬</span>Mesajlar</button>
+      <button class="att" id="atab-turanons" onclick="adminTab('turanons')"><span class="aico">📢</span>Tur Anonsu</button>
+      <button class="att" id="atab-bil" onclick="adminTab('bil')"><span class="aico">🔔</span>Bildirim</button>
+      <button class="att" id="atab-sef" onclick="adminTab('sef')"><span class="aico">🚢</span>Seferler</button>
+      <button class="att" id="atab-reh" onclick="adminTab('reh')" style="display:none;"><span class="aico">🧭</span>Rehberler</button>
+      <button class="att" id="atab-gemiler" onclick="adminTab('gemiler')" style="display:none;"><span class="aico">⚓</span>Gemiler</button>
+      <button class="att" id="atab-rapor" onclick="adminTab('rapor')" style="display:none;"><span class="aico">📊</span>Raporlar</button>
     </div>
 
     <!-- VOYAGO APP PANELİ -->
