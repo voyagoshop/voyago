@@ -1530,6 +1530,7 @@ function startClock(){
           const yeniMesajlar=await dbGet('mesajlar',{sefer_id:CP.sefer});
           const filtred=yeniMesajlar.filter(m=>!m.silindi);
           if(filtred.length>MESAJLAR_DB.length){
+            bildirimSesi('mesaj');
             MESAJLAR_DB=filtred;
             renderMesajlar(CP.sefer);
             // Yeni tur anonsu var mı?
@@ -1538,7 +1539,7 @@ function startClock(){
             if(yeniAnons.length!==TUR_ANONS_DB.length){
               TUR_ANONS_DB=yeniAnons;
               renderTurAnonsPano(CP.sefer);
-              if(yeniAnons.length>0)showToast('Yeni tur anonsu geldi! 📢');
+              if(yeniAnons.length>0){bildirimSesi('duyuru');showToast('Yeni tur anonsu geldi! 📢');}
             }
           }
         }catch(e){}
@@ -4317,10 +4318,60 @@ function startGsTimer(sv){
         saveDailyDB(sv);
         renderGsSerit(sv);
         renderGsAdmin();
+        bildirimSesi('gerisayim');
         showToast(g.baslik+' zamanı geldi! ⏰');
       }
     });
   }, 1000);
+}
+
+// ══ BİLDİRİM SESİ ══
+function bildirimSesi(tip='mesaj'){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    if(tip==='mesaj'){
+      // İki nota — ding dong
+      osc.frequency.setValueAtTime(880,ctx.currentTime);
+      osc.frequency.setValueAtTime(660,ctx.currentTime+0.15);
+      gain.gain.setValueAtTime(0.3,ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime+0.5);
+    } else if(tip==='duyuru'){
+      // Üç nota — önemli duyuru
+      osc.frequency.setValueAtTime(523,ctx.currentTime);
+      osc.frequency.setValueAtTime(659,ctx.currentTime+0.15);
+      osc.frequency.setValueAtTime(784,ctx.currentTime+0.30);
+      gain.gain.setValueAtTime(0.3,ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.6);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime+0.6);
+    } else if(tip==='anket'){
+      // Yumuşak tek nota
+      osc.frequency.setValueAtTime(440,ctx.currentTime);
+      gain.gain.setValueAtTime(0.2,ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.4);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime+0.4);
+    } else if(tip==='gerisayim'){
+      // Alarm — kısa tekrarlı
+      [0,0.2,0.4].forEach(t=>{
+        const o2=ctx.createOscillator();
+        const g2=ctx.createGain();
+        o2.connect(g2);g2.connect(ctx.destination);
+        o2.frequency.setValueAtTime(1000,ctx.currentTime+t);
+        g2.gain.setValueAtTime(0.3,ctx.currentTime+t);
+        g2.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+t+0.15);
+        o2.start(ctx.currentTime+t);
+        o2.stop(ctx.currentTime+t+0.15);
+      });
+    }
+  }catch(e){}
 }
 
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);}
