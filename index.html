@@ -1267,7 +1267,7 @@ async function initDB() {
 
     // Tur anonsları yükle
     const turAnonsDB = await dbGet('tur_anons');
-    TUR_ANONS_DB = turAnonsDB.filter(a=>a.aktif);
+    TUR_ANONS_DB = turAnonsDB.filter(a=>a.aktif!==false);
 
     DB_READY = true;
     console.log('Veritabani hazir!');
@@ -1485,7 +1485,8 @@ function startClock(){
             MESAJLAR_DB=filtred;
             renderMesajlar(CP.sefer);
             // Yeni tur anonsu var mı?
-            const yeniAnons=await dbGet('tur_anons',{sefer_id:CP.sefer,aktif:true});
+            const yeniAnonsAll=await dbGet('tur_anons',{sefer_id:CP.sefer});
+            const yeniAnons=yeniAnonsAll.filter(a=>a.aktif!==false);
             if(yeniAnons.length!==TUR_ANONS_DB.length){
               TUR_ANONS_DB=yeniAnons;
               renderTurAnonsPano(CP.sefer);
@@ -4116,7 +4117,7 @@ function renderTurAnonsAdmin(){
 function renderTurAnonsPano(sv){
   const el=document.getElementById('tur-anons-pano');
   if(!el)return;
-  const anonslar=TUR_ANONS_DB.filter(a=>a.sefer_id===sv&&a.aktif);
+  const anonslar=TUR_ANONS_DB.filter(a=>a.sefer_id===sv&&a.aktif!==false);
   if(!anonslar.length){el.innerHTML='';return;}
   el.innerHTML=anonslar.map(a=>`
     <div style="background:linear-gradient(135deg,#854f0b,#c47a1a);border-radius:16px;padding:16px;margin-bottom:14px;color:white;box-shadow:0 4px 20px rgba(133,79,11,.3);">
