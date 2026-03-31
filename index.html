@@ -6,6 +6,7 @@
 <title>VOYAGO</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --blue:#1a5fa8;--bl:#e8f1fb;--green:#0f6e56;--gl:#e1f5ee;
@@ -292,7 +293,7 @@ textarea.ai2{resize:none;}
 .meeting-admin-title{font-size:13px;font-weight:600;color:var(--red);margin-bottom:10px;}
 </style>
 </head>
-<body>
+<body onload="initDB()">
 
 <!-- YOLCU GİRİŞ -->
 <div id="sl" class="screen active">
@@ -910,6 +911,177 @@ textarea.ai2{resize:none;}
 </div>
 
 <script>
+// ── SUPABASE BAĞLANTISI ──
+const SUPABASE_URL = 'https://mvltmnysiujelphcijls.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12bHRtbnlzaXVqZWxwaGNpamxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDg2OTEsImV4cCI6MjA5MDUyNDY5MX0.6UlF08KiujhUIT8inGvU1oicxbcgTtBa2t79GgrzWOU';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── VERİTABANI YARDIMCI FONKSİYONLARI ──
+async function dbGet(tablo, filtre = {}) {
+  let q = sb.from(tablo).select('*');
+  Object.entries(filtre).forEach(([k,v]) => { q = q.eq(k, v); });
+  const { data, error } = await q;
+  if (error) { console.error(tablo, error); return []; }
+  return data || [];
+}
+
+async function dbInsert(tablo, veri) {
+  const { data, error } = await sb.from(tablo).insert(veri).select();
+  if (error) { console.error('insert', tablo, error); return null; }
+  return data?.[0] || null;
+}
+
+async function dbUpdate(tablo, filtre, veri) {
+  let q = sb.from(tablo).update(veri);
+  Object.entries(filtre).forEach(([k,v]) => { q = q.eq(k, v); });
+  const { error } = await q;
+  if (error) console.error('update', tablo, error);
+  return !error;
+}
+
+async function dbDelete(tablo, filtre) {
+  let q = sb.from(tablo).delete();
+  Object.entries(filtre).forEach(([k,v]) => { q = q.eq(k, v); });
+  const { error } = await q;
+  if (error) console.error('delete', tablo, error);
+  return !error;
+}
+
+// ── UYGULAMA BAŞLANGIÇ ──
+let DB_READY = false;
+
+async function initDB() {
+  try {
+    // Kullanıcıları yükle
+    const kullanicilar = await dbGet('kullanicilar');
+    kullanicilar.forEach(u => {
+      USERS[u.kullanici_adi] = {
+        pass: u.sifre,
+        role: u.rol,
+        name: u.ad,
+        ship: u.gemi || '',
+        acente: u.acente_id || '',
+        initials: u.initials || u.ad.slice(0,2).toUpperCase(),
+        color: u.renk || '#1a5fa8'
+      };
+    });
+
+    // Acenteleri yükle
+    const acentelerDB = await dbGet('acenteler');
+    acentelerDB.forEach(a => {
+      ACENTELER[a.anahtar] = {
+        name: a.ad, num: a.numara, city: a.sehir,
+        tel: a.telefon, note: a.not_, user: a.kullanici_adi,
+        pass: a.sifre, active: a.aktif,
+        createdAt: a.olusturma?.slice(0,10) || ''
+      };
+      if (!GEMILER[a.anahtar]) GEMILER[a.anahtar] = [];
+      if (!TUR_URUNLERI[a.anahtar]) TUR_URUNLERI[a.anahtar] = [];
+    });
+
+    // Seferleri yükle
+    const seferlerDB = await dbGet('seferler');
+    VOYAGES = seferlerDB.map(s => ({
+      id: s.id, label: s.etiket, route: s.guzergah || '',
+      ship: s.gemi || '', guide: s.rehber_adi || '',
+      status: s.durum || 'active', visible: s.gorunur !== false,
+      startDate: s.baslangic || '', endDate: s.bitis || ''
+    }));
+
+    // Yolcuları yükle
+    const yolcularDB = await dbGet('yolcular');
+    passengers = yolcularDB.map(y => ({
+      name: y.ad, kabin: y.kabin, tel: y.telefon || '',
+      sefer: y.sefer_id || '', adult: y.yetiskin || 1,
+      child: y.cocuk || 0, baby: y.bebek || 0,
+      checkedIn: y.checkin || false, checkinDone: y.checkin_yapildi || false,
+      joinedTours: y.katildigi_turlar || []
+    }));
+
+    // Turları yükle
+    const turlarDB = await dbGet('turlar');
+    TOURS = turlarDB.map(t => ({
+      id: t.id, name: t.ad, liman: t.liman || '',
+      saat: t.saat || '', gun: t.gun || 1,
+      ap: t.fiyat_yetiskin || 0, cp: t.fiyat_cocuk || 0, bp: t.fiyat_bebek || 0,
+      ship: t.gemi || '', seferler: t.sefer_listesi || [], img: t.gorsel || null
+    }));
+
+    DB_READY = true;
+    console.log('Veritabani hazir!');
+    populateSeferler();
+  } catch(e) {
+    console.error('DB init hatasi:', e);
+    DB_READY = true; // hata olsa da devam et
+    populateSeferler();
+  }
+}
+
+// ── DB KAYIT FONKSİYONLARI ──
+async function saveYolcuDB(p) {
+  const mevcut = await dbGet('yolcular', { kabin: p.kabin, sefer_id: p.sefer });
+  if (mevcut.length > 0) {
+    await dbUpdate('yolcular', { kabin: p.kabin, sefer_id: p.sefer }, {
+      ad: p.name, telefon: p.tel,
+      yetiskin: p.adult, cocuk: p.child, bebek: p.baby,
+      checkin: p.checkedIn, checkin_yapildi: p.checkinDone,
+      katildigi_turlar: p.joinedTours
+    });
+  } else {
+    await dbInsert('yolcular', {
+      ad: p.name, kabin: p.kabin, telefon: p.tel,
+      sefer_id: p.sefer, yetiskin: p.adult,
+      cocuk: p.child, bebek: p.baby,
+      checkin: p.checkedIn, checkin_yapildi: p.checkinDone,
+      katildigi_turlar: p.joinedTours
+    });
+  }
+}
+
+async function saveSeferDB(v) {
+  const mevcut = await dbGet('seferler', { id: v.id });
+  if (mevcut.length > 0) {
+    await dbUpdate('seferler', { id: v.id }, {
+      etiket: v.label, guzergah: v.route, gemi: v.ship,
+      rehber_adi: v.guide, durum: v.status, gorunur: v.visible
+    });
+  } else {
+    await dbInsert('seferler', {
+      id: v.id, etiket: v.label, guzergah: v.route,
+      gemi: v.ship, rehber_adi: v.guide, durum: v.status,
+      gorunur: v.visible, baslangic: v.startDate || null, bitis: v.endDate || null
+    });
+  }
+}
+
+async function saveAcenteDB(key, ac) {
+  const mevcut = await dbGet('acenteler', { anahtar: key });
+  const veri = {
+    anahtar: key, ad: ac.name, numara: ac.num,
+    sehir: ac.city, telefon: ac.tel, not_: ac.note,
+    kullanici_adi: ac.user, sifre: ac.pass, aktif: true
+  };
+  if (mevcut.length > 0) {
+    await dbUpdate('acenteler', { anahtar: key }, veri);
+  } else {
+    await dbInsert('acenteler', veri);
+  }
+}
+
+async function saveKullaniciDB(key, u) {
+  const mevcut = await dbGet('kullanicilar', { kullanici_adi: key });
+  const veri = {
+    kullanici_adi: key, sifre: u.pass, rol: u.role,
+    ad: u.name, gemi: u.ship || '', acente_id: u.acente || '',
+    initials: u.initials || '', renk: u.color || ''
+  };
+  if (mevcut.length > 0) {
+    await dbUpdate('kullanicilar', { kullanici_adi: key }, veri);
+  } else {
+    await dbInsert('kullanicilar', veri);
+  }
+}
+
 const SHIPS = ['Celestyal Journey','Celestyal Discovery','Celestyal Constellation'];
 const USERS = {
   voyago:  {pass:'voyago2024',role:'voyago',name:'VOYAGO App',acente:'voyago'},
@@ -1041,6 +1213,8 @@ function doPL(){
   renderGazete();
   showScreen('sa');
   startClock();
+  // Veritabanına kaydet
+  saveYolcuDB(p);
   if(isFirst) showToast('Check-in yapildi! Hos geldiniz, '+name.split(' ')[0]+'!');
   else showToast('Hos geldiniz, '+name.split(' ')[0]+'!');
 }
@@ -1322,7 +1496,7 @@ function selectShipIdx(i){ACTIVE_SHIP=SHIPS[i];setupAdmin();}
 // ── SEFER GÖRÜNÜRLÜK ──
 function toggleVoyageVisible(id){
   const v=VOYAGES.find(v=>v.id===id);
-  if(v){v.visible=!v.visible;setupAdmin();populateSeferler();showToast(v.visible?'Sefer misafire görünür.':'Sefer gizlendi.');}
+  if(v){v.visible=!v.visible;saveSeferDB(v);setupAdmin();populateSeferler();showToast(v.visible?'Sefer misafire görünür.':'Sefer gizlendi.');}
 }
 function archiveVoyage(id){
   if(!confirm('Bu sefer arsivlensin mi?'))return;
@@ -1549,7 +1723,7 @@ function renderPS(s){
     </div>`;
   }).join('');
 }
-function toggleCI(kabin,sefer){const p=passengers.find(p=>p.kabin===kabin&&p.sefer===sefer);if(p){p.checkedIn=!p.checkedIn;renderPS(CASF);showToast(p.checkedIn?'Check-in yapildi':'Geri alindi');}}
+function toggleCI(kabin,sefer){const p=passengers.find(p=>p.kabin===kabin&&p.sefer===sefer);if(p){p.checkedIn=!p.checkedIn;renderPS(CASF);saveYolcuDB(p);showToast(p.checkedIn?'Check-in yapildi':'Geri alindi');}}
 function deletePassenger(kabin,sefer){if(!confirm('Silinsin mi?'))return;const i=passengers.findIndex(p=>p.kabin===kabin&&p.sefer===sefer);if(i>=0){passengers.splice(i,1);renderPS(CASF);showToast('Silindi.');}}
 function addPassenger(){
   const name=document.getElementById('ye-name').value.trim();
@@ -1560,7 +1734,9 @@ function addPassenger(){
   if(passengers.find(p=>p.kabin===kabin&&p.sefer===sefer)){showToast('Bu kabin zaten kayitli.');return;}
   passengers.push({name,kabin,tel,sefer,adult:adminKisi.ya,child:adminKisi.yc,baby:adminKisi.yb,checkedIn:false,checkinDone:false,joinedTours:[]});
   document.getElementById('ye-name').value='';document.getElementById('ye-kabin').value='';document.getElementById('ye-tel').value='';
-  renderPS(CASF);showToast(name+' eklendi!');
+  renderPS(CASF);
+  saveYolcuDB(passengers[passengers.length-1]);
+  showToast(name+' eklendi!');
 }
 
 // ── EXCEL ──
@@ -1720,6 +1896,8 @@ function addVoyage(){
   const startDate=document.getElementById('nvs').value;
   const endDate=document.getElementById('nve').value;
   VOYAGES.push({id:'v'+Date.now(),label,route,ship,guide,status:'active',visible:true,startDate,endDate});
+  const yeniV=VOYAGES[VOYAGES.length-1];
+  saveSeferDB(yeniV);
   populateSeferler();setupAdmin();showToast('Sefer eklendi!');
 }
 
@@ -1790,6 +1968,7 @@ function addGuide(){
   document.getElementById('ngn').value='';
   document.getElementById('ngu').value='';
   document.getElementById('ngp').value='';
+  saveKullaniciDB(user, USERS[user]);
   renderGuides();
   showToast(name+' eklendi!');
 }
@@ -2244,6 +2423,8 @@ function saveAcente(key){
   const userKey=ac.user||key;
   const u=USERS[userKey];
   if(u){u.name=name;u.tel=tel;u.city=city;u.pass=pass;u.note=note;}
+  saveAcenteDB(key, ac);
+  if(u) saveKullaniciDB(ac.user||key, u);
   renderVoyagoPanel();
   setTimeout(()=>{
     const d=document.getElementById('detay-'+key);
@@ -2316,8 +2497,11 @@ function addAcente(){
   REHBER_NOTLARI[user]=[];
   ['ac-name','ac-num','ac-city','ac-tel','ac-user','ac-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('ac-pass').value='';
+  // DB kaydet
+  saveAcenteDB(user, ACENTELER[user]);
+  saveKullaniciDB(user, USERS[user]);
   renderVoyagoPanel();
-  showToast(name+' ('+num+') oluşturuldu!');
+  showToast(name+' ('+num+') olusturuldu!');
 }
 
 function deleteAcente(key){
