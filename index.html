@@ -497,6 +497,8 @@ textarea.ai2{resize:none;}
       <div id="promo-area"></div>
     </div>
     <div id="tab-turlar" class="tp">
+      <!-- Tur Anonsu Panosu -->
+      <div id="tur-anons-pano"></div>
       <div class="card" style="background:var(--bl);margin-bottom:14px;padding:11px 13px;">
         <div style="font-size:12px;color:#0c447c;line-height:1.6;">ℹ️ Bugünkü turlar listeleniyor. Katılmak istediklerinize tıklayın.</div>
       </div>
@@ -534,8 +536,11 @@ textarea.ai2{resize:none;}
     <div id="tab-rehber" class="tp">
       <div class="gp"><div class="ga" id="aga">VK</div><div><div class="gn" id="agn">Vasilis Klimantakis</div><div class="gt">Kıdemli Gemi Rehberi</div><div class="gs"><span class="od"></span>Çevrimiçi</div></div></div>
       <div class="sl2">Mesajlar</div>
-      <div class="ca" id="ca"><div class="msg mi">Merhaba! VOYAGO'ya hoş geldiniz. ⚓<div class="mtime">10:30</div></div></div>
-      <div class="ciw"><input class="ci2" type="text" id="ci" placeholder="Mesajınızı yazın..." onkeydown="if(event.key==='Enter')sendMsg()"><button class="sb2" onclick="sendMsg()">&#9658;</button></div>
+      <div class="ca" id="ca"></div>
+      <div class="ciw">
+        <input class="ci2" type="text" id="ci" placeholder="Rehbere mesaj gönderin..." onkeydown="if(event.key==='Enter')sendMsg()">
+        <button class="sb2" onclick="sendMsg()">&#9658;</button>
+      </div>
     </div>
   </div>
   <div class="bn">
@@ -576,6 +581,8 @@ textarea.ai2{resize:none;}
       <button class="att" id="atab-kontrol" onclick="adminTab('kontrol')">Tur Listesi</button>
       <button class="att" id="atab-rehrapor" onclick="adminTab('rehrapor')">Raporlar</button>
       <button class="att" id="atab-komisyon" onclick="adminTab('komisyon')">Komisyon</button>
+      <button class="att" id="atab-mesaj" onclick="adminTab('mesaj')">Mesajlar</button>
+      <button class="att" id="atab-turanons" onclick="adminTab('turanons')">Tur Anonsu</button>
       <button class="att" id="atab-bil" onclick="adminTab('bil')">Bildirim</button>
       <button class="att" id="atab-sef" onclick="adminTab('sef')">Seferler</button>
       <button class="att" id="atab-reh" onclick="adminTab('reh')" style="display:none;">Rehberler</button>
@@ -802,6 +809,49 @@ textarea.ai2{resize:none;}
       </div>
       <div class="sl2">Yayınlananlar</div>
       <div id="gt-admin-list"></div>
+    </div>
+
+    <!-- MESAJLAR -->
+    <div id="admin-mesaj" class="apg">
+      <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);border-radius:16px;padding:16px;margin-bottom:14px;color:white;">
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:4px;">Mesajlar</div>
+        <div style="font-size:12px;opacity:.75;">Yolculardan gelen mesajlar ve rehber cevapları</div>
+      </div>
+      <!-- Rehber → Tüm yolcular duyuru -->
+      <div class="fs2" style="background:var(--rl);margin-bottom:14px;">
+        <div class="fst" style="color:var(--red);">📢 Tüm Yolculara Duyuru Gönder</div>
+        <input class="ai2" type="text" id="duyuru-metin" placeholder="Acil duyuru mesajınızı yazın...">
+        <button onclick="duyuruGonder()" style="width:100%;padding:10px;background:var(--red);color:white;border:none;border-radius:12px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">📢 Tüm Yolculara Gönder</button>
+      </div>
+      <!-- Mesaj listesi -->
+      <div id="admin-mesaj-liste"></div>
+    </div>
+
+    <!-- TUR ANONSU -->
+    <div id="admin-turanons" class="apg">
+      <div style="background:linear-gradient(135deg,#854f0b,#c47a1a);border-radius:16px;padding:16px;margin-bottom:14px;color:white;">
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:4px;">Tur Anonsu</div>
+        <div style="font-size:12px;opacity:.75;">Yolcuların tur sekmesinde pano olarak görünür</div>
+      </div>
+      <div class="fs2">
+        <div class="fst">Yeni Tur Anonsu Oluştur</div>
+        <input class="ai2" type="text" id="ta-tur-adi" placeholder="Tur adı — Örn: Atina Akropolis Turu">
+        <div class="two">
+          <div><label class="fl" style="margin-bottom:3px;">Toplanma Saati</label><input class="ai2" type="time" id="ta-saat" style="margin:0;"></div>
+          <div><label class="fl" style="margin-bottom:3px;">Toplanma Noktası</label><input class="ai2" type="text" id="ta-nokta" placeholder="Güverte 9 / Liman Çıkışı" style="margin:0;"></div>
+        </div>
+        <div style="margin-top:8px;">
+          <label class="fl" style="margin-bottom:3px;">Araç / Otobüs No</label>
+          <input class="ai2" type="text" id="ta-arac" placeholder="Örn: 42B / Beyaz Minibüs" style="margin:0;">
+        </div>
+        <div style="margin-top:8px;">
+          <label class="fl" style="margin-bottom:3px;">Ek Bilgi</label>
+          <textarea class="ai2" id="ta-ekbilgi" rows="2" placeholder="Beraberinizde tur biletlerinizi ve gerekli eşyalarınızı getirmeyi unutmayın." style="margin:0;"></textarea>
+        </div>
+        <button onclick="turAnonsEkle()" class="bp" style="margin-top:12px;">📢 Anonsu Yayınla</button>
+      </div>
+      <div class="sl2">Aktif Anonslar</div>
+      <div id="tur-anons-admin-liste"></div>
     </div>
 
     <!-- BİLDİRİM -->
@@ -1211,6 +1261,14 @@ async function initDB() {
     const komisyonDB = await dbGet('komisyon_kayitlari');
     KOMISYON_DB = komisyonDB;
 
+    // Mesajlar yükle
+    const mesajlarDB = await dbGet('mesajlar');
+    MESAJLAR_DB = mesajlarDB.filter(m=>!m.silindi);
+
+    // Tur anonsları yükle
+    const turAnonsDB = await dbGet('tur_anons');
+    TUR_ANONS_DB = turAnonsDB.filter(a=>a.aktif);
+
     DB_READY = true;
     console.log('Veritabani hazir!');
     populateSeferler();
@@ -1366,7 +1424,9 @@ let GAZETE_IMGS = [];
 let REHBER_RAPORLARI_DB = [];
 let ANKETLER_DB = [];
 let KOMISYON_DB = [];
-let AKTIF_ANKET_SEFER = null; // Anket başlatıldığında set edilir
+let AKTIF_ANKET_SEFER = null;
+let MESAJLAR_DB = [];
+let TUR_ANONS_DB = []; // Anket başlatıldığında set edilir
 let CU=null, CP=null, CIF='hepsi', CASF='hepsi', CTSF='hepsi', CGK2=null;
 let ACTIVE_SHIP = 'Celestyal Journey';
 let newTurImg = null;
@@ -1414,7 +1474,25 @@ function startClock(){
         if(aktifTab){
           if(aktifTab.id==='tab-program')renderProgramPage(CP.sefer);
           if(aktifTab.id==='tab-yemek')renderYemekPage(CP.sefer);
+          if(aktifTab.id==='tab-rehber')renderMesajlar(CP.sefer);
+          if(aktifTab.id==='tab-turlar')renderTurAnonsPano(CP.sefer);
         }
+        // Yeni mesaj kontrolü
+        try{
+          const yeniMesajlar=await dbGet('mesajlar',{sefer_id:CP.sefer});
+          const filtred=yeniMesajlar.filter(m=>!m.silindi);
+          if(filtred.length>MESAJLAR_DB.length){
+            MESAJLAR_DB=filtred;
+            renderMesajlar(CP.sefer);
+            // Yeni tur anonsu var mı?
+            const yeniAnons=await dbGet('tur_anons',{sefer_id:CP.sefer,aktif:true});
+            if(yeniAnons.length!==TUR_ANONS_DB.length){
+              TUR_ANONS_DB=yeniAnons;
+              renderTurAnonsPano(CP.sefer);
+              if(yeniAnons.length>0)showToast('Yeni tur anonsu geldi! 📢');
+            }
+          }
+        }catch(e){}
       }
     }catch(e){}
   }, 30000);
@@ -1494,6 +1572,8 @@ function doPL(){
   renderProgramPage(sv);
   renderYemekPage(sv);
   renderGazete();
+  renderMesajlar(sv);
+  renderTurAnonsPano(sv);
   showScreen('sa');
   startClock();
   // Veritabanına kaydet
@@ -1714,6 +1794,8 @@ function setupAdmin(){
   document.getElementById('atab-rapor').style.display=isAcente?'block':'none';
   document.getElementById('atab-rehrapor').style.display=(isAcente||isGuide)?'block':'none';
   document.getElementById('atab-komisyon').style.display=isAcente?'block':'none';
+  document.getElementById('atab-mesaj').style.display=(isAcente||isGuide)?'block':'none';
+  document.getElementById('atab-turanons').style.display=isGuide?'block':'none';
   // Rehber rapor yazma alanı
   const rrya=document.getElementById('rehber-rapor-yaz-alani');
   const rrea=document.getElementById('rehber-rapor-email-alani');
@@ -1722,7 +1804,7 @@ function setupAdmin(){
   document.getElementById('atab-voyago').style.display=isVoyago?'flex':'none';
 
   // VOYAGO rolündeyse diğer admin sekmeleri gizle, sadece VOYAGO sekmesi kalsın
-  ['atab-ci','atab-gunluk','atab-tur','atab-gz','atab-gelecek','atab-kontrol','atab-bil','atab-sef'].forEach(id=>{
+  ['atab-ci','atab-gunluk','atab-tur','atab-gz','atab-gelecek','atab-kontrol','atab-bil','atab-sef','atab-mesaj','atab-turanons','atab-rehrapor','atab-komisyon'].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display=isVoyago?'none':'';
   });
@@ -2322,6 +2404,8 @@ function switchTab(name){
   document.getElementById('nb-'+name).classList.add('active');
   if(name==='gelecek')renderGelecekTurlar();
   if(name==='anket'&&CP)renderAnket(CP.sefer);
+  if(name==='rehber'&&CP){renderMesajlar(CP.sefer);}
+  if(name==='turlar'&&CP){renderTurAnonsPano(CP.sefer);}
 }
 function sendMsg(){
   const input=document.getElementById('ci'),val=input.value.trim();if(!val)return;
@@ -3822,6 +3906,232 @@ function checkAnketGoster(sv){
     if(nbAnket)nbAnket.style.display='flex';
     renderAnket(sv);
   }
+}
+
+// ══ MESAJLAŞMA ══
+function renderMesajlar(sv){
+  const el=document.getElementById('ca');
+  if(!el||!CP)return;
+  // Hoş geldiniz mesajı her zaman ilk
+  const msgs=MESAJLAR_DB.filter(m=>m.sefer_id===sv&&!m.silindi&&
+    (m.alici===CP.kabin||m.alici_tip==='hepsi'||m.gonderen===CP.kabin));
+  let html=`<div class="msg mi">Merhaba! VOYAGO'ya hoş geldiniz. ⚓<div class="mtime">VOYAGO</div></div>`;
+  msgs.sort((a,b)=>new Date(a.olusturma)-new Date(b.olusturma)).forEach(m=>{
+    const benMi=m.gonderen===CP.kabin;
+    const zaman=m.olusturma?new Date(m.olusturma).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}):'';
+    const duyuruMu=m.alici_tip==='hepsi';
+    if(duyuruMu){
+      html+=`<div style="background:linear-gradient(135deg,#7B0F0F,#a32d2d);color:white;border-radius:14px;padding:11px 14px;margin:6px 0;font-size:13px;line-height:1.5;">
+        <div style="font-size:10px;opacity:.7;margin-bottom:4px;">📢 REHBER DUYURUSU</div>
+        ${m.mesaj}
+        <div style="font-size:10px;opacity:.6;margin-top:4px;">${zaman}</div>
+      </div>`;
+    } else {
+      html+=`<div class="msg ${benMi?'mo':'mi'}">${m.mesaj}<div class="mtime">${zaman}</div></div>`;
+    }
+  });
+  el.innerHTML=html;
+  el.scrollTop=el.scrollHeight;
+}
+
+async function sendMsg(){
+  const input=document.getElementById('ci');
+  const val=input.value.trim();
+  if(!val||!CP)return;
+  const sv=CP.sefer;
+  const veri={
+    sefer_id:sv, gonderen:CP.kabin, gonderen_tip:'yolcu',
+    alici:'rehber', alici_tip:'rehber', mesaj:val
+  };
+  const result=await dbInsert('mesajlar',veri);
+  if(result){
+    MESAJLAR_DB.push({...veri,id:result.id,silindi:false,olusturma:new Date().toISOString()});
+    input.value='';
+    renderMesajlar(sv);
+  }
+}
+
+async function duyuruGonder(){
+  const metin=document.getElementById('duyuru-metin')?.value.trim();
+  if(!metin){showToast('Mesaj boş olamaz.');return;}
+  const iS=CU?.role==='super'||CU?.role==='acente';
+  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  const mv=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived');
+  const sv=mv[0]?.id;
+  if(!sv){showToast('Sefer bulunamadı.');return;}
+  const veri={
+    sefer_id:sv, gonderen:CU.key, gonderen_tip:'rehber',
+    alici:'hepsi', alici_tip:'hepsi', mesaj:metin
+  };
+  const result=await dbInsert('mesajlar',veri);
+  if(result){
+    MESAJLAR_DB.push({...veri,id:result.id,silindi:false,olusturma:new Date().toISOString()});
+    document.getElementById('duyuru-metin').value='';
+    renderAdminMesajlar();
+    showToast('Duyuru tüm yolculara gönderildi!');
+  }
+}
+
+function renderAdminMesajlar(){
+  const el=document.getElementById('admin-mesaj-liste');
+  if(!el)return;
+  const iS=CU?.role==='super'||CU?.role==='acente';
+  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  const mv=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived').map(v=>v.id);
+  const msgs=MESAJLAR_DB.filter(m=>mv.includes(m.sefer_id)&&!m.silindi)
+    .sort((a,b)=>new Date(b.olusturma)-new Date(a.olusturma));
+
+  if(!msgs.length){el.innerHTML='<div class="es">Henüz mesaj yok.</div>';return;}
+
+  // Yolcu bazlı grupla
+  const gruplar={};
+  msgs.forEach(m=>{
+    const key=m.alici_tip==='hepsi'?'__duyuru__':(m.gonderen_tip==='yolcu'?m.gonderen:m.alici);
+    if(!gruplar[key])gruplar[key]=[];
+    gruplar[key].push(m);
+  });
+
+  el.innerHTML=Object.entries(gruplar).map(([key,mesajlar])=>{
+    const isDuyuru=key==='__duyuru__';
+    const yolcu=passengers.find(p=>p.kabin===key);
+    const baslik=isDuyuru?'📢 Tüm Yolculara Duyurular':`💬 Kabin ${key}${yolcu?' — '+yolcu.name:''}`;
+    const okunmamis=mesajlar.filter(m=>!m.okundu&&m.gonderen_tip==='yolcu').length;
+
+    return `<div style="background:white;border-radius:14px;overflow:hidden;margin-bottom:12px;box-shadow:var(--sh);">
+      <div style="padding:12px 14px;background:${isDuyuru?'var(--rl)':'var(--bl)'};display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-size:13px;font-weight:500;color:${isDuyuru?'var(--red)':'#0c447c'};">${baslik}</div>
+        ${okunmamis>0?`<span style="background:var(--blue);color:white;padding:2px 8px;border-radius:20px;font-size:11px;">${okunmamis} yeni</span>`:''}
+      </div>
+      <div style="padding:10px 14px;max-height:200px;overflow-y:auto;">
+        ${mesajlar.map(m=>{
+          const zaman=m.olusturma?new Date(m.olusturma).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}):'';
+          const benMi=m.gonderen_tip==='rehber';
+          return `<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;">
+            <div style="flex:1;">
+              <div style="font-size:11px;color:var(--t3);margin-bottom:2px;">${benMi?'Rehber':'Kabin '+m.gonderen} · ${zaman}</div>
+              <div style="font-size:13px;color:var(--t);line-height:1.5;">${m.mesaj}</div>
+            </div>
+            <button onclick="mesajSil('${m.id}')" style="padding:2px 7px;border-radius:20px;font-size:10px;border:1.5px solid var(--red);color:var(--red);background:transparent;cursor:pointer;flex-shrink:0;">Sil</button>
+          </div>`;
+        }).join('')}
+      </div>
+      ${!isDuyuru?`<div style="padding:8px 14px;border-top:1px solid var(--gray);display:flex;gap:8px;">
+        <input type="text" id="cevap-${key}" placeholder="Cevap yaz..." style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--gray);" onkeydown="if(event.key==='Enter')cevapGonder('${key}')">
+        <button onclick="cevapGonder('${key}')" style="padding:7px 14px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">Gönder</button>
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+
+async function cevapGonder(kabin){
+  const input=document.getElementById('cevap-'+kabin);
+  if(!input||!input.value.trim())return;
+  const iS=CU?.role==='super'||CU?.role==='acente';
+  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  const mv=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived');
+  const sv=mv[0]?.id;
+  const veri={
+    sefer_id:sv, gonderen:CU.key, gonderen_tip:'rehber',
+    alici:kabin, alici_tip:'yolcu', mesaj:input.value.trim()
+  };
+  const result=await dbInsert('mesajlar',veri);
+  if(result){
+    MESAJLAR_DB.push({...veri,id:result.id,silindi:false,olusturma:new Date().toISOString()});
+    input.value='';
+    renderAdminMesajlar();
+    showToast('Cevap gönderildi!');
+  }
+}
+
+async function mesajSil(id){
+  await dbUpdate('mesajlar',{id},{silindi:true});
+  const i=MESAJLAR_DB.findIndex(m=>m.id===id);
+  if(i>=0)MESAJLAR_DB.splice(i,1);
+  renderAdminMesajlar();
+  showToast('Mesaj silindi.');
+}
+
+// ══ TUR ANONSU ══
+async function turAnonsEkle(){
+  const turAdi=document.getElementById('ta-tur-adi')?.value.trim();
+  const saat=document.getElementById('ta-saat')?.value;
+  const nokta=document.getElementById('ta-nokta')?.value.trim();
+  const arac=document.getElementById('ta-arac')?.value.trim();
+  const ekbilgi=document.getElementById('ta-ekbilgi')?.value.trim();
+  if(!turAdi||!saat||!nokta){showToast('Tur adı, saat ve toplanma noktası zorunludur.');return;}
+  const iS=CU?.role==='super'||CU?.role==='acente';
+  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  const mv=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived');
+  const sv=mv[0]?.id;
+  const veri={sefer_id:sv,tur_adi:turAdi,saat,toplanma_noktasi:nokta,arac_no:arac||'',ek_bilgi:ekbilgi||'Beraberinizde tur biletlerinizi ve gerekli eşyalarınızı getirmeyi unutmayın.',aktif:true};
+  const result=await dbInsert('tur_anons',veri);
+  if(result){
+    TUR_ANONS_DB.push({...veri,id:result.id});
+    document.getElementById('ta-tur-adi').value='';
+    document.getElementById('ta-saat').value='';
+    document.getElementById('ta-nokta').value='';
+    document.getElementById('ta-arac').value='';
+    document.getElementById('ta-ekbilgi').value='';
+    renderTurAnonsAdmin();
+    renderTurAnonsPano(sv);
+    showToast('Tur anonsu yayınlandı!');
+  }
+}
+
+function renderTurAnonsAdmin(){
+  const el=document.getElementById('tur-anons-admin-liste');
+  if(!el)return;
+  if(!TUR_ANONS_DB.length){el.innerHTML='<div class="es">Henüz anons yok.</div>';return;}
+  el.innerHTML=TUR_ANONS_DB.slice().reverse().map(a=>`
+    <div style="background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:var(--sh);">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;">
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--t);">📢 ${a.tur_adi}</div>
+          <div style="font-size:12px;color:var(--t2);margin-top:2px;">⏰ ${a.saat} · 📍 ${a.toplanma_noktasi} ${a.arac_no?'· 🚌 '+a.arac_no:''}</div>
+        </div>
+        <button onclick="turAnonsSil('${a.id}')" style="padding:4px 11px;border-radius:20px;font-size:11px;border:1.5px solid var(--red);color:var(--red);background:transparent;cursor:pointer;">Sil</button>
+      </div>
+      <div style="font-size:12px;color:var(--t2);background:var(--gray);border-radius:8px;padding:8px 10px;">${a.ek_bilgi||''}</div>
+    </div>`).join('');
+}
+
+function renderTurAnonsPano(sv){
+  const el=document.getElementById('tur-anons-pano');
+  if(!el)return;
+  const anonslar=TUR_ANONS_DB.filter(a=>a.sefer_id===sv&&a.aktif);
+  if(!anonslar.length){el.innerHTML='';return;}
+  el.innerHTML=anonslar.map(a=>`
+    <div style="background:linear-gradient(135deg,#854f0b,#c47a1a);border-radius:16px;padding:16px;margin-bottom:14px;color:white;box-shadow:0 4px 20px rgba(133,79,11,.3);">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <div style="background:rgba(255,255,255,.2);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;">📢 TUR ANONSU</div>
+      </div>
+      <div style="font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:10px;">${a.tur_adi}</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+        <div style="background:rgba(255,255,255,.2);border-radius:10px;padding:8px 14px;flex:1;min-width:110px;">
+          <div style="font-size:10px;opacity:.75;text-transform:uppercase;letter-spacing:.5px;">Toplanma Saati</div>
+          <div style="font-size:20px;font-weight:500;margin-top:2px;">⏰ ${a.saat}</div>
+        </div>
+        <div style="background:rgba(255,255,255,.2);border-radius:10px;padding:8px 14px;flex:1;min-width:110px;">
+          <div style="font-size:10px;opacity:.75;text-transform:uppercase;letter-spacing:.5px;">Toplanma Noktası</div>
+          <div style="font-size:14px;font-weight:500;margin-top:2px;">📍 ${a.toplanma_noktasi}</div>
+        </div>
+        ${a.arac_no?`<div style="background:rgba(255,255,255,.2);border-radius:10px;padding:8px 14px;flex:1;min-width:110px;">
+          <div style="font-size:10px;opacity:.75;text-transform:uppercase;letter-spacing:.5px;">Araç No</div>
+          <div style="font-size:14px;font-weight:500;margin-top:2px;">🚌 ${a.arac_no}</div>
+        </div>`:''}
+      </div>
+      ${a.ek_bilgi?`<div style="background:rgba(255,255,255,.15);border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.6;">ℹ️ ${a.ek_bilgi}</div>`:''}
+    </div>`).join('');
+}
+
+async function turAnonsSil(id){
+  if(!confirm('Bu anons silinsin mi?'))return;
+  await dbUpdate('tur_anons',{id},{aktif:false});
+  const i=TUR_ANONS_DB.findIndex(a=>a.id===id);
+  if(i>=0)TUR_ANONS_DB.splice(i,1);
+  renderTurAnonsAdmin();
+  if(CP)renderTurAnonsPano(CP.sefer);
+  showToast('Anons silindi.');
 }
 
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);}
