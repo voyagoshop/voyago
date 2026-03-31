@@ -373,8 +373,25 @@ textarea.ai2{resize:none;}
       <div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:6px;">Giriş yapın, her şey hazır sizi bekliyor.</div>
     </div>
 
+    <!-- Tekrar hoş geldiniz kartı (varsa göster) -->
+    <div id="hosgeldin-karti" style="display:none;background:white;border-radius:20px;padding:20px 22px;width:100%;max-width:390px;box-shadow:0 20px 60px rgba(0,0,0,.25);margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+        <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#0f6e56,#1D9E75);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">👋</div>
+        <div>
+          <div style="font-size:15px;font-weight:600;color:#1a1a1a;" id="hosgeldin-ad">Tekrar hoş geldiniz!</div>
+          <div style="font-size:12px;color:#6b6b6b;margin-top:2px;" id="hosgeldin-detay">Kabin 214 · 29 Mar seferi</div>
+        </div>
+      </div>
+      <button onclick="devamEt()" style="width:100%;padding:13px;background:linear-gradient(135deg,#0f6e56,#1D9E75);color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:10px;">
+        ✓ Devam Et
+      </button>
+      <button onclick="yeniGiris()" style="width:100%;padding:10px;background:transparent;color:#6b6b6b;border:1.5px solid #e0e0e0;border-radius:12px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">
+        Farklı bir hesapla giriş yap
+      </button>
+    </div>
+
     <!-- Giriş kartı -->
-    <div class="lc">
+    <div class="lc" id="giris-form-karti">
       <div class="fg"><label class="fl">Ad Soyad</label><input class="fi" type="text" id="ln" placeholder="Ahmet Yılmaz"></div>
       <div class="fg">
         <label class="fl">WhatsApp numaranız</label>
@@ -3132,6 +3149,9 @@ function baslat() {
 
 // ── OTOMATİK GİRİŞ ──
 function autoLogin() {
+  // Önce hoş geldin kartını kontrol et
+  checkHosgeldin();
+  return; // Artık otomatik giriş yok — kullanıcı "Devam Et" butonuna bassın
   try {
     const kayit = localStorage.getItem('voyago_yolcu');
     if (!kayit) return;
@@ -3181,11 +3201,86 @@ function autoLogin() {
   }
 }
 
-// Çıkış yapınca localStorage temizle
-const _origLogout = doLogout;
 function doLogout() {
+  CP = null; CU = null;
+  // localStorage'ı SİLMİYORUZ — tekrar gelince hatırlasın
+  showScreen('sl');
+  // Hoş geldiniz kartını kontrol et
+  setTimeout(()=>{ checkHosgeldin(); }, 100);
+}
+
+// ── HOŞ GELDİN KARTI ──
+function checkHosgeldin() {
+  try {
+    const kayit = localStorage.getItem('voyago_yolcu');
+    const hosKarti = document.getElementById('hosgeldin-karti');
+    const formKarti = document.getElementById('giris-form-karti');
+    if (!kayit || !hosKarti || !formKarti) return;
+
+    const p = JSON.parse(kayit);
+    if (!p || !p.kabin || !p.sefer) return;
+
+    // Sefer hâlâ aktif mi?
+    const v = VOYAGES.find(v => v.id === p.sefer && v.visible && v.status !== 'archived');
+    if (!v) return;
+
+    // Kartı göster, formu gizle
+    const ad = p.name ? p.name.split(' ')[0] : '';
+    const sefer = v.label ? v.label.split('-')[0].trim() : p.sefer;
+    document.getElementById('hosgeldin-ad').textContent = 'Tekrar merhaba, ' + ad + '! 👋';
+    document.getElementById('hosgeldin-detay').textContent = 'Kabin ' + p.kabin + ' · ' + sefer + ' · ' + (v.ship || '');
+
+    hosKarti.style.display = 'block';
+    formKarti.style.display = 'none';
+  } catch(e) {}
+}
+
+function devamEt() {
+  // Kayıtlı bilgiyle direkt giriş yap
+  try {
+    const kayit = localStorage.getItem('voyago_yolcu');
+    if (!kayit) { yeniGiris(); return; }
+    const p = JSON.parse(kayit);
+    const v = VOYAGES.find(v => v.id === p.sefer && v.visible && v.status !== 'archived');
+    if (!v) { yeniGiris(); return; }
+
+    let yolcu = passengers.find(px => px.kabin === p.kabin && px.sefer === p.sefer);
+    if (!yolcu) {
+      yolcu = {name:p.name, kabin:p.kabin, tel:p.tel, sefer:p.sefer,
+        adult:p.adult||1, child:p.child||0, baby:p.baby||0,
+        checkedIn:true, checkinDone:true, joinedTours:[]};
+      passengers.push(yolcu);
+    }
+    CP = yolcu;
+
+    document.getElementById('akl').textContent = 'Kabin ' + p.kabin;
+    document.getElementById('app-ship-name').textContent = v.ship || '';
+    const now = new Date();
+    document.getElementById('app-date-pill').textContent = now.toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'});
+    const visV = VOYAGES.filter(vv=>vv.visible&&vv.status!=='archived'&&vv.ship===v.ship);
+    const myIdx = visV.findIndex(vv=>vv.id===p.sefer)+1;
+    document.getElementById('app-sefer-pill').textContent = 'Sefer '+myIdx+'/'+visV.length;
+    if(USERS[v.guide]){const g=USERS[v.guide];document.getElementById('agn').textContent=g.name;document.getElementById('aga').textContent=g.initials||g.name.slice(0,2).toUpperCase();document.getElementById('aga').style.background=g.color||'#1a5fa8';}
+
+    renderPassTours(p.sefer);
+    renderProgramPage(p.sefer);
+    renderYemekPage(p.sefer);
+    renderGazete();
+    showScreen('sa');
+    startClock();
+    showToast('Hoş geldiniz, ' + (p.name?p.name.split(' ')[0]:'') + '! 👋');
+  } catch(e) {
+    yeniGiris();
+  }
+}
+
+function yeniGiris() {
+  // Kayıtlı veriyi sil, formu göster
   try { localStorage.removeItem('voyago_yolcu'); } catch(e) {}
-  CP = null; CU = null; showScreen('sl');
+  const hosKarti = document.getElementById('hosgeldin-karti');
+  const formKarti = document.getElementById('giris-form-karti');
+  if(hosKarti) hosKarti.style.display = 'none';
+  if(formKarti) formKarti.style.display = 'block';
 }
 
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);}
