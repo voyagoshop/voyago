@@ -854,11 +854,27 @@ textarea.ai2{resize:none;}
         <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:4px;">Mesajlar</div>
         <div style="font-size:12px;opacity:.75;">Yolculardan gelen mesajlar ve rehber cevapları</div>
       </div>
-      <!-- Rehber → Tüm yolcular duyuru -->
-      <div class="fs2" style="background:var(--rl);margin-bottom:14px;">
-        <div class="fst" style="color:var(--red);">📢 Tüm Yolculara Duyuru Gönder</div>
+      <!-- Tüm yolculara duyuru -->
+      <div class="fs2" style="background:var(--rl);margin-bottom:10px;">
+        <div class="fst" style="color:var(--red);">📢 Tüm Yolculara Duyuru</div>
         <input class="ai2" type="text" id="duyuru-metin" placeholder="Acil duyuru mesajınızı yazın...">
         <button onclick="duyuruGonder()" style="width:100%;padding:10px;background:var(--red);color:white;border:none;border-radius:12px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">📢 Tüm Yolculara Gönder</button>
+      </div>
+      <!-- Özel yolcu mesajı -->
+      <div class="fs2" style="background:var(--bl);margin-bottom:14px;">
+        <div class="fst" style="color:#0c447c;">💬 Özel Yolcu Mesajı</div>
+        <div class="two">
+          <div>
+            <label class="fl" style="margin-bottom:3px;">Kabin No</label>
+            <input class="ai2" type="text" id="ozel-kabin" placeholder="Örn: 214" style="margin:0;">
+          </div>
+          <div style="display:flex;align-items:flex-end;">
+            <button onclick="kabinYolcuBul()" style="width:100%;padding:9px 14px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">Bul</button>
+          </div>
+        </div>
+        <div id="ozel-yolcu-bilgi" style="display:none;background:white;border-radius:10px;padding:10px 12px;margin-top:8px;font-size:13px;"></div>
+        <input class="ai2" type="text" id="ozel-mesaj-metin" placeholder="Mesajınızı yazın..." style="margin-top:8px;">
+        <button onclick="ozelMesajGonder()" style="width:100%;padding:10px;background:var(--blue);color:white;border:none;border-radius:12px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:6px;">💬 Yolcuya Gönder</button>
       </div>
       <!-- Mesaj listesi -->
       <div id="admin-mesaj-liste"></div>
@@ -1903,6 +1919,8 @@ function setupAdmin(){
   const rrea=document.getElementById('rehber-rapor-email-alani');
   if(rrya)rrya.style.display=isGuide?'block':'none';
   if(rrea)rrea.style.display=isAcente?'block':'none';
+  // Mesajları hemen yükle
+  loadAndRenderMesajlar();
   document.getElementById('atab-voyago').style.display=isVoyago?'flex':'none';
 
   // VOYAGO rolündeyse diğer admin sekmeleri gizle, sadece VOYAGO sekmesi kalsın
@@ -3710,6 +3728,16 @@ function yeniGiris() {
 }
 
 // ══ REHBER RAPORU ══
+function initBildirimSefer(){
+  const iS=CU?.role==='super'||CU?.role==='acente';
+  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  const mv=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived');
+  const nsc=document.getElementById('nsc');
+  if(nsc&&!nsc.children.length){
+    nsc.innerHTML=mv.map((v,i)=>`<div class="sch ${i===0?'active':''}" onclick="togS(this)">${v.label}</div>`).join('');
+  }
+}
+
 function initRehberRaporSecim(){
   const iS=CU?.role==='super', isAcente=CU?.role==='acente', isGuide=CU?.role==='guide';
   const activeShip=isAcente||iS?ACTIVE_SHIP:CU?.ship;
@@ -4163,6 +4191,14 @@ async function duyuruGonder(){
   }
 }
 
+async function loadAndRenderMesajlar(){
+  try{
+    const taze=await dbGet('mesajlar');
+    MESAJLAR_DB=taze.filter(m=>!m.silindi);
+  }catch(e){}
+  renderAdminMesajlar();
+}
+
 function renderAdminMesajlar(){
   const el=document.getElementById('admin-mesaj-liste');
   if(!el)return;
@@ -4212,6 +4248,42 @@ function renderAdminMesajlar(){
       </div>`:''}
     </div>`;
   }).join('');
+}
+
+function kabinYolcuBul(){
+  const kabin=document.getElementById('ozel-kabin')?.value.trim();
+  const bilgi=document.getElementById('ozel-yolcu-bilgi');
+  if(!kabin||!bilgi)return;
+  const yolcu=passengers.find(p=>p.kabin===kabin);
+  if(yolcu){
+    bilgi.style.display='block';
+    bilgi.innerHTML=`<span style="color:var(--green);">✓</span> <b>${yolcu.name}</b> — Kabin ${yolcu.kabin}`;
+  } else {
+    bilgi.style.display='block';
+    bilgi.innerHTML=`<span style="color:var(--red);">✗</span> Kabin ${kabin} bulunamadı.`;
+  }
+}
+
+async function ozelMesajGonder(){
+  const kabin=document.getElementById('ozel-kabin')?.value.trim();
+  const metin=document.getElementById('ozel-mesaj-metin')?.value.trim();
+  if(!kabin){showToast('Kabin numarası girin.');return;}
+  if(!metin){showToast('Mesaj boş olamaz.');return;}
+  const iS=CU?.role==='super'||CU?.role==='acente';
+  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  const mv=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived');
+  const sv=mv[0]?.id;
+  const veri={
+    sefer_id:sv, gonderen:CU.key, gonderen_tip:'rehber',
+    alici:kabin, alici_tip:'yolcu', mesaj:metin
+  };
+  const result=await dbInsert('mesajlar',veri);
+  if(result){
+    MESAJLAR_DB.push({...veri,id:result.id,silindi:false,olusturma:new Date().toISOString()});
+    document.getElementById('ozel-mesaj-metin').value='';
+    renderAdminMesajlar();
+    showToast('Mesaj gönderildi! (Kabin '+kabin+')');
+  }
 }
 
 async function cevapGonder(kabin){
