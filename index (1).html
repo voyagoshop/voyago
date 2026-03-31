@@ -1,0 +1,2734 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VOYAGO</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --blue:#1a5fa8;--bl:#e8f1fb;--green:#0f6e56;--gl:#e1f5ee;
+  --amber:#854f0b;--al:#faeeda;--red:#a32d2d;--rl:#fcebeb;
+  --purple:#3c3489;--pl:#eeedfe;
+  --gray:#f5f5f3;--border:rgba(0,0,0,0.1);
+  --t:#1a1a1a;--t2:#6b6b6b;--t3:#9b9b9b;
+  --sh:0 1px 3px rgba(0,0,0,0.08),0 1px 2px rgba(0,0,0,0.04);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:#f0f4f8;color:var(--t);min-height:100vh;}
+.screen{display:none;min-height:100vh;flex-direction:column;}.screen.active{display:flex;}
+
+/* LOGIN */
+#sl{background:linear-gradient(160deg,#0d3b6e,#1a5fa8,#2272c3);align-items:center;justify-content:center;padding:24px;}
+.lc{background:white;border-radius:24px;padding:32px 26px;width:100%;max-width:390px;box-shadow:0 20px 60px rgba(0,0,0,.25);}
+.ll{text-align:center;margin-bottom:20px;}
+.logo-name{font-family:'DM Serif Display',serif;font-size:32px;color:var(--blue);letter-spacing:-1px;}
+.logo-sub{font-size:12px;color:var(--t2);margin-top:2px;}
+.fg{margin-bottom:11px;}
+.fl{font-size:11px;font-weight:600;color:var(--t2);margin-bottom:4px;display:block;letter-spacing:.4px;text-transform:uppercase;}
+.fi{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:'DM Sans',sans-serif;color:var(--t);background:var(--gray);transition:border-color .2s;}
+.fi:focus{outline:none;border-color:var(--blue);background:white;}
+.fs{width:100%;padding:10px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--t);background:var(--gray);}
+.pr{display:flex;gap:8px;}.cs{width:88px;flex-shrink:0;}
+.kisi-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:11px;}
+.kisi-box{border:1.5px solid var(--border);border-radius:10px;padding:10px 8px;text-align:center;background:var(--gray);}
+.kisi-label{font-size:10px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px;}
+.kisi-label span{font-size:9px;display:block;font-weight:400;color:var(--t3);}
+.kisi-ctrl{display:flex;align-items:center;justify-content:center;gap:8px;}
+.kisi-btn{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--border);background:white;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--blue);font-weight:600;line-height:1;}
+.kisi-num{font-size:18px;font-weight:600;color:var(--blue);min-width:20px;text-align:center;}
+.ib{background:var(--bl);border-radius:10px;padding:9px 12px;font-size:12px;color:#0c447c;margin-bottom:13px;line-height:1.5;}
+.bp{width:100%;padding:12px;background:var(--blue);color:white;border:none;border-radius:12px;font-size:14px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;}
+.bp:active{opacity:.85;}
+.dv{text-align:center;font-size:11px;color:var(--t3);margin:13px 0;position:relative;}
+.dv::before,.dv::after{content:'';position:absolute;top:50%;width:40%;height:1px;background:var(--border);}
+.dv::before{left:0;}.dv::after{right:0;}
+.bo{width:100%;padding:10px;background:transparent;color:var(--blue);border:1.5px solid var(--blue);border-radius:12px;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;}
+.em{background:var(--rl);color:var(--red);border-radius:9px;padding:9px 12px;font-size:12px;margin-bottom:10px;display:none;}
+
+/* ADMIN LOGIN */
+#sal{background:linear-gradient(160deg,#26215c,#3c3489,#534ab7);align-items:center;justify-content:center;padding:24px;}
+.alc{background:white;border-radius:24px;padding:32px 26px;width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.alo{text-align:center;margin-bottom:18px;}
+.alo p{font-size:12px;color:var(--t2);margin-top:3px;}
+.bpu{width:100%;padding:12px;background:var(--purple);color:white;border:none;border-radius:12px;font-size:14px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;}
+.bl2{text-align:center;margin-top:11px;}.bl2 button{background:none;border:none;color:rgba(255,255,255,.7);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.ta{background:#f0ecfe;border-radius:10px;padding:9px 12px;font-size:12px;color:var(--purple);margin-bottom:13px;line-height:1.8;}
+
+/* APP */
+#sa{background:#f0f4f8;}
+.topbar{background:var(--blue);padding:12px 16px 10px;color:white;position:sticky;top:0;z-index:100;}
+.tbi{max-width:480px;margin:0 auto;}
+.tbr{display:flex;justify-content:space-between;align-items:flex-start;}
+.app-logo{font-family:'DM Serif Display',serif;font-size:20px;font-weight:400;letter-spacing:-0.5px;}
+.app-ship{font-size:10px;opacity:.7;letter-spacing:.5px;margin-top:1px;}
+.app-meta{display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;}
+.app-meta-pill{background:rgba(255,255,255,.15);border-radius:20px;padding:3px 10px;font-size:10px;white-space:nowrap;}
+.app-meta-pill.clock{font-weight:500;}
+.tpill{background:rgba(255,255,255,.2);border-radius:20px;padding:4px 11px;font-size:11px;white-space:nowrap;}
+.lob{background:rgba(255,255,255,.15);border:none;color:white;padding:5px 11px;border-radius:20px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.bn{background:white;border-top:1px solid var(--border);display:flex;position:sticky;bottom:0;z-index:100;box-shadow:0 -2px 8px rgba(0,0,0,.06);}
+.bni{display:flex;width:100%;max-width:480px;margin:0 auto;}
+.nb{flex:1;padding:8px 2px 6px;font-size:9px;border:none;background:transparent;color:var(--t3);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:'DM Sans',sans-serif;}
+.nb.active{color:var(--blue);}.nb .ni{font-size:18px;}
+.pc{flex:1;padding:14px;max-width:480px;margin:0 auto;width:100%;}
+.tp{display:none;}.tp.active{display:block;}
+
+/* SHARED */
+.card{background:white;border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:var(--sh);}
+.sl2{font-size:11px;font-weight:600;color:var(--t3);letter-spacing:.8px;text-transform:uppercase;margin:14px 0 8px;}
+.sl2:first-child{margin-top:0;}
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500;}
+.bb{background:var(--bl);color:#0c447c;}.bg{background:var(--gl);color:var(--green);}
+.ba{background:var(--al);color:var(--amber);}.bred{background:var(--rl);color:var(--red);}
+.bpu2{background:var(--pl);color:var(--purple);}
+
+/* MEETING CARD */
+.meeting-card{background:linear-gradient(135deg,#7B0F0F,#a32d2d);border-radius:16px;padding:16px;margin-bottom:12px;color:white;}
+.meeting-badge{background:rgba(255,255,255,.25);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;display:inline-block;margin-bottom:8px;}
+.meeting-title{font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:8px;}
+.meeting-row{display:flex;gap:10px;flex-wrap:wrap;}
+.meeting-info{background:rgba(255,255,255,.15);border-radius:10px;padding:7px 12px;flex:1;min-width:110px;}
+.meeting-info-label{font-size:10px;opacity:.75;text-transform:uppercase;letter-spacing:.5px;}
+.meeting-info-val{font-size:13px;font-weight:500;margin-top:2px;}
+
+/* PORT CARD */
+.pc-card{background:linear-gradient(135deg,#0d3b6e,#1a5fa8);border-radius:16px;padding:16px;margin-bottom:12px;color:white;}
+.pn{font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:3px;}
+.pco{font-size:11px;opacity:.75;margin-bottom:11px;}
+.pts{display:flex;gap:12px;}
+.pt{background:rgba(255,255,255,.15);border-radius:10px;padding:7px 12px;text-align:center;flex:1;}
+.ptl{font-size:10px;opacity:.75;text-transform:uppercase;letter-spacing:.5px;}
+.ptv{font-size:19px;font-weight:500;margin-top:2px;}.pts2{font-size:10px;opacity:.7;}
+.no-data{background:var(--gray);border-radius:12px;padding:20px;text-align:center;color:var(--t3);font-size:13px;margin-bottom:12px;}
+.ar{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--gray);}
+.ar:last-child{border-bottom:none;}
+.at{font-size:11px;font-weight:600;color:var(--blue);min-width:40px;padding-top:2px;}
+.ai{flex:1;}.ait{font-size:13px;color:var(--t);}.ais{font-size:11px;color:var(--t2);margin-top:1px;}
+.prow{display:flex;gap:10px;align-items:center;padding:10px 12px;background:var(--al);border-radius:12px;margin-bottom:8px;}
+.pp{font-size:22px;font-weight:600;color:var(--amber);min-width:46px;text-align:center;}
+.prt{font-size:13px;font-weight:500;color:var(--t);}.prs{font-size:11px;color:var(--amber);margin-top:1px;}
+
+/* TURLAR */
+.ti{border:1.5px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px;transition:border-color .2s;}
+.ti.joined{border-color:var(--green);}
+.ti-img{width:100%;height:130px;background:var(--gray);display:flex;align-items:center;justify-content:center;font-size:36px;overflow:hidden;}
+.ti-img img{width:100%;height:130px;object-fit:cover;display:block;}
+.ti-body{padding:12px;}
+.th2{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px;}
+.tn{font-size:14px;font-weight:500;color:var(--t);}
+.tpr{font-size:16px;font-weight:600;color:var(--blue);}
+.td{font-size:11px;color:var(--t2);margin-bottom:7px;line-height:1.5;}
+.tpc{font-size:12px;color:var(--t2);margin-bottom:8px;}.tpc span{color:var(--blue);font-weight:600;}
+.bj{width:100%;padding:9px;border:1.5px solid var(--blue);border-radius:9px;background:transparent;color:var(--blue);font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;}
+.bj.joined{background:var(--green);border-color:var(--green);color:white;}
+
+/* GAZETE */
+.gazete-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.gazete-img{border-radius:12px;overflow:hidden;aspect-ratio:3/4;background:var(--gray);}
+.gazete-img img{width:100%;height:100%;object-fit:cover;}
+.gazete-date{font-size:12px;color:var(--t2);text-align:center;margin-bottom:12px;}
+
+/* YEMEK */
+.rh{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.ri{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.rn2{font-size:14px;font-weight:500;color:var(--t);}.rf{font-size:11px;color:var(--t2);}
+.mr{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--gray);}
+.mr:last-child{border-bottom:none;}.mn{font-size:13px;color:var(--t);}.mt2{font-size:13px;font-weight:500;color:var(--blue);}
+
+/* BİLDİRİM */
+.nc{border-left:3px solid var(--blue);padding:11px 13px;background:white;border-radius:0 12px 12px 0;margin-bottom:9px;box-shadow:var(--sh);}
+.nc.nn{border-left-color:var(--green);}.nc.np{border-left-color:var(--amber);}
+.nt2{font-size:13px;font-weight:500;color:var(--t);}
+.nb2{font-size:12px;color:var(--t2);margin-top:3px;line-height:1.5;}
+.nm{font-size:11px;color:var(--t3);margin-top:5px;}
+
+/* CHAT */
+.gp{display:flex;align-items:center;gap:12px;padding:13px 15px;background:white;border-radius:16px;margin-bottom:12px;box-shadow:var(--sh);}
+.ga{width:46px;height:46px;border-radius:50%;background:var(--blue);color:white;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;flex-shrink:0;}
+.gn{font-size:14px;font-weight:500;color:var(--t);}.gt{font-size:11px;color:var(--t2);margin-top:1px;}
+.od{display:inline-block;width:7px;height:7px;border-radius:50%;background:#25D366;margin-right:3px;}
+.gs{font-size:11px;color:var(--green);margin-top:3px;}
+.ca{display:flex;flex-direction:column;gap:9px;margin-bottom:12px;}
+.msg{max-width:82%;padding:9px 13px;border-radius:18px;font-size:13px;line-height:1.5;}
+.mi{background:white;color:var(--t);align-self:flex-start;border-bottom-left-radius:4px;box-shadow:var(--sh);}
+.mo{background:var(--blue);color:white;align-self:flex-end;border-bottom-right-radius:4px;}
+.mtime{font-size:10px;opacity:.6;margin-top:3px;}
+.ciw{display:flex;gap:8px;align-items:center;background:white;border-radius:50px;padding:7px 7px 7px 14px;box-shadow:var(--sh);}
+.ci2{flex:1;border:none;outline:none;font-size:13px;font-family:'DM Sans',sans-serif;background:transparent;color:var(--t);}
+.sb2{width:36px;height:36px;border-radius:50%;background:var(--blue);border:none;color:white;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+
+/* ADMIN */
+#sc{background:#f0f4f8;}
+.atb{padding:14px 18px;color:white;position:sticky;top:0;z-index:100;}
+.atb.sub{background:linear-gradient(135deg,#26215c,#3c3489);}
+.atb.gub{background:linear-gradient(135deg,#0d3b6e,#1a5fa8);}
+.atb h2{font-size:17px;font-weight:500;}.atb p{font-size:11px;opacity:.75;margin-top:1px;}
+.ac{padding:14px;max-width:640px;margin:0 auto;}
+.rs{display:flex;align-items:center;gap:10px;background:white;border-radius:12px;padding:10px 13px;margin-bottom:12px;box-shadow:var(--sh);}
+.rsb{padding:3px 11px;border-radius:20px;font-size:12px;font-weight:600;}
+.rsu{background:var(--pl);color:var(--purple);}.rsg{background:var(--bl);color:#0c447c;}
+.rs p{font-size:12px;color:var(--t2);}
+.ship-selector{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.ship-chip{padding:7px 16px;border:1.5px solid var(--border);border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;color:var(--t2);background:white;transition:all .2s;}
+.ship-chip.active{border-color:var(--blue);background:var(--blue);color:white;}
+.atsw{display:flex;background:white;border-radius:12px;padding:4px;margin-bottom:14px;box-shadow:var(--sh);gap:2px;flex-wrap:wrap;}
+.att{flex:1;min-width:48px;padding:7px 3px;border:none;background:transparent;font-size:10px;font-weight:500;font-family:'DM Sans',sans-serif;color:var(--t2);border-radius:8px;cursor:pointer;transition:all .2s;white-space:nowrap;text-align:center;}
+.att.active{background:var(--blue);color:white;}
+.apg{display:none;}.apg.active{display:block;}
+.sf{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.fc{padding:5px 13px;border:1.5px solid var(--border);border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;color:var(--t2);background:white;transition:all .2s;}
+.fc.active{border-color:var(--blue);background:var(--blue);color:white;}
+.sg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
+.sc2{background:white;border-radius:12px;padding:12px;text-align:center;box-shadow:var(--sh);}
+.sn{font-size:20px;font-weight:600;color:var(--blue);}.slb{font-size:10px;color:var(--t3);margin-top:2px;}
+.cts{display:flex;gap:0;margin-bottom:12px;border:1.5px solid var(--border);border-radius:10px;overflow:hidden;}
+.ct{flex:1;padding:8px;border:none;background:transparent;font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--t2);}
+.ct.active.cta{background:var(--blue);color:white;}.ct.active.ctb{background:var(--green);color:white;}.ct.active.ctc{background:var(--amber);color:white;}
+.pl2{background:white;border-radius:14px;overflow:hidden;box-shadow:var(--sh);}
+.ph{padding:10px 14px;font-size:11px;font-weight:600;color:var(--t2);border-bottom:1px solid var(--gray);display:flex;justify-content:space-between;}
+.prow2{padding:11px 14px;border-bottom:1px solid var(--gray);display:flex;align-items:center;gap:10px;}
+.prow2:last-child{border-bottom:none;}
+.pav{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0;}
+.pav.ck{background:var(--gl);color:var(--green);}.pav.wt{background:var(--al);color:var(--amber);}
+.pi2{flex:1;}.pn2{font-size:13px;font-weight:500;color:var(--t);}.pd{font-size:11px;color:var(--t2);margin-top:2px;}.pk{font-size:10px;color:var(--t3);margin-top:1px;}
+.cb{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap;}
+.cby{background:var(--gl);color:var(--green);}.cbn{background:var(--al);color:var(--amber);}
+.es{padding:28px;text-align:center;color:var(--t3);font-size:13px;}
+.ptr{font-size:10px;margin-top:2px;}.ptr .ty{color:var(--green);}.ptr .tn2x{color:var(--t3);}
+.uz{border:2px dashed var(--border);border-radius:14px;padding:20px;text-align:center;background:white;cursor:pointer;transition:all .2s;margin-bottom:14px;}
+.uz:hover{border-color:var(--blue);background:var(--bl);}
+.uz .uic{font-size:30px;margin-bottom:5px;}
+.uz h3{font-size:13px;font-weight:500;color:var(--t);margin-bottom:2px;}
+.uz p{font-size:11px;color:var(--t2);}
+.uz input{display:none;}
+.fs2{background:white;border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:var(--sh);}
+.fst{font-size:13px;font-weight:600;color:var(--t);margin-bottom:12px;}
+.ai2{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--t);background:var(--gray);margin-bottom:10px;}
+.ai2:focus{outline:none;border-color:var(--blue);background:white;}
+textarea.ai2{resize:none;}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.tc3{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px;}
+.tch{padding:6px 13px;border:1.5px solid var(--border);border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;color:var(--t2);background:white;transition:all .2s;}
+.tch.active{border-color:var(--blue);background:var(--bl);color:#0c447c;}
+.sc3{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.sch{padding:5px 11px;border:1.5px solid var(--border);border-radius:20px;font-size:12px;cursor:pointer;color:var(--t2);background:white;transition:all .2s;}
+.sch.active{border-color:var(--green);background:var(--gl);color:var(--green);}
+.bwa{width:100%;padding:12px;background:#25D366;color:white;border:none;border-radius:12px;font-size:14px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;}
+.bs{width:100%;padding:10px;background:transparent;color:var(--blue);border:1.5px solid var(--blue);border-radius:12px;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;margin-top:8px;}
+.wap{background:var(--gl);border-radius:12px;padding:12px;margin-bottom:12px;display:none;}
+.wap-t{font-size:11px;font-weight:600;color:var(--green);margin-bottom:5px;}
+.wap-b{font-size:13px;color:var(--t);line-height:1.6;white-space:pre-wrap;}
+
+/* SEFER KARTI (admin) */
+.voyage-card{background:white;border-radius:14px;padding:13px 15px;margin-bottom:9px;box-shadow:var(--sh);}
+.voyage-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
+.voyage-name{font-size:14px;font-weight:500;color:var(--t);}
+.voyage-dates{font-size:11px;color:var(--t2);margin-top:2px;}
+.voyage-guide{font-size:11px;color:var(--blue);margin-top:3px;font-weight:500;}
+.voyage-count{font-size:11px;color:var(--green);margin-top:2px;}
+.voyage-actions{display:flex;gap:6px;flex-shrink:0;margin-top:4px;}
+.vis-toggle{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:500;cursor:pointer;border:1.5px solid;font-family:'DM Sans',sans-serif;background:transparent;}
+.vis-on{border-color:var(--green);color:var(--green);}
+.vis-off{border-color:var(--t3);color:var(--t3);}
+
+/* TUR ADMIN */
+.tur-admin-card{background:white;border-radius:14px;overflow:hidden;margin-bottom:12px;box-shadow:var(--sh);}
+.tur-admin-img{width:100%;height:110px;background:var(--gray);display:flex;align-items:center;justify-content:center;font-size:30px;cursor:pointer;position:relative;overflow:hidden;}
+.tur-admin-img img{width:100%;height:110px;object-fit:cover;}
+.tur-admin-img .img-ov{position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:500;opacity:0;transition:opacity .2s;}
+.tur-admin-img:hover .img-ov{opacity:1;}
+.tur-admin-body{padding:12px;}
+
+/* GÜNDELİK İÇERİK FORMU */
+.daily-section{background:white;border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:var(--sh);}
+.daily-title{font-size:13px;font-weight:600;color:var(--t);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;}
+.daily-title span{font-size:11px;color:var(--t3);font-weight:400;}
+.item-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+.item-row input,.item-row select{flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--gray);color:var(--t);}
+.item-row input:focus,.item-row select:focus{outline:none;border-color:var(--blue);background:white;}
+.del-btn{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border);background:white;color:var(--red);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.add-item-btn{width:100%;padding:8px;border:1.5px dashed var(--border);border-radius:8px;background:transparent;color:var(--blue);font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:4px;}
+.save-daily-btn{width:100%;padding:10px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:8px;}
+
+/* GEÇMİŞ SEFERLER */
+.archived-card{background:var(--gray);border-radius:12px;padding:11px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;}
+.archived-name{font-size:13px;color:var(--t2);}.archived-date{font-size:11px;color:var(--t3);}
+.archived-count{font-size:12px;font-weight:500;color:var(--blue);}
+
+/* KATILIMCI */
+.katilimci-card{background:var(--gray);border-radius:10px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.katilimci-name{font-size:13px;font-weight:500;color:var(--t);}
+.katilimci-detail{font-size:11px;color:var(--t2);margin-top:2px;}
+.yolcu-ekle-form{background:var(--bl);border-radius:12px;padding:14px;margin-bottom:14px;}
+.yolcu-ekle-title{font-size:13px;font-weight:600;color:#0c447c;margin-bottom:10px;}
+.pic{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.pig{display:flex;flex-direction:column;gap:3px;flex:1;min-width:72px;}
+.pig label{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.4px;}
+.pig input{padding:7px 9px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--gray);color:var(--t);width:100%;}
+
+/* GAZETE ADMİN */
+.gazete-admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.gazete-slot{border-radius:12px;overflow:hidden;position:relative;aspect-ratio:3/4;background:var(--gray);cursor:pointer;}
+.gazete-slot img{width:100%;height:100%;object-fit:cover;}
+.gazete-slot .gz-overlay{position:absolute;inset:0;background:rgba(0,0,0,.35);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:white;font-size:12px;font-weight:500;}
+.gazete-slot .gz-del{position:absolute;top:6px;right:6px;background:rgba(163,45,45,.85);color:white;border:none;border-radius:50%;width:24px;height:24px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.gz-empty{border:2px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:var(--t3);font-size:11px;}
+.gz-empty span{font-size:28px;}
+
+/* TOAST & MODAL */
+.toast{display:none;position:fixed;bottom:76px;left:50%;transform:translateX(-50%);background:#0f6e56;color:white;padding:11px 20px;border-radius:50px;font-size:13px;font-weight:500;white-space:nowrap;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,.2);}
+.toast.show{display:block;animation:fu .3s ease;}
+@keyframes fu{from{opacity:0;transform:translateX(-50%) translateY(10px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+.mo2{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center;padding:20px;}
+.mo2.show{display:flex;}
+.md{background:white;border-radius:20px;padding:22px;width:100%;max-width:400px;max-height:88vh;overflow-y:auto;}
+.mdt{font-size:16px;font-weight:600;color:var(--t);margin-bottom:14px;}
+.mdb{display:flex;gap:8px;margin-top:14px;}
+.mdb button{flex:1;padding:10px;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.mc{background:var(--gray);border:none;color:var(--t2);}.mcf{background:var(--blue);border:none;color:white;}
+.meeting-admin{background:var(--rl);border-radius:14px;padding:14px;margin-bottom:14px;}
+.meeting-admin-title{font-size:13px;font-weight:600;color:var(--red);margin-bottom:10px;}
+</style>
+</head>
+<body>
+
+<!-- YOLCU GİRİŞ -->
+<div id="sl" class="screen active">
+  <div style="background:linear-gradient(160deg,#0d3b6e,#1a5fa8,#2272c3);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;position:relative;">
+
+    <!-- VOYAGO logo üstte -->
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="font-family:'DM Serif Display',serif;font-size:36px;color:white;letter-spacing:-1px;">VOYAGO</div>
+      <div style="font-size:11px;color:rgba(255,255,255,.6);letter-spacing:2px;text-transform:uppercase;margin-top:2px;" id="login-ship-name">Celestyal Journey</div>
+    </div>
+
+    <!-- Slogan -->
+    <div style="text-align:center;margin-bottom:24px;padding:0 10px;">
+      <div style="font-family:'DM Serif Display',serif;font-size:22px;color:white;line-height:1.3;">Yolculuğunuz Başlamak Üzere</div>
+      <div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:6px;">Giriş yapın, her şey hazır sizi bekliyor.</div>
+    </div>
+
+    <!-- Giriş kartı -->
+    <div class="lc">
+      <div class="fg"><label class="fl">Ad Soyad</label><input class="fi" type="text" id="ln" placeholder="Ahmet Yılmaz"></div>
+      <div class="fg">
+        <label class="fl">WhatsApp numaranız</label>
+        <div class="pr">
+          <select class="fs cs" id="cc"><option value="+90">🇹🇷 +90</option><option value="+30">🇬🇷 +30</option><option value="+49">🇩🇪 +49</option><option value="+44">🇬🇧 +44</option><option value="+7">🇷🇺 +7</option><option value="+1">🇺🇸 +1</option></select>
+          <input class="fi" type="tel" id="lp" placeholder="5xx xxx xx xx" style="flex:1;margin:0;">
+        </div>
+      </div>
+      <div class="fg"><label class="fl">Kabin numaranız</label><input class="fi" type="text" id="lk" placeholder="Örn: 214"></div>
+      <div class="fg"><label class="fl">Sefer tarihiniz</label><select class="fs" id="lsf"></select></div>
+      <div class="fg">
+        <label class="fl">Kaç kişisiniz?</label>
+        <div class="kisi-row">
+          <div class="kisi-box"><div class="kisi-label">Yetişkin<span>12+</span></div><div class="kisi-ctrl"><button class="kisi-btn" onclick="changeKisi('adult',-1)">-</button><div class="kisi-num" id="k-adult">1</div><button class="kisi-btn" onclick="changeKisi('adult',1)">+</button></div></div>
+          <div class="kisi-box"><div class="kisi-label">Çocuk<span>2-12</span></div><div class="kisi-ctrl"><button class="kisi-btn" onclick="changeKisi('child',-1)">-</button><div class="kisi-num" id="k-child">0</div><button class="kisi-btn" onclick="changeKisi('child',1)">+</button></div></div>
+          <div class="kisi-box"><div class="kisi-label">Bebek<span>0-2</span></div><div class="kisi-ctrl"><button class="kisi-btn" onclick="changeKisi('baby',-1)">-</button><div class="kisi-num" id="k-baby">0</div><button class="kisi-btn" onclick="changeKisi('baby',1)">+</button></div></div>
+        </div>
+      </div>
+      <div class="ib">📱 Kabin numaranızla check-in yapılır. WhatsApp numaranıza bildirimler gönderilir.</div>
+      <div class="em" id="le">Lütfen tüm alanları doldurun.</div>
+      <button class="bp" onclick="doPL()">Uygulamaya Gir</button>
+    </div>
+
+    <!-- Sağ alta ok — rehber/yönetici girişi -->
+    <button onclick="showScreen('sal')" style="position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:white;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);" title="Personel girişi">›</button>
+  </div>
+</div>
+
+<!-- PERSONEL GİRİŞ -->
+<div id="sal" class="screen">
+  <div style="background:linear-gradient(160deg,#26215c,#3c3489,#534ab7);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;position:relative;">
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-family:'DM Serif Display',serif;font-size:32px;color:white;letter-spacing:-1px;">VOYAGO</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:4px;">Personel Girişi</div>
+    </div>
+    <div class="alc">
+      <div class="em" id="ale" style="margin-bottom:12px;">Kullanıcı adı veya şifre hatalı.</div>
+      <div class="fg"><label class="fl">Kullanıcı adı</label><input class="fi" type="text" id="au" autocomplete="off" placeholder="kullanici.adi"></div>
+      <div class="fg"><label class="fl">Şifre</label><input class="fi" type="password" id="ap" placeholder="••••••••" onkeydown="if(event.key==='Enter')doAL()"></div>
+      <button class="bpu" onclick="doAL()">Giriş Yap</button>
+      <div style="text-align:center;margin-top:12px;">
+        <button onclick="showScreen('sforgot')" style="background:none;border:none;color:rgba(255,255,255,.6);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">Şifremi Unuttum</button>
+      </div>
+    </div>
+    <!-- Sol alta geri ok -->
+    <button onclick="showScreen('sl')" style="position:fixed;bottom:24px;left:24px;width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:white;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Geri">‹</button>
+  </div>
+</div>
+
+<!-- ŞİFREMİ UNUTTUM -->
+<div id="sforgot" class="screen">
+  <div style="background:linear-gradient(160deg,#26215c,#3c3489,#534ab7);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;">
+    <div class="alc">
+      <div style="text-align:center;margin-bottom:20px;">
+        <div style="font-size:36px;">🔑</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--purple);margin-top:8px;">Şifremi Unuttum</div>
+        <div style="font-size:12px;color:var(--t2);margin-top:4px;">Kullanıcı adınızı girin, mevcut şifrenizi gösterelim.</div>
+      </div>
+      <div class="fg"><label class="fl">Kullanıcı adı</label><input class="fi" type="text" id="forgot-user" placeholder="kullanici.adi"></div>
+      <button class="bpu" onclick="doForgot()" style="margin-bottom:10px;">Şifremi Göster</button>
+      <div id="forgot-result" style="display:none;background:var(--gl);border-radius:10px;padding:12px;text-align:center;">
+        <div style="font-size:12px;color:var(--green);margin-bottom:4px;">Şifreniz:</div>
+        <div id="forgot-pass-show" style="font-size:22px;font-weight:600;color:var(--green);letter-spacing:2px;"></div>
+      </div>
+      <div id="forgot-error" style="display:none;background:var(--rl);border-radius:10px;padding:10px;font-size:13px;color:var(--red);text-align:center;margin-top:8px;">Kullanıcı bulunamadı.</div>
+      <div style="text-align:center;margin-top:12px;">
+        <button onclick="showScreen('sal')" style="background:none;border:none;color:rgba(100,100,180,.8);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">← Girişe Dön</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- YOLCU UYGULAMASI -->
+<div id="sa" class="screen">
+  <div class="topbar">
+    <div class="tbi">
+      <div class="tbr">
+        <div>
+          <div class="app-logo">VOYAGO</div>
+          <div class="app-ship" id="app-ship-name">Celestyal Journey</div>
+          <div class="app-meta">
+            <div class="app-meta-pill" id="app-date-pill">29 Mar 2026</div>
+            <div class="app-meta-pill" id="app-sefer-pill">Sefer 1/4</div>
+            <div class="app-meta-pill clock" id="app-clock">00:00</div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
+          <div class="tpill" id="akl">Kabin 214</div>
+          <button class="lob" onclick="doLogout()">Çıkış</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="pc">
+    <div id="tab-program" class="tp active">
+      <div id="meeting-area"></div>
+      <div id="port-area"></div>
+      <div id="program-area"></div>
+      <div id="promo-area"></div>
+    </div>
+    <div id="tab-turlar" class="tp">
+      <div class="card" style="background:var(--bl);margin-bottom:14px;padding:11px 13px;">
+        <div style="font-size:12px;color:#0c447c;line-height:1.6;">ℹ️ Bugünkü turlar listeleniyor. Katılmak istediklerinize tıklayın.</div>
+      </div>
+      <div id="tl-pass"></div>
+    </div>
+    <div id="tab-gazete" class="tp">
+      <div class="gazete-date" id="gazete-tarih"></div>
+      <div class="gazete-grid" id="gazete-display"></div>
+      <div class="no-data" id="gazete-empty-msg" style="display:none;">Bugün için günlük gazete henüz eklenmemiş.</div>
+    </div>
+    <div id="tab-yemek" class="tp">
+      <div id="yemek-area"></div>
+    </div>
+    <div id="tab-bildirim" class="tp">
+      <div class="sl2">Bildirimler</div>
+      <div id="nl"><div class="nc nn"><div class="nt2">VOYAGO'ya hoş geldiniz!</div><div class="nb2">Turlar sekmesinden tura katılabilirsiniz.</div><div class="nm">Sistem</div></div></div>
+    </div>
+    <div id="tab-gelecek" class="tp">
+      <div style="text-align:center;padding:16px 0 8px;">
+        <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--blue);">Gelecek Turlar</div>
+        <div style="font-size:12px;color:var(--t2);margin-top:4px;">Erken kayıt fırsatlarını kaçırmayın!</div>
+      </div>
+      <div id="gelecek-tur-list"></div>
+      <div class="no-data" id="gelecek-empty" style="display:none;">Henüz gelecek tur eklenmemiş.</div>
+    </div>
+
+    <div id="tab-rehber" class="tp">
+      <div class="gp"><div class="ga" id="aga">VK</div><div><div class="gn" id="agn">Vasilis Klimantakis</div><div class="gt">Kıdemli Gemi Rehberi</div><div class="gs"><span class="od"></span>Çevrimiçi</div></div></div>
+      <div class="sl2">Mesajlar</div>
+      <div class="ca" id="ca"><div class="msg mi">Merhaba! VOYAGO'ya hoş geldiniz. ⚓<div class="mtime">10:30</div></div></div>
+      <div class="ciw"><input class="ci2" type="text" id="ci" placeholder="Mesajınızı yazın..." onkeydown="if(event.key==='Enter')sendMsg()"><button class="sb2" onclick="sendMsg()">&#9658;</button></div>
+    </div>
+  </div>
+  <div class="bn">
+    <div class="bni">
+      <button class="nb active" id="nb-program" onclick="switchTab('program')"><span class="ni">📅</span><span>Program</span></button>
+      <button class="nb" id="nb-turlar" onclick="switchTab('turlar')"><span class="ni">🗺️</span><span>Turlar</span></button>
+      <button class="nb" id="nb-gazete" onclick="switchTab('gazete')"><span class="ni">📰</span><span>Gazete</span></button>
+      <button class="nb" id="nb-yemek" onclick="switchTab('yemek')"><span class="ni">🍽️</span><span>Yemek</span></button>
+      <button class="nb" id="nb-bildirim" onclick="switchTab('bildirim')"><span class="ni">🔔</span><span>Bildirim</span></button>
+      <button class="nb" id="nb-gelecek" onclick="switchTab('gelecek')"><span class="ni">🌟</span><span>Fırsatlar</span></button>
+      <button class="nb" id="nb-rehber" onclick="switchTab('rehber')"><span class="ni">💬</span><span>Rehber</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMİN PANELİ -->
+<div id="sc" class="screen">
+  <div class="atb gub" id="atop">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;max-width:640px;margin:0 auto;">
+      <div><div style="font-family:'DM Serif Display',serif;font-size:20px;">VOYAGO</div><p id="apt">Rehber Paneli</p><p id="aps" style="opacity:.6;font-size:10px;"></p></div>
+      <button class="lob" onclick="doLogout()">Çıkış</button>
+    </div>
+  </div>
+  <div class="ac">
+    <div id="ship-select-area" style="display:none;margin-bottom:14px;">
+      <div class="sl2">Gemi</div>
+      <div class="ship-selector" id="ship-selector"></div>
+    </div>
+    <div class="rs"><div class="rsb rsg" id="rbe">🧭 Rehber</div><p id="rde">Kendi seferlerinizi yönetebilirsiniz.</p></div>
+    <div class="atsw">
+      <button class="att" id="atab-voyago" onclick="adminTab('voyago')" style="display:none;background:#26215c;color:white;">VOYAGO</button>
+      <button class="att active" id="atab-ci" onclick="adminTab('ci')">Check-in</button>
+      <button class="att" id="atab-gunluk" onclick="adminTab('gunluk')">Günlük</button>
+      <button class="att" id="atab-tur" onclick="adminTab('tur')">Turlar</button>
+      <button class="att" id="atab-gz" onclick="adminTab('gz')">Gazete</button>
+      <button class="att" id="atab-gelecek" onclick="adminTab('gelecek')">Fırsatlar</button>
+      <button class="att" id="atab-kontrol" onclick="adminTab('kontrol')">Tur Listesi</button>
+      <button class="att" id="atab-bil" onclick="adminTab('bil')">Bildirim</button>
+      <button class="att" id="atab-sef" onclick="adminTab('sef')">Seferler</button>
+      <button class="att" id="atab-reh" onclick="adminTab('reh')" style="display:none;">Rehberler</button>
+      <button class="att" id="atab-gemiler" onclick="adminTab('gemiler')" style="display:none;">Gemiler/Turlar</button>
+      <button class="att" id="atab-rapor" onclick="adminTab('rapor')" style="display:none;">Raporlar</button>
+    </div>
+
+    <!-- VOYAGO APP PANELİ -->
+    <div id="admin-voyago" class="apg">
+      <div style="background:linear-gradient(135deg,#26215c,#534ab7);border-radius:16px;padding:18px;margin-bottom:16px;color:white;">
+        <div style="font-family:'DM Serif Display',serif;font-size:22px;margin-bottom:4px;">VOYAGO App</div>
+        <div style="font-size:12px;opacity:.75;">Acente ve kullanıcı yönetimi</div>
+      </div>
+
+      <!-- İstatistikler -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;" id="voyago-stats"></div>
+
+      <!-- Arama -->
+      <div style="display:flex;gap:8px;align-items:center;background:white;border-radius:12px;padding:10px 14px;margin-bottom:10px;box-shadow:var(--sh);">
+        <span style="font-size:16px;color:var(--t3);">🔍</span>
+        <input type="text" id="acente-search" placeholder="Acente adı veya numarası ara..." oninput="renderVoyagoPanel()"
+          style="flex:1;border:none;outline:none;font-size:14px;font-family:'DM Sans',sans-serif;background:transparent;color:var(--t);">
+        <button onclick="document.getElementById('acente-search').value='';renderVoyagoPanel();" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:16px;padding:0;">✕</button>
+      </div>
+
+      <!-- Acente listesi -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div class="sl2" style="margin:0;">Acenteler</div>
+        <button onclick="voyagoRaporKopyala()" style="padding:5px 12px;background:var(--blue);color:white;border:none;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 Rapor Al</button>
+      </div>
+      <div id="acente-list"></div>
+      <textarea id="voyago-copy-area" style="position:absolute;left:-9999px;top:-9999px;"></textarea>
+
+      <!-- Yeni acente ekle -->
+      <div class="fs2" style="margin-top:14px;">
+        <div class="fst">Yeni Acente Oluştur</div>
+        <div class="two">
+          <div><label class="fl" style="margin-bottom:3px;">Acente adı</label><input class="ai2" type="text" id="ac-name" placeholder="Örn: Mavi Tur" style="margin:0;"></div>
+          <div><label class="fl" style="margin-bottom:3px;">Acente numarası</label><input class="ai2" type="text" id="ac-num" placeholder="AC-001" style="margin:0;"></div>
+        </div>
+        <div class="two" style="margin-top:8px;">
+          <div><label class="fl" style="margin-bottom:3px;">Şehir / Ülke</label><input class="ai2" type="text" id="ac-city" placeholder="İstanbul, TR" style="margin:0;"></div>
+          <div><label class="fl" style="margin-bottom:3px;">Telefon</label><input class="ai2" type="text" id="ac-tel" placeholder="+90 212 xxx xx xx" style="margin:0;"></div>
+        </div>
+        <div class="two" style="margin-top:8px;">
+          <div><label class="fl" style="margin-bottom:3px;">Kullanıcı adı</label><input class="ai2" type="text" id="ac-user" placeholder="maviytur" style="margin:0;"></div>
+          <div><label class="fl" style="margin-bottom:3px;">Şifre</label><input class="ai2" type="password" id="ac-pass" placeholder="••••••" style="margin:0;"></div>
+        </div>
+        <div style="margin-top:8px;"><label class="fl" style="margin-bottom:3px;">Kısa not (opsiyonel)</label><input class="ai2" type="text" id="ac-note" placeholder="Akdeniz kruvaziyer turları" style="margin:0;"></div>
+        <button class="bp" onclick="addAcente()" style="margin-top:12px;">Acente Oluştur</button>
+      </div>
+
+      <!-- Tüm kullanıcılar -->
+      <div class="sl2" style="margin-top:4px;">Tüm Kullanıcılar</div>
+      <div id="tum-kullanici-list"></div>
+    </div>
+
+    <!-- CHECK-IN -->
+    <div id="admin-ci" class="apg active">
+      <div class="sf" id="af"></div>
+      <div class="sg">
+        <div class="sc2"><div class="sn" id="s-t">0</div><div class="slb">Toplam</div></div>
+        <div class="sc2"><div class="sn" id="s-c">0</div><div class="slb">Check-in</div></div>
+        <div class="sc2"><div class="sn" id="s-b">0</div><div class="slb">Bekleyen</div></div>
+        <div class="sc2"><div class="sn" id="s-k">0</div><div class="slb">Kişi</div></div>
+      </div>
+      <div class="yolcu-ekle-form">
+        <div class="yolcu-ekle-title">Yolcu ekle</div>
+        <div class="two"><div><input class="ai2" type="text" id="ye-name" placeholder="Ad Soyad" style="margin:0;"></div><div><input class="ai2" type="text" id="ye-kabin" placeholder="Kabin No" style="margin:0;"></div></div>
+        <div class="two" style="margin-top:8px;"><div><input class="ai2" type="tel" id="ye-tel" placeholder="WhatsApp" style="margin:0;"></div><div><select class="fs" id="ye-sefer" style="height:40px;"></select></div></div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <div style="flex:1;text-align:center;background:white;border-radius:8px;padding:6px;border:1.5px solid var(--border);"><div style="font-size:9px;color:var(--t3);margin-bottom:3px;">YETİŞKİN</div><div style="display:flex;align-items:center;justify-content:center;gap:5px;"><button class="kisi-btn" onclick="changeKisiAdmin('ya',-1)" style="width:22px;height:22px;font-size:13px;">-</button><span id="ya-num" style="font-size:15px;font-weight:600;color:var(--blue);">1</span><button class="kisi-btn" onclick="changeKisiAdmin('ya',1)" style="width:22px;height:22px;font-size:13px;">+</button></div></div>
+          <div style="flex:1;text-align:center;background:white;border-radius:8px;padding:6px;border:1.5px solid var(--border);"><div style="font-size:9px;color:var(--t3);margin-bottom:3px;">ÇOCUK 2-12</div><div style="display:flex;align-items:center;justify-content:center;gap:5px;"><button class="kisi-btn" onclick="changeKisiAdmin('yc',-1)" style="width:22px;height:22px;font-size:13px;">-</button><span id="yc-num" style="font-size:15px;font-weight:600;color:var(--blue);">0</span><button class="kisi-btn" onclick="changeKisiAdmin('yc',1)" style="width:22px;height:22px;font-size:13px;">+</button></div></div>
+          <div style="flex:1;text-align:center;background:white;border-radius:8px;padding:6px;border:1.5px solid var(--border);"><div style="font-size:9px;color:var(--t3);margin-bottom:3px;">BEBEK 0-2</div><div style="display:flex;align-items:center;justify-content:center;gap:5px;"><button class="kisi-btn" onclick="changeKisiAdmin('yb',-1)" style="width:22px;height:22px;font-size:13px;">-</button><span id="yb-num" style="font-size:15px;font-weight:600;color:var(--blue);">0</span><button class="kisi-btn" onclick="changeKisiAdmin('yb',1)" style="width:22px;height:22px;font-size:13px;">+</button></div></div>
+        </div>
+        <button class="bp" onclick="addPassenger()" style="margin-top:10px;padding:9px;">Yolcu Ekle</button>
+      </div>
+      <div class="uz" onclick="document.getElementById('ef').click()">
+        <div class="uic">📊</div><h3>Excel ile Yolcu Listesi Yükle</h3><p>Şablonu doldurup tıklayın</p>
+        <input type="file" id="ef" accept=".xlsx,.xls" onchange="loadExcel(this)">
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;background:white;border-radius:12px;padding:10px 14px;margin-bottom:10px;box-shadow:var(--sh);">
+        <span style="font-size:16px;color:var(--t3);">🔍</span>
+        <input type="text" id="search-passenger" placeholder="Kabin no veya isim ara..." oninput="renderPS(CASF)"
+          style="flex:1;border:none;outline:none;font-size:14px;font-family:'DM Sans',sans-serif;background:transparent;color:var(--t);">
+        <button onclick="document.getElementById('search-passenger').value='';renderPS(CASF);" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:16px;padding:0;">✕</button>
+      </div>
+      <div class="cts">
+        <button class="ct active cta" onclick="filterCI(this,'hepsi')">Tümü</button>
+        <button class="ct ctb" onclick="filterCI(this,'ci')">Check-in</button>
+        <button class="ct ctc" onclick="filterCI(this,'bk')">Bekleyen</button>
+      </div>
+      <div class="pl2"><div class="ph"><span>Yolcu</span><span>Durum</span></div><div id="plb"></div></div>
+
+      <!-- REHBER NOTU (sadece rehber rolü görür) -->
+      <div id="rehber-notu-form" style="display:none;margin-top:16px;">
+        <div class="fs2" style="background:var(--bl);">
+          <div class="fst" style="color:#0c447c;">📝 Sefer Notu / Raporu</div>
+          <div style="font-size:12px;color:#0c447c;margin-bottom:10px;">Yazdığınız not yöneticiniz tarafından görülecektir.</div>
+          <div><label class="fl" style="margin-bottom:3px;">Sefer</label><select class="fs" id="rehber-not-sefer" style="margin-bottom:10px;"></select></div>
+          <textarea class="ai2" id="rehber-not-text" rows="4" placeholder="Sefer notu yazın... Örn: Atina turu başarılı geçti. 42 katılımcı. Akropolis girişinde bekleme oldu..."></textarea>
+          <button class="bp" onclick="saveRehberNotu()" style="padding:10px;">Notu Kaydet</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- GÜNLÜK İÇERİK -->
+    <div id="admin-gunluk" class="apg">
+      <div class="fs2" style="background:var(--rl);">
+        <div class="fst" style="color:var(--red);">Toplantı Bilgisi — Misafire görünür</div>
+        <div class="two"><div><label class="fl" style="margin-bottom:3px;">Saat</label><input class="ai2" type="time" id="m-saat" style="margin:0;"></div><div><label class="fl" style="margin-bottom:3px;">Yer</label><input class="ai2" type="text" id="m-yer" placeholder="Ana Salon" style="margin:0;"></div></div>
+        <div style="margin-top:8px;"><label class="fl" style="margin-bottom:3px;">Konu</label><input class="ai2" type="text" id="m-konu" placeholder="Yarınki tur bilgilendirmesi" style="margin:0;"></div>
+        <button class="save-daily-btn" style="background:var(--red);margin-top:10px;" onclick="saveMeeting()">Kaydet ve Misafire Göster</button>
+      </div>
+
+      <div class="daily-section">
+        <div class="daily-title">Liman Bilgisi <span>Program sayfasında görünür</span></div>
+        <div class="two">
+          <div><label class="fl" style="margin-bottom:3px;">Liman adı</label><input class="ai2" type="text" id="port-name" placeholder="Pire — Atina" style="margin:0;"></div>
+          <div><label class="fl" style="margin-bottom:3px;">Ülke / bayrak</label><input class="ai2" type="text" id="port-country" placeholder="🇬🇷 Yunanistan" style="margin:0;"></div>
+        </div>
+        <div class="two" style="margin-top:8px;">
+          <div><label class="fl" style="margin-bottom:3px;">Varış saati</label><input class="ai2" type="time" id="port-arival" style="margin:0;"></div>
+          <div><label class="fl" style="margin-bottom:3px;">Ayrılış saati</label><input class="ai2" type="time" id="port-depart" style="margin:0;"></div>
+        </div>
+        <button class="save-daily-btn" onclick="savePort()">Kaydet</button>
+      </div>
+
+      <div class="daily-section">
+        <div class="daily-title">Günün Programı <span>+ Aktivite Ekle</span></div>
+        <div id="program-items"></div>
+        <button class="add-item-btn" onclick="addProgramItem()">+ Aktivite Ekle</button>
+        <button class="save-daily-btn" onclick="saveProgram()">Kaydet</button>
+      </div>
+
+      <div class="daily-section">
+        <div class="daily-title">Promosyonlar <span>+ Ekle</span></div>
+        <div id="promo-items"></div>
+        <button class="add-item-btn" onclick="addPromoItem()">+ Promosyon Ekle</button>
+        <button class="save-daily-btn" onclick="savePromos()">Kaydet</button>
+      </div>
+
+      <div class="daily-section">
+        <div class="daily-title">Yemek Saatleri <span>Restoran bazlı</span></div>
+        <div id="yemek-items"></div>
+        <button class="add-item-btn" onclick="addYemekRestoran()">+ Restoran Ekle</button>
+        <button class="save-daily-btn" onclick="saveYemek()">Kaydet</button>
+      </div>
+    </div>
+
+    <!-- TURLAR -->
+    <div id="admin-tur" class="apg">
+      <div class="fs2" style="background:var(--rl);">
+        <div class="fst" style="color:var(--red);">Toplantı Bilgisi</div>
+        <div class="two"><div><label class="fl" style="margin-bottom:3px;">Saat</label><input class="ai2" type="time" id="m-saat2" style="margin:0;"></div><div><label class="fl" style="margin-bottom:3px;">Yer</label><input class="ai2" type="text" id="m-yer2" placeholder="Ana Salon" style="margin:0;"></div></div>
+        <div style="margin-top:8px;"><label class="fl" style="margin-bottom:3px;">Konu</label><input class="ai2" type="text" id="m-konu2" placeholder="Yarınki tur bilgilendirmesi" style="margin:0;"></div>
+        <button class="save-daily-btn" style="background:var(--red);margin-top:10px;" onclick="saveMeeting2()">Kaydet ve Misafire Göster</button>
+      </div>
+      <div class="sf" id="tsf"></div>
+      <div id="tal"></div>
+      <div class="fs2" style="margin-top:14px;">
+        <div class="fst">Yeni Tur Ekle</div>
+        <input class="ai2" type="text" id="ntn" placeholder="Tur adı">
+        <div class="two"><div><label class="fl" style="margin-bottom:3px;">Liman</label><input class="ai2" type="text" id="ntl" placeholder="Pire / Atina" style="margin:0;"></div><div><label class="fl" style="margin-bottom:3px;">Gün</label><select class="fs" id="ntgun" style="height:40px;"><option value="1">1. Gün</option><option value="2">2. Gün</option><option value="3">3. Gün</option><option value="4">4. Gün</option><option value="5">5. Gün</option><option value="6">6. Gün</option><option value="7">7. Gün</option></select></div></div>
+        <div class="two" style="margin-top:8px;"><div><label class="fl" style="margin-bottom:3px;">Toplanma</label><input class="ai2" type="time" id="nts" value="09:00" style="margin:0;"></div><div><label class="fl" style="margin-bottom:3px;">Sefer</label><select class="fs" id="ntse" style="height:40px;"></select></div></div>
+        <div class="pic" style="margin-top:10px;">
+          <div class="pig"><label>Yetişkin €</label><input type="number" id="nta" placeholder="72"></div>
+          <div class="pig"><label>Çocuk €</label><input type="number" id="ntc" placeholder="45"></div>
+          <div class="pig"><label>Bebek €</label><input type="number" id="ntb" placeholder="0"></div>
+        </div>
+        <div style="margin-top:10px;"><label class="fl" style="margin-bottom:3px;">Görsel</label>
+          <div style="border:2px dashed var(--border);border-radius:10px;padding:10px;text-align:center;cursor:pointer;background:var(--gray);" onclick="document.getElementById('tur-img-input').click()">
+            <div id="tur-img-preview" style="font-size:20px;color:var(--t3);">📷 Görsel ekle</div>
+            <input type="file" id="tur-img-input" accept="image/*" style="display:none;" onchange="previewTurImg(this)">
+          </div>
+        </div>
+        <button class="bp" onclick="addTour()" style="margin-top:12px;">Turu Ekle</button>
+      </div>
+      <div class="fs2">
+        <div class="fst">Mevcut Turu Sefere Ekle / Çıkar</div>
+        <div class="two"><div><label class="fl" style="margin-bottom:3px;">Tur</label><select class="fs" id="tur-ekle-tur" style="height:40px;"></select></div><div><label class="fl" style="margin-bottom:3px;">Sefer</label><select class="fs" id="tur-ekle-sefer" style="height:40px;"></select></div></div>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button class="bp" onclick="turSefereEkle()" style="padding:9px;flex:1;">Sefere Ekle</button>
+          <button style="flex:1;padding:9px;border:1.5px solid var(--red);background:transparent;color:var(--red);border-radius:12px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="turSeferdenCikar()">Seferden Çıkar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- GAZETE -->
+    <div id="admin-gz" class="apg">
+      <div class="fs2">
+        <div class="fst">Günlük Gazete — max 4 sayfa</div>
+        <div class="gazete-admin-grid" id="gazete-admin-grid"></div>
+        <div class="gazete-date" id="gazete-admin-tarih"></div>
+        <input type="file" id="gz-file" accept="image/*" style="display:none;" onchange="addGazeteImg(this)" multiple>
+        <button class="bp" onclick="document.getElementById('gz-file').click()" style="padding:10px;">📷 Fotoğraf Ekle</button>
+        <button class="bs" onclick="clearGazete()">Gazeteyi Temizle</button>
+      </div>
+    </div>
+
+    <!-- GELECEK TURLAR -->
+    <div id="admin-gelecek" class="apg">
+      <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);border-radius:16px;padding:16px;margin-bottom:14px;color:white;">
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:4px;">Gelecek Tur / Fırsat Ekle</div>
+        <div style="font-size:12px;opacity:.75;">Yolcular "Fırsatlar" sekmesinde görecek</div>
+      </div>
+      <div class="fs2">
+        <div class="fst">Tur / Fırsat Bilgisi</div>
+        <input class="ai2" type="text" id="gt-baslik" placeholder="Tur adı — Örn: Dubai Kış Turu 2027">
+        <textarea class="ai2" rows="3" id="gt-aciklama" placeholder="Açıklama — Örn: Burj Khalifa, Palm Jumeirah ve daha fazlası. Erken kayıt indirimi!"></textarea>
+        <div class="two">
+          <div><label class="fl" style="margin-bottom:3px;">Tahmini tarih</label><input class="ai2" type="text" id="gt-tarih" placeholder="Ara 2026 / Oca 2027" style="margin:0;"></div>
+          <div><label class="fl" style="margin-bottom:3px;">Başlangıç fiyatı</label><input class="ai2" type="text" id="gt-fiyat" placeholder="€ 1.200'den itibaren" style="margin:0;"></div>
+        </div>
+        <div style="margin-top:10px;"><label class="fl" style="margin-bottom:3px;">Promosyon etiketi</label><input class="ai2" type="text" id="gt-promo" placeholder="Erken kayıt %15 indirim" style="margin:0;"></div>
+        <div style="margin-top:10px;"><label class="fl" style="margin-bottom:3px;">Afiş görseli</label>
+          <div style="border:2px dashed var(--border);border-radius:10px;padding:12px;text-align:center;cursor:pointer;background:var(--gray);" onclick="document.getElementById('gt-img-input').click()">
+            <div id="gt-img-preview" style="font-size:20px;color:var(--t3);">🖼️ Afiş ekle</div>
+            <input type="file" id="gt-img-input" accept="image/*" style="display:none;" onchange="previewGtImg(this)">
+          </div>
+        </div>
+        <div style="margin-top:10px;"><label class="fl" style="margin-bottom:3px;">Kayıt / iletişim bilgisi</label><input class="ai2" type="text" id="gt-iletisim" placeholder="Kayıt için: +90 5xx xxx xx xx veya rehberinize başvurun" style="margin:0;"></div>
+        <button class="bp" onclick="addGelecekTur()" style="margin-top:12px;">Yayınla</button>
+      </div>
+      <div class="sl2">Yayınlananlar</div>
+      <div id="gt-admin-list"></div>
+    </div>
+
+    <!-- BİLDİRİM -->
+    <div id="admin-bil" class="apg">
+      <div class="fs2"><div class="fst">Sefer seç</div><div class="sc3" id="nsc"></div><div class="fst">Tür</div><div class="tc3"><div class="tch active" onclick="togType(this)">Tur hatırlatma</div><div class="tch" onclick="togType(this)">Promosyon</div><div class="tch" onclick="togType(this)">Acil duyuru</div><div class="tch" onclick="togType(this)">Genel bilgi</div></div></div>
+      <div class="fs2"><div class="fst">Mesaj</div><input class="ai2" type="text" id="nt" placeholder="Başlık" oninput="updWA()"><textarea class="ai2" rows="4" id="nb3" placeholder="Mesaj metni..." oninput="updWA()"></textarea><div class="two"><div><label class="fl" style="margin-bottom:3px;">Zaman</label><select class="fs" style="margin:0;"><option>Hemen</option><option>Bu gece 20:00</option><option>Yarın 07:00</option></select></div><div><label class="fl" style="margin-bottom:3px;">Kanal</label><select class="fs" style="margin:0;"><option>WhatsApp + Uygulama</option><option>Sadece WhatsApp</option><option>Sadece uygulama</option></select></div></div></div>
+      <div class="wap" id="wap"><div class="wap-t">Önizleme:</div><div class="wap-b" id="wapb"></div></div>
+      <button class="bwa" onclick="sendWA()"><span style="font-size:18px;">💬</span> WhatsApp Web'de Gönder</button>
+      <button class="bs" onclick="sendApp()">Sadece Uygulama Bildirimi</button>
+    </div>
+
+    <!-- SEFERLER -->
+    <div id="admin-sef" class="apg">
+      <div class="sl2">Aktif Seferler</div>
+      <div id="vl"></div>
+      <div class="sl2" style="margin-top:16px;">Geçmiş Seferler</div>
+      <div id="vl-archived"></div>
+      <div class="fs2" style="margin-top:14px;">
+        <div class="fst">Yeni Sefer Ekle</div>
+        <input class="ai2" type="text" id="nvl" placeholder="Sefer adı — Örn: 29 Mar - 5 Nis 2026">
+        <div class="two"><div><label class="fl" style="margin-bottom:3px;">Başlangıç</label><input class="ai2" type="date" id="nvs" style="margin:0;"></div><div><label class="fl" style="margin-bottom:3px;">Bitiş</label><input class="ai2" type="date" id="nve" style="margin:0;"></div></div>
+        <input class="ai2" type="text" id="nvr" placeholder="Güzergah" style="margin-top:8px;">
+        <div id="vgf"></div>
+        <button class="bp" onclick="addVoyage()">Seferi Kaydet</button>
+      </div>
+    </div>
+
+    <!-- TUR KONTROL LİSTESİ -->
+    <div id="admin-kontrol" class="apg">
+      <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);border-radius:16px;padding:16px;margin-bottom:14px;color:white;">
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:6px;">Kara Turu Kontrol Listesi</div>
+        <div style="font-size:12px;opacity:.75;">Tura çıkmadan önce katılımcıları işaretleyin</div>
+      </div>
+
+      <div class="fs2" style="padding:12px 14px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <div style="flex:1;min-width:160px;">
+            <label class="fl" style="margin-bottom:3px;">Tur seç</label>
+            <select class="fs" id="kontrol-tur-sel" onchange="renderKontrolListesi()" style="height:40px;"></select>
+          </div>
+          <div style="flex:1;min-width:160px;">
+            <label class="fl" style="margin-bottom:3px;">Sefer</label>
+            <select class="fs" id="kontrol-sefer-sel" onchange="renderKontrolListesi()" style="height:40px;"></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sayaç -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;" id="kontrol-stats">
+        <div class="sc2"><div class="sn" id="ks-toplam" style="font-size:20px;">0</div><div class="slb">Toplam Kişi</div></div>
+        <div class="sc2" style="background:var(--gl);"><div class="sn" id="ks-geldi" style="font-size:20px;color:var(--green);">0</div><div class="slb" style="color:var(--green);">Geldi ✓</div></div>
+        <div class="sc2" style="background:var(--rl);"><div class="sn" id="ks-gelmedi" style="font-size:20px;color:var(--red);">0</div><div class="slb" style="color:var(--red);">Gelmedi ✗</div></div>
+      </div>
+
+      <!-- Liste -->
+      <div class="pl2" id="kontrol-list-wrap">
+        <div class="ph">
+          <span id="kontrol-tur-baslik">Tur seçin</span>
+          <span id="kontrol-kisi-ozet" style="font-weight:400;"></span>
+        </div>
+        <div id="kontrol-list"></div>
+      </div>
+
+      <!-- Paylaş -->
+      <div class="fs2" style="margin-top:14px;">
+        <div class="fst">Listeyi Paylaş</div>
+
+        <!-- Kopyala -->
+        <button onclick="copyKontrolListesi()" style="width:100%;padding:11px;background:var(--blue);color:white;border:none;border-radius:12px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;">
+          📋 Listeyi Kopyala
+        </button>
+
+        <!-- WhatsApp -->
+        <button onclick="sendKontrolWA()" style="width:100%;padding:11px;background:#25D366;color:white;border:none;border-radius:12px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;">
+          💬 WhatsApp ile Gönder
+        </button>
+
+        <!-- Email -->
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input class="ai2" type="email" id="kontrol-email" placeholder="E-posta adresi" style="margin:0;flex:1;">
+          <button onclick="sendKontrolEmail()" style="padding:10px 16px;background:white;border:1.5px solid var(--blue);color:var(--blue);border-radius:12px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;">📧 E-posta</button>
+        </div>
+        <div style="font-size:11px;color:var(--t3);margin-top:6px;">⚠️ E-posta için bilgisayarda varsayılan posta uygulaması (Outlook, Mail vb.) gereklidir.</div>
+
+        <!-- Kopyalanan metin kutusu (gizli) -->
+        <textarea id="kontrol-copy-area" style="position:absolute;left:-9999px;top:-9999px;"></textarea>
+      </div>
+    </div>
+
+    <!-- REHBERLER -->
+    <div id="admin-reh" class="apg">
+      <div id="gl"></div>
+      <div class="fs2" style="margin-top:14px;">
+        <div class="fst">Yeni Rehber Ekle</div>
+        <div class="two">
+          <div><label class="fl" style="margin-bottom:3px;">Ad Soyad</label><input class="ai2" type="text" id="ngn" placeholder="Vasilis K." style="margin:0;"></div>
+          <div><label class="fl" style="margin-bottom:3px;">Kullanıcı adı</label><input class="ai2" type="text" id="ngu" placeholder="vasilis.k" style="margin:0;"></div>
+        </div>
+        <div style="margin-top:8px;"><label class="fl" style="margin-bottom:3px;">Şifre</label><input class="ai2" type="password" id="ngp" placeholder="••••••" style="margin:0;"></div>
+        <button class="bp" onclick="addGuide()" style="margin-top:12px;">Rehberi Kaydet</button>
+      </div>
+
+      <!-- Rehber Raporu butonu -->
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <button onclick="copyRehberRaporu('toplu')" style="flex:1;padding:10px;background:var(--blue);color:white;border:none;border-radius:12px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 Toplu Rapor Kopyala</button>
+      </div>
+      <textarea id="rehber-rapor-copy-area" style="position:absolute;left:-9999px;top:-9999px;"></textarea>
+
+    <!-- GEMİLER / TURLAR (acente görür) -->
+    </div>
+    <div id="admin-gemiler" class="apg">
+      <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);border-radius:16px;padding:16px;margin-bottom:14px;color:white;">
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:4px;">Gemiler ve Kara Turları</div>
+        <div style="font-size:12px;opacity:.75;">Ürün → Sefer/Tarih → Rehber hiyerarşisi</div>
+      </div>
+
+      <!-- SEKMELİ GÖRÜNÜM -->
+      <div style="display:flex;background:white;border-radius:12px;padding:4px;margin-bottom:14px;box-shadow:var(--sh);gap:2px;">
+        <button class="att active" id="gt-tab-gemi" onclick="switchGemiTab('gemi')" style="flex:1;">🚢 Gemi Turları</button>
+        <button class="att" id="gt-tab-kara" onclick="switchGemiTab('kara')" style="flex:1;">🗺️ Kara Turları</button>
+      </div>
+
+      <!-- GEMİ TURLARI -->
+      <div id="gt-panel-gemi">
+        <div id="acente-gemiler-list"></div>
+        <div class="fs2" style="margin-top:10px;">
+          <div class="fst">Yeni Gemi Ekle</div>
+          <div class="two">
+            <div><label class="fl" style="margin-bottom:3px;">Gemi adı</label><input class="ai2" type="text" id="gemi-ad" placeholder="Celestyal Journey" style="margin:0;"></div>
+            <div><label class="fl" style="margin-bottom:3px;">Kapasite</label><input class="ai2" type="number" id="gemi-kap" placeholder="1200" style="margin:0;"></div>
+          </div>
+          <div style="margin-top:8px;"><label class="fl" style="margin-bottom:3px;">Açıklama</label><input class="ai2" type="text" id="gemi-acik" placeholder="Akdeniz kruvaziyer gemisi" style="margin:0;"></div>
+          <button class="bp" onclick="addGemi()" style="margin-top:10px;">Gemi Ekle</button>
+        </div>
+      </div>
+
+      <!-- KARA TURLARI -->
+      <div id="gt-panel-kara" style="display:none;">
+        <div id="acente-turlar-list"></div>
+        <div class="fs2" style="margin-top:10px;">
+          <div class="fst">Yeni Kara Turu Ekle</div>
+          <input class="ai2" type="text" id="urun-ad" placeholder="İtalya Turu">
+          <div style="margin-top:6px;"><label class="fl" style="margin-bottom:3px;">Açıklama</label><input class="ai2" type="text" id="urun-acik" placeholder="Roma, Floransa, Venedik" style="margin:0;"></div>
+          <button class="bp" onclick="addUrun()" style="margin-top:10px;">Tur Ekle</button>
+        </div>
+      </div>
+
+      <!-- Sefer ekle modalı -->
+      <div class="mo2" id="sefer-modal">
+        <div class="md">
+          <div class="mdt" id="sefer-modal-title">Sefer / Tarih Ekle</div>
+          <input type="hidden" id="sefer-parent-id">
+          <input type="hidden" id="sefer-parent-type">
+          <div><label class="fl" style="margin-bottom:3px;">Tarih / Dönem</label>
+            <input class="ai2" type="text" id="sefer-tarih" placeholder="29 Mar - 5 Nis 2026" style="margin-bottom:10px;"></div>
+          <div><label class="fl" style="margin-bottom:3px;">Rehber ata (opsiyonel)</label>
+            <select class="fs" id="sefer-rehber" style="margin-bottom:0;"><option value="">-- Rehber seç --</option></select></div>
+          <div class="mdb">
+            <button class="mc" onclick="closeModal('sefer-modal')">İptal</button>
+            <button class="mcf" onclick="saveSefer()">Ekle</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RAPORLAR (acente görür) -->
+    <div id="admin-rapor" class="apg">
+      <div style="background:linear-gradient(135deg,#0f6e56,#1D9E75);border-radius:16px;padding:16px;margin-bottom:14px;color:white;">
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:4px;">Raporlar</div>
+        <div style="font-size:12px;opacity:.75;">Sefer ve rehber raporları</div>
+      </div>
+
+      <!-- Genel istatistikler -->
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;" id="rapor-stats"></div>
+
+      <!-- Sefer raporları -->
+      <div class="sl2">Sefer Bazlı Rapor</div>
+      <div id="sefer-rapor-list"></div>
+
+      <!-- Rehber notları -->
+      <div class="sl2" style="margin-top:8px;">Rehber Notları / Raporları</div>
+      <div id="rehber-notlar-list"></div>
+    </div>
+
+    <!-- (eski admin-reh içeriği aşağıya taşındı — dummy placeholder) -->
+    <div id="admin-reh-dummy" style="display:none;">
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="mo2" id="cpm">
+  <div class="md"><div class="mdt">Sifre Degistir</div>
+    <input class="ai2" type="password" id="np1" placeholder="Yeni sifre" style="margin-bottom:8px;">
+    <input class="ai2" type="password" id="np2" placeholder="Yeni sifre tekrar" style="margin-bottom:0;">
+    <div class="mdb"><button class="mc" onclick="closeModal('cpm')">Iptal</button><button class="mcf" onclick="savePW()">Kaydet</button></div>
+  </div>
+</div>
+<div class="mo2" id="kat-modal">
+  <div class="md"><div class="mdt" id="kat-modal-title">Katilimcilar</div><div id="kat-modal-body"></div><div class="mdb"><button class="mc" onclick="closeModal('kat-modal')" style="flex:none;padding:10px 20px;">Kapat</button></div></div>
+</div>
+
+<script>
+const SHIPS = ['Celestyal Journey','Celestyal Discovery','Celestyal Constellation'];
+const USERS = {
+  voyago:  {pass:'voyago2024',role:'voyago',name:'VOYAGO App',acente:'voyago'},
+  admin:   {pass:'1234',role:'acente',name:'Mavi Tur',acente:'maviytur',city:'Istanbul, TR',note:'Demo acentesi',createdAt:'2026-01-15'},
+  vasilis: {pass:'1234',role:'guide',name:'Vasilis Klimantakis',ship:'Celestyal Journey',initials:'VK',color:'#1a5fa8',acente:'maviytur'},
+  elena:   {pass:'1234',role:'guide',name:'Elena Papadaki',ship:'Celestyal Discovery',initials:'EP',color:'#0f6e56',acente:'maviytur'},
+};
+
+let VOYAGES = [
+  {id:'29mar',label:'29 Mar - 5 Nis 2026',route:'Doha - Pire - Santorini - Safaga',ship:'Celestyal Journey',guide:'vasilis',status:'active',visible:true,startDate:'2026-03-29',endDate:'2026-04-05'},
+  {id:'5nis', label:'5 Nis - 12 Nis 2026', route:'Pire - Santorini - Rodos - Doha', ship:'Celestyal Journey',guide:'vasilis',status:'active',visible:false,startDate:'2026-04-05',endDate:'2026-04-12'},
+  {id:'12nis',label:'12 Nis - 19 Nis 2026',route:'Pire - Bari - Dubrovnik',         ship:'Celestyal Discovery',guide:'elena', status:'upcoming',visible:false,startDate:'2026-04-12',endDate:'2026-04-19'},
+  {id:'19nis',label:'19 Nis - 26 Nis 2026',route:'Doha - Muscat - Dubai',           ship:'Celestyal Discovery',guide:'elena', status:'upcoming',visible:false,startDate:'2026-04-19',endDate:'2026-04-26'},
+  {id:'jan26', label:'15 Oca - 22 Oca 2026',route:'Doha - Muscat - Dubai',          ship:'Celestyal Journey',guide:'vasilis',status:'archived',visible:false,startDate:'2026-01-15',endDate:'2026-01-22'},
+];
+
+let TOURS = [
+  {id:'t1',name:'Atina Akropolis',liman:'Pire / Atina',saat:'09:00',gun:1,ap:72,cp:45,bp:0,ship:'Celestyal Journey',seferler:['29mar','5nis'],img:null},
+  {id:'t2',name:'Atina sehir turu',liman:'Pire / Atina',saat:'10:30',gun:1,ap:45,cp:28,bp:0,ship:'Celestyal Journey',seferler:['29mar'],img:null},
+  {id:'t3',name:'Oia gün batimi',liman:'Santorini',saat:'08:00',gun:2,ap:65,cp:40,bp:0,ship:'Celestyal Journey',seferler:['29mar','5nis'],img:null},
+  {id:'t4',name:'Luxor tam gün',liman:'Safaga / Misir',saat:'06:30',gun:4,ap:120,cp:75,bp:0,ship:'Celestyal Journey',seferler:['29mar'],img:null},
+];
+
+let passengers = [
+  {name:'Ahmet Yilmaz', kabin:'214',tel:'+90 532 xxx 01',sefer:'29mar',adult:2,child:1,baby:0,checkedIn:true, checkinDone:true, joinedTours:['t1']},
+  {name:'Fatma Kaya',   kabin:'215',tel:'+90 541 xxx 02',sefer:'29mar',adult:2,child:0,baby:0,checkedIn:true, checkinDone:true, joinedTours:[]},
+  {name:'Mehmet Demir', kabin:'318',tel:'+90 505 xxx 03',sefer:'5nis', adult:1,child:2,baby:1,checkedIn:false,checkinDone:false,joinedTours:[]},
+  {name:'Zeynep Arslan',kabin:'122',tel:'+90 533 xxx 04',sefer:'5nis', adult:3,child:0,baby:0,checkedIn:false,checkinDone:false,joinedTours:[]},
+];
+
+// Günlük içerik (sefer bazlı)
+let DAILY = {};
+// DAILY[seferId] = { port:{name,country,arival,depart}, program:[{time,title,sub,badge}], promos:[{pct,title,sub}], yemek:[{icon,name,floor,meals:[{name,time}]}], meeting:{saat,yer,konu} }
+
+let MEETING = {saat:'',yer:'',konu:''};
+let GAZETE_IMGS = [];
+let CU=null, CP=null, CIF='hepsi', CASF='hepsi', CTSF='hepsi', CGK2=null;
+let ACTIVE_SHIP = 'Celestyal Journey';
+let newTurImg = null;
+const loginKisi = {adult:1,child:0,baby:0};
+const adminKisi = {ya:1,yc:0,yb:0};
+
+// Saat
+function startClock(){
+  function tick(){
+    const now=new Date();
+    const h=String(now.getHours()).padStart(2,'0');
+    const m=String(now.getMinutes()).padStart(2,'0');
+    const el=document.getElementById('app-clock');
+    if(el) el.textContent=h+':'+m;
+  }
+  tick();
+  setInterval(tick,30000);
+}
+
+function changeKisi(type,delta){
+  loginKisi[type]=Math.max(0,loginKisi[type]+delta);
+  if(type==='adult'&&loginKisi[type]<1)loginKisi[type]=1;
+  document.getElementById('k-'+type).textContent=loginKisi[type];
+}
+function changeKisiAdmin(type,delta){
+  adminKisi[type]=Math.max(0,adminKisi[type]+delta);
+  if(type==='ya'&&adminKisi[type]<1)adminKisi[type]=1;
+  document.getElementById(type+'-num').textContent=adminKisi[type];
+}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function getDailyForSefer(sid){
+  if(!DAILY[sid]) DAILY[sid]={
+    port:{name:'',country:'',arival:'',depart:''},
+    program:[],
+    promos:[],
+    yemek:[
+      {icon:'🍽️',name:'Ana Restoran',floor:'Güverte 5',meals:[{name:'Kahvalti',time:'07:00 - 10:00'},{name:'Ögle',time:'12:00 - 14:30'},{name:'Aksam',time:'18:30 - 21:30'}]},
+      {icon:'☀️',name:'Lido Açik Büfe',floor:'Güverte 9',meals:[{name:'Kahvalti',time:'06:30 - 10:30'},{name:'Ögle',time:'11:30 - 15:00'},{name:'Gece',time:'23:00 - 01:00'}]},
+      {icon:'☕',name:'Kafe & Bar',floor:'Güverte 7',meals:[{name:'Kahve & içecek',time:'24 saat'}]},
+    ],
+    meeting:{saat:'',yer:'',konu:''}
+  };
+  return DAILY[sid];
+}
+
+function populateSeferler(){
+  const s=document.getElementById('lsf');
+  const visible=VOYAGES.filter(v=>v.visible===true&&v.status!=='archived');
+  if(!visible.length){
+    s.innerHTML='<option value="">Simdilik aktif sefer yok</option>';
+    return;
+  }
+  s.innerHTML=visible.map(v=>`<option value="${v.id}">${v.label} — ${v.ship}</option>`).join('');
+}
+populateSeferler();
+
+// ── YOLCU GİRİŞİ ──
+function doPL(){
+  const name=document.getElementById('ln').value.trim();
+  const phone=document.getElementById('lp').value.trim();
+  const kabin=document.getElementById('lk').value.trim();
+  const sel=document.getElementById('lsf');
+  const err=document.getElementById('le');
+  if(!name||!phone||!kabin){err.style.display='block';return;}
+  err.style.display='none';
+  const code=document.getElementById('cc').value;
+  const sv=sel.value;
+  const sl2=sel.options[sel.selectedIndex]?.text.split('—')[0].trim()||'';
+  let p=passengers.find(p=>p.kabin===kabin&&p.sefer===sv);
+  const isFirst=!p||!p.checkinDone;
+  if(p){p.checkedIn=true;p.checkinDone=true;p.tel=code+' '+phone;p.name=name;p.adult=loginKisi.adult;p.child=loginKisi.child;p.baby=loginKisi.baby;}
+  else{p={name,kabin,tel:code+' '+phone,sefer:sv,adult:loginKisi.adult,child:loginKisi.child,baby:loginKisi.baby,checkedIn:true,checkinDone:true,joinedTours:[]};passengers.push(p);}
+  CP=p;
+  document.getElementById('akl').textContent='Kabin '+kabin;
+  const v=VOYAGES.find(v=>v.id===sv);
+  document.getElementById('app-ship-name').textContent=v?.ship||'Celestyal Journey';
+  // Tarih pill
+  const now=new Date();
+  document.getElementById('app-date-pill').textContent=now.toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'});
+  // Sefer sayısı pill
+  const visCount=VOYAGES.filter(vv=>vv.visible&&vv.status!=='archived'&&vv.ship===v?.ship).length;
+  const myIdx=VOYAGES.filter(vv=>vv.visible&&vv.status!=='archived'&&vv.ship===v?.ship).findIndex(vv=>vv.id===sv)+1;
+  document.getElementById('app-sefer-pill').textContent='Sefer '+myIdx+'/'+visCount;
+  if(v&&USERS[v.guide]){const g=USERS[v.guide];document.getElementById('agn').textContent=g.name;document.getElementById('aga').textContent=g.initials||g.name.slice(0,2).toUpperCase();document.getElementById('aga').style.background=g.color||'#1a5fa8';}
+  renderPassTours(sv);
+  renderProgramPage(sv);
+  renderYemekPage(sv);
+  renderGazete();
+  showScreen('sa');
+  startClock();
+  if(isFirst) showToast('Check-in yapildi! Hos geldiniz, '+name.split(' ')[0]+'!');
+  else showToast('Hos geldiniz, '+name.split(' ')[0]+'!');
+}
+
+// ── PROGRAM SAYFASI ──
+function renderProgramPage(sv){
+  const d=getDailyForSefer(sv);
+
+  // Toplanti
+  const ma=document.getElementById('meeting-area');
+  if(d.meeting?.saat||d.meeting?.yer){
+    ma.innerHTML=`<div class="meeting-card">
+      <div class="meeting-badge">ÖNEMLI — KATILIM ZORUNLU</div>
+      <div class="meeting-title">${d.meeting.konu||'Genel Bilgilendirme Toplantisi'}</div>
+      <div class="meeting-row">
+        ${d.meeting.saat?`<div class="meeting-info"><div class="meeting-info-label">Saat</div><div class="meeting-info-val">&#9200; ${d.meeting.saat}</div></div>`:''}
+        ${d.meeting.yer?`<div class="meeting-info"><div class="meeting-info-label">Yer</div><div class="meeting-info-val">&#128205; ${d.meeting.yer}</div></div>`:''}
+      </div>
+    </div>`;
+  } else ma.innerHTML='';
+
+  // Liman
+  const pa=document.getElementById('port-area');
+  if(d.port?.name){
+    pa.innerHTML=`<div class="pc-card">
+      <div class="pn">${d.port.name}</div>
+      <div class="pco">${d.port.country||''}</div>
+      <div class="pts">
+        <div class="pt"><div class="ptl">Varis</div><div class="ptv">${d.port.arival||'--:--'}</div><div class="pts2">Bugün</div></div>
+        <div class="pt"><div class="ptl">Ayrilis</div><div class="ptv">${d.port.depart||'--:--'}</div><div class="pts2">Bugün</div></div>
+      </div>
+    </div>`;
+  } else pa.innerHTML='<div class="no-data">Liman bilgisi henüz girilmemis.</div>';
+
+  // Program
+  const pra=document.getElementById('program-area');
+  if(d.program?.length){
+    const items=d.program.map(item=>`<div class="ar">
+      <div class="at">${item.time}</div>
+      <div class="ai"><div class="ait">${item.title}</div>${item.sub?`<div class="ais">${item.sub}</div>`:''}</div>
+      ${item.badge?`<span class="badge ${item.badgeClass||'bg'}">${item.badge}</span>`:''}
+    </div>`).join('');
+    pra.innerHTML=`<div class="sl2">Günün Programi</div><div class="card">${items}</div>`;
+  } else pra.innerHTML='<div class="sl2">Günün Programi</div><div class="no-data">Program henüz girilmemis.</div>';
+
+  // Promosyonlar
+  const proa=document.getElementById('promo-area');
+  if(d.promos?.length){
+    const items=d.promos.map(p=>`<div class="prow"><div class="pp">${p.pct}</div><div><div class="prt">${p.title}</div><div class="prs">${p.sub||''}</div></div></div>`).join('');
+    proa.innerHTML=`<div class="sl2">Aktif Promosyonlar</div>${items}`;
+  } else proa.innerHTML='';
+}
+
+// ── YEMEK SAYFASI ──
+function renderYemekPage(sv){
+  const d=getDailyForSefer(sv);
+  const el=document.getElementById('yemek-area');
+  if(!d.yemek?.length){el.innerHTML='<div class="no-data">Yemek saatleri henüz girilmemis.</div>';return;}
+  el.innerHTML=d.yemek.map(r=>`
+    <div class="card">
+      <div class="rh"><div class="ri" style="background:var(--al);">${r.icon||'🍽️'}</div><div><div class="rn2">${r.name}</div><div class="rf">${r.floor||''}</div></div></div>
+      ${r.meals.map(m=>`<div class="mr"><div class="mn">${m.name}</div><div class="mt2">${m.time}</div></div>`).join('')}
+    </div>`).join('');
+}
+
+// ── TURLAR (misafir) ──
+function renderPassTours(sv){
+  const el=document.getElementById('tl-pass');
+  if(!CP){el.innerHTML='';return;}
+  const p=CP;
+  const today=1;
+  const tours=TOURS.filter(t=>t.seferler.includes(sv)&&t.gun===today);
+  if(!tours.length){el.innerHTML='<div class="no-data" style="margin-top:10px;">Bugün için tur bulunmuyor.</div>';return;}
+  el.innerHTML=tours.map(t=>{
+    const j=p.joinedTours.includes(t.id);
+    const total=(p.adult*t.ap)+(p.child*t.cp)+(p.baby*t.bp);
+    const det=[];
+    if(p.adult>0)det.push(p.adult+' yetiskin x E'+t.ap);
+    if(p.child>0)det.push(p.child+' cocuk x E'+t.cp);
+    if(p.baby>0)det.push(p.baby+' bebek x E'+t.bp);
+    return `<div class="ti ${j?'joined':''}">
+      <div class="ti-img">${t.img?`<img src="${t.img}" alt="${t.name}">`:'🗺️'}</div>
+      <div class="ti-body">
+        <div class="th2"><div><div class="tn">${t.name}</div><span class="badge ${j?'bg':'bb'}" style="margin-top:4px;">${j?'Katiliyorum':'Katilmiyorum'}</span></div><div class="tpr">E${t.ap}</div></div>
+        <div class="td">&#128205; ${t.liman} &nbsp;·&nbsp; Toplanti: ${t.saat} &nbsp;·&nbsp; ${t.gun}. gün</div>
+        <div class="tpc">Toplam: <span>E${total}</span><br><span style="font-size:10px;color:var(--t3);">${det.join(' + ')}</span></div>
+        <button class="bj ${j?'joined':''}" onclick="toggleTour('${t.id}')">${j?'Katiliyorum — Iptal':'Tura Katil'}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleTour(tid){
+  if(!CP)return;
+  const i=CP.joinedTours.indexOf(tid);
+  if(i>=0)CP.joinedTours.splice(i,1);else CP.joinedTours.push(tid);
+  renderPassTours(CP.sefer);
+  showToast(i>=0?'Turdan cikildi.':'Tura katildiniz!');
+}
+
+// ── GAZETE ──
+function renderGazete(){
+  const g=document.getElementById('gazete-display');
+  const e=document.getElementById('gazete-empty-msg');
+  const t=document.getElementById('gazete-tarih');
+  const now=new Date();
+  if(t)t.textContent=now.toLocaleDateString('tr-TR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  if(!GAZETE_IMGS.length){if(g)g.innerHTML='';if(e)e.style.display='block';return;}
+  if(e)e.style.display='none';
+  if(g)g.innerHTML=GAZETE_IMGS.map(src=>`<div class="gazete-img"><img src="${src}"></div>`).join('');
+}
+function renderGazeteAdmin(){
+  const g=document.getElementById('gazete-admin-grid');
+  const t=document.getElementById('gazete-admin-tarih');
+  const now=new Date();
+  if(t)t.textContent=now.toLocaleDateString('tr-TR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  if(!g)return;
+  const slots=[];
+  for(let i=0;i<4;i++){
+    if(GAZETE_IMGS[i])slots.push(`<div class="gazete-slot"><img src="${GAZETE_IMGS[i]}"><button class="gz-del" onclick="delGazete(${i})">x</button></div>`);
+    else slots.push(`<div class="gazete-slot gz-empty"><span>📷</span>Sayfa ${i+1}</div>`);
+  }
+  g.innerHTML=slots.join('');
+}
+function addGazeteImg(input){
+  [...input.files].forEach(f=>{
+    if(GAZETE_IMGS.length>=4){showToast('Max 4 sayfa.');return;}
+    const r=new FileReader();
+    r.onload=e=>{GAZETE_IMGS.push(e.target.result);renderGazeteAdmin();renderGazete();};
+    r.readAsDataURL(f);
+  });
+  input.value='';
+}
+function delGazete(i){GAZETE_IMGS.splice(i,1);renderGazeteAdmin();renderGazete();}
+function clearGazete(){GAZETE_IMGS=[];renderGazeteAdmin();renderGazete();showToast('Temizlendi.');}
+
+// ── ADMIN GİRİŞİ ──
+function doAL(){
+  const u=document.getElementById('au').value.trim().toLowerCase();
+  const p=document.getElementById('ap').value;
+  const err=document.getElementById('ale');
+  if(!USERS[u]||USERS[u].pass!==p){err.style.display='block';return;}
+  err.style.display='none';
+  CU={key:u,...USERS[u]};
+  // Rol bazlı başlangıç gemisi
+  if(CU.role==='voyago') ACTIVE_SHIP=SHIPS[0];
+  else if(CU.role==='acente') ACTIVE_SHIP=SHIPS[0];
+  else ACTIVE_SHIP=CU.ship||SHIPS[0];
+  setupAdmin();
+  showScreen('sc');
+}
+
+function doForgot(){
+  const u=document.getElementById('forgot-user').value.trim().toLowerCase();
+  const res=document.getElementById('forgot-result');
+  const err=document.getElementById('forgot-error');
+  const passShow=document.getElementById('forgot-pass-show');
+  res.style.display='none';err.style.display='none';
+  if(!USERS[u]){err.style.display='block';return;}
+  passShow.textContent=USERS[u].pass;
+  res.style.display='block';
+}
+
+function setupAdmin(){
+  const u=CU;
+  const isVoyago=u.role==='voyago';
+  const isAcente=u.role==='acente';
+  const isGuide=u.role==='guide';
+  const iS=isVoyago||isAcente; // admin seviyesi
+
+  // Topbar rengi
+  let topClass='atb ';
+  if(isVoyago)topClass+='sub';
+  else if(isAcente)topClass+='sub';
+  else topClass+='gub';
+  document.getElementById('atop').className=topClass;
+  document.getElementById('apt').textContent=isVoyago?'VOYAGO App':isAcente?'Acente Paneli — '+u.name:'Rehber Paneli';
+  document.getElementById('aps').textContent=isVoyago?'Süper Yönetici':isAcente?u.city||'':u.name+' - '+u.ship;
+
+  // Gemi seçici (voyago ve acente görür)
+  const ssa=document.getElementById('ship-select-area');
+  // Gemi seçici acente panelinde gereksiz — her zaman gizle
+  ssa.style.display='none';
+
+  // Rol bandı
+  const rb=document.getElementById('rbe');
+  if(isVoyago){rb.className='rsb';rb.style.cssText='padding:3px 11px;border-radius:20px;font-size:12px;font-weight:600;background:#26215c;color:white;';rb.textContent='VOYAGO';}
+  else if(isAcente){rb.className='rsb rsu';rb.style.cssText='';rb.textContent='Acente';}
+  else{rb.className='rsb rsg';rb.style.cssText='';rb.textContent='Rehber';}
+  document.getElementById('rde').textContent=isVoyago?'Tüm acenteleri ve kullanıcıları yönetiyorsunuz.':isAcente?'Kendi acente paneliniz.':u.ship+' gemisindeki seferleriniz.';
+
+  // Sekme görünürlükleri
+  document.getElementById('atab-reh').style.display=isAcente?'block':'none';
+  document.getElementById('atab-gemiler').style.display=isAcente?'block':'none';
+  document.getElementById('atab-rapor').style.display=isAcente?'block':'none';
+  document.getElementById('atab-voyago').style.display=isVoyago?'flex':'none';
+
+  // VOYAGO rolündeyse diğer admin sekmeleri gizle, sadece VOYAGO sekmesi kalsın
+  ['atab-ci','atab-gunluk','atab-tur','atab-gz','atab-gelecek','atab-kontrol','atab-bil','atab-sef'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.style.display=isVoyago?'none':'';
+  });
+
+  // VOYAGO rolü — sadece VOYAGO panelini aç ve dur
+  if(isVoyago){
+    document.querySelectorAll('.apg').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.att').forEach(b=>b.classList.remove('active'));
+    const vp=document.getElementById('admin-voyago');
+    const vt=document.getElementById('atab-voyago');
+    if(vp)vp.classList.add('active');
+    if(vt){vt.style.display='flex';vt.classList.add('active');}
+    renderVoyagoPanel();
+    return;
+  }
+
+  const activeShip=isAcente?ACTIVE_SHIP:(u.ship||SHIPS[0]);
+  const mv=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived');
+  const allV=VOYAGES.filter(v=>v.ship===activeShip);
+
+  // Sefer filtresi
+  document.getElementById('af').innerHTML='<div class="fc active" onclick="filterPS(this,\'hepsi\')">Tümü</div>'+
+    mv.map(v=>`<div class="fc" onclick="filterPS(this,'${v.id}')">${v.label.split('-')[0].trim()}</div>`).join('');
+  document.getElementById('nsc').innerHTML=mv.map((v,i)=>`<div class="sch ${i===0?'active':''}" onclick="togS(this)">${v.label}</div>`).join('');
+  document.getElementById('tsf').innerHTML='<div class="fc active" onclick="filterTS(this,\'hepsi\')">Tümü</div>'+
+    mv.map(v=>`<div class="fc" onclick="filterTS(this,'${v.id}')">${v.label.split('-')[0].trim()}</div>`).join('');
+  document.getElementById('ntse').innerHTML=mv.map(v=>`<option value="${v.id}">${v.label}</option>`).join('');
+  document.getElementById('ye-sefer').innerHTML=mv.map(v=>`<option value="${v.id}">${v.label}</option>`).join('');
+  const allT=TOURS.filter(t=>t.ship===activeShip);
+  document.getElementById('tur-ekle-tur').innerHTML=allT.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+  document.getElementById('tur-ekle-sefer').innerHTML=mv.map(v=>`<option value="${v.id}">${v.label}</option>`).join('');
+
+  // Aktif seferler listesi
+  const vlEl=document.getElementById('vl');
+  if(vlEl)vlEl.innerHTML=mv.map(v=>{
+    const cnt=passengers.filter(p=>p.sefer===v.id).length;
+    const ci=passengers.filter(p=>p.sefer===v.id&&p.checkedIn).length;
+    const g=USERS[v.guide];
+    return `<div class="voyage-card">
+      <div class="voyage-header">
+        <div>
+          <div class="voyage-name">${v.label}</div>
+          <div class="voyage-dates">${v.route}</div>
+          ${iS?`<div class="voyage-guide">${g?.name||v.guide}</div>`:''}
+          <div class="voyage-count">${cnt} kabin - ${ci} check-in</div>
+        </div>
+        <div class="voyage-actions">
+          <button class="vis-toggle ${v.visible?'vis-on':'vis-off'}" onclick="toggleVoyageVisible('${v.id}')">${v.visible?'Görünür':'Gizli'}</button>
+          <button class="vis-toggle" style="border-color:var(--amber);color:var(--amber);" onclick="archiveVoyage('${v.id}')">Arsivle</button>
+          <button class="vis-toggle" style="border-color:var(--red);color:var(--red);" onclick="deleteVoyage('${v.id}')">Sil</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  if(vlEl&&!mv.length) vlEl.innerHTML='<div class="es">Aktif sefer yok.</div>';
+
+  // Arşiv
+  const archived=VOYAGES.filter(v=>v.ship===activeShip&&v.status==='archived');
+  const vlaEl=document.getElementById('vl-archived');
+  if(vlaEl)vlaEl.innerHTML=archived.map(v=>{
+    const cnt=passengers.filter(p=>p.sefer===v.id).length;
+    return `<div class="archived-card">
+      <div><div class="archived-name">${v.label}</div><div class="archived-date">${v.route}</div></div>
+      <div class="archived-count">${cnt} yolcu</div>
+    </div>`;
+  }).join('') || '<div class="es">Gecmis sefer yok.</div>';
+  // vlaEl zaten yukarıda set edildi
+
+  const vgf=document.getElementById('vgf');
+  if(vgf)vgf.innerHTML=isAcente?`<div style="margin-top:10px;"><label class="fl" style="margin-bottom:3px;">Sorumlu rehber</label><select class="fs" id="nvg" style="margin:0;">${Object.entries(USERS).filter(([k,v])=>v.role==='guide').map(([k,v])=>`<option value="${k}">${v.name}</option>`).join('')}</select></div>`:'';
+
+  if(iS)renderGuides();
+  renderPS('hepsi');
+  renderTA('hepsi');
+  initDailyForms();
+}
+
+function selectShipIdx(i){ACTIVE_SHIP=SHIPS[i];setupAdmin();}
+
+// ── SEFER GÖRÜNÜRLÜK ──
+function toggleVoyageVisible(id){
+  const v=VOYAGES.find(v=>v.id===id);
+  if(v){v.visible=!v.visible;setupAdmin();populateSeferler();showToast(v.visible?'Sefer misafire görünür.':'Sefer gizlendi.');}
+}
+function archiveVoyage(id){
+  if(!confirm('Bu sefer arsivlensin mi?'))return;
+  const v=VOYAGES.find(v=>v.id===id);
+  if(v){v.status='archived';v.visible=false;setupAdmin();populateSeferler();showToast('Sefer arsivlendi.');}
+}
+function deleteVoyage(id){
+  if(!confirm('Bu sefer silinsin mi? Geri alinamaz!'))return;
+  const i=VOYAGES.findIndex(v=>v.id===id);
+  if(i>=0){VOYAGES.splice(i,1);setupAdmin();populateSeferler();showToast('Sefer silindi.');}
+}
+
+// ── GÜNLÜK FORM ──
+function initDailyForms(){
+  const iS=CU?.role==='super';
+  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  const mv=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived');
+  const sv=mv[0]?.id;
+  if(!sv)return;
+  const d=getDailyForSefer(sv);
+
+  // Port
+  document.getElementById('port-name').value=d.port.name||'';
+  document.getElementById('port-country').value=d.port.country||'';
+  document.getElementById('port-arival').value=d.port.arival||'';
+  document.getElementById('port-depart').value=d.port.depart||'';
+
+  // Meeting
+  document.getElementById('m-saat').value=d.meeting?.saat||'';
+  document.getElementById('m-yer').value=d.meeting?.yer||'';
+  document.getElementById('m-konu').value=d.meeting?.konu||'';
+
+  renderProgramForm(d.program||[]);
+  renderPromoForm(d.promos||[]);
+  renderYemekForm(d.yemek||[]);
+}
+
+function getCurrentSeferId(){
+  const iS=CU?.role==='super';
+  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  const mv=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived');
+  return mv[0]?.id;
+}
+
+function savePort(){
+  const sv=getCurrentSeferId();if(!sv)return;
+  const d=getDailyForSefer(sv);
+  d.port.name=document.getElementById('port-name').value.trim();
+  d.port.country=document.getElementById('port-country').value.trim();
+  d.port.arival=document.getElementById('port-arival').value;
+  d.port.depart=document.getElementById('port-depart').value;
+  if(CP&&CP.sefer===sv)renderProgramPage(sv);
+  showToast('Liman bilgisi kaydedildi!');
+}
+
+function saveMeeting(){
+  const sv=getCurrentSeferId();if(!sv)return;
+  const d=getDailyForSefer(sv);
+  d.meeting={saat:document.getElementById('m-saat').value,yer:document.getElementById('m-yer').value.trim(),konu:document.getElementById('m-konu').value.trim()};
+  MEETING=d.meeting;
+  if(CP&&CP.sefer===sv)renderProgramPage(sv);
+  showToast('Toplanti bilgisi misafire gönderildi!');
+}
+function saveMeeting2(){
+  document.getElementById('m-saat').value=document.getElementById('m-saat2').value;
+  document.getElementById('m-yer').value=document.getElementById('m-yer2').value;
+  document.getElementById('m-konu').value=document.getElementById('m-konu2').value;
+  saveMeeting();
+}
+
+// PROGRAM FORMU
+function renderProgramForm(items){
+  const el=document.getElementById('program-items');
+  el.innerHTML=items.map((item,i)=>`
+    <div class="item-row">
+      <input type="time" value="${item.time||''}" onchange="updateProgramItem(${i},'time',this.value)" style="width:90px;flex:none;">
+      <input type="text" value="${item.title||''}" placeholder="Aktivite adi" onchange="updateProgramItem(${i},'title',this.value)" style="flex:2;">
+      <input type="text" value="${item.sub||''}" placeholder="Yer / detay" onchange="updateProgramItem(${i},'sub',this.value)" style="flex:1;">
+      <button class="del-btn" onclick="removeProgramItem(${i})">x</button>
+    </div>`).join('');
+}
+let programItems=[];
+function addProgramItem(){
+  programItems.push({time:'',title:'',sub:'',badge:'',badgeClass:'bg'});
+  renderProgramForm(programItems);
+}
+function updateProgramItem(i,key,val){programItems[i][key]=val;}
+function removeProgramItem(i){programItems.splice(i,1);renderProgramForm(programItems);}
+function saveProgram(){
+  const sv=getCurrentSeferId();if(!sv)return;
+  const d=getDailyForSefer(sv);
+  // Collect current values from DOM
+  const rows=document.querySelectorAll('#program-items .item-row');
+  const items=[];
+  rows.forEach(row=>{
+    const inputs=row.querySelectorAll('input');
+    const time=inputs[0].value,title=inputs[1].value.trim(),sub=inputs[2].value.trim();
+    if(title)items.push({time,title,sub,badge:'',badgeClass:'bg'});
+  });
+  d.program=items;
+  programItems=items;
+  if(CP&&CP.sefer===sv)renderProgramPage(sv);
+  showToast('Program kaydedildi!');
+}
+
+// PROMO FORMU
+let promoItems=[];
+function renderPromoForm(items){
+  promoItems=items.slice();
+  const el=document.getElementById('promo-items');
+  el.innerHTML=items.map((item,i)=>`
+    <div class="item-row">
+      <input type="text" value="${item.pct||''}" placeholder="Örn: %25" onchange="promoItems[${i}].pct=this.value" style="width:80px;flex:none;">
+      <input type="text" value="${item.title||''}" placeholder="Promosyon basligi" onchange="promoItems[${i}].title=this.value" style="flex:2;">
+      <input type="text" value="${item.sub||''}" placeholder="Detay / saat" onchange="promoItems[${i}].sub=this.value" style="flex:1;">
+      <button class="del-btn" onclick="removePromoItem(${i})">x</button>
+    </div>`).join('');
+}
+function addPromoItem(){promoItems.push({pct:'',title:'',sub:''});renderPromoForm(promoItems);}
+function removePromoItem(i){promoItems.splice(i,1);renderPromoForm(promoItems);}
+function savePromos(){
+  const sv=getCurrentSeferId();if(!sv)return;
+  const d=getDailyForSefer(sv);
+  const rows=document.querySelectorAll('#promo-items .item-row');
+  const items=[];
+  rows.forEach(row=>{
+    const inputs=row.querySelectorAll('input');
+    const pct=inputs[0].value.trim(),title=inputs[1].value.trim(),sub=inputs[2].value.trim();
+    if(title)items.push({pct,title,sub});
+  });
+  d.promos=items;promoItems=items;
+  if(CP&&CP.sefer===sv)renderProgramPage(sv);
+  showToast('Promosyonlar kaydedildi!');
+}
+
+// YEMEK FORMU
+let yemekData=[];
+function renderYemekForm(data){
+  yemekData=JSON.parse(JSON.stringify(data));
+  const el=document.getElementById('yemek-items');
+  el.innerHTML=data.map((r,ri)=>`
+    <div style="border:1.5px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;">
+      <div style="display:flex;gap:8px;margin-bottom:6px;align-items:center;">
+        <input type="text" value="${r.icon||'🍽️'}" style="width:44px;flex:none;padding:6px;border:1.5px solid var(--border);border-radius:8px;font-size:16px;text-align:center;background:var(--gray);" onchange="yemekData[${ri}].icon=this.value">
+        <input type="text" value="${r.name||''}" placeholder="Restoran adi" style="flex:2;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--gray);" onchange="yemekData[${ri}].name=this.value">
+        <input type="text" value="${r.floor||''}" placeholder="Güverte" style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--gray);" onchange="yemekData[${ri}].floor=this.value">
+        <button class="del-btn" onclick="removeRestoran(${ri})">x</button>
+      </div>
+      ${r.meals.map((m,mi)=>`
+        <div style="display:flex;gap:6px;margin-bottom:4px;padding-left:8px;">
+          <input type="text" value="${m.name||''}" placeholder="Ögun" style="flex:1;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;background:var(--gray);" onchange="yemekData[${ri}].meals[${mi}].name=this.value">
+          <input type="text" value="${m.time||''}" placeholder="07:00-10:00" style="flex:1;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;background:var(--gray);" onchange="yemekData[${ri}].meals[${mi}].time=this.value">
+          <button class="del-btn" style="width:24px;height:24px;font-size:12px;" onclick="removeMeal(${ri},${mi})">x</button>
+        </div>`).join('')}
+      <button class="add-item-btn" onclick="addMeal(${ri})" style="margin-top:4px;padding:5px;">+ Ögun Ekle</button>
+    </div>`).join('');
+}
+function addYemekRestoran(){yemekData.push({icon:'🍽️',name:'',floor:'',meals:[{name:'',time:''}]});renderYemekForm(yemekData);}
+function removeRestoran(i){yemekData.splice(i,1);renderYemekForm(yemekData);}
+function addMeal(ri){yemekData[ri].meals.push({name:'',time:''});renderYemekForm(yemekData);}
+function removeMeal(ri,mi){yemekData[ri].meals.splice(mi,1);renderYemekForm(yemekData);}
+function saveYemek(){
+  const sv=getCurrentSeferId();if(!sv)return;
+  // Collect from DOM
+  const restBlocks=document.querySelectorAll('#yemek-items > div');
+  const data=[];
+  restBlocks.forEach((block,ri)=>{
+    const inputs=block.querySelectorAll('input');
+    const icon=inputs[0].value,name=inputs[1].value.trim(),floor=inputs[2].value.trim();
+    if(!name)return;
+    const mealRows=block.querySelectorAll('div > div');
+    const meals=[];
+    block.querySelectorAll('div > div').forEach(row=>{
+      const ins=row.querySelectorAll('input');
+      if(ins.length>=2){const mn=ins[0].value.trim(),mt=ins[1].value.trim();if(mn)meals.push({name:mn,time:mt});}
+    });
+    data.push({icon,name,floor,meals});
+  });
+  const d=getDailyForSefer(sv);
+  d.yemek=yemekData;
+  if(CP&&CP.sefer===sv)renderYemekPage(sv);
+  showToast('Yemek saatleri kaydedildi!');
+}
+
+// ── CHECK-IN ──
+function filterPS(el,s){document.querySelectorAll('#af .fc').forEach(c=>c.classList.remove('active'));el.classList.add('active');CASF=s;renderPS(s);}
+function filterCI(el,f){document.querySelectorAll('.ct').forEach(b=>b.classList.remove('active'));el.classList.add('active');CIF=f;renderPS(CASF);}
+function renderPS(s){
+  const iS=CU?.role==='super';
+  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  const mvi=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived').map(v=>v.id);
+  let list=passengers.filter(p=>mvi.includes(p.sefer));
+  if(s!=='hepsi')list=list.filter(p=>p.sefer===s);
+  // Arama filtresi
+  const q=(document.getElementById('search-passenger')?.value||'').trim().toLowerCase();
+  if(q) list=list.filter(p=>p.name.toLowerCase().includes(q)||p.kabin.toLowerCase().includes(q));
+  const total=list.slice();
+  if(CIF==='ci')list=list.filter(p=>p.checkedIn);
+  if(CIF==='bk')list=list.filter(p=>!p.checkedIn);
+  const ci=total.filter(p=>p.checkedIn);
+  const kisi=total.reduce((a,p)=>a+p.adult+p.child+p.baby,0);
+  document.getElementById('s-t').textContent=total.length;
+  document.getElementById('s-c').textContent=ci.length;
+  document.getElementById('s-b').textContent=total.length-ci.length;
+  document.getElementById('s-k').textContent=kisi;
+  const body=document.getElementById('plb');
+  if(!list.length){body.innerHTML='<div class="es">Yolcu bulunamadi.</div>';return;}
+  body.innerHTML=list.map(p=>{
+    const v=VOYAGES.find(vv=>vv.id===p.sefer);
+    const ini=p.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const ks=p.adult+' yetiskin'+(p.child>0?' - '+p.child+' cocuk':'')+(p.baby>0?' - '+p.baby+' bebek':'');
+    const myT=TOURS.filter(t=>t.seferler.includes(p.sefer));
+    const ts=myT.map(t=>`<span style="font-size:10px;color:${p.joinedTours.includes(t.id)?'var(--green)':'var(--t3)'};">${p.joinedTours.includes(t.id)?'✓':'✗'} ${t.name}</span>`).join(' · ');
+    return `<div class="prow2">
+      <div class="pav ${p.checkedIn?'ck':'wt'}">${ini}</div>
+      <div class="pi2"><div class="pn2">${p.name}</div><div class="pd">Kabin ${p.kabin} - ${v?.label||p.sefer} - ${p.tel||'—'}</div><div class="pk">${ks}</div>${myT.length?`<div class="ptr">${ts}</div>`:''}</div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+        <span class="cb ${p.checkedIn?'cby':'cbn'}">${p.checkedIn?'Check-in':'Bekleyen'}</span>
+        <div style="display:flex;gap:4px;">
+          <button style="padding:3px 8px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--blue);color:var(--blue);background:transparent;font-family:'DM Sans',sans-serif;" onclick="toggleCI('${p.kabin}','${p.sefer}')">${p.checkedIn?'Geri':'CI'}</button>
+          <button style="padding:3px 8px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--red);color:var(--red);background:transparent;font-family:'DM Sans',sans-serif;" onclick="deletePassenger('${p.kabin}','${p.sefer}')">Sil</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function toggleCI(kabin,sefer){const p=passengers.find(p=>p.kabin===kabin&&p.sefer===sefer);if(p){p.checkedIn=!p.checkedIn;renderPS(CASF);showToast(p.checkedIn?'Check-in yapildi':'Geri alindi');}}
+function deletePassenger(kabin,sefer){if(!confirm('Silinsin mi?'))return;const i=passengers.findIndex(p=>p.kabin===kabin&&p.sefer===sefer);if(i>=0){passengers.splice(i,1);renderPS(CASF);showToast('Silindi.');}}
+function addPassenger(){
+  const name=document.getElementById('ye-name').value.trim();
+  const kabin=document.getElementById('ye-kabin').value.trim();
+  const tel=document.getElementById('ye-tel').value.trim();
+  const sefer=document.getElementById('ye-sefer').value;
+  if(!name||!kabin){showToast('Ad ve kabin gereklidir.');return;}
+  if(passengers.find(p=>p.kabin===kabin&&p.sefer===sefer)){showToast('Bu kabin zaten kayitli.');return;}
+  passengers.push({name,kabin,tel,sefer,adult:adminKisi.ya,child:adminKisi.yc,baby:adminKisi.yb,checkedIn:false,checkinDone:false,joinedTours:[]});
+  document.getElementById('ye-name').value='';document.getElementById('ye-kabin').value='';document.getElementById('ye-tel').value='';
+  renderPS(CASF);showToast(name+' eklendi!');
+}
+
+// ── EXCEL ──
+function loadExcel(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const data=XLSX.utils.sheet_to_json(ws,{header:1});
+      let added=0,updated=0;
+      for(let i=1;i<data.length;i++){
+        const r=data[i];if(!r||!r[0])continue;
+        const name=String(r[0]||'').trim(),kabin=String(r[1]||'').trim(),tel=String(r[2]||'').trim();
+        const adult=parseInt(r[3])||1,child=parseInt(r[4])||0,baby=parseInt(r[5])||0;
+        const sl2=String(r[6]||'').trim();
+        if(!name||!kabin)continue;
+        const v=VOYAGES.find(vv=>vv.label.includes(sl2.split('-')[0].trim()))||VOYAGES[0];
+        const ex=passengers.find(p=>p.kabin===kabin&&p.sefer===v.id);
+        if(ex){Object.assign(ex,{name,tel,adult,child,baby});updated++;}
+        else{passengers.push({name,kabin,tel,sefer:v.id,adult,child,baby,checkedIn:false,checkinDone:false,joinedTours:[]});added++;}
+      }
+      setupAdmin();showToast(added+' yeni - '+updated+' güncellendi');
+    }catch(err){showToast('Hata: '+err.message);}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── TURLAR ──
+function filterTS(el,s){document.querySelectorAll('#tsf .fc').forEach(c=>c.classList.remove('active'));el.classList.add('active');CTSF=s;renderTA(s);}
+function renderTA(s){
+  const iS=CU?.role==='super';
+  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  let tours=TOURS.filter(t=>t.ship===activeShip);
+  if(s!=='hepsi')tours=tours.filter(t=>t.seferler.includes(s));
+  const el=document.getElementById('tal');
+  el.innerHTML=tours.map(t=>{
+    const kat=passengers.filter(p=>p.joinedTours.includes(t.id));
+    const total=kat.reduce((a,p)=>a+(p.adult*t.ap)+(p.child*t.cp)+(p.baby*t.bp),0);
+    const kisi=kat.reduce((a,p)=>a+p.adult+p.child+p.baby,0);
+    const sT=t.seferler.map(sid=>{const v=VOYAGES.find(v=>v.id===sid);return v?`<span class="badge bb" style="font-size:10px;margin-right:4px;">${v.label.split('-')[0].trim()}</span>`:''}).join('');
+    return `<div class="tur-admin-card">
+      <div class="tur-admin-img" onclick="document.getElementById('tei-${t.id}').click()">
+        ${t.img?`<img src="${t.img}">`:'<span>🗺️</span>'}
+        <div class="img-ov">Görsel degistir</div>
+        <input type="file" id="tei-${t.id}" accept="image/*" style="display:none;" onchange="editTurImg(this,'${t.id}')">
+      </div>
+      <div class="tur-admin-body">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div><div style="font-size:14px;font-weight:500;color:var(--t);">${t.name}</div>
+          <div style="font-size:11px;color:var(--t2);margin-top:2px;">📍 ${t.liman} · ${t.saat} · ${t.gun}. gün</div>
+          <div style="margin-top:5px;">${sT}</div></div>
+          <button style="padding:4px 11px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--red);color:var(--red);background:transparent;" onclick="deleteTour('${t.id}')">Sil</button>
+        </div>
+        <div style="display:flex;gap:7px;margin-top:10px;flex-wrap:wrap;">
+          <div class="sc2" style="flex:1;min-width:55px;padding:8px;cursor:pointer;" onclick="showKatilimcilar('${t.id}')"><div class="sn" style="font-size:16px;">${kat.length}</div><div class="slb">Kabin</div></div>
+          <div class="sc2" style="flex:1;min-width:55px;padding:8px;"><div class="sn" style="font-size:16px;">${kisi}</div><div class="slb">Kisi</div></div>
+          <div class="sc2" style="flex:1;min-width:55px;padding:8px;"><div class="sn" style="font-size:16px;">E${total}</div><div class="slb">Toplam</div></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('') || '<div class="es">Tur bulunamadi.</div>';
+}
+function editTurImg(input,tid){const f=input.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{const t=TOURS.find(t=>t.id===tid);if(t)t.img=e.target.result;renderTA(CTSF);showToast('Görsel güncellendi');};r.readAsDataURL(f);}
+function deleteTour(tid){if(!confirm('Silinsin mi?'))return;const i=TOURS.findIndex(t=>t.id===tid);if(i>=0){TOURS.splice(i,1);renderTA(CTSF);showToast('Tur silindi.');}}
+function previewTurImg(input){const f=input.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{newTurImg=e.target.result;document.getElementById('tur-img-preview').innerHTML=`<img src="${e.target.result}" style="width:100%;height:70px;object-fit:cover;border-radius:8px;">`;};r.readAsDataURL(f);}
+function addTour(){
+  const name=document.getElementById('ntn').value.trim();
+  const liman=document.getElementById('ntl').value.trim();
+  const saat=document.getElementById('nts').value;
+  const gun=parseInt(document.getElementById('ntgun').value)||1;
+  const ap=parseFloat(document.getElementById('nta').value)||0;
+  const cp=parseFloat(document.getElementById('ntc').value)||0;
+  const bp=parseFloat(document.getElementById('ntb').value)||0;
+  const sefer=document.getElementById('ntse').value;
+  if(!name||!liman){showToast('Ad ve liman gereklidir.');return;}
+  const iS=CU?.role==='super';
+  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  TOURS.push({id:'t'+Date.now(),name,liman,saat,gun,ap,cp,bp,ship:activeShip,seferler:[sefer],img:newTurImg});
+  newTurImg=null;
+  document.getElementById('ntn').value='';document.getElementById('ntl').value='';
+  document.getElementById('nta').value='';document.getElementById('ntc').value='';document.getElementById('ntb').value='';
+  document.getElementById('tur-img-preview').innerHTML='📷 Görsel ekle';
+  renderTA(CTSF);
+  const allT=TOURS.filter(t=>t.ship===activeShip);
+  document.getElementById('tur-ekle-tur').innerHTML=allT.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+  showToast('Tur eklendi!');
+}
+function turSefereEkle(){const tid=document.getElementById('tur-ekle-tur').value,sid=document.getElementById('tur-ekle-sefer').value;const t=TOURS.find(t=>t.id===tid);if(!t)return;if(t.seferler.includes(sid)){showToast('Zaten bu seferde.');return;}t.seferler.push(sid);renderTA(CTSF);showToast('Sefere eklendi!');}
+function turSeferdenCikar(){const tid=document.getElementById('tur-ekle-tur').value,sid=document.getElementById('tur-ekle-sefer').value;const t=TOURS.find(t=>t.id===tid);if(!t)return;const i=t.seferler.indexOf(sid);if(i<0){showToast('Bu seferde degil.');return;}t.seferler.splice(i,1);renderTA(CTSF);showToast('Seferden cikarildi.');}
+
+// ── KATILIMCILAR ──
+function showKatilimcilar(tid){
+  const t=TOURS.find(t=>t.id===tid);if(!t)return;
+  const kat=passengers.filter(p=>p.joinedTours.includes(tid));
+  document.getElementById('kat-modal-title').textContent=t.name+' ('+kat.length+' kabin)';
+  const body=document.getElementById('kat-modal-body');
+  const iS=CU?.role==='super';const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  const mvi=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived').map(v=>v.id);
+  const notJoined=passengers.filter(p=>mvi.includes(p.sefer)&&!p.joinedTours.includes(tid));
+  body.innerHTML=(kat.length?kat.map(p=>`<div class="katilimci-card"><div><div class="katilimci-name">${p.name}</div><div class="katilimci-detail">Kabin ${p.kabin} · ${p.adult}Y${p.child>0?' '+p.child+'C':''}${p.baby>0?' '+p.baby+'B':''}</div></div><div style="display:flex;gap:5px;"><button style="padding:3px 9px;border-radius:20px;font-size:11px;border:1.5px solid var(--red);color:var(--red);background:transparent;cursor:pointer;" onclick="removeFromTour('${p.kabin}','${p.sefer}','${tid}')">Cikar</button></div></div>`).join(''):'<div class="es">Katilan yok.</div>')+
+  (notJoined.length?`<div style="font-size:11px;font-weight:600;color:var(--t3);margin:12px 0 6px;text-transform:uppercase;">Katilmayan (${notJoined.length})</div>`+notJoined.map(p=>`<div class="katilimci-card" style="opacity:.6;"><div><div class="katilimci-name">${p.name}</div><div class="katilimci-detail">Kabin ${p.kabin}</div></div><button style="padding:3px 9px;border-radius:20px;font-size:11px;border:1.5px solid var(--green);color:var(--green);background:transparent;cursor:pointer;" onclick="addToTour('${p.kabin}','${p.sefer}','${tid}')">Ekle</button></div>`).join(''):'');
+  document.getElementById('kat-modal').classList.add('show');
+}
+function addToTour(kabin,sefer,tid){const p=passengers.find(p=>p.kabin===kabin&&p.sefer===sefer);if(p&&!p.joinedTours.includes(tid)){p.joinedTours.push(tid);showKatilimcilar(tid);renderTA(CTSF);}}
+function removeFromTour(kabin,sefer,tid){const p=passengers.find(p=>p.kabin===kabin&&p.sefer===sefer);if(p){const i=p.joinedTours.indexOf(tid);if(i>=0){p.joinedTours.splice(i,1);showKatilimcilar(tid);renderTA(CTSF);}}}
+
+// ── BİLDİRİM ──
+function togS(el){el.classList.toggle('active');updWA();}
+function togType(el){document.querySelectorAll('.tch').forEach(c=>c.classList.remove('active'));el.classList.add('active');}
+function updWA(){
+  const t=document.getElementById('nt')?.value.trim();
+  const b=document.getElementById('nb3')?.value.trim();
+  const wp=document.getElementById('wap');
+  if(!wp)return;
+  if(t||b){wp.style.display='block';document.getElementById('wapb').textContent=(t?t+'\n\n':'')+b;}
+  else wp.style.display='none';
+}
+function getActiveNums(){
+  const chips=[...document.querySelectorAll('#nsc .sch.active')];
+  const nums=[];
+  chips.forEach(c=>{const v=VOYAGES.find(vv=>vv.label.startsWith(c.textContent.split('-')[0].trim()));if(v)passengers.filter(p=>p.sefer===v.id&&p.tel).forEach(p=>nums.push(p.tel));});
+  return nums;
+}
+function sendWA(){
+  const t=document.getElementById('nt').value.trim(),b=document.getElementById('nb3').value.trim();
+  if(!t||!b){showToast('Baslik ve mesaj gereklidir.');return;}
+  const nums=getActiveNums();
+  const msg=encodeURIComponent(t+'\n\n'+b+'\n\n— VOYAGO');
+  if(!nums.length){window.open('https://web.whatsapp.com','_blank');showToast('WhatsApp Web acildi');}
+  else{const clean=nums[0].replace(/[^0-9+]/g,'');window.open('https://wa.me/'+clean+'?text='+msg,'_blank');showToast(nums.length+' yolcu — WA acildi');}
+  pushNotif(t,b);
+}
+function sendApp(){
+  const t=document.getElementById('nt').value.trim(),b=document.getElementById('nb3').value.trim();
+  if(!t||!b){showToast('Baslik ve mesaj gereklidir.');return;}
+  pushNotif(t,b);showToast(getActiveNums().length+' yolcuya bildirim gönderildi');
+}
+function pushNotif(t,b){
+  const nl=document.getElementById('nl');
+  const d=document.createElement('div');d.className='nc nn';
+  d.innerHTML=`<div class="nt2">${t}</div><div class="nb2">${b}</div><div class="nm">Az önce - ${CU?.name||'Rehber'}</div>`;
+  nl.insertBefore(d,nl.firstChild);
+  document.getElementById('nt').value='';document.getElementById('nb3').value='';
+  document.getElementById('wap').style.display='none';
+}
+
+// ── SEFER ──
+function addVoyage(){
+  const label=document.getElementById('nvl').value.trim();
+  const route=document.getElementById('nvr').value.trim();
+  if(!label||!route){showToast('Sefer adi ve güzergah gereklidir.');return;}
+  const iS=CU?.role==='super';
+  const guide=iS?(document.getElementById('nvg')?.value||'vasilis'):CU.key;
+  const ship=USERS[guide]?.ship||CU.ship;
+  const startDate=document.getElementById('nvs').value;
+  const endDate=document.getElementById('nve').value;
+  VOYAGES.push({id:'v'+Date.now(),label,route,ship,guide,status:'active',visible:true,startDate,endDate});
+  populateSeferler();setupAdmin();showToast('Sefer eklendi!');
+}
+
+// ── REHBERLER ──
+function getGuideAtamalar(guideKey){
+  // Bu rehberin atandığı tüm gemi seferleri ve kara tur tarihleri
+  const ac=getMyAcente();
+  const atamalar=[];
+  (GEMILER[ac]||[]).forEach(g=>{
+    (g.seferler||[]).forEach(s=>{
+      if(s.rehber===guideKey) atamalar.push({tip:'gemi',urun:g.ad,tarih:s.tarih,sid:s.id,pid:g.id});
+    });
+  });
+  (TUR_URUNLERI[ac]||[]).forEach(t=>{
+    (t.seferler||[]).forEach(s=>{
+      if(s.rehber===guideKey) atamalar.push({tip:'kara',urun:t.ad,tarih:s.tarih,sid:s.id,pid:t.id});
+    });
+  });
+  return atamalar;
+}
+
+function renderGuides(){
+  const ac=getMyAcente();
+  const guides=Object.entries(USERS).filter(([k,v])=>v.role==='guide'&&(v.acente===ac||!v.acente));
+  const el=document.getElementById('gl');
+  if(!el)return;
+  if(!guides.length){el.innerHTML='<div class="es">Henüz rehber eklenmemiş.</div>';return;}
+  el.innerHTML=guides.map(([k,v])=>{
+    const atamalar=getGuideAtamalar(k);
+    const notSay=(REHBER_NOTLARI[k]||[]).length;
+    const atamaHtml=atamalar.length
+      ? atamalar.map(a=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;background:${a.tip==='gemi'?'var(--bl)':'var(--gl)'};border-radius:7px;margin-bottom:4px;">
+          <span style="font-size:13px;">${a.tip==='gemi'?'🚢':'🗺️'}</span>
+          <div style="flex:1;"><div style="font-size:11px;font-weight:500;color:var(--t);">${a.urun}</div><div style="font-size:10px;color:var(--t3);">${a.tarih}</div></div>
+        </div>`).join('')
+      : '<div style="font-size:11px;color:var(--t3);padding:4px 0;">Henüz atama yapılmadı.</div>';
+
+    return `<div style="background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:var(--sh);">
+      <div style="display:flex;align-items:center;gap:11px;margin-bottom:10px;">
+        <div style="width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:white;flex-shrink:0;background:${v.color||'#1a5fa8'};">${v.initials||k.slice(0,2).toUpperCase()}</div>
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:500;color:var(--t);">${v.name}</div>
+          <div style="font-size:11px;color:var(--t2);margin-top:1px;">@${k} · ${atamalar.length} atama · ${notSay} not</div>
+        </div>
+        <div style="display:flex;gap:5px;">
+          <button onclick="copyRehberRaporu('${k}')" style="padding:4px 9px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--blue);color:var(--blue);background:transparent;">📋</button>
+          <button onclick="openCP('${k}')" style="padding:4px 9px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--green);color:var(--green);background:transparent;">Şifre</button>
+          <button onclick="removeGuide('${k}')" style="padding:4px 9px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--red);color:var(--red);background:transparent;">Sil</button>
+        </div>
+      </div>
+      <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Atamalar</div>
+      ${atamaHtml}
+    </div>`;
+  }).join('');
+}
+function addGuide(){
+  const name=document.getElementById('ngn').value.trim();
+  const user=document.getElementById('ngu').value.trim().toLowerCase();
+  const pass=document.getElementById('ngp').value;
+  if(!name||!user||!pass){showToast('Ad, kullanıcı adı ve şifre gereklidir.');return;}
+  if(USERS[user]){showToast('Bu kullanıcı adı zaten var.');return;}
+  const ac=getMyAcente();
+  const initials=name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const colors=['#1a5fa8','#0f6e56','#3c3489','#854f0b','#a32d2d'];
+  const color=colors[Object.keys(USERS).filter(k=>USERS[k].role==='guide').length%colors.length];
+  USERS[user]={pass,role:'guide',name,acente:ac,initials,color,ship:''};
+  if(!REHBER_NOTLARI[user])REHBER_NOTLARI[user]=[];
+  document.getElementById('ngn').value='';
+  document.getElementById('ngu').value='';
+  document.getElementById('ngp').value='';
+  renderGuides();
+  showToast(name+' eklendi!');
+}
+let CGKx=null;
+function openCP(k){CGKx=k;document.getElementById('np1').value='';document.getElementById('np2').value='';document.getElementById('cpm').classList.add('show');}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+function savePW(){const p1=document.getElementById('np1').value,p2=document.getElementById('np2').value;if(!p1||p1!==p2){showToast('Sifreler eslesmiyor.');return;}if(USERS[CGKx])USERS[CGKx].pass=p1;closeModal('cpm');showToast('Sifre güncellendi');}
+function removeGuide(k){if(!confirm(USERS[k]?.name+' silinsin mi?'))return;delete USERS[k];renderGuides();showToast('Silindi.');}
+
+// ── ORTAK ──
+function adminTab(name){
+  document.querySelectorAll('.apg').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.att').forEach(b=>b.classList.remove('active'));
+  const pg=document.getElementById('admin-'+name);
+  const tb=document.getElementById('atab-'+name);
+  if(pg)pg.classList.add('active');
+  if(tb)tb.classList.add('active');
+  if(name==='gz')renderGazeteAdmin();
+  if(name==='gunluk')initDailyForms();
+  if(name==='gelecek')renderGelecekAdmin();
+  if(name==='kontrol')initKontrolListesi();
+  if(name==='voyago')renderVoyagoPanel();
+  if(name==='reh'){try{renderGuides();}catch(e){}}
+  if(name==='gemiler')renderGemilerPanel();
+  if(name==='rapor')renderRaporPanel();
+}
+function switchTab(name){
+  document.querySelectorAll('.tp').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.getElementById('nb-'+name).classList.add('active');
+  if(name==='gelecek')renderGelecekTurlar();
+}
+function sendMsg(){
+  const input=document.getElementById('ci'),val=input.value.trim();if(!val)return;
+  const area=document.getElementById('ca');
+  const time=new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0');
+  const out=document.createElement('div');out.className='msg mo';out.innerHTML=val+'<div class="mtime">'+time+'</div>';area.appendChild(out);input.value='';
+  setTimeout(()=>{const r=document.createElement('div');r.className='msg mi';const rp=['Mesajinizi aldim!','Tabii, yardimci olacagim.','Anliyorum.'];r.innerHTML=rp[Math.floor(Math.random()*rp.length)]+'<div class="mtime">'+time+'</div>';area.appendChild(r);},1200);
+}
+function doLogout(){CU=null;CP=null;showScreen('sl');}
+// ── GELECEK TURLAR ──
+let GELECEK_TURLAR = [
+  {id:'g1',baslik:'Dubai Kis Turu 2027',aciklama:'Burj Khalifa, Palm Jumeirah, çöl safari ve daha fazlası. Lüks gemi konforuyla Körfezi kesfedın.',tarih:'Ara 2026 / Oca 2027',fiyat:'€ 1.200den itibaren',promo:'Erken kayit %15 indirim',iletisim:'Kayit icin rehberinize basvurun',img:null},
+  {id:'g2',baslik:'Yunanistan Bahar Turu 2027',aciklama:'Santorini, Mikonos, Rodos ve Atina. Egenin en güzel adalarini kesfedin.',tarih:'Nis - May 2027',fiyat:'€ 950den itibaren',promo:'Simdi kayit olun, kabin secimi öncelikli',iletisim:'Kayit icin rehberinize basvurun',img:null},
+];
+let newGtImg = null;
+
+function renderGelecekTurlar(){
+  const el=document.getElementById('gelecek-tur-list');
+  const em=document.getElementById('gelecek-empty');
+  if(!el)return;
+  if(!GELECEK_TURLAR.length){el.innerHTML='';if(em)em.style.display='block';return;}
+  if(em)em.style.display='none';
+  el.innerHTML=GELECEK_TURLAR.map(t=>`
+    <div style="border:1.5px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:14px;background:white;box-shadow:var(--sh);">
+      ${t.img?`<div style="width:100%;height:180px;overflow:hidden;"><img src="${t.img}" style="width:100%;height:180px;object-fit:cover;display:block;"></div>`
+        :`<div style="width:100%;height:120px;background:linear-gradient(135deg,#0d3b6e,#1a5fa8);display:flex;align-items:center;justify-content:center;font-size:48px;">✈️</div>`}
+      <div style="padding:14px;">
+        ${t.promo?`<div style="display:inline-block;background:var(--al);color:var(--amber);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;margin-bottom:8px;">${t.promo}</div>`:''}
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--t);margin-bottom:6px;">${t.baslik}</div>
+        <div style="font-size:12px;color:var(--t2);line-height:1.6;margin-bottom:10px;">${t.aciklama}</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+          ${t.tarih?`<div style="background:var(--bl);color:#0c447c;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:500;">📅 ${t.tarih}</div>`:''}
+          ${t.fiyat?`<div style="background:var(--gl);color:var(--green);padding:5px 10px;border-radius:8px;font-size:12px;font-weight:500;">💰 ${t.fiyat}</div>`:''}
+        </div>
+        ${t.iletisim?`<div style="background:var(--gray);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--t2);">📞 ${t.iletisim}</div>`:''}
+      </div>
+    </div>`).join('');
+}
+
+function renderGelecekAdmin(){
+  const el=document.getElementById('gt-admin-list');
+  if(!el)return;
+  if(!GELECEK_TURLAR.length){el.innerHTML='<div class="es">Henüz tur eklenmemis.</div>';return;}
+  el.innerHTML=GELECEK_TURLAR.map(t=>`
+    <div style="background:white;border-radius:14px;padding:13px;margin-bottom:10px;box-shadow:var(--sh);display:flex;align-items:center;gap:12px;">
+      <div style="width:60px;height:60px;border-radius:10px;overflow:hidden;background:var(--bl);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px;">
+        ${t.img?`<img src="${t.img}" style="width:100%;height:100%;object-fit:cover;">`:'✈️'}
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;color:var(--t);">${t.baslik}</div>
+        <div style="font-size:11px;color:var(--t2);margin-top:2px;">${t.tarih||''} ${t.fiyat?'· '+t.fiyat:''}</div>
+        ${t.promo?`<div style="font-size:11px;color:var(--amber);margin-top:2px;">${t.promo}</div>`:''}
+      </div>
+      <button style="padding:4px 11px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--red);color:var(--red);background:transparent;" onclick="deleteGelecekTur('${t.id}')">Sil</button>
+    </div>`).join('');
+}
+
+function previewGtImg(input){
+  const f=input.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    newGtImg=e.target.result;
+    document.getElementById('gt-img-preview').innerHTML=`<img src="${e.target.result}" style="width:100%;height:80px;object-fit:cover;border-radius:8px;">`;
+  };
+  r.readAsDataURL(f);
+}
+
+function addGelecekTur(){
+  const baslik=document.getElementById('gt-baslik').value.trim();
+  const aciklama=document.getElementById('gt-aciklama').value.trim();
+  const tarih=document.getElementById('gt-tarih').value.trim();
+  const fiyat=document.getElementById('gt-fiyat').value.trim();
+  const promo=document.getElementById('gt-promo').value.trim();
+  const iletisim=document.getElementById('gt-iletisim').value.trim();
+  if(!baslik){showToast('Tur adi gereklidir.');return;}
+  GELECEK_TURLAR.push({id:'g'+Date.now(),baslik,aciklama,tarih,fiyat,promo,iletisim,img:newGtImg});
+  newGtImg=null;
+  document.getElementById('gt-baslik').value='';document.getElementById('gt-aciklama').value='';
+  document.getElementById('gt-tarih').value='';document.getElementById('gt-fiyat').value='';
+  document.getElementById('gt-promo').value='';document.getElementById('gt-iletisim').value='';
+  document.getElementById('gt-img-preview').innerHTML='🖼️ Afiş ekle';
+  renderGelecekAdmin();renderGelecekTurlar();
+  showToast('Tur yayınlandi! Misafirler gorebilir.');
+}
+
+function deleteGelecekTur(id){
+  if(!confirm('Silinsin mi?'))return;
+  const i=GELECEK_TURLAR.findIndex(t=>t.id===id);
+  if(i>=0){GELECEK_TURLAR.splice(i,1);renderGelecekAdmin();renderGelecekTurlar();showToast('Silindi.');}
+}
+
+// ── KARA TURU KONTROL LİSTESİ ──
+// Durum: 0=belirsiz, 1=geldi, 2=gelmedi
+let kontrolDurum = {}; // key: kabin+sefer+turid
+
+function initKontrolSelects(){
+  const iS=CU?.role==='super';
+  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  const mv=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived');
+  const tours=TOURS.filter(t=>t.ship===activeShip);
+
+  const tSel=document.getElementById('kontrol-tur-sel');
+  const sSel=document.getElementById('kontrol-sefer-sel');
+  if(!tSel||!sSel)return;
+
+  tSel.innerHTML=tours.map(t=>`<option value="${t.id}">${t.name} (${t.gun}. gün)</option>`).join('');
+  sSel.innerHTML=mv.map(v=>`<option value="${v.id}">${v.label}</option>`).join('');
+  renderKontrolListesi();
+}
+
+function initKontrolListesi(){
+  initKontrolSelects();
+}
+
+function renderKontrolListesi(){
+  const tSel=document.getElementById('kontrol-tur-sel');
+  const sSel=document.getElementById('kontrol-sefer-sel');
+  if(!tSel||!sSel)return;
+  const tid=tSel.value;
+  const sid=sSel.value;
+  if(!tid||!sid){
+    document.getElementById('kontrol-list').innerHTML='<div class="es">Tur ve sefer seçin.</div>';
+    return;
+  }
+  const tur=TOURS.find(t=>t.id===tid);
+  const kat=passengers.filter(p=>p.sefer===sid&&p.joinedTours.includes(tid));
+
+  // Başlık
+  document.getElementById('kontrol-tur-baslik').textContent=(tur?.name||'Tur')+' — '+(VOYAGES.find(v=>v.id===sid)?.label||sid);
+
+  // Kişi özeti
+  const topKisi=kat.reduce((a,p)=>a+p.adult+p.child+p.baby,0);
+  document.getElementById('kontrol-kisi-ozet').textContent=kat.length+' kabin · '+topKisi+' kişi';
+
+  // Sayaçlar
+  let geldi=0,gelmedi=0;
+  kat.forEach(p=>{
+    const key=p.kabin+'_'+sid+'_'+tid;
+    const d=kontrolDurum[key]||0;
+    const kisi=p.adult+p.child+p.baby;
+    if(d===1)geldi+=kisi;
+    else if(d===2)gelmedi+=kisi;
+  });
+  document.getElementById('ks-toplam').textContent=topKisi;
+  document.getElementById('ks-geldi').textContent=geldi;
+  document.getElementById('ks-gelmedi').textContent=gelmedi;
+
+  if(!kat.length){
+    document.getElementById('kontrol-list').innerHTML='<div class="es">Bu tura kayıtlı kimse yok.</div>';
+    return;
+  }
+
+  document.getElementById('kontrol-list').innerHTML=kat.map(p=>{
+    const key=p.kabin+'_'+sid+'_'+tid;
+    const d=kontrolDurum[key]||0;
+    const kisiStr=p.adult+'Y'+(p.child>0?' '+p.child+'Ç':'')+(p.baby>0?' '+p.baby+'B':'');
+    const topKisiP=p.adult+p.child+p.baby;
+    return `<div style="padding:12px 14px;border-bottom:1px solid var(--gray);display:flex;align-items:center;gap:10px;" id="krow-${key}">
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;color:var(--t);">${p.name}</div>
+        <div style="font-size:11px;color:var(--t2);margin-top:2px;">Kabin ${p.kabin} · ${kisiStr} · ${topKisiP} kişi</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button onclick="setKontrol('${key}',1,'${tid}','${sid}')" style="width:36px;height:36px;border-radius:50%;border:2px solid ${d===1?'var(--green)':'var(--border)'};background:${d===1?'var(--green)':'white'};color:${d===1?'white':'var(--t3)'};font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;">✓</button>
+        <button onclick="setKontrol('${key}',2,'${tid}','${sid}')" style="width:36px;height:36px;border-radius:50%;border:2px solid ${d===2?'var(--red)':'var(--border)'};background:${d===2?'var(--red)':'white'};color:${d===2?'white':'var(--t3)'};font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;">✗</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setKontrol(key, val, tid, sid){
+  // Aynı butona basınca toggle (geri al)
+  kontrolDurum[key] = kontrolDurum[key]===val ? 0 : val;
+  renderKontrolListesi();
+}
+
+function buildKontrolMetin(){
+  const tSel=document.getElementById('kontrol-tur-sel');
+  const sSel=document.getElementById('kontrol-sefer-sel');
+  if(!tSel||!sSel||!tSel.value||!sSel.value)return null;
+  const tid=tSel.value,sid=sSel.value;
+  const tur=TOURS.find(t=>t.id===tid);
+  const sefer=VOYAGES.find(v=>v.id===sid);
+  const kat=passengers.filter(p=>p.sefer===sid&&p.joinedTours.includes(tid));
+  const now=new Date();
+  const tarih=now.toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'});
+  const saat=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
+  const sep = String.fromCharCode(10);
+  let geldi=0,gelmedi=0,belirsiz=0;
+  const satirlar=kat.map((p,i)=>{
+    const key=p.kabin+'_'+sid+'_'+tid;
+    const d=kontrolDurum[key]||0;
+    const kisi=p.adult+p.child+p.baby;
+    const kisiStr=p.adult+'Y'+(p.child>0?' '+p.child+'C':'')+(p.baby>0?' '+p.baby+'B':'');
+    const durum=d===1?'✓ GELDI':d===2?'✗ GELMEDI':'⏳ BEKLIYOR';
+    if(d===1)geldi+=kisi;else if(d===2)gelmedi+=kisi;else belirsiz+=kisi;
+    return (i+1)+'. '+p.name+' | Kabin: '+p.kabin+' | '+kisiStr+' ('+kisi+' kisi) | '+durum;
+  }).join(sep);
+  const topKisi=kat.reduce((a,p)=>a+p.adult+p.child+p.baby,0);
+  return {
+    tur,sefer,kat,tarih,saat,geldi,gelmedi,belirsiz,topKisi,
+    metin:
+      'VOYAGO TUR KONTROL LISTESI'+sep+
+      '================================'+sep+
+      'Tur: '+(tur?.name||'')+' ('+(tur?.gun||1)+'. gun)'+sep+
+      'Sefer: '+(sefer?.label||'')+' — '+(sefer?.ship||'')+sep+
+      'Toplanma: '+(tur?.saat||'')+' | '+(tur?.liman||'')+sep+
+      'Rapor: '+tarih+' '+saat+sep+
+      '================================'+sep+sep+
+      satirlar+sep+sep+
+      '--------------------------------'+sep+
+      'OZET:'+sep+
+      'Toplam: '+kat.length+' kabin / '+topKisi+' kisi'+sep+
+      'Geldi: '+geldi+' kisi'+sep+
+      'Gelmedi: '+gelmedi+' kisi'+sep+
+      'Bekliyor: '+belirsiz+' kisi'+sep+
+      '--------------------------------'+sep+
+      'VOYAGO Gemi Rehberi'
+  };
+}
+
+function copyKontrolListesi(){
+  const data=buildKontrolMetin();
+  if(!data){showToast('Tur ve sefer secin.');return;}
+  const ta=document.getElementById('kontrol-copy-area');
+  ta.value=data.metin;
+  ta.select();
+  try{
+    document.execCommand('copy');
+    showToast('Liste kopyalandi! Paste yapabilirsiniz.');
+  }catch(e){
+    // Modern clipboard API
+    navigator.clipboard.writeText(data.metin).then(()=>{
+      showToast('Liste kopyalandi!');
+    }).catch(()=>{
+      showToast('Kopyalanamadi — listeyi manual secin.');
+    });
+  }
+}
+
+function sendKontrolWA(){
+  const data=buildKontrolMetin();
+  if(!data){showToast('Tur ve sefer secin.');return;}
+  const msg=encodeURIComponent(data.metin);
+  window.open('https://wa.me/?text='+msg,'_blank');
+  showToast('WhatsApp acildi!');
+}
+
+function sendKontrolEmail(){
+  const data=buildKontrolMetin();
+  if(!data){showToast('Tur ve sefer secin.');return;}
+  const email=document.getElementById('kontrol-email').value.trim();
+  if(!email){showToast('E-posta adresi girin.');return;}
+  const konu=encodeURIComponent('VOYAGO Tur Listesi: '+(data.tur?.name||'')+' — '+data.tarih);
+  const govde=encodeURIComponent(data.metin);
+  window.location.href='mailto:'+email+'?subject='+konu+'&body='+govde;
+  showToast('E-posta uygulamasi aciliyor...');
+}
+
+// ── VOYAGO APP PANELİ ──
+let ACENTELER = {
+  maviytur: {name:'Mavi Tur',num:'AC-001',city:'Istanbul, TR',tel:'+90 212 555 01 01',note:'Demo acentesi',createdAt:'2026-01-15',user:'admin',pass:'1234',active:true},
+};
+// GEMILER: acente -> [{id, ad, kapasite, acik, seferler:[{id,tarih,rehber}]}]
+let GEMILER = {
+  maviytur: [
+    {id:'g1', ad:'Celestyal Journey', kapasite:1200, acik:'Akdeniz ve Körfez turları',
+      seferler:[
+        {id:'gs1', tarih:'29 Mar - 5 Nis 2026', rehber:'vasilis'},
+        {id:'gs2', tarih:'5 Nis - 12 Nis 2026',  rehber:''},
+      ]
+    },
+    {id:'g2', ad:'Celestyal Discovery', kapasite:1000, acik:'Ege ve Adriyatik turları',
+      seferler:[
+        {id:'gs3', tarih:'12 Nis - 19 Nis 2026', rehber:'elena'},
+      ]
+    },
+  ]
+};
+// TUR_URUNLERI: acente -> [{id, ad, acik, seferler:[{id,tarih,rehber}]}]
+let TUR_URUNLERI = {
+  maviytur: [
+    {id:'u1', ad:'Atina Kara Turu', acik:'Akropolis ve şehir turu',
+      seferler:[
+        {id:'us1', tarih:'30 Mar 2026', rehber:'vasilis'},
+        {id:'us2', tarih:'6 Nis 2026',  rehber:''},
+      ]
+    },
+    {id:'u2', ad:'İtalya Kara Turu', acik:'Roma, Floransa, Venedik',
+      seferler:[
+        {id:'us3', tarih:'10 Nis 2026', rehber:''},
+        {id:'us4', tarih:'25 Nis 2026', rehber:''},
+      ]
+    },
+  ]
+};
+let REHBER_NOTLARI = {
+  // key: guideKey, value: [{sefer, tarih, not, okundu}]
+  vasilis: [{sefer:'29mar',tarih:'2026-03-31',not:'Atina turu çok başarılı geçti. 42 katılımcı. Akropolis girişinde 20dk bekleme oldu, bir sonraki tur için daha erken çıkmalıyız. Yolcular genel olarak çok memnun.',okundu:false}],
+  elena: [],
+};
+
+function renderVoyagoPanel(){
+  const q=(document.getElementById('acente-search')?.value||'').trim().toLowerCase();
+  const acenteEntries=Object.entries(ACENTELER).filter(([key,ac])=>
+    !q||ac.name.toLowerCase().includes(q)||(ac.num||'').toLowerCase().includes(q)||(ac.city||'').toLowerCase().includes(q)
+  );
+
+  // İstatistikler
+  const stats=document.getElementById('voyago-stats');
+  if(stats) stats.innerHTML=`
+    <div class="sc2"><div class="sn" style="font-size:18px;">${Object.keys(ACENTELER).length}</div><div class="slb">Acente</div></div>
+    <div class="sc2"><div class="sn" style="font-size:18px;">${Object.values(USERS).filter(u=>u.role==='guide').length}</div><div class="slb">Rehber</div></div>
+    <div class="sc2"><div class="sn" style="font-size:18px;">${Object.values(USERS).filter(u=>u.role!=='voyago').length}</div><div class="slb">Kullanıcı</div></div>`;
+
+  // Acente listesi
+  const al=document.getElementById('acente-list');
+  if(al) al.innerHTML=acenteEntries.map(([key,ac])=>{
+    const rehberler=Object.entries(USERS).filter(([k,u])=>u.role==='guide'&&u.acente===key);
+    const gemiler=(GEMILER[key]||[]).length;
+    const turlar=(TUR_URUNLERI[key]||[]).length;
+    const now=new Date(ac.createdAt||'2026-01-01');
+    const tarih=now.toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'});
+    const rehberHtml=rehberler.map(([rk,ru])=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--gray);">
+        <div style="width:28px;height:28px;border-radius:50%;background:${ru.color||'var(--blue)'};color:white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;">${ru.initials||ru.name.slice(0,2).toUpperCase()}</div>
+        <div style="flex:1;">
+          <div style="font-size:12px;font-weight:500;color:var(--t);">${ru.name}</div>
+          <div style="font-size:10px;color:var(--t3);">Kullanıcı: ${rk} · Şifre: ${ru.pass} · ${ru.ship||'—'}</div>
+        </div>
+        <button onclick="editKullanici('${rk}')" style="padding:2px 8px;border-radius:20px;font-size:10px;cursor:pointer;border:1.5px solid var(--blue);color:var(--blue);background:transparent;">Düzenle</button>
+      </div>`).join('');
+
+    return `<div style="background:white;border-radius:16px;overflow:hidden;margin-bottom:12px;box-shadow:var(--sh);">
+      <!-- Kart başlığı — tıklanabilir -->
+      <div style="padding:14px 16px;cursor:pointer;" onclick="toggleAcenteDetay('${key}')">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <div style="font-size:15px;font-weight:600;color:var(--t);">${ac.name}</div>
+              ${ac.num?`<span style="background:var(--pl);color:var(--purple);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;">${ac.num}</span>`:''}
+              <span style="background:var(--gl);color:var(--green);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;">Aktif</span>
+            </div>
+            <div style="font-size:12px;color:var(--t2);margin-top:3px;">${ac.city||''} ${ac.tel?'· 📞 '+ac.tel:''}</div>
+            ${ac.note?`<div style="font-size:11px;color:var(--t3);margin-top:2px;">${ac.note}</div>`:''}
+          </div>
+          <div style="font-size:18px;color:var(--t3);" id="arrow-${key}">›</div>
+        </div>
+        <!-- Mini istatistik -->
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <div style="background:var(--bl);border-radius:7px;padding:5px 10px;font-size:11px;color:#0c447c;"><strong>${rehberler.length}</strong> Rehber</div>
+          <div style="background:var(--gl);border-radius:7px;padding:5px 10px;font-size:11px;color:var(--green);"><strong>${gemiler}</strong> Gemi</div>
+          <div style="background:var(--al);border-radius:7px;padding:5px 10px;font-size:11px;color:var(--amber);"><strong>${turlar}</strong> Tur</div>
+        </div>
+      </div>
+
+      <!-- Detay bölümü (gizli/açık) -->
+      <div id="detay-${key}" style="display:none;border-top:1px solid var(--gray);">
+        <!-- Bilgiler -->
+        <div style="padding:12px 16px;background:var(--gray);">
+          <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Acente Bilgileri</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;">
+            <div><span style="color:var(--t3);">Açılış:</span> ${tarih}</div>
+            <div><span style="color:var(--t3);">Numara:</span> ${ac.num||'—'}</div>
+            <div><span style="color:var(--t3);">Şehir:</span> ${ac.city||'—'}</div>
+            <div><span style="color:var(--t3);">Tel:</span> ${ac.tel||'—'}</div>
+            <div><span style="color:var(--t3);">Kullanıcı:</span> <strong>${ac.user||key}</strong></div>
+            <div><span style="color:var(--t3);">Şifre:</span> <strong>${ac.pass||'—'}</strong></div>
+          </div>
+        </div>
+
+        <!-- Düzenleme -->
+        <div style="padding:12px 16px;border-bottom:1px solid var(--gray);">
+          <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Düzenle</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <input type="text" id="edit-name-${key}" value="${ac.name}" placeholder="Acente adı" style="padding:7px 9px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;background:white;color:var(--t);">
+            <input type="text" id="edit-tel-${key}" value="${ac.tel||''}" placeholder="Telefon" style="padding:7px 9px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;background:white;color:var(--t);">
+            <input type="text" id="edit-city-${key}" value="${ac.city||''}" placeholder="Şehir" style="padding:7px 9px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;background:white;color:var(--t);">
+            <input type="text" id="edit-pass-${key}" value="${ac.pass||''}" placeholder="Şifre" style="padding:7px 9px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;background:white;color:var(--t);">
+          </div>
+          <input type="text" id="edit-note-${key}" value="${ac.note||''}" placeholder="Not" style="margin-top:6px;width:100%;padding:7px 9px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;background:white;color:var(--t);">
+          <div style="display:flex;gap:6px;margin-top:8px;">
+            <button onclick="saveAcente('${key}')" style="flex:1;padding:8px;background:var(--blue);color:white;border:none;border-radius:9px;font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">Kaydet</button>
+            <button onclick="deleteAcente('${key}')" style="padding:8px 12px;background:transparent;color:var(--red);border:1.5px solid var(--red);border-radius:9px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">Sil</button>
+          </div>
+        </div>
+
+        <!-- Kullanıcılar -->
+        <div style="padding:12px 16px;">
+          <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Kullanıcılar (${rehberler.length})</div>
+          ${rehberHtml||'<div style="font-size:12px;color:var(--t3);">Henüz kullanıcı yok.</div>'}
+        </div>
+      </div>
+    </div>`;
+  }).join('') || '<div class="es">Acente bulunamadı.</div>';
+
+  // Tüm kullanıcılar kısmını gizle (artık acente detayında gösteriliyor)
+  const kl=document.getElementById('tum-kullanici-list');
+  if(kl) kl.innerHTML='';
+}
+
+function toggleAcenteDetay(key){
+  const el=document.getElementById('detay-'+key);
+  const ar=document.getElementById('arrow-'+key);
+  if(!el)return;
+  const open=el.style.display==='none';
+  el.style.display=open?'block':'none';
+  if(ar)ar.textContent=open?'v':'›';
+}
+
+function saveAcente(key){
+  const ac=ACENTELER[key];
+  if(!ac){showToast('Acente bulunamadi.');return;}
+  const name=document.getElementById('edit-name-'+key)?.value.trim()||ac.name;
+  const tel=document.getElementById('edit-tel-'+key)?.value.trim()||'';
+  const city=document.getElementById('edit-city-'+key)?.value.trim()||'';
+  const pass=document.getElementById('edit-pass-'+key)?.value.trim()||ac.pass;
+  const note=document.getElementById('edit-note-'+key)?.value.trim()||'';
+  ac.name=name;ac.tel=tel;ac.city=city;ac.pass=pass;ac.note=note;
+  const userKey=ac.user||key;
+  const u=USERS[userKey];
+  if(u){u.name=name;u.tel=tel;u.city=city;u.pass=pass;u.note=note;}
+  renderVoyagoPanel();
+  setTimeout(()=>{
+    const d=document.getElementById('detay-'+key);
+    if(d)d.style.display='block';
+    const ar=document.getElementById('arrow-'+key);
+    if(ar)ar.textContent='v';
+  },50);
+  showToast(name+' guncellendi!');
+}
+
+function editKullanici(userKey){
+  const u=USERS[userKey];if(!u)return;
+  const yeni=prompt('Yeni şifre (boş bırakırsanız değişmez):', '');
+  if(yeni===null)return;
+  if(yeni.trim())u.pass=yeni.trim();
+  renderVoyagoPanel();
+  showToast('Kullanıcı güncellendi!');
+}
+
+function voyagoRaporKopyala(){
+  const now=new Date();
+  const tarih=now.toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'});
+  const saat=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
+  const NL=String.fromCharCode(10);
+  let txt='VOYAGO ACENTE RAPORU'+NL;
+  txt+='Tarih: '+tarih+' '+saat+NL;
+  txt+='================================'+NL+NL;
+  txt+='Toplam acente: '+Object.keys(ACENTELER).length+NL;
+  txt+='Toplam rehber: '+Object.values(USERS).filter(u=>u.role==='guide').length+NL;
+  txt+=NL+'--------------------------------'+NL;
+  Object.entries(ACENTELER).forEach(([key,ac],i)=>{
+    const rehberler=Object.entries(USERS).filter(([k,u])=>u.role==='guide'&&u.acente===key);
+    txt+=(i+1)+'. '+ac.name+(ac.num?' ('+ac.num+')':'')+NL;
+    txt+='   Şehir: '+(ac.city||'—')+' | Tel: '+(ac.tel||'—')+NL;
+    txt+='   Kullanıcı: '+(ac.user||key)+' | Şifre: '+(ac.pass||'—')+NL;
+    txt+='   Not: '+(ac.note||'—')+NL;
+    txt+='   Açılış: '+(ac.createdAt||'—')+NL;
+    txt+='   Rehberler ('+rehberler.length+'):'+NL;
+    rehberler.forEach(([rk,ru])=>{
+      txt+='     - '+ru.name+' | Kullanıcı: '+rk+' | Şifre: '+ru.pass+' | Gemi: '+(ru.ship||'—')+NL;
+    });
+    txt+='--------------------------------'+NL;
+  });
+  txt+=NL+'VOYAGO App';
+  const ta=document.getElementById('voyago-copy-area');
+  if(ta){ta.value=txt;ta.select();}
+  try{
+    document.execCommand('copy');
+    showToast('Rapor kopyalandı!');
+  }catch(e){
+    navigator.clipboard?.writeText(txt).then(()=>showToast('Rapor kopyalandı!')).catch(()=>showToast('Kopyalanamadı.'));
+  }
+}
+
+function addAcente(){
+  const name=document.getElementById('ac-name').value.trim();
+  const num=document.getElementById('ac-num').value.trim();
+  const city=document.getElementById('ac-city').value.trim();
+  const tel=document.getElementById('ac-tel').value.trim();
+  const user=document.getElementById('ac-user').value.trim().toLowerCase();
+  const pass=document.getElementById('ac-pass').value;
+  const note=document.getElementById('ac-note').value.trim();
+  if(!name||!user||!pass){showToast('Ad, kullanıcı adı ve şifre gereklidir.');return;}
+  if(USERS[user]){showToast('Bu kullanıcı adı zaten var.');return;}
+  const now=new Date().toISOString().slice(0,10);
+  ACENTELER[user]={name,num,city,tel,note,createdAt:now,user,pass,active:true};
+  USERS[user]={pass,role:'acente',name,acente:user,city,tel,note,num,createdAt:now};
+  GEMILER[user]=[];
+  TUR_URUNLERI[user]=[];
+  REHBER_NOTLARI[user]=[];
+  ['ac-name','ac-num','ac-city','ac-tel','ac-user','ac-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('ac-pass').value='';
+  renderVoyagoPanel();
+  showToast(name+' ('+num+') oluşturuldu!');
+}
+
+function deleteAcente(key){
+  if(!confirm(ACENTELER[key]?.name+' silinsin mi? Bu acente altındaki rehberler de silinir!'))return;
+  // Acente altındaki rehberleri sil
+  Object.keys(USERS).forEach(k=>{if(USERS[k].acente===key)delete USERS[k];});
+  delete ACENTELER[key];
+  delete USERS[key];
+  renderVoyagoPanel();
+  showToast('Acente silindi.');
+}
+
+// ══ GEMİLER / KARA TURLARI PANELİ ══
+function getMyAcente(){return CU?CU.acente||CU.key:null;}
+
+let activeGemiTab='gemi'; // 'gemi' | 'kara'
+
+function switchGemiTab(tab){
+  activeGemiTab=tab;
+  ['gemi','kara'].forEach(t=>{
+    const p=document.getElementById('gt-panel-'+t);
+    const b=document.getElementById('gt-tab-'+t);
+    if(p)p.style.display=t===tab?'block':'none';
+    if(b){b.classList.toggle('active',t===tab);}
+  });
+  renderGemilerPanel();
+}
+
+function getMyRehberler(){
+  const ac=getMyAcente();
+  return Object.entries(USERS).filter(([k,u])=>u.role==='guide'&&u.acente===ac);
+}
+
+function renderGemilerPanel(){
+  const ac=getMyAcente();
+  if(!ac)return;
+
+  if(activeGemiTab==='gemi'){
+    const gemiler=GEMILER[ac]||[];
+    const gl=document.getElementById('acente-gemiler-list');
+    if(!gl)return;
+    if(!gemiler.length){gl.innerHTML='<div class="es">Henüz gemi eklenmemiş.</div>';return;}
+    gl.innerHTML=gemiler.map(g=>{
+      const seferHtml=(g.seferler||[]).map(s=>{
+        const rh=s.rehber?USERS[s.rehber]:null;
+        return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--gray);border-radius:8px;margin-bottom:5px;">
+          <div style="flex:1;">
+            <div style="font-size:12px;font-weight:500;color:var(--t);">📅 ${s.tarih}</div>
+            ${rh?`<div style="font-size:11px;color:var(--blue);margin-top:1px;">🧭 ${rh.name}</div>`:'<div style="font-size:11px;color:var(--t3);margin-top:1px;">Rehber atanmadı</div>'}
+          </div>
+          <button onclick="openSeferRehberEdit('${g.id}','${s.id}','gemi')" style="padding:2px 8px;border-radius:20px;font-size:10px;cursor:pointer;border:1.5px solid var(--blue);color:var(--blue);background:white;">Rehber</button>
+          <button onclick="deleteSefer('${g.id}','${s.id}','gemi')" style="padding:2px 8px;border-radius:20px;font-size:10px;cursor:pointer;border:1.5px solid var(--red);color:var(--red);background:white;">Sil</button>
+        </div>`;
+      }).join('');
+      return `<div style="background:white;border-radius:14px;overflow:hidden;margin-bottom:10px;box-shadow:var(--sh);">
+        <div style="padding:12px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--gray);">
+          <div style="font-size:26px;">🚢</div>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:600;color:var(--t);">${g.ad}</div>
+            <div style="font-size:11px;color:var(--t2);">${g.acik||''} ${g.kapasite?'· '+g.kapasite+' yolcu':''}</div>
+          </div>
+          <button onclick="deleteGemi('${g.id}')" style="padding:3px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--red);color:var(--red);background:transparent;">Sil</button>
+        </div>
+        <div style="padding:10px 14px;">
+          <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;">Seferler (${(g.seferler||[]).length})</div>
+          ${seferHtml||'<div style="font-size:12px;color:var(--t3);">Henüz sefer eklenmedi.</div>'}
+          <button onclick="openSeferModal('${g.id}','gemi','${g.ad}')" style="width:100%;margin-top:7px;padding:7px;border:1.5px dashed var(--border);border-radius:8px;background:transparent;color:var(--blue);font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Sefer Ekle</button>
+        </div>
+      </div>`;
+    }).join('');
+
+  } else {
+    const turlar=TUR_URUNLERI[ac]||[];
+    const tl=document.getElementById('acente-turlar-list');
+    if(!tl)return;
+    if(!turlar.length){tl.innerHTML='<div class="es">Henüz kara turu eklenmemiş.</div>';return;}
+    tl.innerHTML=turlar.map(t=>{
+      const seferHtml=(t.seferler||[]).map(s=>{
+        const rh=s.rehber?USERS[s.rehber]:null;
+        return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--gray);border-radius:8px;margin-bottom:5px;">
+          <div style="flex:1;">
+            <div style="font-size:12px;font-weight:500;color:var(--t);">📅 ${s.tarih}</div>
+            ${rh?`<div style="font-size:11px;color:var(--blue);margin-top:1px;">🧭 ${rh.name}</div>`:'<div style="font-size:11px;color:var(--t3);margin-top:1px;">Rehber atanmadı</div>'}
+          </div>
+          <button onclick="openSeferRehberEdit('${t.id}','${s.id}','kara')" style="padding:2px 8px;border-radius:20px;font-size:10px;cursor:pointer;border:1.5px solid var(--blue);color:var(--blue);background:white;">Rehber</button>
+          <button onclick="deleteSefer('${t.id}','${s.id}','kara')" style="padding:2px 8px;border-radius:20px;font-size:10px;cursor:pointer;border:1.5px solid var(--red);color:var(--red);background:white;">Sil</button>
+        </div>`;
+      }).join('');
+      return `<div style="background:white;border-radius:14px;overflow:hidden;margin-bottom:10px;box-shadow:var(--sh);">
+        <div style="padding:12px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--gray);">
+          <div style="font-size:26px;">🗺️</div>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:600;color:var(--t);">${t.ad}</div>
+            <div style="font-size:11px;color:var(--t2);">${t.acik||''}</div>
+          </div>
+          <button onclick="deleteTurUrun('${t.id}')" style="padding:3px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--red);color:var(--red);background:transparent;">Sil</button>
+        </div>
+        <div style="padding:10px 14px;">
+          <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;">Tarihler (${(t.seferler||[]).length})</div>
+          ${seferHtml||'<div style="font-size:12px;color:var(--t3);">Henüz tarih eklenmedi.</div>'}
+          <button onclick="openSeferModal('${t.id}','kara','${t.ad}')" style="width:100%;margin-top:7px;padding:7px;border:1.5px dashed var(--border);border-radius:8px;background:transparent;color:var(--blue);font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Tarih Ekle</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+}
+
+function openSeferModal(parentId, type, parentName){
+  document.getElementById('sefer-parent-id').value=parentId;
+  document.getElementById('sefer-parent-type').value=type;
+  document.getElementById('sefer-modal-title').textContent=(type==='gemi'?'Sefer Ekle: ':'Tarih Ekle: ')+parentName;
+  document.getElementById('sefer-tarih').value='';
+  document.getElementById('sefer-rehber').value='';
+  // Rehber select doldur
+  const rs=document.getElementById('sefer-rehber');
+  const rehberler=getMyRehberler();
+  rs.innerHTML='<option value="">-- Rehber seç --</option>'+
+    rehberler.map(([k,u])=>`<option value="${k}">${u.name}</option>`).join('');
+  document.getElementById('sefer-modal').classList.add('show');
+}
+
+function saveSefer(){
+  const parentId=document.getElementById('sefer-parent-id').value;
+  const type=document.getElementById('sefer-parent-type').value;
+  const tarih=document.getElementById('sefer-tarih').value.trim();
+  const rehber=document.getElementById('sefer-rehber').value;
+  if(!tarih){showToast('Tarih giriniz.');return;}
+  const ac=getMyAcente();
+  const liste=type==='gemi'?(GEMILER[ac]||[]):(TUR_URUNLERI[ac]||[]);
+  const parent=liste.find(x=>x.id===parentId);
+  if(!parent){showToast('Bulunamadı.');return;}
+  if(!parent.seferler)parent.seferler=[];
+  parent.seferler.push({id:'sf'+Date.now(),tarih,rehber});
+  closeModal('sefer-modal');
+  renderGemilerPanel();
+  showToast('Eklendi!');
+}
+
+function deleteSefer(parentId, seferId, type){
+  if(!confirm('Bu sefer/tarih silinsin mi?'))return;
+  const ac=getMyAcente();
+  const liste=type==='gemi'?(GEMILER[ac]||[]):(TUR_URUNLERI[ac]||[]);
+  const parent=liste.find(x=>x.id===parentId);
+  if(!parent||!parent.seferler)return;
+  const idx=parent.seferler.findIndex(s=>s.id===seferId);
+  if(idx>=0){parent.seferler.splice(idx,1);renderGemilerPanel();showToast('Silindi.');}
+}
+
+function openSeferRehberEdit(parentId, seferId, type){
+  const ac=getMyAcente();
+  const liste=type==='gemi'?(GEMILER[ac]||[]):(TUR_URUNLERI[ac]||[]);
+  const parent=liste.find(x=>x.id===parentId);
+  const sefer=parent?.seferler?.find(s=>s.id===seferId);
+  if(!sefer)return;
+  // Sefer modal'ı rehber değiştirme için kullan
+  document.getElementById('sefer-parent-id').value=parentId;
+  document.getElementById('sefer-parent-type').value=type;
+  document.getElementById('sefer-modal-title').textContent='Rehber Ata: '+sefer.tarih;
+  document.getElementById('sefer-tarih').value=sefer.tarih;
+  const rs=document.getElementById('sefer-rehber');
+  const rehberler=getMyRehberler();
+  rs.innerHTML='<option value="">-- Rehber seç --</option>'+
+    rehberler.map(([k,u])=>`<option value="${k}" ${k===sefer.rehber?'selected':''}>${u.name}</option>`).join('');
+  // Kaydet butonu: sadece rehberi güncelle
+  const saveBtn=document.querySelector('#sefer-modal .mcf');
+  if(saveBtn){
+    saveBtn.textContent='Güncelle';
+    saveBtn.onclick=()=>{
+      sefer.tarih=document.getElementById('sefer-tarih').value.trim()||sefer.tarih;
+      sefer.rehber=document.getElementById('sefer-rehber').value;
+      closeModal('sefer-modal');
+      renderGemilerPanel();
+      showToast('Rehber atandı!');
+      saveBtn.textContent='Ekle';
+      saveBtn.onclick=saveSefer;
+    };
+  }
+  document.getElementById('sefer-modal').classList.add('show');
+}
+
+function addGemi(){
+  const ac=getMyAcente();if(!ac)return;
+  const ad=document.getElementById('gemi-ad').value.trim();
+  const kap=document.getElementById('gemi-kap').value;
+  const acik=document.getElementById('gemi-acik').value.trim();
+  if(!ad){showToast('Gemi adı gereklidir.');return;}
+  if(!GEMILER[ac])GEMILER[ac]=[];
+  GEMILER[ac].unshift({id:'gm'+Date.now(),ad,kapasite:parseInt(kap)||0,acik,seferler:[]});
+  if(!SHIPS.includes(ad))SHIPS.push(ad);
+  document.getElementById('gemi-ad').value='';
+  document.getElementById('gemi-kap').value='';
+  document.getElementById('gemi-acik').value='';
+  renderGemilerPanel();
+  showToast(ad+' eklendi!');
+}
+
+function deleteGemi(gid){
+  const ac=getMyAcente();if(!ac)return;
+  if(!confirm('Bu gemi ve tüm seferleri silinsin mi?'))return;
+  const idx=(GEMILER[ac]||[]).findIndex(g=>g.id===gid);
+  if(idx>=0){GEMILER[ac].splice(idx,1);renderGemilerPanel();showToast('Gemi silindi.');}
+}
+
+function addUrun(){
+  const ac=getMyAcente();if(!ac)return;
+  const ad=document.getElementById('urun-ad').value.trim();
+  const acik=document.getElementById('urun-acik')?.value.trim()||'';
+  if(!ad){showToast('Tur adı gereklidir.');return;}
+  if(!TUR_URUNLERI[ac])TUR_URUNLERI[ac]=[];
+  TUR_URUNLERI[ac].unshift({id:'tu'+Date.now(),ad,acik,seferler:[]});
+  document.getElementById('urun-ad').value='';
+  if(document.getElementById('urun-acik'))document.getElementById('urun-acik').value='';
+  renderGemilerPanel();
+  showToast(ad+' eklendi!');
+}
+
+function deleteTurUrun(uid){
+  const ac=getMyAcente();if(!ac)return;
+  if(!confirm('Bu tur ve tüm tarihleri silinsin mi?'))return;
+  const idx=(TUR_URUNLERI[ac]||[]).findIndex(t=>t.id===uid);
+  if(idx>=0){TUR_URUNLERI[ac].splice(idx,1);renderGemilerPanel();showToast('Tur silindi.');}
+}
+
+// ══ RAPOR PANELİ ══
+function renderRaporPanel(){
+  const ac=getMyAcente();if(!ac)return;
+  const iS=CU?.role==='voyago';
+  const acShip=iS?null:null; // acente kendi verilerini görür
+
+  // Acente yolcuları
+  const myGuides=Object.entries(USERS).filter(([k,u])=>u.role==='guide'&&u.acente===ac).map(([k])=>k);
+  const myVoyageIds=VOYAGES.filter(v=>myGuides.includes(v.guide)).map(v=>v.id);
+  const myPassengers=passengers.filter(p=>myVoyageIds.includes(p.sefer));
+  const topKisi=myPassengers.reduce((a,p)=>a+p.adult+p.child+p.baby,0);
+
+  // Tur satış hesabı
+  let toplamSatis=0;
+  myPassengers.forEach(p=>{
+    TOURS.forEach(t=>{
+      if(p.joinedTours.includes(t.id)){
+        toplamSatis+=(p.adult*t.ap)+(p.child*t.cp)+(p.baby*t.bp);
+      }
+    });
+  });
+
+  // Genel stats
+  const rs=document.getElementById('rapor-stats');
+  if(rs) rs.innerHTML=`
+    <div style="background:white;border-radius:14px;padding:14px;text-align:center;box-shadow:var(--sh);">
+      <div style="font-size:24px;font-weight:600;color:var(--blue);">${myPassengers.length}</div>
+      <div style="font-size:11px;color:var(--t3);margin-top:2px;">Toplam Kabin</div>
+    </div>
+    <div style="background:white;border-radius:14px;padding:14px;text-align:center;box-shadow:var(--sh);">
+      <div style="font-size:24px;font-weight:600;color:var(--blue);">${topKisi}</div>
+      <div style="font-size:11px;color:var(--t3);margin-top:2px;">Toplam Kişi</div>
+    </div>
+    <div style="background:var(--gl);border-radius:14px;padding:14px;text-align:center;box-shadow:var(--sh);">
+      <div style="font-size:22px;font-weight:600;color:var(--green);">€${toplamSatis.toLocaleString()}</div>
+      <div style="font-size:11px;color:var(--green);margin-top:2px;">Tur Satışı</div>
+    </div>
+    <div style="background:white;border-radius:14px;padding:14px;text-align:center;box-shadow:var(--sh);">
+      <div style="font-size:24px;font-weight:600;color:var(--amber);">${myGuides.length}</div>
+      <div style="font-size:11px;color:var(--t3);margin-top:2px;">Rehber</div>
+    </div>`;
+
+  // Sefer bazlı rapor
+  const srl=document.getElementById('sefer-rapor-list');
+  if(srl){
+    const myVoyages=VOYAGES.filter(v=>myGuides.includes(v.guide));
+    if(!myVoyages.length){srl.innerHTML='<div class="es">Henüz sefer yok.</div>';}
+    else srl.innerHTML=myVoyages.map(v=>{
+      const vPass=myPassengers.filter(p=>p.sefer===v.id);
+      const vKisi=vPass.reduce((a,p)=>a+p.adult+p.child+p.baby,0);
+      const vCI=vPass.filter(p=>p.checkedIn).length;
+      let vSatis=0;
+      vPass.forEach(p=>{TOURS.forEach(t=>{if(p.joinedTours.includes(t.id))vSatis+=(p.adult*t.ap)+(p.child*t.cp)+(p.baby*t.bp);});});
+      const g=USERS[v.guide];
+      return `<div style="background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:var(--sh);">
+        <div style="font-size:14px;font-weight:500;color:var(--t);margin-bottom:4px;">${v.label}</div>
+        <div style="font-size:11px;color:var(--t2);margin-bottom:10px;">${v.route} · Rehber: ${g?.name||v.guide}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:60px;background:var(--bl);border-radius:8px;padding:8px;text-align:center;">
+            <div style="font-size:16px;font-weight:600;color:var(--blue);">${vPass.length}</div><div style="font-size:10px;color:#0c447c;">Kabin</div>
+          </div>
+          <div style="flex:1;min-width:60px;background:var(--gray);border-radius:8px;padding:8px;text-align:center;">
+            <div style="font-size:16px;font-weight:600;color:var(--t);">${vKisi}</div><div style="font-size:10px;color:var(--t3);">Kişi</div>
+          </div>
+          <div style="flex:1;min-width:60px;background:var(--gl);border-radius:8px;padding:8px;text-align:center;">
+            <div style="font-size:16px;font-weight:600;color:var(--green);">${vCI}</div><div style="font-size:10px;color:var(--green);">Check-in</div>
+          </div>
+          <div style="flex:1;min-width:60px;background:var(--al);border-radius:8px;padding:8px;text-align:center;">
+            <div style="font-size:15px;font-weight:600;color:var(--amber);">€${vSatis.toLocaleString()}</div><div style="font-size:10px;color:var(--amber);">Satış</div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Rehber notları
+  renderRehberNotlari();
+}
+
+function renderRehberNotlari(){
+  const ac=getMyAcente();if(!ac)return;
+  const myGuides=Object.entries(USERS).filter(([k,u])=>u.role==='guide'&&u.acente===ac).map(([k,u])=>({key:k,...u}));
+  const el=document.getElementById('rehber-notlar-list');
+  if(!el)return;
+  let html='';
+  myGuides.forEach(g=>{
+    const notlar=(REHBER_NOTLARI[g.key]||[]);
+    if(!notlar.length)return;
+    notlar.forEach(n=>{
+      html+=`<div style="border-left:3px solid ${n.okundu?'var(--border)':'var(--blue)'};padding:12px 14px;background:white;border-radius:0 12px 12px 0;margin-bottom:10px;box-shadow:var(--sh);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <div style="width:30px;height:30px;border-radius:50%;background:${g.color||'var(--blue)'};color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;">${g.initials||g.name.slice(0,2).toUpperCase()}</div>
+          <div><div style="font-size:13px;font-weight:500;color:var(--t);">${g.name}</div><div style="font-size:11px;color:var(--t3);">${n.tarih} · ${VOYAGES.find(v=>v.id===n.sefer)?.label||n.sefer||'Genel'}</div></div>
+          ${!n.okundu?'<span style="background:var(--bl);color:var(--blue);padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;margin-left:auto;">Yeni</span>':''}
+        </div>
+        <div style="font-size:13px;color:var(--t2);line-height:1.6;">${n.not}</div>
+        ${!n.okundu?`<button onclick="markNoteRead('${g.key}','${n.tarih}')" style="margin-top:8px;padding:4px 12px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--green);color:var(--green);background:transparent;">Okundu işaretle</button>`:''}
+      </div>`;
+    });
+  });
+  el.innerHTML=html||'<div class="es">Henüz rehber notu yok.</div>';
+}
+
+function markNoteRead(guideKey, tarih){
+  const notlar=REHBER_NOTLARI[guideKey]||[];
+  const n=notlar.find(n=>n.tarih===tarih);
+  if(n){n.okundu=true;renderRehberNotlari();showToast('Not okundu olarak işaretlendi.');}
+}
+
+// ══ REHBER NOTU YAZMA (Admin panelinde — rehber girizindeyken) ══
+function saveRehberNotu(){
+  const not=document.getElementById('rehber-not-text')?.value.trim();
+  const sefer=document.getElementById('rehber-not-sefer')?.value;
+  if(!not){showToast('Not boş olamaz.');return;}
+  if(!CU||CU.role!=='guide'){showToast('Sadece rehberler not yazabilir.');return;}
+  if(!REHBER_NOTLARI[CU.key])REHBER_NOTLARI[CU.key]=[];
+  const tarih=new Date().toISOString().slice(0,10);
+  REHBER_NOTLARI[CU.key].push({sefer,tarih,not,okundu:false});
+  document.getElementById('rehber-not-text').value='';
+  showToast('Not kaydedildi!');
+}
+
+// ── REHBER RAPORU ──
+function copyRehberRaporu(guideKey){
+  const ac=getMyAcente();
+  const NL=String.fromCharCode(10);
+  const now=new Date();
+  const tarih=now.toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'});
+  const saat=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
+  let txt='';
+
+  function buildGuideRapor(k){
+    const u=USERS[k];if(!u)return '';
+    const atamalar=getGuideAtamalar(k);
+    const notlar=REHBER_NOTLARI[k]||[];
+    let s='';
+    s+='REHBER: '+u.name+' (@'+k+')'+NL;
+    s+='Kullanici adi: '+k+' | Sifre: '+u.pass+NL;
+    s+='Toplam atama: '+atamalar.length+NL;
+    if(atamalar.length){
+      s+='Atamalar:'+NL;
+      atamalar.forEach((a,i)=>{
+        s+='  '+(i+1)+'. ['+(a.tip==='gemi'?'Gemi':'Kara Tur')+'] '+a.urun+' — '+a.tarih+NL;
+      });
+    }
+    if(notlar.length){
+      s+='Notlar ('+notlar.length+'):'+NL;
+      notlar.forEach(n=>{
+        s+='  ['+n.tarih+'] '+n.not+NL;
+      });
+    }
+    return s;
+  }
+
+  if(guideKey==='toplu'){
+    txt='VOYAGO REHBER RAPORU'+NL;
+    txt+='Tarih: '+tarih+' '+saat+NL;
+    txt+='================================'+NL+NL;
+    const guides=Object.entries(USERS).filter(([k,v])=>v.role==='guide'&&(v.acente===ac||!v.acente));
+    txt+='Toplam rehber: '+guides.length+NL+NL;
+    guides.forEach(([k],i)=>{
+      txt+=(i+1)+'. '+buildGuideRapor(k);
+      txt+='--------------------------------'+NL;
+    });
+  } else {
+    txt='VOYAGO REHBER RAPORU'+NL;
+    txt+='Tarih: '+tarih+' '+saat+NL;
+    txt+='================================'+NL+NL;
+    txt+=buildGuideRapor(guideKey);
+  }
+  txt+=NL+'VOYAGO App';
+
+  const ta=document.getElementById('rehber-rapor-copy-area');
+  if(ta){ta.value=txt;ta.select();}
+  try{
+    document.execCommand('copy');
+    showToast('Rapor kopyalandı!');
+  }catch(e){
+    navigator.clipboard?.writeText(txt).then(()=>showToast('Rapor kopyalandı!')).catch(()=>showToast('Kopyalanamadı.'));
+  }
+}
+
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);}
+
+// gc class fix
+const gcStyle=document.createElement('style');
+gcStyle.textContent='.gc{background:white;border-radius:14px;padding:12px 15px;margin-bottom:9px;box-shadow:var(--sh);display:flex;align-items:center;gap:11px;}';
+document.head.appendChild(gcStyle);
+</script>
+</body>
+</html>
