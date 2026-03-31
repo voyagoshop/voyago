@@ -3366,9 +3366,10 @@ function autoLogin() {
     renderProgramPage(p.sefer);
     renderYemekPage(p.sefer);
     renderGazete();
-    checkAnketGoster(p.sefer);
     showScreen('sa');
     startClock();
+    // Anket kontrolü — DB yüklendikten sonra yap
+    setTimeout(()=>checkAnketGoster(p.sefer), 1000);
     console.log('Otomatik giris: ' + p.name);
   } catch(e) {
     console.error('autoLogin hatasi:', e);
