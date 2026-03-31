@@ -1778,7 +1778,7 @@ function renderGazete(){
   if(t)t.textContent=now.toLocaleDateString('tr-TR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   if(!GAZETE_IMGS.length){if(g)g.innerHTML='';if(e)e.style.display='block';return;}
   if(e)e.style.display='none';
-  if(g)g.innerHTML=GAZETE_IMGS.map(src=>`<div class="gazete-img"><img src="${src}"></div>`).join('');
+  if(g)g.innerHTML=GAZETE_IMGS.map(src=>`<div class="gazete-img"><img src="${src}" onclick="lightboxAc('${src}')" style="cursor:zoom-in;"></div>`).join('');
 }
 function renderGazeteAdmin(){
   const g=document.getElementById('gazete-admin-grid');
