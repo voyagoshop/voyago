@@ -3739,19 +3739,28 @@ function initBildirimSefer(){
   }
 }
 
-function initRehberRaporSecim(){
-  const iS=CU?.role==='super', isAcente=CU?.role==='acente', isGuide=CU?.role==='guide';
-  const activeShip=isAcente||iS?ACTIVE_SHIP:CU?.ship;
-  // Önce gemi filtresiyle dene, boşsa tüm seferleri göster
-  let mv=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived');
-  if(!mv.length) mv=VOYAGES.filter(v=>v.status!=='archived');
+async function initRehberRaporSecim(){
   const sel=document.getElementById('rr-sefer-sel');
-  if(sel){
-    if(mv.length){
-      sel.innerHTML=mv.map(v=>`<option value="${v.id}">${v.label} — ${v.ship||''}</option>`).join('');
-    } else {
-      sel.innerHTML='<option value="">— Sefer bulunamadı —</option>';
+  if(!sel)return;
+  sel.innerHTML='<option value="">Yükleniyor...</option>';
+  try{
+    // DB'den taze çek
+    const seferlerDB=await dbGet('seferler');
+    if(seferlerDB.length){
+      // Belleği de güncelle
+      seferlerDB.forEach(s=>{
+        if(!VOYAGES.find(v=>v.id===s.id)){
+          VOYAGES.push({id:s.id,label:s.etiket,route:s.guzergah||'',ship:s.gemi||'',
+            guide:s.rehber_adi||'',status:s.durum||'active',visible:s.gorunur!==false});
+        }
+      });
     }
+  }catch(e){}
+  let mv=VOYAGES.filter(v=>v.status!=='archived');
+  if(mv.length){
+    sel.innerHTML=mv.map(v=>`<option value="${v.id}">${v.label}${v.ship?' — '+v.ship:''}</option>`).join('');
+  } else {
+    sel.innerHTML='<option value="">— Sefer bulunamadı —</option>';
   }
 }
 
