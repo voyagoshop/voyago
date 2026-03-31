@@ -506,6 +506,14 @@ textarea.ai2{resize:none;}
     <div id="tab-yemek" class="tp">
       <div id="yemek-area"></div>
     </div>
+    <div id="tab-anket" class="tp" style="display:none;">
+      <div style="background:linear-gradient(135deg,#26215c,#534ab7);border-radius:16px;padding:18px;margin-bottom:16px;color:white;">
+        <div style="font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:4px;">Memnuniyet Anketi</div>
+        <div style="font-size:12px;opacity:.75;">Görüşleriniz bizim için çok değerli</div>
+      </div>
+      <div id="anket-icerik"></div>
+    </div>
+
     <div id="tab-bildirim" class="tp">
       <div class="sl2">Bildirimler</div>
       <div id="nl"><div class="nc nn"><div class="nt2">VOYAGO'ya hoş geldiniz!</div><div class="nb2">Turlar sekmesinden tura katılabilirsiniz.</div><div class="nm">Sistem</div></div></div>
@@ -532,6 +540,7 @@ textarea.ai2{resize:none;}
       <button class="nb" id="nb-turlar" onclick="switchTab('turlar')"><span class="ni">🗺️</span><span>Turlar</span></button>
       <button class="nb" id="nb-gazete" onclick="switchTab('gazete')"><span class="ni">📰</span><span>Gazete</span></button>
       <button class="nb" id="nb-yemek" onclick="switchTab('yemek')"><span class="ni">🍽️</span><span>Yemek</span></button>
+      <button class="nb" id="nb-anket" onclick="switchTab('anket')" style="display:none;"><span class="ni">📝</span><span>Anket</span></button>
       <button class="nb" id="nb-bildirim" onclick="switchTab('bildirim')"><span class="ni">🔔</span><span>Bildirim</span></button>
       <button class="nb" id="nb-gelecek" onclick="switchTab('gelecek')"><span class="ni">🌟</span><span>Fırsatlar</span></button>
       <button class="nb" id="nb-rehber" onclick="switchTab('rehber')"><span class="ni">💬</span><span>Rehber</span></button>
@@ -561,6 +570,8 @@ textarea.ai2{resize:none;}
       <button class="att" id="atab-gz" onclick="adminTab('gz')">Gazete</button>
       <button class="att" id="atab-gelecek" onclick="adminTab('gelecek')">Fırsatlar</button>
       <button class="att" id="atab-kontrol" onclick="adminTab('kontrol')">Tur Listesi</button>
+      <button class="att" id="atab-rehrapor" onclick="adminTab('rehrapor')">Raporlar</button>
+      <button class="att" id="atab-komisyon" onclick="adminTab('komisyon')">Komisyon</button>
       <button class="att" id="atab-bil" onclick="adminTab('bil')">Bildirim</button>
       <button class="att" id="atab-sef" onclick="adminTab('sef')">Seferler</button>
       <button class="att" id="atab-reh" onclick="adminTab('reh')" style="display:none;">Rehberler</button>
@@ -876,6 +887,74 @@ textarea.ai2{resize:none;}
       </div>
     </div>
 
+    <!-- REHBER RAPORLARI -->
+    <div id="admin-rehrapor" class="apg">
+      <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);border-radius:16px;padding:16px;margin-bottom:14px;color:white;">
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:4px;">Sefer Raporları</div>
+        <div style="font-size:12px;opacity:.75;">Rehber yazar, yönetici görür</div>
+      </div>
+      <!-- Rehber için rapor yazma -->
+      <div id="rehber-rapor-yaz-alani" style="display:none;">
+        <div class="fs2" style="background:var(--bl);">
+          <div class="fst" style="color:#0c447c;">Sefer Raporu Yaz</div>
+          <select class="fs" id="rr-sefer-sel" style="margin-bottom:10px;"></select>
+          <textarea class="ai2" id="rr-metin" rows="5" placeholder="Sefer notunuzu yazın... Örn: Atina turu çok başarılı geçti. 42 katılımcı vardı. Akropolis girişinde 20dk bekleme oldu..."></textarea>
+          <button class="bp" onclick="saveRehberRaporu()">Raporu Kaydet</button>
+        </div>
+      </div>
+      <!-- Admin için rapor listesi -->
+      <div id="rehber-rapor-liste"></div>
+      <!-- Email kopyala butonu -->
+      <div id="rehber-rapor-email-alani" style="display:none;margin-top:10px;">
+        <button onclick="raporEmailKopyala()" style="width:100%;padding:11px;background:var(--blue);color:white;border:none;border-radius:12px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 Tüm Raporları Kopyala</button>
+        <textarea id="rr-copy-area" style="position:absolute;left:-9999px;"></textarea>
+      </div>
+    </div>
+
+    <!-- KOMİSYON / SATIŞ RAPORU -->
+    <div id="admin-komisyon" class="apg">
+      <div style="background:linear-gradient(135deg,#0f6e56,#1D9E75);border-radius:16px;padding:16px;margin-bottom:14px;color:white;">
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:4px;">Komisyon ve Satış Raporu</div>
+        <div style="font-size:12px;opacity:.75;">Satış tutarı girin, komisyon otomatik hesaplanır</div>
+      </div>
+      <!-- Yeni satış ekle -->
+      <div class="fs2">
+        <div class="fst">Yeni Satış Ekle</div>
+        <div class="two">
+          <div><label class="fl" style="margin-bottom:3px;">Sefer</label><select class="fs" id="km-sefer" style="height:40px;"></select></div>
+          <div><label class="fl" style="margin-bottom:3px;">Kategori</label>
+            <select class="fs" id="km-kategori" style="height:40px;">
+              <option>Halı / Kilim</option>
+              <option>Deri</option>
+              <option>Kuyum / Mücevir</option>
+              <option>Tekstil</option>
+              <option>Zeytin Yağı / Gıda</option>
+              <option>Kara Turu</option>
+              <option>Gemi Turu</option>
+              <option>Diğer</option>
+            </select>
+          </div>
+        </div>
+        <div class="two" style="margin-top:8px;">
+          <div><label class="fl" style="margin-bottom:3px;">Satış Tutarı (€)</label><input class="ai2" type="number" id="km-tutar" placeholder="1500" style="margin:0;" oninput="hesaplaKomisyon()"></div>
+          <div><label class="fl" style="margin-bottom:3px;">Komisyon Oranı (%)</label><input class="ai2" type="number" id="km-oran" placeholder="10" style="margin:0;" oninput="hesaplaKomisyon()"></div>
+        </div>
+        <div id="km-hesap-sonuc" style="display:none;background:var(--gl);border-radius:10px;padding:10px 14px;margin-top:8px;font-size:14px;color:var(--green);font-weight:500;"></div>
+        <div style="margin-top:8px;"><label class="fl" style="margin-bottom:3px;">Açıklama (opsiyonel)</label><input class="ai2" type="text" id="km-aciklama" placeholder="Otobüs 1 - Mavi Halı" style="margin:0;"></div>
+        <button class="bp" onclick="addKomisyon()" style="margin-top:12px;">Kaydet</button>
+      </div>
+      <!-- Özet istatistikler -->
+      <div id="km-ozet" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;"></div>
+      <!-- Liste -->
+      <div class="sl2">Kayıtlar</div>
+      <div id="km-liste"></div>
+      <button onclick="komisyonRaporKopyala()" style="width:100%;padding:11px;background:var(--blue);color:white;border:none;border-radius:12px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:10px;">📋 Raporu Kopyala / Email</button>
+      <textarea id="km-copy-area" style="position:absolute;left:-9999px;"></textarea>
+    </div>
+
+    <!-- ANKET PANELİ (admin görür) -->
+    <div id="admin-anket" style="display:none;"></div>
+
     <!-- REHBERLER -->
     <div id="admin-reh" class="apg">
       <div id="gl"></div>
@@ -1098,6 +1177,25 @@ async function initDB() {
       if(g.toplanti_saat) d.meeting = {saat:g.toplanti_saat,yer:g.toplanti_yer||'',konu:g.toplanti_konu||''};
     });
 
+    // Gazete yükle
+    const gazeteDB = await dbGet('gazete');
+    if(gazeteDB.length > 0) {
+      const son = gazeteDB.sort((a,b)=>new Date(b.guncelleme)-new Date(a.guncelleme))[0];
+      GAZETE_IMGS = son.gorseller || [];
+    }
+
+    // Rehber raporları yükle
+    const raporlarDB = await dbGet('rehber_raporlari');
+    REHBER_RAPORLARI_DB = raporlarDB;
+
+    // Anketler yükle
+    const anketlerDB = await dbGet('anketler');
+    ANKETLER_DB = anketlerDB;
+
+    // Komisyon kayıtları yükle
+    const komisyonDB = await dbGet('komisyon_kayitlari');
+    KOMISYON_DB = komisyonDB;
+
     DB_READY = true;
     console.log('Veritabani hazir!');
     populateSeferler();
@@ -1249,6 +1347,9 @@ let DAILY = {};
 
 let MEETING = {saat:'',yer:'',konu:''};
 let GAZETE_IMGS = [];
+let REHBER_RAPORLARI_DB = [];
+let ANKETLER_DB = [];
+let KOMISYON_DB = [];
 let CU=null, CP=null, CIF='hepsi', CASF='hepsi', CTSF='hepsi', CGK2=null;
 let ACTIVE_SHIP = 'Celestyal Journey';
 let newTurImg = null;
@@ -1483,13 +1584,23 @@ function addGazeteImg(input){
   [...input.files].forEach(f=>{
     if(GAZETE_IMGS.length>=4){showToast('Max 4 sayfa.');return;}
     const r=new FileReader();
-    r.onload=e=>{GAZETE_IMGS.push(e.target.result);renderGazeteAdmin();renderGazete();};
+    r.onload=e=>{GAZETE_IMGS.push(e.target.result);saveGazeteDB();renderGazeteAdmin();renderGazete();};
     r.readAsDataURL(f);
   });
   input.value='';
 }
-function delGazete(i){GAZETE_IMGS.splice(i,1);renderGazeteAdmin();renderGazete();}
-function clearGazete(){GAZETE_IMGS=[];renderGazeteAdmin();renderGazete();showToast('Temizlendi.');}
+function delGazete(i){GAZETE_IMGS.splice(i,1);saveGazeteDB();renderGazeteAdmin();renderGazete();}
+function clearGazete(){GAZETE_IMGS=[];saveGazeteDB();renderGazeteAdmin();renderGazete();showToast('Temizlendi.');}
+
+async function saveGazeteDB(){
+  const sv=getCurrentSeferId()||'genel';
+  const mevcut=await dbGet('gazete',{sefer_id:sv});
+  if(mevcut.length>0){
+    await dbUpdate('gazete',{sefer_id:sv},{gorseller:GAZETE_IMGS,guncelleme:new Date().toISOString()});
+  } else {
+    await dbInsert('gazete',{sefer_id:sv,gorseller:GAZETE_IMGS});
+  }
+}
 
 // ── ADMIN GİRİŞİ ──
 function doAL(){
@@ -1550,6 +1661,13 @@ function setupAdmin(){
   document.getElementById('atab-reh').style.display=isAcente?'block':'none';
   document.getElementById('atab-gemiler').style.display=isAcente?'block':'none';
   document.getElementById('atab-rapor').style.display=isAcente?'block':'none';
+  document.getElementById('atab-rehrapor').style.display=(isAcente||isGuide)?'block':'none';
+  document.getElementById('atab-komisyon').style.display=isAcente?'block':'none';
+  // Rehber rapor yazma alanı
+  const rrya=document.getElementById('rehber-rapor-yaz-alani');
+  const rrea=document.getElementById('rehber-rapor-email-alani');
+  if(rrya)rrya.style.display=isGuide?'block':'none';
+  if(rrea)rrea.style.display=isAcente?'block':'none';
   document.getElementById('atab-voyago').style.display=isVoyago?'flex':'none';
 
   // VOYAGO rolündeyse diğer admin sekmeleri gizle, sadece VOYAGO sekmesi kalsın
@@ -2150,6 +2268,7 @@ function switchTab(name){
   document.getElementById('tab-'+name).classList.add('active');
   document.getElementById('nb-'+name).classList.add('active');
   if(name==='gelecek')renderGelecekTurlar();
+  if(name==='anket'&&CP)renderAnket(CP.sefer);
 }
 function sendMsg(){
   const input=document.getElementById('ci'),val=input.value.trim();if(!val)return;
@@ -2951,6 +3070,8 @@ function renderRaporPanel(){
 
   // Rehber notları
   renderRehberNotlari();
+  // Anket özeti
+  setTimeout(renderAnketRaporuAdmin, 100);
 }
 
 function renderRehberNotlari(){
@@ -3192,6 +3313,7 @@ function autoLogin() {
     renderProgramPage(p.sefer);
     renderYemekPage(p.sefer);
     renderGazete();
+    checkAnketGoster(p.sefer);
     showScreen('sa');
     startClock();
     console.log('Otomatik giris: ' + p.name);
@@ -3281,6 +3403,336 @@ function yeniGiris() {
   const formKarti = document.getElementById('giris-form-karti');
   if(hosKarti) hosKarti.style.display = 'none';
   if(formKarti) formKarti.style.display = 'block';
+}
+
+// ══ REHBER RAPORU ══
+function initRehberRaporSecim(){
+  const iS=CU?.role==='super', isAcente=CU?.role==='acente', isGuide=CU?.role==='guide';
+  const activeShip=isAcente||iS?ACTIVE_SHIP:CU?.ship;
+  const mv=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived');
+  const sel=document.getElementById('rr-sefer-sel');
+  if(sel)sel.innerHTML=mv.map(v=>`<option value="${v.id}">${v.label}</option>`).join('');
+}
+
+async function saveRehberRaporu(){
+  const metin=document.getElementById('rr-metin')?.value.trim();
+  const sefer=document.getElementById('rr-sefer-sel')?.value;
+  if(!metin){showToast('Rapor boş olamaz.');return;}
+  if(!CU||CU.role!=='guide'){showToast('Sadece rehberler rapor yazabilir.');return;}
+  const veri={
+    rehber_adi:CU.key, rehber_ad:CU.name,
+    sefer_id:sefer||'', rapor:metin, okundu:false
+  };
+  const result=await dbInsert('rehber_raporlari',veri);
+  if(result){
+    REHBER_RAPORLARI_DB.push({...veri,id:result.id,olusturma:new Date().toISOString()});
+    document.getElementById('rr-metin').value='';
+    showToast('Rapor kaydedildi!');
+  }
+}
+
+function renderRehberRaporListesi(){
+  const el=document.getElementById('rehber-rapor-liste');
+  if(!el)return;
+  const isAcente=CU?.role==='acente', isGuide=CU?.role==='guide';
+  const ac=getMyAcente();
+
+  // Acente kendi rehberlerinin raporlarını görür
+  const myGuides=Object.entries(USERS).filter(([k,u])=>u.role==='guide'&&u.acente===ac).map(([k])=>k);
+  let raporlar=isGuide
+    ? REHBER_RAPORLARI_DB.filter(r=>r.rehber_adi===CU.key)
+    : REHBER_RAPORLARI_DB.filter(r=>myGuides.includes(r.rehber_adi));
+
+  raporlar=raporlar.sort((a,b)=>new Date(b.olusturma)-new Date(a.olusturma));
+
+  if(!raporlar.length){el.innerHTML='<div class="es">Henüz rapor yok.</div>';return;}
+
+  el.innerHTML=raporlar.map(r=>{
+    const v=VOYAGES.find(v=>v.id===r.sefer_id);
+    const tarih=r.olusturma?new Date(r.olusturma).toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'}):'';
+    return `<div style="border-left:3px solid ${r.okundu?'var(--border)':'var(--blue)'};padding:12px 14px;background:white;border-radius:0 12px 12px 0;margin-bottom:10px;box-shadow:var(--sh);">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
+        <div style="font-size:13px;font-weight:500;color:var(--t);">${r.rehber_ad||r.rehber_adi}</div>
+        <div style="font-size:11px;color:var(--t3);">${tarih}</div>
+        ${v?`<span style="background:var(--bl);color:#0c447c;padding:2px 8px;border-radius:20px;font-size:10px;">${v.label}</span>`:''}
+        ${!r.okundu&&!isGuide?'<span style="background:var(--bl);color:var(--blue);padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;">Yeni</span>':''}
+      </div>
+      <div style="font-size:13px;color:var(--t2);line-height:1.6;">${r.rapor}</div>
+      ${!r.okundu&&!isGuide?`<button onclick="raporOkunduIsaretle('${r.id}')" style="margin-top:8px;padding:3px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--green);color:var(--green);background:transparent;">Okundu</button>`:''}
+    </div>`;
+  }).join('');
+}
+
+async function raporOkunduIsaretle(id){
+  await dbUpdate('rehber_raporlari',{id},{okundu:true});
+  const r=REHBER_RAPORLARI_DB.find(r=>r.id===id);
+  if(r)r.okundu=true;
+  renderRehberRaporListesi();
+  showToast('Okundu işaretlendi.');
+}
+
+function raporEmailKopyala(){
+  const NL=String.fromCharCode(10);
+  const ac=getMyAcente();
+  const myGuides=Object.entries(USERS).filter(([k,u])=>u.role==='guide'&&u.acente===ac).map(([k])=>k);
+  const raporlar=REHBER_RAPORLARI_DB.filter(r=>myGuides.includes(r.rehber_adi))
+    .sort((a,b)=>new Date(b.olusturma)-new Date(a.olusturma));
+  const now=new Date();
+  let txt='VOYAGO REHBER RAPORLARI'+NL;
+  txt+='Tarih: '+now.toLocaleDateString('tr-TR')+NL;
+  txt+='================================'+NL+NL;
+  raporlar.forEach((r,i)=>{
+    const v=VOYAGES.find(v=>v.id===r.sefer_id);
+    const tarih=r.olusturma?new Date(r.olusturma).toLocaleDateString('tr-TR'):'';
+    txt+=(i+1)+'. '+r.rehber_ad+' | '+tarih+(v?' | '+v.label:'')+NL;
+    txt+=r.rapor+NL;
+    txt+='--------------------------------'+NL;
+  });
+  txt+='VOYAGO App';
+  const ta=document.getElementById('rr-copy-area');
+  if(ta){ta.value=txt;ta.select();}
+  try{document.execCommand('copy');showToast('Raporlar kopyalandı!');}
+  catch(e){navigator.clipboard?.writeText(txt).then(()=>showToast('Kopyalandı!')).catch(()=>showToast('Kopyalanamadı.'));}
+}
+
+// ══ KOMİSYON ══
+function initKomisyonSecim(){
+  const isAcente=CU?.role==='acente',iS=CU?.role==='super';
+  const activeShip=isAcente||iS?ACTIVE_SHIP:CU?.ship;
+  const mv=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived');
+  const sel=document.getElementById('km-sefer');
+  if(sel)sel.innerHTML=mv.map(v=>`<option value="${v.id}">${v.label}</option>`).join('');
+  renderKomisyonListesi();
+}
+
+function hesaplaKomisyon(){
+  const tutar=parseFloat(document.getElementById('km-tutar')?.value)||0;
+  const oran=parseFloat(document.getElementById('km-oran')?.value)||0;
+  const sonuc=document.getElementById('km-hesap-sonuc');
+  if(!sonuc)return;
+  if(tutar>0&&oran>0){
+    const kom=(tutar*oran/100).toFixed(2);
+    sonuc.style.display='block';
+    sonuc.textContent='Komisyon: €'+kom+' (€'+tutar.toFixed(0)+' x %'+oran+')';
+  } else sonuc.style.display='none';
+}
+
+async function addKomisyon(){
+  const sefer=document.getElementById('km-sefer')?.value;
+  const kategori=document.getElementById('km-kategori')?.value;
+  const tutar=parseFloat(document.getElementById('km-tutar')?.value)||0;
+  const oran=parseFloat(document.getElementById('km-oran')?.value)||0;
+  const aciklama=document.getElementById('km-aciklama')?.value.trim();
+  if(!tutar){showToast('Satış tutarı girin.');return;}
+  const kom=parseFloat((tutar*oran/100).toFixed(2));
+  const ac=getMyAcente();
+  const veri={sefer_id:sefer,rehber_adi:CU?.key||'',acente_id:ac,kategori,satis_tutari:tutar,komisyon_oran:oran,komisyon_tutar:kom,aciklama};
+  const result=await dbInsert('komisyon_kayitlari',veri);
+  if(result){
+    KOMISYON_DB.push({...veri,id:result.id});
+    document.getElementById('km-tutar').value='';
+    document.getElementById('km-oran').value='';
+    document.getElementById('km-aciklama').value='';
+    document.getElementById('km-hesap-sonuc').style.display='none';
+    renderKomisyonListesi();
+    showToast('Satış kaydedildi!');
+  }
+}
+
+function renderKomisyonListesi(){
+  const el=document.getElementById('km-liste');
+  const ozet=document.getElementById('km-ozet');
+  if(!el)return;
+  const ac=getMyAcente();
+  const sefer=document.getElementById('km-sefer')?.value;
+  let liste=KOMISYON_DB.filter(k=>k.acente_id===ac);
+  if(sefer)liste=liste.filter(k=>k.sefer_id===sefer);
+  liste=liste.sort((a,b)=>new Date(b.olusturma||0)-new Date(a.olusturma||0));
+
+  const topSatis=liste.reduce((a,k)=>a+(k.satis_tutari||0),0);
+  const topKom=liste.reduce((a,k)=>a+(k.komisyon_tutar||0),0);
+  if(ozet)ozet.innerHTML=`
+    <div class="sc2"><div class="sn" style="font-size:16px;">€${topSatis.toLocaleString()}</div><div class="slb">Toplam Satış</div></div>
+    <div class="sc2" style="background:var(--gl);"><div class="sn" style="font-size:16px;color:var(--green);">€${topKom.toLocaleString()}</div><div class="slb" style="color:var(--green);">Toplam Komisyon</div></div>
+    <div class="sc2"><div class="sn" style="font-size:16px;">${liste.length}</div><div class="slb">Kayıt</div></div>`;
+
+  if(!liste.length){el.innerHTML='<div class="es">Kayıt yok.</div>';return;}
+  el.innerHTML=liste.map(k=>`
+    <div style="background:white;border-radius:12px;padding:12px 14px;margin-bottom:8px;box-shadow:var(--sh);display:flex;align-items:center;gap:10px;">
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;color:var(--t);">${k.kategori||'—'}</div>
+        <div style="font-size:11px;color:var(--t2);margin-top:2px;">${k.aciklama||''} ${k.sefer_id?'· '+k.sefer_id:''}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:13px;font-weight:600;color:var(--blue);">€${(k.satis_tutari||0).toLocaleString()}</div>
+        <div style="font-size:11px;color:var(--green);margin-top:1px;">Kom: €${(k.komisyon_tutar||0).toFixed(2)} (%${k.komisyon_oran||0})</div>
+      </div>
+      <button onclick="deleteKomisyon('${k.id}')" style="padding:3px 9px;border-radius:20px;font-size:11px;border:1.5px solid var(--red);color:var(--red);background:transparent;cursor:pointer;">Sil</button>
+    </div>`).join('');
+}
+
+async function deleteKomisyon(id){
+  if(!confirm('Silinsin mi?'))return;
+  await dbDelete('komisyon_kayitlari',{id});
+  const i=KOMISYON_DB.findIndex(k=>k.id===id);
+  if(i>=0)KOMISYON_DB.splice(i,1);
+  renderKomisyonListesi();
+  showToast('Silindi.');
+}
+
+function komisyonRaporKopyala(){
+  const NL=String.fromCharCode(10);
+  const ac=getMyAcente();
+  const sefer=document.getElementById('km-sefer')?.value;
+  let liste=KOMISYON_DB.filter(k=>k.acente_id===ac);
+  if(sefer)liste=liste.filter(k=>k.sefer_id===sefer);
+  const v=VOYAGES.find(v=>v.id===sefer);
+  const topSatis=liste.reduce((a,k)=>a+(k.satis_tutari||0),0);
+  const topKom=liste.reduce((a,k)=>a+(k.komisyon_tutar||0),0);
+  const now=new Date();
+  let txt='VOYAGO KOMISYON RAPORU'+NL;
+  txt+='Tarih: '+now.toLocaleDateString('tr-TR')+NL;
+  if(v)txt+='Sefer: '+v.label+NL;
+  txt+='================================'+NL+NL;
+  // Kategori bazlı özet
+  const katMap={};
+  liste.forEach(k=>{if(!katMap[k.kategori])katMap[k.kategori]={satis:0,kom:0};katMap[k.kategori].satis+=k.satis_tutari||0;katMap[k.kategori].kom+=k.komisyon_tutar||0;});
+  txt+='KATEGORİ BAZLI ÖZET:'+NL;
+  Object.entries(katMap).forEach(([kat,d])=>{
+    txt+='  '+kat+': Satış €'+d.satis.toLocaleString()+' | Komisyon €'+d.kom.toFixed(2)+NL;
+  });
+  txt+=NL+'DETAY:'+NL;
+  liste.forEach((k,i)=>{
+    txt+=(i+1)+'. '+k.kategori+(k.aciklama?' - '+k.aciklama:'')+' | €'+k.satis_tutari+' | Kom: €'+k.komisyon_tutar+' (%'+k.komisyon_oran+')'+NL;
+  });
+  txt+=NL+'--------------------------------'+NL;
+  txt+='TOPLAM SATIS: €'+topSatis.toLocaleString()+NL;
+  txt+='TOPLAM KOMISYON: €'+topKom.toFixed(2)+NL;
+  txt+='--------------------------------'+NL+'VOYAGO App';
+  const ta=document.getElementById('km-copy-area');
+  if(ta){ta.value=txt;ta.select();}
+  try{document.execCommand('copy');showToast('Rapor kopyalandi!');}
+  catch(e){navigator.clipboard?.writeText(txt).then(()=>showToast('Kopyalandı!')).catch(()=>showToast('Kopyalanamadı.'));}
+}
+
+// ══ ANKET ══
+const ANKET_SORULAR = [
+  {id:'rehber',  soru:'Rehber memnuniyeti',    icon:'🧭'},
+  {id:'program', soru:'Tur programı kalitesi', icon:'🗺️'},
+  {id:'genel',   soru:'Genel memnuniyet',      icon:'⭐'},
+];
+
+function renderAnket(sv){
+  const el=document.getElementById('anket-icerik');
+  if(!el||!CP)return;
+  // Daha önce doldurdu mu?
+  const doldu=ANKETLER_DB.find(a=>a.yolcu_kabin===CP.kabin&&a.sefer_id===sv);
+  if(doldu){
+    el.innerHTML=`<div style="text-align:center;padding:30px;">
+      <div style="font-size:48px;margin-bottom:12px;">✅</div>
+      <div style="font-size:16px;font-weight:500;color:var(--t);">Anketiniz alındı!</div>
+      <div style="font-size:13px;color:var(--t2);margin-top:6px;">Katılımınız için teşekkür ederiz.</div>
+      <div style="margin-top:16px;display:flex;justify-content:center;gap:16px;">
+        <div style="text-align:center;"><div style="font-size:24px;">${'⭐'.repeat(doldu.rehber_puan||0)}</div><div style="font-size:11px;color:var(--t3);">Rehber</div></div>
+        <div style="text-align:center;"><div style="font-size:24px;">${'⭐'.repeat(doldu.program_puan||0)}</div><div style="font-size:11px;color:var(--t3);">Program</div></div>
+        <div style="text-align:center;"><div style="font-size:24px;">${'⭐'.repeat(doldu.genel_puan||0)}</div><div style="font-size:11px;color:var(--t3);">Genel</div></div>
+      </div>
+    </div>`;
+    return;
+  }
+  el.innerHTML=`
+    <div style="background:white;border-radius:16px;padding:18px;box-shadow:var(--sh);">
+      ${ANKET_SORULAR.map(s=>`
+        <div style="margin-bottom:18px;">
+          <div style="font-size:14px;font-weight:500;color:var(--t);margin-bottom:8px;">${s.icon} ${s.soru}</div>
+          <div style="display:flex;gap:8px;">
+            ${[1,2,3,4,5].map(n=>`
+              <button onclick="anketYildizSec('${s.id}',${n})" id="yildiz-${s.id}-${n}"
+                style="flex:1;padding:10px;border:2px solid var(--border);border-radius:10px;font-size:20px;cursor:pointer;background:white;transition:all .2s;">⭐</button>
+            `).join('')}
+          </div>
+        </div>`).join('')}
+      <div style="margin-bottom:14px;">
+        <div style="font-size:14px;font-weight:500;color:var(--t);margin-bottom:6px;">💬 Yorumunuz (opsiyonel)</div>
+        <textarea class="ai2" id="anket-yorum" rows="3" placeholder="Deneyiminizi paylaşın..." style="margin:0;"></textarea>
+      </div>
+      <button class="bp" onclick="anketGonder('${sv}')">Anketi Gönder</button>
+    </div>`;
+  // Puan sıfırla
+  window._anketPuanlar = {rehber:0,program:0,genel:0};
+}
+
+function anketYildizSec(soruId, puan){
+  if(!window._anketPuanlar)window._anketPuanlar={rehber:0,program:0,genel:0};
+  window._anketPuanlar[soruId]=puan;
+  // Görsel güncelle
+  for(let i=1;i<=5;i++){
+    const btn=document.getElementById('yildiz-'+soruId+'-'+i);
+    if(btn){
+      btn.style.background=i<=puan?'var(--al)':'white';
+      btn.style.borderColor=i<=puan?'var(--amber)':'var(--border)';
+    }
+  }
+}
+
+async function anketGonder(sv){
+  const p=window._anketPuanlar||{};
+  if(!p.rehber||!p.program||!p.genel){showToast('Lütfen tüm soruları cevaplayın.');return;}
+  const yorum=document.getElementById('anket-yorum')?.value.trim()||'';
+  const veri={
+    yolcu_kabin:CP.kabin, yolcu_ad:CP.name,
+    sefer_id:sv, rehber_puan:p.rehber,
+    program_puan:p.program, genel_puan:p.genel, yorum
+  };
+  const result=await dbInsert('anketler',veri);
+  if(result){
+    ANKETLER_DB.push({...veri,id:result.id});
+    renderAnket(sv);
+    showToast('Anketiniz gönderildi! Teşekkürler 🙏');
+  }
+}
+
+// Anket admin görünümü — rapor sekmesine eklenebilir
+function renderAnketRaporuAdmin(){
+  const ac=getMyAcente();
+  const isAcente=CU?.role==='acente';
+  if(!isAcente)return;
+  const myGuideVoyages=VOYAGES.filter(v=>{
+    const g=USERS[v.guide];
+    return g&&g.acente===ac;
+  }).map(v=>v.id);
+  const anketler=ANKETLER_DB.filter(a=>myGuideVoyages.includes(a.sefer_id));
+  if(!anketler.length)return;
+  const ort=(alan)=>{const vals=anketler.map(a=>a[alan]).filter(Boolean);return vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1):'-';};
+  const el=document.getElementById('sefer-rapor-list');
+  if(!el)return;
+  const anketOzet=`<div style="background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:var(--sh);">
+    <div style="font-size:14px;font-weight:500;margin-bottom:10px;">📊 Anket Sonuçları (${anketler.length} katılımcı)</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <div style="flex:1;background:var(--bl);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:20px;font-weight:600;color:var(--blue);">${ort('rehber_puan')}/5</div><div style="font-size:10px;color:#0c447c;">Rehber</div></div>
+      <div style="flex:1;background:var(--gl);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:20px;font-weight:600;color:var(--green);">${ort('program_puan')}/5</div><div style="font-size:10px;color:var(--green);">Program</div></div>
+      <div style="flex:1;background:var(--al);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:20px;font-weight:600;color:var(--amber);">${ort('genel_puan')}/5</div><div style="font-size:10px;color:var(--amber);">Genel</div></div>
+    </div>
+  </div>`;
+  el.innerHTML=anketOzet+(el.innerHTML||'');
+}
+
+// Anket sekmesini göster (sefer son günü)
+function checkAnketGoster(sv){
+  if(!CP||!sv)return;
+  const v=VOYAGES.find(v=>v.id===sv);
+  if(!v||!v.endDate)return;
+  const bugun=new Date();bugun.setHours(0,0,0,0);
+  const bitis=new Date(v.endDate);bitis.setHours(0,0,0,0);
+  const fark=Math.ceil((bitis-bugun)/(1000*60*60*24));
+  // Son 1 gün kaldıysa veya sona erdiyse anketi göster
+  if(fark<=1){
+    const tabAnket=document.getElementById('tab-anket');
+    const nbAnket=document.getElementById('nb-anket');
+    if(tabAnket)tabAnket.style.display='block';
+    if(nbAnket)nbAnket.style.display='flex';
+    renderAnket(sv);
+  }
 }
 
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);}
