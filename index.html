@@ -512,7 +512,7 @@ textarea.ai2{resize:none;}
     <div id="tab-yemek" class="tp">
       <div id="yemek-area"></div>
     </div>
-    <div id="tab-anket" class="tp" style="display:none;">
+    <div id="tab-anket" class="tp">
       <div style="background:linear-gradient(135deg,#26215c,#534ab7);border-radius:16px;padding:18px;margin-bottom:16px;color:white;">
         <div style="font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:4px;">Memnuniyet Anketi</div>
         <div style="font-size:12px;opacity:.75;">Görüşleriniz bizim için çok değerli</div>
@@ -549,7 +549,7 @@ textarea.ai2{resize:none;}
       <button class="nb" id="nb-turlar" onclick="switchTab('turlar')"><span class="ni">🗺️</span><span>Turlar</span></button>
       <button class="nb" id="nb-gazete" onclick="switchTab('gazete')"><span class="ni">📰</span><span>Gazete</span></button>
       <button class="nb" id="nb-yemek" onclick="switchTab('yemek')"><span class="ni">🍽️</span><span>Yemek</span></button>
-      <button class="nb" id="nb-anket" onclick="switchTab('anket')" style="display:none;"><span class="ni">📝</span><span>Anket</span></button>
+      <button class="nb" id="nb-anket" onclick="switchTab('anket')"><span class="ni">📝</span><span>Anket</span></button>
       <button class="nb" id="nb-bildirim" onclick="switchTab('bildirim')"><span class="ni">🔔</span><span>Bildirim</span></button>
       <button class="nb" id="nb-gelecek" onclick="switchTab('gelecek')"><span class="ni">🌟</span><span>Fırsatlar</span></button>
       <button class="nb" id="nb-rehber" onclick="switchTab('rehber')"><span class="ni">💬</span><span>Rehber</span></button>
@@ -867,9 +867,14 @@ textarea.ai2{resize:none;}
         <div class="fst" style="color:var(--purple);">📝 Memnuniyet Anketi</div>
         <div style="font-size:12px;color:var(--purple);margin-bottom:12px;line-height:1.5;">Bu butona bastığınızda seçili seferdeki tüm yolcuların ekranında anket belirir.</div>
         <div class="sc3" id="anket-sefer-chips"></div>
-        <button onclick="anketBaslat()" style="width:100%;padding:12px;background:var(--purple);color:white;border:none;border-radius:12px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">
-          📝 Anketi Başlat — Yolculara Gönder
-        </button>
+        <div style="display:flex;gap:8px;">
+          <button onclick="anketBaslat()" style="flex:1;padding:12px;background:var(--purple);color:white;border:none;border-radius:12px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">
+            📝 Anketi Başlat
+          </button>
+          <button onclick="anketKapat()" style="flex:1;padding:12px;background:transparent;color:var(--purple);border:2px solid var(--purple);border-radius:12px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">
+            ✕ Anketi Kapat
+          </button>
+        </div>
       </div>
     </div>
 
@@ -2404,7 +2409,7 @@ function switchTab(name){
   document.getElementById('tab-'+name).classList.add('active');
   document.getElementById('nb-'+name).classList.add('active');
   if(name==='gelecek')renderGelecekTurlar();
-  if(name==='anket'&&CP)renderAnket(CP.sefer);
+  if(name==='anket'){if(CP)checkAnketGoster(CP.sefer).then(()=>renderAnket(CP.sefer));else renderAnket('');}
   if(name==='rehber'&&CP){renderMesajlar(CP.sefer);}
   if(name==='turlar'&&CP){renderTurAnonsPano(CP.sefer);}
 }
@@ -3766,7 +3771,20 @@ const ANKET_SORULAR = [
 
 function renderAnket(sv){
   const el=document.getElementById('anket-icerik');
-  if(!el||!CP)return;
+  if(!el)return;
+
+  // Anket aktif mi?
+  const d=getDailyForSefer(sv);
+  if(!d.anket_aktif){
+    el.innerHTML=`<div style="text-align:center;padding:40px 20px;">
+      <div style="font-size:48px;margin-bottom:12px;">📋</div>
+      <div style="font-size:16px;font-weight:500;color:var(--t);">Anket Henüz Başlamadı</div>
+      <div style="font-size:13px;color:var(--t2);margin-top:8px;line-height:1.5;">Rehberiniz sefer sonunda anketi açacak.<br>Bu sekmeyi takipte kalın.</div>
+    </div>`;
+    return;
+  }
+
+  if(!CP)return;
   // Daha önce doldurdu mu?
   const doldu=ANKETLER_DB.find(a=>a.yolcu_kabin===CP.kabin&&a.sefer_id===sv);
   if(doldu){
@@ -3866,6 +3884,18 @@ function togAnketSefer(el,id){
   AKTIF_ANKET_SEFER=id;
 }
 
+async function anketKapat(){
+  const iS=CU?.role==='super'||CU?.role==='acente';
+  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  const mv=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived');
+  const sv=mv[0]?.id;
+  if(!sv){showToast('Sefer bulunamadı.');return;}
+  const d=getDailyForSefer(sv);
+  d.anket_aktif=false;
+  await saveDailyDB(sv);
+  showToast('Anket kapatıldı.');
+}
+
 async function anketBaslat(){
   // Seçili seferi bul
   const aktifChip=document.querySelector('#anket-sefer-chips .sch.active');
@@ -3900,33 +3930,15 @@ async function anketBaslat(){
 }
 
 async function checkAnketGoster(sv){
-  if(!CP||!sv)return;
+  if(!sv)return;
   try{
-    // DB'den direkt oku — bellekteki veriye güvenme
     const gunlukDB=await dbGet('gunluk',{sefer_id:sv});
     const anketAktif=gunlukDB.length>0&&gunlukDB[0].anket_aktif===true;
-    // Belleği de güncelle
-    if(anketAktif){
-      const d=getDailyForSefer(sv);
-      d.anket_aktif=true;
-    }
-    if(anketAktif){
-      const tabAnket=document.getElementById('tab-anket');
-      const nbAnket=document.getElementById('nb-anket');
-      if(tabAnket)tabAnket.style.display='block';
-      if(nbAnket)nbAnket.style.display='flex';
-      renderAnket(sv);
-    }
-  }catch(e){
-    // Hata olursa bellekteki veriye bak
     const d=getDailyForSefer(sv);
-    if(d.anket_aktif){
-      const tabAnket=document.getElementById('tab-anket');
-      const nbAnket=document.getElementById('nb-anket');
-      if(tabAnket)tabAnket.style.display='block';
-      if(nbAnket)nbAnket.style.display='flex';
-      renderAnket(sv);
-    }
+    d.anket_aktif=anketAktif;
+    if(CP) renderAnket(sv); // her durumda içeriği güncelle
+  }catch(e){
+    if(CP) renderAnket(sv);
   }
 }
 
