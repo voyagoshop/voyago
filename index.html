@@ -301,6 +301,15 @@ textarea.ai2{resize:none;}
   <button onclick="lightboxKapat()" style="position:absolute;top:16px;right:16px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:white;font-size:22px;cursor:pointer;">×</button>
 </div>
 
+<!-- SABİT DİL BUTONU — giriş ekranı için -->
+<div id="fixed-dil-wrapper" class="dil-wrapper" style="position:fixed;top:16px;right:16px;z-index:9000;">
+  <button class="dil-btn" id="dil-btn" onclick="dilMenuAc('yolcu')" style="font-size:18px;padding:6px 12px;display:flex;align-items:center;gap:6px;">
+    <span id="dil-btn-bayrak">🇹🇷</span>
+    <span id="dil-btn-ad" style="font-size:12px;">TR</span>
+  </button>
+  <div class="dil-menu" id="dil-menu" style="right:0;left:auto;"></div>
+</div>
+
 <!-- ── LOADING EKRANI ── -->
 <div id="loading-screen" style="position:fixed;inset:0;background:linear-gradient(160deg,#0d3b6e,#1a5fa8,#2272c3);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s ease;">
 
@@ -386,11 +395,7 @@ textarea.ai2{resize:none;}
     <div style="text-align:center;margin-bottom:20px;position:relative;">
       <div style="font-family:'DM Serif Display',serif;font-size:36px;color:white;letter-spacing:-1px;">VOYAGO</div>
       <div style="font-size:11px;color:rgba(255,255,255,.6);letter-spacing:2px;text-transform:uppercase;margin-top:2px;" id="login-ship-name"></div>
-      <!-- Dil seçici -->
-      <div class="dil-wrapper" style="position:absolute;top:0;right:0;">
-        <button class="dil-btn" id="dil-btn" onclick="dilMenuAc('yolcu')">🇹🇷 Türkçe</button>
-        <div class="dil-menu" id="dil-menu"></div>
-      </div>
+      <!-- Dil seçici — sağ üst köşe fixed -->
     </div>
 
     <!-- Slogan -->
@@ -1552,6 +1557,20 @@ function dilAyarla(dil){
   try{ localStorage.setItem('voyago_dil', dil); }catch(e){}
   dilGuncelle();
   dilMenuKapat();
+  // Aktif sayfayı yeniden render et
+  if(CP && CP.sefer){
+    renderProgramPage(CP.sefer);
+    renderPassTours(CP.sefer);
+    renderYemekPage(CP.sefer);
+    renderGazete();
+    renderTurAnonsPano(CP.sefer);
+    renderAnket(CP.sefer);
+  }
+  // Dil butonunu güncelle — bayrak göster
+  const dilBtnApp = document.getElementById('dil-btn-app');
+  if(dilBtnApp) dilBtnApp.textContent = DILLER[dil]?.bayrak || '🌐';
+  const dilBtn = document.getElementById('dil-btn');
+  if(dilBtn) dilBtn.innerHTML = (DILLER[dil]?.bayrak||'🌐') + ' ' + (DILLER[dil]?.ad||dil);
 }
 
 function dilAlgila(){
@@ -1576,7 +1595,6 @@ function dilMenuleriOlustur(){
 }
 
 function dilGuncelle(){
-  // Statik data-t elementlerini güncelle
   document.querySelectorAll('[data-t]').forEach(el=>{
     const key=el.getAttribute('data-t');
     el.textContent=tr(key);
@@ -1585,11 +1603,17 @@ function dilGuncelle(){
     const key=el.getAttribute('data-t-ph');
     el.placeholder=tr(key);
   });
-  // Dil butonunu güncelle
-  const dilBtn=document.getElementById('dil-btn');
-  if(dilBtn) dilBtn.textContent=DILLER[AKTIF_DIL]?.bayrak+' '+DILLER[AKTIF_DIL]?.ad;
+  // Sabit dil butonunu güncelle
+  const bayrak=document.getElementById('dil-btn-bayrak');
+  const ad=document.getElementById('dil-btn-ad');
+  if(bayrak) bayrak.textContent=DILLER[AKTIF_DIL]?.bayrak||'🌐';
+  if(ad) ad.textContent=AKTIF_DIL.toUpperCase();
+  // Yolcu uygulama içi dil butonu
+  const dilBtnApp=document.getElementById('dil-btn-app');
+  if(dilBtnApp) dilBtnApp.textContent=DILLER[AKTIF_DIL]?.bayrak||'🌐';
+  // Admin dil butonu
   const dilBtnA=document.getElementById('dil-btn-admin');
-  if(dilBtnA) dilBtnA.textContent=DILLER[AKTIF_DIL]?.bayrak;
+  if(dilBtnA) dilBtnA.textContent=DILLER[AKTIF_DIL]?.bayrak||'🌐';
 }
 
 function dilMenuAc(tip){
@@ -1751,6 +1775,9 @@ function changeKisiAdmin(type,delta){
 function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+  // Sabit dil butonu sadece giriş ekranlarında görünsün
+  const fixedDil=document.getElementById('fixed-dil-wrapper');
+  if(fixedDil) fixedDil.style.display=(id==='sl'||id==='sal')?'block':'none';
 }
 
 function getDailyForSefer(sid){
