@@ -615,19 +615,19 @@ textarea.ai2{resize:none;}
     <div class="atsw">
       <button class="att" id="atab-voyago" onclick="adminTab('voyago')" style="display:none;background:#26215c;color:white;"><span class="aico">🌐</span>VOYAGO</button>
       <button class="att active" id="atab-ci" onclick="adminTab('ci')"><span class="aico">✅</span><span data-t="checkin_tab">Check-in</span></button>
-      <button class="att" id="atab-gunluk" onclick="adminTab('gunluk')"><span class="aico">📅</span><span class="aico">📅</span><span data-t="gunluk_tab">Günlük</span></button>
-      <button class="att" id="atab-tur" onclick="adminTab('tur')"><span class="aico">🗺️</span><span class="aico">🗺️</span><span data-t="turlar_tab">Turlar</span></button>
-      <button class="att" id="atab-gz" onclick="adminTab('gz')"><span class="aico">📰</span><span class="aico">📰</span><span data-t="gazete_tab">Gazete</span></button>
-      <button class="att" id="atab-gelecek" onclick="adminTab('gelecek')"><span class="aico">🌟</span><span class="aico">🌟</span><span data-t="firsatlar_tab">Fırsatlar</span></button>
-      <button class="att" id="atab-kontrol" onclick="adminTab('kontrol')"><span class="aico">📋</span><span class="aico">📋</span><span data-t="tur_listesi">Tur Listesi</span></button>
-      <button class="att" id="atab-rehrapor" onclick="adminTab('rehrapor')"><span class="aico">📝</span><span class="aico">📝</span><span data-t="raporlar_tab">Raporlar</span></button>
-      <button class="att" id="atab-komisyon" onclick="adminTab('komisyon')"><span class="aico">💰</span><span class="aico">💰</span><span data-t="komisyon_tab">Komisyon</span></button>
-      <button class="att" id="atab-mesaj" onclick="adminTab('mesaj')"><span class="aico">💬</span><span class="aico">💬</span><span data-t="mesajlar_tab">Mesajlar</span></button>
-      <button class="att" id="atab-turanons" onclick="adminTab('turanons')"><span class="aico">📢</span><span class="aico">📢</span><span data-t="tur_anonsu_tab">Tur Anonsu</span></button>
-      <button class="att" id="atab-bil" onclick="adminTab('bil')"><span class="aico">🔔</span><span class="aico">🔔</span><span data-t="bildirim_tab">Bildirim</span></button>
-      <button class="att" id="atab-sef" onclick="adminTab('sef')"><span class="aico">🚢</span><span class="aico">🚢</span><span data-t="seferler_tab">Seferler</span></button>
-      <button class="att" id="atab-reh" onclick="adminTab('reh')" style="display:none;"><span class="aico">🧭</span><span class="aico">🧭</span><span data-t="rehberler_tab">Rehberler</span></button>
-      <button class="att" id="atab-gemiler" onclick="adminTab('gemiler')" style="display:none;"><span class="aico">⚓</span><span class="aico">⚓</span><span data-t="gemiler_tab">Gemiler</span></button>
+      <button class="att" id="atab-gunluk" onclick="adminTab('gunluk')"><span class="aico">📅</span><span data-t="gunluk_tab">Günlük</span></button>
+      <button class="att" id="atab-tur" onclick="adminTab('tur')"><span class="aico">🗺️</span><span data-t="turlar_tab">Turlar</span></button>
+      <button class="att" id="atab-gz" onclick="adminTab('gz')"><span class="aico">📰</span><span data-t="gazete_tab">Gazete</span></button>
+      <button class="att" id="atab-gelecek" onclick="adminTab('gelecek')"><span class="aico">🌟</span><span data-t="firsatlar_tab">Fırsatlar</span></button>
+      <button class="att" id="atab-kontrol" onclick="adminTab('kontrol')"><span class="aico">📋</span><span data-t="tur_listesi">Tur Listesi</span></button>
+      <button class="att" id="atab-rehrapor" onclick="adminTab('rehrapor')"><span class="aico">📝</span><span data-t="raporlar_tab">Raporlar</span></button>
+      <button class="att" id="atab-komisyon" onclick="adminTab('komisyon')"><span class="aico">💰</span><span data-t="komisyon_tab">Komisyon</span></button>
+      <button class="att" id="atab-mesaj" onclick="adminTab('mesaj')"><span class="aico">💬</span><span data-t="mesajlar_tab">Mesajlar</span></button>
+      <button class="att" id="atab-turanons" onclick="adminTab('turanons')"><span class="aico">📢</span><span data-t="tur_anonsu_tab">Tur Anonsu</span></button>
+      <button class="att" id="atab-bil" onclick="adminTab('bil')"><span class="aico">🔔</span><span data-t="bildirim_tab">Bildirim</span></button>
+      <button class="att" id="atab-sef" onclick="adminTab('sef')"><span class="aico">🚢</span><span data-t="seferler_tab">Seferler</span></button>
+      <button class="att" id="atab-reh" onclick="adminTab('reh')" style="display:none;"><span class="aico">🧭</span><span data-t="rehberler_tab">Rehberler</span></button>
+      <button class="att" id="atab-gemiler" onclick="adminTab('gemiler')" style="display:none;"><span class="aico">⚓</span><span data-t="gemiler_tab">Gemiler</span></button>
       <button class="att" id="atab-rapor" onclick="adminTab('rapor')" style="display:none;"><span class="aico">📊</span>Raporlar</button>
     </div>
 
@@ -771,6 +771,15 @@ textarea.ai2{resize:none;}
         <div id="yemek-items"></div>
         <button class="add-item-btn" onclick="addYemekRestoran()">+ Restoran Ekle</button>
         <button class="save-daily-btn" onclick="saveYemek()">Kaydet</button>
+      </div>
+
+      <!-- GÜNÜN MESAJI -->
+      <div class="daily-section">
+        <div class="daily-title">💬 Günün Mesajı <span>Yolcu giriş ekranında görünür</span></div>
+        <input class="ai2" type="text" id="gun-mesaji-input" placeholder="Örn: Bugün 23 Nisan Ulusal Egemenlik Bayramı! Herkese kutlu olsun 🎉" maxlength="120">
+        <div style="font-size:11px;color:var(--t3);margin-top:4px;">Max 120 karakter · Boş bırakırsanız slogan gösterilir</div>
+        <button class="save-daily-btn" onclick="saveGunMesaji()">Yayınla</button>
+        <button onclick="gunMesajiSil()" style="width:100%;padding:8px;background:transparent;border:1.5px solid var(--border);border-radius:10px;font-size:12px;color:var(--t2);cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:6px;">Mesajı Kaldır</button>
       </div>
 
       <!-- GERİ SAYIM YÖNETİMİ -->
@@ -1328,6 +1337,7 @@ async function initDB() {
       if(g.toplanti_saat) d.meeting = {saat:g.toplanti_saat,yer:g.toplanti_yer||'',konu:g.toplanti_konu||''};
       if(g.anket_aktif) d.anket_aktif = true;
       if(g.gerisayimlar && g.gerisayimlar.length) d.gerisayimlar = g.gerisayimlar;
+      if(g.gun_mesaji) d.gun_mesaji = g.gun_mesaji;
     });
 
     // Gazete yükle
@@ -1357,6 +1367,15 @@ async function initDB() {
     const turAnonsDB = await dbGet('tur_anons');
     TUR_ANONS_DB = turAnonsDB.filter(a=>a.aktif!==false);
 
+    // Aktif sefer varsa günün mesajını göster
+    if(VOYAGES.length>0){
+      const aktifV=VOYAGES.find(v=>v.visible&&v.status!=='archived');
+      if(aktifV){
+        const d=getDailyForSefer(aktifV.id);
+        if(d.gun_mesaji)gunMesajiniGoster(d.gun_mesaji);
+      }
+    }
+
     DB_READY = true;
     console.log('Veritabani hazir!');
     populateSeferler();
@@ -1384,7 +1403,8 @@ async function saveDailyDB(sv) {
     toplanti_yer: d.meeting?.yer || '',
     toplanti_konu: d.meeting?.konu || '',
     anket_aktif: d.anket_aktif || false,
-    gerisayimlar: d.gerisayimlar || []
+    gerisayimlar: d.gerisayimlar || [],
+    gun_mesaji: d.gun_mesaji || ''
   };
   if(mevcut.length > 0) {
     await dbUpdate('gunluk', {sefer_id: sv}, veri);
@@ -4760,6 +4780,38 @@ function startGsTimer(sv){
   }, 1000);
 }
 
+// ══ GÜNÜN MESAJI ══
+function gunMesajiniGoster(mesaj){
+  const bar=document.getElementById('gun-mesaji-bar');
+  if(!bar)return;
+  if(mesaj&&mesaj.trim()){
+    bar.textContent='✨ '+mesaj;
+    bar.classList.add('visible');
+  } else {
+    bar.classList.remove('visible');
+    bar.textContent='';
+  }
+}
+
+async function saveGunMesaji(){
+  const metin=document.getElementById('gun-mesaji-input')?.value.trim()||'';
+  const sv=getCurrentSeferId();if(!sv)return;
+  const d=getDailyForSefer(sv);
+  d.gun_mesaji=metin;
+  await saveDailyDB(sv);
+  showToast(metin?'Mesaj yayınlandı!':'Mesaj kaldırıldı.');
+}
+
+async function gunMesajiSil(){
+  const sv=getCurrentSeferId();if(!sv)return;
+  const d=getDailyForSefer(sv);
+  d.gun_mesaji='';
+  document.getElementById('gun-mesaji-input').value='';
+  await saveDailyDB(sv);
+  gunMesajiniGoster('');
+  showToast('Mesaj kaldırıldı.');
+}
+
 // ══ GEMİDE GÜN HESAPLA ══
 function gemiGunYazisi(v){
   if(!v||!v.startDate||!v.endDate) return null;
@@ -4849,8 +4901,14 @@ gcStyle.textContent='.gc{background:white;border-radius:14px;padding:12px 15px;m
 document.head.appendChild(gcStyle);
 </script>
 <style>
-.voyago-cr{position:fixed;bottom:0;left:0;right:0;text-align:center;padding:3px 8px;font-size:9px;color:rgba(100,100,120,.5);background:transparent;pointer-events:none;z-index:1;letter-spacing:.3px;font-family:'DM Sans',sans-serif;}
+.voyago-footer{position:fixed;bottom:0;left:0;right:0;z-index:50;pointer-events:none;}
+.voyago-slogan{text-align:center;padding:2px 8px 1px;font-size:8.5px;color:rgba(100,100,120,.45);letter-spacing:.3px;font-family:'DM Sans',sans-serif;}
+.voyago-gunmesaji{text-align:center;padding:6px 16px 8px;font-size:13px;font-weight:500;color:white;background:linear-gradient(135deg,rgba(26,95,168,.92),rgba(12,60,120,.95));backdrop-filter:blur(8px);display:none;font-family:'DM Serif Display',serif;line-height:1.4;}
+.voyago-gunmesaji.visible{display:block;}
 </style>
-<div class="voyago-cr">All rights reserved by Climantacis, the creator of the program. Unauthorized use is prohibited. © 2026 VOYAGO</div>
+<div class="voyago-footer">
+  <div id="gun-mesaji-bar" class="voyago-gunmesaji"></div>
+  <div class="voyago-slogan">© 2026 VOYAGO · All rights reserved by Climantacis · Unauthorized use is prohibited</div>
+</div>
 </body>
 </html>
