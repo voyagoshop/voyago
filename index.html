@@ -4795,18 +4795,31 @@ function gunMesajiniGoster(mesaj){
 
 async function saveGunMesaji(){
   const metin=document.getElementById('gun-mesaji-input')?.value.trim()||'';
-  const sv=getCurrentSeferId();if(!sv)return;
+  // Aktif seferi bul — önce getCurrentSeferId, sonra VOYAGES'dan ilk aktif
+  let sv=getCurrentSeferId();
+  if(!sv){
+    const aktif=VOYAGES.find(v=>v.visible&&v.status!=='archived');
+    sv=aktif?.id;
+  }
+  if(!sv){showToast('Sefer bulunamadı.');return;}
   const d=getDailyForSefer(sv);
   d.gun_mesaji=metin;
   await saveDailyDB(sv);
+  gunMesajiniGoster(metin);
   showToast(metin?'Mesaj yayınlandı!':'Mesaj kaldırıldı.');
 }
 
 async function gunMesajiSil(){
-  const sv=getCurrentSeferId();if(!sv)return;
+  let sv=getCurrentSeferId();
+  if(!sv){
+    const aktif=VOYAGES.find(v=>v.visible&&v.status!=='archived');
+    sv=aktif?.id;
+  }
+  if(!sv)return;
   const d=getDailyForSefer(sv);
   d.gun_mesaji='';
-  document.getElementById('gun-mesaji-input').value='';
+  const inp=document.getElementById('gun-mesaji-input');
+  if(inp)inp.value='';
   await saveDailyDB(sv);
   gunMesajiniGoster('');
   showToast('Mesaj kaldırıldı.');
