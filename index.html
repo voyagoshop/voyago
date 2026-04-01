@@ -174,9 +174,10 @@ body{font-family:'DM Sans',sans-serif;background:#f0f4f8;color:var(--t);min-heig
 .ship-selector{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
 .ship-chip{padding:7px 16px;border:1.5px solid var(--border);border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;color:var(--t2);background:white;transition:all .2s;}
 .ship-chip.active{border-color:var(--blue);background:var(--blue);color:white;}
-.atsw{display:grid;grid-template-columns:repeat(6,1fr);background:white;border-radius:14px;padding:6px;margin-bottom:14px;box-shadow:var(--sh);gap:3px;}
-.att{padding:7px 2px 5px;border:none;background:transparent;font-size:9px;font-weight:500;font-family:'DM Sans',sans-serif;color:var(--t2);border-radius:8px;cursor:pointer;transition:all .2s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.2;}
-.att .aico{font-size:18px;line-height:1;}
+.atsw{display:grid;grid-template-columns:repeat(6,1fr);background:white;border-radius:14px;padding:5px;margin-bottom:14px;box-shadow:var(--sh);gap:2px;}
+.att{padding:6px 2px 4px;border:none;background:transparent;font-size:8.5px;font-weight:500;font-family:'DM Sans',sans-serif;color:var(--t2);border-radius:8px;cursor:pointer;transition:all .2s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.2;min-width:0;}
+.att .aico{font-size:17px;line-height:1;}
+.att span:not(.aico){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;}
 .att.active{background:var(--blue);color:white;}
 .apg{display:none;}.apg.active{display:block;}
 .sf{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
@@ -4847,5 +4848,9 @@ const gcStyle=document.createElement('style');
 gcStyle.textContent='.gc{background:white;border-radius:14px;padding:12px 15px;margin-bottom:9px;box-shadow:var(--sh);display:flex;align-items:center;gap:11px;}';
 document.head.appendChild(gcStyle);
 </script>
+<style>
+.voyago-cr{position:fixed;bottom:0;left:0;right:0;text-align:center;padding:3px 8px;font-size:9px;color:rgba(100,100,120,.5);background:transparent;pointer-events:none;z-index:1;letter-spacing:.3px;font-family:'DM Sans',sans-serif;}
+</style>
+<div class="voyago-cr">All rights reserved by Climantacis, the creator of the program. Unauthorized use is prohibited. © 2026 VOYAGO</div>
 </body>
 </html>
