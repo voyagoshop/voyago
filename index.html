@@ -369,6 +369,13 @@ textarea.ai2{resize:none;}
   0%,100% { opacity:1; }
   50%      { opacity:.5; }
 }
+.dil-wrapper{position:relative;}
+.dil-btn{background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.3);color:white;padding:5px 11px;border-radius:20px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;}
+.dil-btn:hover{background:rgba(255,255,255,.3);}
+.dil-menu{position:absolute;top:calc(100% + 6px);right:0;background:white;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.15);padding:6px;z-index:1000;min-width:160px;display:none;}
+.dil-menu button{display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;border:none;background:transparent;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--t);cursor:pointer;border-radius:8px;}
+.dil-menu button:hover{background:var(--gray);}
+.dil-menu button.aktif{background:var(--bl);color:var(--blue);font-weight:500;}
 </style>
 
 <!-- YOLCU GİRİŞ -->
@@ -376,15 +383,20 @@ textarea.ai2{resize:none;}
   <div style="background:linear-gradient(160deg,#0d3b6e,#1a5fa8,#2272c3);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;position:relative;">
 
     <!-- VOYAGO logo üstte -->
-    <div style="text-align:center;margin-bottom:20px;">
+    <div style="text-align:center;margin-bottom:20px;position:relative;">
       <div style="font-family:'DM Serif Display',serif;font-size:36px;color:white;letter-spacing:-1px;">VOYAGO</div>
       <div style="font-size:11px;color:rgba(255,255,255,.6);letter-spacing:2px;text-transform:uppercase;margin-top:2px;" id="login-ship-name"></div>
+      <!-- Dil seçici -->
+      <div class="dil-wrapper" style="position:absolute;top:0;right:0;">
+        <button class="dil-btn" id="dil-btn" onclick="dilMenuAc('yolcu')">🇹🇷 Türkçe</button>
+        <div class="dil-menu" id="dil-menu"></div>
+      </div>
     </div>
 
     <!-- Slogan -->
     <div style="text-align:center;margin-bottom:24px;padding:0 10px;">
-      <div style="font-family:'DM Serif Display',serif;font-size:22px;color:white;line-height:1.3;">Yolculuğunuz Başlamak Üzere</div>
-      <div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:6px;">Giriş yapın, her şey hazır sizi bekliyor.</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:22px;color:white;line-height:1.3;" data-t="slogan">Yolculuğunuz Başlamak Üzere</div>
+      <div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:6px;" data-t="slogan_sub">Giriş yapın, her şey hazır sizi bekliyor.</div>
     </div>
 
     <!-- Tekrar hoş geldiniz kartı (varsa göster) -->
@@ -396,7 +408,7 @@ textarea.ai2{resize:none;}
           <div style="font-size:12px;color:#6b6b6b;margin-top:2px;" id="hosgeldin-detay">Kabin 214 · 29 Mar seferi</div>
         </div>
       </div>
-      <button onclick="devamEt()" style="width:100%;padding:13px;background:linear-gradient(135deg,#0f6e56,#1D9E75);color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:10px;">
+      <button onclick="devamEt()" style="width:100%;padding:13px;background:linear-gradient(135deg,#0f6e56,#1D9E75);color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:10px;" data-t="devam_et">
         ✓ Devam Et
       </button>
       <button onclick="yeniGiris()" style="width:100%;padding:10px;background:transparent;color:#6b6b6b;border:1.5px solid #e0e0e0;border-radius:12px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">
@@ -406,18 +418,18 @@ textarea.ai2{resize:none;}
 
     <!-- Giriş kartı -->
     <div class="lc" id="giris-form-karti">
-      <div class="fg"><label class="fl">Ad Soyad</label><input class="fi" type="text" id="ln" placeholder="Ahmet Yılmaz"></div>
+      <div class="fg"><label class="fl" data-t="ad_soyad">Ad Soyad</label><input class="fi" type="text" id="ln" placeholder="Ahmet Yılmaz"></div>
       <div class="fg">
-        <label class="fl">WhatsApp numaranız</label>
+        <label class="fl" data-t="whatsapp">WhatsApp numaranız</label>
         <div class="pr">
           <select class="fs cs" id="cc"><option value="+90">🇹🇷 +90</option><option value="+30">🇬🇷 +30</option><option value="+49">🇩🇪 +49</option><option value="+44">🇬🇧 +44</option><option value="+7">🇷🇺 +7</option><option value="+1">🇺🇸 +1</option></select>
           <input class="fi" type="tel" id="lp" placeholder="5xx xxx xx xx" style="flex:1;margin:0;">
         </div>
       </div>
-      <div class="fg"><label class="fl">Kabin numaranız</label><input class="fi" type="text" id="lk" placeholder="Örn: 214"></div>
-      <div class="fg"><label class="fl">Sefer tarihiniz</label><select class="fs" id="lsf"></select></div>
+      <div class="fg"><label class="fl" data-t="kabin_no">Kabin numaranız</label><input class="fi" type="text" id="lk" placeholder="Örn: 214"></div>
+      <div class="fg"><label class="fl" data-t="sefer_tarihi">Sefer tarihiniz</label><select class="fs" id="lsf"></select></div>
       <div class="fg">
-        <label class="fl">Kaç kişisiniz?</label>
+        <label class="fl" data-t="kac_kisi">Kaç kişisiniz?</label>
         <div class="kisi-row">
           <div class="kisi-box"><div class="kisi-label">Yetişkin<span>12+</span></div><div class="kisi-ctrl"><button class="kisi-btn" onclick="changeKisi('adult',-1)">-</button><div class="kisi-num" id="k-adult">1</div><button class="kisi-btn" onclick="changeKisi('adult',1)">+</button></div></div>
           <div class="kisi-box"><div class="kisi-label">Çocuk<span>2-12</span></div><div class="kisi-ctrl"><button class="kisi-btn" onclick="changeKisi('child',-1)">-</button><div class="kisi-num" id="k-child">0</div><button class="kisi-btn" onclick="changeKisi('child',1)">+</button></div></div>
@@ -426,7 +438,7 @@ textarea.ai2{resize:none;}
       </div>
       <div class="ib">📱 Kabin numaranızla check-in yapılır. WhatsApp numaranıza bildirimler gönderilir.</div>
       <div class="em" id="le">Lütfen tüm alanları doldurun.</div>
-      <button class="bp" onclick="doPL()">Uygulamaya Gir</button>
+      <button class="bp" onclick="doPL()" data-t="giris_btn">Uygulamaya Gir</button>
     </div>
 
     <!-- Sağ alta ok — rehber/yönetici girişi -->
@@ -495,7 +507,11 @@ textarea.ai2{resize:none;}
           <!-- Büyük saat -->
           <div id="app-clock" style="font-family:'DM Serif Display',serif;font-size:28px;color:white;letter-spacing:1px;line-height:1;">00:00</div>
           <div class="tpill" id="akl">Kabin 214</div>
-          <button class="lob" onclick="doLogout()">Çıkış</button>
+          <div class="dil-wrapper">
+            <button class="dil-btn" id="dil-btn-app" onclick="dilMenuAc('app')" style="font-size:16px;padding:3px 8px;">🇹🇷</button>
+            <div class="dil-menu" id="dil-menu-app"></div>
+          </div>
+          <button class="lob" onclick="doLogout()" data-t="cikis">Çıkış</button>
         </div>
       </div>
       <!-- Geri sayım şeridi -->
@@ -558,14 +574,14 @@ textarea.ai2{resize:none;}
   </div>
   <div class="bn">
     <div class="bni">
-      <button class="nb active" id="nb-program" onclick="switchTab('program')"><span class="ni">📅</span><span>Program</span></button>
-      <button class="nb" id="nb-turlar" onclick="switchTab('turlar')"><span class="ni">🗺️</span><span>Turlar</span></button>
-      <button class="nb" id="nb-gazete" onclick="switchTab('gazete')"><span class="ni">📰</span><span>Gazete</span></button>
-      <button class="nb" id="nb-yemek" onclick="switchTab('yemek')"><span class="ni">🍽️</span><span>Yemek</span></button>
-      <button class="nb" id="nb-anket" onclick="switchTab('anket')"><span class="ni">📝</span><span>Anket</span></button>
-      <button class="nb" id="nb-bildirim" onclick="switchTab('bildirim')"><span class="ni">🔔</span><span>Bildirim</span></button>
-      <button class="nb" id="nb-gelecek" onclick="switchTab('gelecek')"><span class="ni">🌟</span><span>Fırsatlar</span></button>
-      <button class="nb" id="nb-rehber" onclick="switchTab('rehber')"><span class="ni">💬</span><span>Rehber</span></button>
+      <button class="nb active" id="nb-program" onclick="switchTab('program')"><span class="ni">📅</span><span data-t="program">Program</span></button>
+      <button class="nb" id="nb-turlar" onclick="switchTab('turlar')"><span class="ni">🗺️</span><span data-t="turlar">Turlar</span></button>
+      <button class="nb" id="nb-gazete" onclick="switchTab('gazete')"><span class="ni">📰</span><span data-t="gazete">Gazete</span></button>
+      <button class="nb" id="nb-yemek" onclick="switchTab('yemek')"><span class="ni">🍽️</span><span data-t="yemek">Yemek</span></button>
+      <button class="nb" id="nb-anket" onclick="switchTab('anket')"><span class="ni">📝</span><span data-t="anket">Anket</span></button>
+      <button class="nb" id="nb-bildirim" onclick="switchTab('bildirim')"><span class="ni">🔔</span><span data-t="bildirim">Bildirim</span></button>
+      <button class="nb" id="nb-gelecek" onclick="switchTab('gelecek')"><span class="ni">🌟</span><span data-t="firsatlar">Fırsatlar</span></button>
+      <button class="nb" id="nb-rehber" onclick="switchTab('rehber')"><span class="ni">💬</span><span data-t="rehber">Rehber</span></button>
     </div>
   </div>
 </div>
@@ -583,7 +599,13 @@ textarea.ai2{resize:none;}
       <div class="sl2">Gemi</div>
       <div class="ship-selector" id="ship-selector"></div>
     </div>
-    <div class="rs"><div class="rsb rsg" id="rbe">🧭 Rehber</div><p id="rde">Kendi seferlerinizi yönetebilirsiniz.</p></div>
+    <div class="rs" style="display:flex;align-items:center;justify-content:space-between;">
+    <div><div class="rsb rsg" id="rbe">🧭 Rehber</div><p id="rde">Kendi seferlerinizi yönetebilirsiniz.</p></div>
+    <div class="dil-wrapper" id="admin-dil-wrapper" style="display:none;">
+      <button class="dil-btn" id="dil-btn-admin" style="background:var(--bl);color:var(--blue);border-color:var(--blue);" onclick="dilMenuAc('admin')">🇹🇷</button>
+      <div class="dil-menu" id="dil-menu-admin"></div>
+    </div>
+  </div>
     <div class="atsw">
       <button class="att" id="atab-voyago" onclick="adminTab('voyago')" style="display:none;background:#26215c;color:white;"><span class="aico">🌐</span>VOYAGO</button>
       <button class="att active" id="atab-ci" onclick="adminTab('ci')"><span class="aico">✅</span>Check-in</button>
@@ -1446,6 +1468,133 @@ async function saveKullaniciDB(key, u) {
   }
 }
 
+
+// ══ ÇOK DİLLİ SİSTEM ══
+let AKTIF_DIL = 'tr';
+
+const DILLER = {
+  tr: { ad:'Türkçe', bayrak:'🇹🇷' },
+  en: { ad:'English', bayrak:'🇬🇧' },
+  es: { ad:'Español', bayrak:'🇪🇸' },
+  de: { ad:'Deutsch', bayrak:'🇩🇪' },
+  ru: { ad:'Русский', bayrak:'🇷🇺' },
+  el: { ad:'Ελληνικά', bayrak:'🇬🇷' },
+  pt: { ad:'Português', bayrak:'🇵🇹' }
+};
+
+const T = {
+  // Giriş ekranı
+  slogan:          {tr:'Yolculuğunuz Başlamak Üzere', en:'Your Journey Is About to Begin', es:'Tu Viaje Está a Punto de Comenzar', de:'Ihre Reise Beginnt Gleich', ru:'Ваше Путешествие Начинается', el:'Το Ταξίδι Σας Ξεκινά', pt:'Sua Viagem Está Prestes a Começar'},
+  slogan_sub:      {tr:'Giriş yapın, her şey hazır sizi bekliyor.', en:'Sign in, everything is ready for you.', es:'Inicia sesión, todo está listo para ti.', de:'Melden Sie sich an, alles ist bereit.', ru:'Войдите, всё готово для вас.', el:'Συνδεθείτε, όλα είναι έτοιμα.', pt:'Entre, tudo está pronto para você.'},
+  ad_soyad:        {tr:'Ad Soyad', en:'Full Name', es:'Nombre Completo', de:'Vor- und Nachname', ru:'Имя и Фамилия', el:'Ονοματεπώνυμο', pt:'Nome Completo'},
+  whatsapp:        {tr:'WhatsApp numaranız', en:'Your WhatsApp number', es:'Tu número de WhatsApp', de:'Ihre WhatsApp-Nummer', ru:'Ваш номер WhatsApp', el:'Ο αριθμός WhatsApp σας', pt:'Seu número do WhatsApp'},
+  kabin_no:        {tr:'Kabin numaranız', en:'Your cabin number', es:'Tu número de camarote', de:'Ihre Kabinennummer', ru:'Номер вашей каюты', el:'Αριθμός καμπίνας σας', pt:'Seu número de cabine'},
+  sefer_tarihi:    {tr:'Sefer tarihiniz', en:'Your voyage date', es:'Fecha de tu viaje', de:'Ihr Reisedatum', ru:'Дата вашего рейса', el:'Ημερομηνία ταξιδιού', pt:'Data da sua viagem'},
+  kac_kisi:        {tr:'Kaç kişisiniz?', en:'How many guests?', es:'¿Cuántos pasajeros?', de:'Wie viele Gäste?', ru:'Сколько гостей?', el:'Πόσα άτομα;', pt:'Quantos passageiros?'},
+  yetiskin:        {tr:'Yetişkin', en:'Adult', es:'Adulto', de:'Erwachsener', ru:'Взрослый', el:'Ενήλικας', pt:'Adulto'},
+  cocuk:           {tr:'Çocuk', en:'Child', es:'Niño', de:'Kind', ru:'Ребёнок', el:'Παιδί', pt:'Criança'},
+  bebek:           {tr:'Bebek', en:'Baby', es:'Bebé', de:'Baby', ru:'Малыш', el:'Μωρό', pt:'Bebê'},
+  giris_btn:       {tr:'Uygulamaya Gir', en:'Enter App', es:'Entrar a la App', de:'App Betreten', ru:'Войти в приложение', el:'Είσοδος στην εφαρμογή', pt:'Entrar no App'},
+  devam_et:        {tr:'✓ Devam Et', en:'✓ Continue', es:'✓ Continuar', de:'✓ Weiter', ru:'✓ Продолжить', el:'✓ Συνέχεια', pt:'✓ Continuar'},
+  farkli_giris:    {tr:'Farklı bir hesapla giriş yap', en:'Sign in with different account', es:'Iniciar sesión con otra cuenta', de:'Mit anderem Konto anmelden', ru:'Войти с другим аккаунтом', el:'Σύνδεση με άλλο λογαριασμό', pt:'Entrar com outra conta'},
+  tekrar_merhaba:  {tr:'Tekrar merhaba', en:'Welcome back', es:'Bienvenido de nuevo', de:'Willkommen zurück', ru:'С возвращением', el:'Καλώς ήρθατε ξανά', pt:'Bem-vindo de volta'},
+  // Alt menü
+  program:         {tr:'Program', en:'Schedule', es:'Programa', de:'Programm', ru:'Расписание', el:'Πρόγραμμα', pt:'Programa'},
+  turlar:          {tr:'Turlar', en:'Tours', es:'Tours', de:'Touren', ru:'Туры', el:'Εκδρομές', pt:'Passeios'},
+  gazete:          {tr:'Gazete', en:'News', es:'Noticias', de:'Zeitung', ru:'Газета', el:'Εφημερίδα', pt:'Jornal'},
+  yemek:           {tr:'Yemek', en:'Dining', es:'Restaurante', de:'Essen', ru:'Питание', el:'Γεύμα', pt:'Refeição'},
+  bildirim:        {tr:'Bildirim', en:'Alerts', es:'Alertas', de:'Benach.', ru:'Уведомления', el:'Ειδοποιήσεις', pt:'Alertas'},
+  firsatlar:       {tr:'Fırsatlar', en:'Offers', es:'Ofertas', de:'Angebote', ru:'Предложения', el:'Προσφορές', pt:'Ofertas'},
+  rehber:          {tr:'Rehber', en:'Guide', es:'Guía', de:'Reiseleiter', ru:'Гид', el:'Ξεναγός', pt:'Guia'},
+  anket:           {tr:'Anket', en:'Survey', es:'Encuesta', de:'Umfrage', ru:'Опрос', el:'Έρευνα', pt:'Pesquisa'},
+  // Program sayfası
+  gunun_programi:  {tr:'Günün Programı', en:"Today's Program", es:'Programa del Día', de:'Tagesprogramm', ru:'Программа дня', el:'Πρόγραμμα Ημέρας', pt:'Programa do Dia'},
+  aktif_promo:     {tr:'Aktif Promosyonlar', en:'Active Promotions', es:'Promociones Activas', de:'Aktive Aktionen', ru:'Активные акции', el:'Ενεργές Προσφορές', pt:'Promoções Ativas'},
+  program_yok:     {tr:'Program henüz girilmemiş.', en:'Program not yet entered.', es:'Programa no ingresado aún.', de:'Programm noch nicht eingegeben.', ru:'Программа ещё не введена.', el:'Το πρόγραμμα δεν έχει εισαχθεί.', pt:'Programa ainda não inserido.'},
+  // Liman
+  varis:           {tr:'Varış', en:'Arrival', es:'Llegada', de:'Ankunft', ru:'Прибытие', el:'Άφιξη', pt:'Chegada'},
+  ayrilik:         {tr:'Ayrılış', en:'Departure', es:'Salida', de:'Abfahrt', ru:'Отплытие', el:'Αναχώρηση', pt:'Partida'},
+  bugun:           {tr:'Bugün', en:'Today', es:'Hoy', de:'Heute', ru:'Сегодня', el:'Σήμερα', pt:'Hoje'},
+  // Tur
+  tura_katil:      {tr:'Tura Katıl', en:'Join Tour', es:'Unirse al Tour', de:'Tour beitreten', ru:'Присоединиться', el:'Συμμετοχή', pt:'Participar'},
+  katiliyorum:     {tr:'✓ Katılıyorum', en:'✓ Joined', es:'✓ Unido', de:'✓ Dabei', ru:'✓ Участвую', el:'✓ Συμμετέχω', pt:'✓ Participando'},
+  iptal_rehber:    {tr:'İptal için rehbere başvurun →', en:'Contact guide to cancel →', es:'Contacte al guía para cancelar →', de:'Reiseleiter kontaktieren →', ru:'Обратитесь к гиду →', el:'Επικοινωνήστε με τον ξεναγό →', pt:'Contate o guia para cancelar →'},
+  fiyat:           {tr:'Fiyat', en:'Price', es:'Precio', de:'Preis', ru:'Цена', el:'Τιμή', pt:'Preço'},
+  ucretsiz:        {tr:'Ücretsiz', en:'Free', es:'Gratis', de:'Kostenlos', ru:'Бесплатно', el:'Δωρεάν', pt:'Grátis'},
+  // Toplantı
+  katilim_zorunlu: {tr:'KATILIM ZORUNLU', en:'ATTENDANCE REQUIRED', es:'ASISTENCIA OBLIGATORIA', de:'TEILNAHME PFLICHT', ru:'ОБЯЗАТЕЛЬНО', el:'ΥΠΟΧΡΕΩΤΙΚΗ ΠΑΡΟΥΣΊΑ', pt:'PRESENÇA OBRIGATÓRIA'},
+  bilgilendirme:   {tr:'Bilgilendirme Toplantısı', en:'Information Meeting', es:'Reunión Informativa', de:'Informationsveranstaltung', ru:'Информационная встреча', el:'Ενημερωτική Συνάντηση', pt:'Reunião Informativa'},
+  saat:            {tr:'SAAT', en:'TIME', es:'HORA', de:'UHRZEIT', ru:'ВРЕМЯ', el:'ΩΡΑ', pt:'HORA'},
+  yer:             {tr:'YER', en:'PLACE', es:'LUGAR', de:'ORT', ru:'МЕСТО', el:'ΧΩΡΟΣ', pt:'LOCAL'},
+  // Yemek
+  yemek_yok:       {tr:'Yemek saatleri henüz girilmemiş.', en:'Dining hours not entered yet.', es:'Horarios de comida no ingresados.', de:'Essenszeiten noch nicht eingegeben.', ru:'Часы питания ещё не введены.', el:'Ώρες γεύματος δεν έχουν εισαχθεί.', pt:'Horários de refeição não inseridos.'},
+  // Anket
+  anket_baslamadi: {tr:'Anket Henüz Başlamadı', en:'Survey Not Started Yet', es:'Encuesta Aún No Iniciada', de:'Umfrage noch nicht gestartet', ru:'Опрос ещё не начался', el:'Η έρευνα δεν έχει ξεκινήσει', pt:'Pesquisa ainda não iniciada'},
+  anket_sub:       {tr:'Rehberiniz sefer sonunda anketi açacak.', en:'Your guide will open the survey at the end of the voyage.', es:'Su guía abrirá la encuesta al final del viaje.', de:'Ihr Reiseleiter öffnet die Umfrage am Ende der Reise.', ru:'Гид откроет опрос в конце рейса.', el:'Ο ξεναγός θα ανοίξει την έρευνα.', pt:'Seu guia abrirá a pesquisa no final da viagem.'},
+  anket_gonder:    {tr:'Anketi Gönder', en:'Submit Survey', es:'Enviar Encuesta', de:'Umfrage senden', ru:'Отправить опрос', el:'Υποβολή έρευνας', pt:'Enviar pesquisa'},
+  // Rehber mesaj
+  mesaj_gonder:    {tr:'Rehbere mesaj gönderin...', en:'Send a message to your guide...', es:'Envía un mensaje a tu guía...', de:'Nachricht an Ihren Reiseleiter...', ru:'Отправьте сообщение гиду...', el:'Στείλτε μήνυμα στον ξεναγό...', pt:'Envie uma mensagem ao seu guia...'},
+  // Çıkış
+  cikis:           {tr:'Çıkış', en:'Logout', es:'Salir', de:'Abmelden', ru:'Выйти', el:'Αποσύνδεση', pt:'Sair'},
+  // Admin panel (rehber/acente)
+  checkin_yap:     {tr:'Check-in', en:'Check-in', es:'Check-in', de:'Check-in', ru:'Регистрация', el:'Check-in', pt:'Check-in'},
+  gunluk_icerik:   {tr:'Günlük', en:'Daily', es:'Diario', de:'Täglich', ru:'Ежедневно', el:'Ημερήσιο', pt:'Diário'},
+  kaydet:          {tr:'Kaydet', en:'Save', es:'Guardar', de:'Speichern', ru:'Сохранить', el:'Αποθήκευση', pt:'Salvar'},
+  ekle:            {tr:'Ekle', en:'Add', es:'Agregar', de:'Hinzufügen', ru:'Добавить', el:'Προσθήκη', pt:'Adicionar'},
+  sil:             {tr:'Sil', en:'Delete', es:'Eliminar', de:'Löschen', ru:'Удалить', el:'Διαγραφή', pt:'Διαγραφή'},
+  ara:             {tr:'Ara...', en:'Search...', es:'Buscar...', de:'Suchen...', ru:'Поиск...', el:'Αναζήτηση...', pt:'Buscar...'},
+};
+
+function t(key){ return (T[key] && T[key][AKTIF_DIL]) || (T[key] && T[key]['tr']) || key; }
+
+function dilAyarla(dil){
+  AKTIF_DIL = dil;
+  try{ localStorage.setItem('voyago_dil', dil); }catch(e){}
+  dilGuncelle();
+  dilMenuKapat();
+}
+
+function dilAlgila(){
+  // Önce localStorage'dan bak
+  try{
+    const kayitli = localStorage.getItem('voyago_dil');
+    if(kayitli && DILLER[kayitli]){ AKTIF_DIL = kayitli; return; }
+  }catch(e){}
+  // Tarayıcı dilini algıla
+  const browserDil = navigator.language?.slice(0,2).toLowerCase();
+  const dilMap = {tr:'tr',en:'en',es:'es',de:'de',ru:'ru',el:'el',pt:'pt'};
+  AKTIF_DIL = dilMap[browserDil] || 'tr';
+}
+
+function dilGuncelle(){
+  // Statik data-t elementlerini güncelle
+  document.querySelectorAll('[data-t]').forEach(el=>{
+    const key=el.getAttribute('data-t');
+    el.textContent=t(key);
+  });
+  document.querySelectorAll('[data-t-ph]').forEach(el=>{
+    const key=el.getAttribute('data-t-ph');
+    el.placeholder=t(key);
+  });
+  // Dil butonunu güncelle
+  const dilBtn=document.getElementById('dil-btn');
+  if(dilBtn) dilBtn.textContent=DILLER[AKTIF_DIL]?.bayrak+' '+DILLER[AKTIF_DIL]?.ad;
+  const dilBtnA=document.getElementById('dil-btn-admin');
+  if(dilBtnA) dilBtnA.textContent=DILLER[AKTIF_DIL]?.bayrak;
+}
+
+function dilMenuAc(tip){
+  const menuId = tip==='admin'?'dil-menu-admin':'dil-menu';
+  const menu=document.getElementById(menuId);
+  if(menu) menu.style.display=menu.style.display==='none'?'block':'none';
+}
+function dilMenuKapat(){
+  document.querySelectorAll('.dil-menu').forEach(m=>m.style.display='none');
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.dil-wrapper')) dilMenuKapat();
+});
+
 const SHIPS = ['Celestyal Journey','Celestyal Discovery','Celestyal Constellation'];
 const USERS = {
   voyago:  {pass:'voyago2024',role:'voyago',name:'VOYAGO App',acente:'voyago'},
@@ -1720,8 +1869,8 @@ function renderProgramPage(sv){
           <img src="${item.img}" onclick="lightboxAc('${item.img}')" style="width:100%;max-height:140px;object-fit:cover;border-radius:10px;cursor:zoom-in;">
         </div>`:''}
       </div>`).join('');
-    pra.innerHTML=`<div class="sl2">Günün Programi</div><div class="card">${items}</div>`;
-  } else pra.innerHTML='<div class="sl2">Günün Programi</div><div class="no-data">Program henüz girilmemis.</div>';
+    pra.innerHTML=`<div class="sl2">${t('gunun_programi')}</div><div class="card">${items}</div>`;
+  } else pra.innerHTML=`<div class="sl2">${t('gunun_programi')}</div><div class="no-data">${t('program_yok')}</div>`;
 
   // Promosyonlar — resimli
   const proa=document.getElementById('promo-area');
@@ -1734,7 +1883,7 @@ function renderProgramPage(sv){
           ${p.img?`<img src="${p.img}" onclick="lightboxAc('${p.img}')" style="height:52px;width:52px;object-fit:cover;border-radius:8px;margin-left:8px;cursor:zoom-in;">`:''}
         </div>
       </div>`).join('');
-    proa.innerHTML=`<div class="sl2">Aktif Promosyonlar</div>${items}`;
+    proa.innerHTML=`<div class="sl2">${t('aktif_promo')}</div>${items}`;
   } else proa.innerHTML='';
 }
 
@@ -1773,12 +1922,12 @@ function renderPassTours(sv){
         <div class="tpc">Toplam: <span>E${total}</span><br><span style="font-size:10px;color:var(--t3);">${det.join(' + ')}</span></div>
         ${j
           ? `<div style="display:flex;flex-direction:column;gap:6px;width:100%;">
-               <button class="bj joined" style="cursor:default;opacity:.9;">✓ Katılıyorum</button>
+               <button class="bj joined" style="cursor:default;opacity:.9;">${t('katiliyorum')}</button>
                <button onclick="turIptalMesaj('${t.name}')" style="padding:8px;background:transparent;border:1.5px solid var(--border);border-radius:10px;font-size:12px;color:var(--t2);cursor:pointer;font-family:'DM Sans',sans-serif;">
                  İptal için rehbere başvurun →
                </button>
              </div>`
-          : `<button class="bj" onclick="toggleTour('${t.id}')">Tura Katıl</button>`
+          : `<button class="bj" onclick="toggleTour('${t.id}')">${t('tura_katil')}</button>`
         }
       </div>
     </div>`;
@@ -1922,6 +2071,10 @@ function setupAdmin(){
   if(rrea)rrea.style.display=isAcente?'block':'none';
   // Mesajları hemen yükle
   loadAndRenderMesajlar();
+  // Dil seçici göster
+  const adw=document.getElementById('admin-dil-wrapper');
+  if(adw)adw.style.display='block';
+  dilGuncelle();
   document.getElementById('atab-voyago').style.display=isVoyago?'flex':'none';
 
   // VOYAGO rolündeyse diğer admin sekmeleri gizle, sadece VOYAGO sekmesi kalsın
@@ -3534,6 +3687,10 @@ function startLoadingAnimation(callback) {
 
 // ── BAŞLATICI ──
 function baslat() {
+  // Dil algıla
+  dilAlgila();
+  dilMenuleriOlustur();
+  dilGuncelle();
   // Önce loading animasyonunu başlat
   let loadingBitti = false;
   let dbBitti = false;
@@ -3981,8 +4138,8 @@ function renderAnket(sv){
   if(!d.anket_aktif){
     el.innerHTML=`<div style="text-align:center;padding:40px 20px;">
       <div style="font-size:48px;margin-bottom:12px;">📋</div>
-      <div style="font-size:16px;font-weight:500;color:var(--t);">Anket Henüz Başlamadı</div>
-      <div style="font-size:13px;color:var(--t2);margin-top:8px;line-height:1.5;">Rehberiniz sefer sonunda anketi açacak.<br>Bu sekmeyi takipte kalın.</div>
+      <div style="font-size:16px;font-weight:500;color:var(--t);">${t('anket_baslamadi')}</div>
+      <div style="font-size:13px;color:var(--t2);margin-top:8px;line-height:1.5;">${t('anket_sub')}</div>
     </div>`;
     return;
   }
