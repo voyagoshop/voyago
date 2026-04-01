@@ -4794,7 +4794,9 @@ function gunMesajiniGoster(mesaj){
 }
 
 async function saveGunMesaji(){
-  const metin=document.getElementById('gun-mesaji-input')?.value.trim()||'';
+  const inp = document.getElementById('gun-mesaji-input') || document.querySelector('#gun-mesaji-input');
+  const metin = inp ? inp.value.trim() : '';
+  console.log('Gun mesaji:', metin, 'Input:', inp);
   // Aktif seferi bul — önce getCurrentSeferId, sonra VOYAGES'dan ilk aktif
   let sv=getCurrentSeferId();
   if(!sv){
