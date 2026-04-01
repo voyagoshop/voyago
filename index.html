@@ -456,13 +456,13 @@ textarea.ai2{resize:none;}
   <div style="background:linear-gradient(160deg,#26215c,#3c3489,#534ab7);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;position:relative;">
     <div style="text-align:center;margin-bottom:24px;">
       <div style="font-family:'DM Serif Display',serif;font-size:32px;color:white;letter-spacing:-1px;">VOYAGO</div>
-      <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:4px;">Personel Girişi</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:4px;" data-t="personel_girisi">Personel Girişi</div>
     </div>
     <div class="alc">
       <div class="em" id="ale" style="margin-bottom:12px;">Kullanıcı adı veya şifre hatalı.</div>
-      <div class="fg"><label class="fl">Kullanıcı adı</label><input class="fi" type="text" id="au" autocomplete="off" placeholder="kullanici.adi"></div>
-      <div class="fg"><label class="fl">Şifre</label><input class="fi" type="password" id="ap" placeholder="••••••••" onkeydown="if(event.key==='Enter')doAL()"></div>
-      <button class="bpu" onclick="doAL()">Giriş Yap</button>
+      <div class="fg"><label class="fl" data-t="kullanici_adi">Kullanıcı Adı</label><input class="fi" type="text" id="au" autocomplete="off" placeholder="kullanici.adi"></div>
+      <div class="fg"><label class="fl" data-t="sifre">Şifre</label><input class="fi" type="password" id="ap" placeholder="••••••••" onkeydown="if(event.key==='Enter')doAL()"></div>
+      <button class="bpu" onclick="doAL()"><span data-t="giris_yap">Giriş Yap</span></button>
       <div style="text-align:center;margin-top:12px;">
         <button onclick="showScreen('sforgot')" style="background:none;border:none;color:rgba(255,255,255,.6);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">Şifremi Unuttum</button>
       </div>
@@ -613,20 +613,20 @@ textarea.ai2{resize:none;}
   </div>
     <div class="atsw">
       <button class="att" id="atab-voyago" onclick="adminTab('voyago')" style="display:none;background:#26215c;color:white;"><span class="aico">🌐</span>VOYAGO</button>
-      <button class="att active" id="atab-ci" onclick="adminTab('ci')"><span class="aico">✅</span>Check-in</button>
-      <button class="att" id="atab-gunluk" onclick="adminTab('gunluk')"><span class="aico">📅</span>Günlük</button>
-      <button class="att" id="atab-tur" onclick="adminTab('tur')"><span class="aico">🗺️</span>Turlar</button>
-      <button class="att" id="atab-gz" onclick="adminTab('gz')"><span class="aico">📰</span>Gazete</button>
-      <button class="att" id="atab-gelecek" onclick="adminTab('gelecek')"><span class="aico">🌟</span>Fırsatlar</button>
-      <button class="att" id="atab-kontrol" onclick="adminTab('kontrol')"><span class="aico">📋</span>Tur Listesi</button>
-      <button class="att" id="atab-rehrapor" onclick="adminTab('rehrapor')"><span class="aico">📝</span>Raporlar</button>
-      <button class="att" id="atab-komisyon" onclick="adminTab('komisyon')"><span class="aico">💰</span>Komisyon</button>
-      <button class="att" id="atab-mesaj" onclick="adminTab('mesaj')"><span class="aico">💬</span>Mesajlar</button>
-      <button class="att" id="atab-turanons" onclick="adminTab('turanons')"><span class="aico">📢</span>Tur Anonsu</button>
-      <button class="att" id="atab-bil" onclick="adminTab('bil')"><span class="aico">🔔</span>Bildirim</button>
-      <button class="att" id="atab-sef" onclick="adminTab('sef')"><span class="aico">🚢</span>Seferler</button>
-      <button class="att" id="atab-reh" onclick="adminTab('reh')" style="display:none;"><span class="aico">🧭</span>Rehberler</button>
-      <button class="att" id="atab-gemiler" onclick="adminTab('gemiler')" style="display:none;"><span class="aico">⚓</span>Gemiler</button>
+      <button class="att active" id="atab-ci" onclick="adminTab('ci')"><span class="aico">✅</span><span data-t="checkin_tab">Check-in</span></button>
+      <button class="att" id="atab-gunluk" onclick="adminTab('gunluk')"><span class="aico">📅</span><span class="aico">📅</span><span data-t="gunluk_tab">Günlük</span></button>
+      <button class="att" id="atab-tur" onclick="adminTab('tur')"><span class="aico">🗺️</span><span class="aico">🗺️</span><span data-t="turlar_tab">Turlar</span></button>
+      <button class="att" id="atab-gz" onclick="adminTab('gz')"><span class="aico">📰</span><span class="aico">📰</span><span data-t="gazete_tab">Gazete</span></button>
+      <button class="att" id="atab-gelecek" onclick="adminTab('gelecek')"><span class="aico">🌟</span><span class="aico">🌟</span><span data-t="firsatlar_tab">Fırsatlar</span></button>
+      <button class="att" id="atab-kontrol" onclick="adminTab('kontrol')"><span class="aico">📋</span><span class="aico">📋</span><span data-t="tur_listesi">Tur Listesi</span></button>
+      <button class="att" id="atab-rehrapor" onclick="adminTab('rehrapor')"><span class="aico">📝</span><span class="aico">📝</span><span data-t="raporlar_tab">Raporlar</span></button>
+      <button class="att" id="atab-komisyon" onclick="adminTab('komisyon')"><span class="aico">💰</span><span class="aico">💰</span><span data-t="komisyon_tab">Komisyon</span></button>
+      <button class="att" id="atab-mesaj" onclick="adminTab('mesaj')"><span class="aico">💬</span><span class="aico">💬</span><span data-t="mesajlar_tab">Mesajlar</span></button>
+      <button class="att" id="atab-turanons" onclick="adminTab('turanons')"><span class="aico">📢</span><span class="aico">📢</span><span data-t="tur_anonsu_tab">Tur Anonsu</span></button>
+      <button class="att" id="atab-bil" onclick="adminTab('bil')"><span class="aico">🔔</span><span class="aico">🔔</span><span data-t="bildirim_tab">Bildirim</span></button>
+      <button class="att" id="atab-sef" onclick="adminTab('sef')"><span class="aico">🚢</span><span class="aico">🚢</span><span data-t="seferler_tab">Seferler</span></button>
+      <button class="att" id="atab-reh" onclick="adminTab('reh')" style="display:none;"><span class="aico">🧭</span><span class="aico">🧭</span><span data-t="rehberler_tab">Rehberler</span></button>
+      <button class="att" id="atab-gemiler" onclick="adminTab('gemiler')" style="display:none;"><span class="aico">⚓</span><span class="aico">⚓</span><span data-t="gemiler_tab">Gemiler</span></button>
       <button class="att" id="atab-rapor" onclick="adminTab('rapor')" style="display:none;"><span class="aico">📊</span>Raporlar</button>
     </div>
 
@@ -684,10 +684,10 @@ textarea.ai2{resize:none;}
     <div id="admin-ci" class="apg active">
       <div class="sf" id="af"></div>
       <div class="sg">
-        <div class="sc2"><div class="sn" id="s-t">0</div><div class="slb">Toplam</div></div>
+        <div class="sc2"><div class="sn" id="s-t">0</div><div class="slb" data-t="toplam">Toplam</div></div>
         <div class="sc2"><div class="sn" id="s-c">0</div><div class="slb">Check-in</div></div>
-        <div class="sc2"><div class="sn" id="s-b">0</div><div class="slb">Bekleyen</div></div>
-        <div class="sc2"><div class="sn" id="s-k">0</div><div class="slb">Kişi</div></div>
+        <div class="sc2"><div class="sn" id="s-b">0</div><div class="slb" data-t="bekleyen">Bekleyen</div></div>
+        <div class="sc2"><div class="sn" id="s-k">0</div><div class="slb" data-t="kisi">Kişi</div></div>
       </div>
       <div class="yolcu-ekle-form">
         <div class="yolcu-ekle-title">Yolcu ekle</div>
@@ -1541,6 +1541,41 @@ const T = {
   mesaj_gonder:    {tr:'Rehbere mesaj gönderin...', en:'Send a message to your guide...', es:'Envía un mensaje a tu guía...', de:'Nachricht an Ihren Reiseleiter...', ru:'Отправьте сообщение гиду...', el:'Στείλτε μήνυμα στον ξεναγό...', pt:'Envie uma mensagem ao seu guia...'},
   // Çıkış
   cikis:           {tr:'Çıkış', en:'Logout', es:'Salir', de:'Abmelden', ru:'Выйти', el:'Αποσύνδεση', pt:'Sair'},
+  // Admin panel sekmeleri
+  checkin_tab:     {tr:'Check-in', en:'Check-in', es:'Check-in', de:'Check-in', ru:'Регистрация', el:'Check-in', pt:'Check-in'},
+  gunluk_tab:      {tr:'Günlük', en:'Daily', es:'Diario', de:'Täglich', ru:'Ежедневно', el:'Ημερήσιο', pt:'Diário'},
+  turlar_tab:      {tr:'Turlar', en:'Tours', es:'Tours', de:'Touren', ru:'Туры', el:'Εκδρομές', pt:'Passeios'},
+  gazete_tab:      {tr:'Gazete', en:'News', es:'Noticias', de:'Zeitung', ru:'Газета', el:'Εφημερίδα', pt:'Jornal'},
+  firsatlar_tab:   {tr:'Fırsatlar', en:'Offers', es:'Ofertas', de:'Angebote', ru:'Предложения', el:'Προσφορές', pt:'Ofertas'},
+  tur_listesi:     {tr:'Tur Listesi', en:'Tour List', es:'Lista de Tours', de:'Tourliste', ru:'Список туров', el:'Λίστα Εκδρομών', pt:'Lista de Passeios'},
+  raporlar_tab:    {tr:'Raporlar', en:'Reports', es:'Informes', de:'Berichte', ru:'Отчёты', el:'Αναφορές', pt:'Relatórios'},
+  komisyon_tab:    {tr:'Komisyon', en:'Commission', es:'Comisión', de:'Provision', ru:'Комиссия', el:'Προμήθεια', pt:'Comissão'},
+  mesajlar_tab:    {tr:'Mesajlar', en:'Messages', es:'Mensajes', de:'Nachrichten', ru:'Сообщения', el:'Μηνύματα', pt:'Mensagens'},
+  tur_anonsu_tab:  {tr:'Tur Anonsu', en:'Tour Announcement', es:'Anuncio de Tour', de:'Tour-Ankündigung', ru:'Объявление тура', el:'Ανακοίνωση Εκδρομής', pt:'Anúncio de Passeio'},
+  bildirim_tab:    {tr:'Bildirim', en:'Notification', es:'Notificación', de:'Benachrichtigung', ru:'Уведомление', el:'Ειδοποίηση', pt:'Notificação'},
+  seferler_tab:    {tr:'Seferler', en:'Voyages', es:'Viajes', de:'Reisen', ru:'Рейсы', el:'Ταξίδια', pt:'Viagens'},
+  rehberler_tab:   {tr:'Rehberler', en:'Guides', es:'Guías', de:'Reiseleiter', ru:'Гиды', el:'Ξεναγοί', pt:'Guias'},
+  gemiler_tab:     {tr:'Gemiler', en:'Ships', es:'Barcos', de:'Schiffe', ru:'Корабли', el:'Πλοία', pt:'Navios'},
+  // Check-in
+  toplam:          {tr:'Toplam', en:'Total', es:'Total', de:'Gesamt', ru:'Всего', el:'Σύνολο', pt:'Total'},
+  checkin_yapilan: {tr:'Check-in', en:'Checked In', es:'Registrados', de:'Eingecheckt', ru:'Зарег.', el:'Εγγεγραμμένοι', pt:'Registrados'},
+  bekleyen:        {tr:'Bekleyen', en:'Pending', es:'Pendiente', de:'Ausstehend', ru:'Ожидающие', el:'Αναμένοντες', pt:'Pendente'},
+  kisi:            {tr:'Kişi', en:'Guests', es:'Personas', de:'Gäste', ru:'Гостей', el:'Άτομα', pt:'Pessoas'},
+  yolcu_ekle:      {tr:'Yolcu Ekle', en:'Add Passenger', es:'Agregar Pasajero', de:'Passagier hinzufügen', ru:'Добавить пассажира', el:'Προσθήκη επιβάτη', pt:'Adicionar Passageiro'},
+  yolcu_ekle_btn:  {tr:'Yolcu Ekle', en:'Add Passenger', es:'Agregar', de:'Hinzufügen', ru:'Добавить', el:'Προσθήκη', pt:'Adicionar'},
+  ad_soyad_ph:     {tr:'Ad Soyad', en:'Full Name', es:'Nombre', de:'Name', ru:'Имя', el:'Ονοματεπώνυμο', pt:'Nome'},
+  kabin_ph:        {tr:'Kabin No', en:'Cabin No', es:'Cabina', de:'Kabine', ru:'Каюта', el:'Καμπίνα', pt:'Cabine'},
+  // Günlük
+  liman_bilgisi:   {tr:'Liman Bilgisi', en:'Port Information', es:'Información del Puerto', de:'Hafeninformation', ru:'Информация о порте', el:'Πληροφορίες Λιμανιού', pt:'Informações do Porto'},
+  toplanti:        {tr:'Toplantı', en:'Meeting', es:'Reunión', de:'Treffen', ru:'Встреча', el:'Συνάντηση', pt:'Reunião'},
+  gunun_programi_tab: {tr:'Günün Programı', en:"Today's Program", es:'Programa del Día', de:'Tagesprogramm', ru:'Программа дня', el:'Πρόγραμμα', pt:'Programa'},
+  kaydet_btn:      {tr:'Kaydet', en:'Save', es:'Guardar', de:'Speichern', ru:'Сохранить', el:'Αποθήκευση', pt:'Salvar'},
+  ekle_btn:        {tr:'+ Ekle', en:'+ Add', es:'+ Agregar', de:'+ Hinzufügen', ru:'+ Добавить', el:'+ Προσθήκη', pt:'+ Adicionar'},
+  // Genel
+  personel_girisi: {tr:'Personel Girişi', en:'Staff Login', es:'Acceso del Personal', de:'Mitarbeiter-Login', ru:'Вход для персонала', el:'Είσοδος Προσωπικού', pt:'Login da Equipe'},
+  kullanici_adi:   {tr:'Kullanıcı Adı', en:'Username', es:'Usuario', de:'Benutzername', ru:'Имя пользователя', el:'Όνομα χρήστη', pt:'Nome de usuário'},
+  sifre:           {tr:'Şifre', en:'Password', es:'Contraseña', de:'Passwort', ru:'Пароль', el:'Κωδικός', pt:'Senha'},
+  giris_yap:       {tr:'Giriş Yap', en:'Login', es:'Iniciar sesión', de:'Anmelden', ru:'Войти', el:'Σύνδεση', pt:'Entrar'},
   // Admin panel (rehber/acente)
   checkin_yap:     {tr:'Check-in', en:'Check-in', es:'Check-in', de:'Check-in', ru:'Регистрация', el:'Check-in', pt:'Check-in'},
   gunluk_icerik:   {tr:'Günlük', en:'Daily', es:'Diario', de:'Täglich', ru:'Ежедневно', el:'Ημερήσιο', pt:'Diário'},
@@ -1565,6 +1600,14 @@ function dilAyarla(dil){
     renderGazete();
     renderTurAnonsPano(CP.sefer);
     renderAnket(CP.sefer);
+  }
+  // Admin panel — aktif sekmeyi yeniden render et
+  if(CU){
+    const aktifTab = document.querySelector('.att.active');
+    if(aktifTab){
+      const tabId = aktifTab.id?.replace('atab-','');
+      if(tabId) adminTab(tabId);
+    }
   }
   // Dil butonunu güncelle — bayrak göster
   const dilBtnApp = document.getElementById('dil-btn-app');
