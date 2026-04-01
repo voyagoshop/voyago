@@ -776,9 +776,9 @@ textarea.ai2{resize:none;}
       <!-- GÜNÜN MESAJI -->
       <div class="daily-section">
         <div class="daily-title">💬 Günün Mesajı <span>Yolcu giriş ekranında görünür</span></div>
-        <input class="ai2" type="text" id="gun-mesaji-input" placeholder="Örn: Bugün 23 Nisan Ulusal Egemenlik Bayramı! Herkese kutlu olsun 🎉" maxlength="120">
+        <input class="ai2" type="text" id="gun-mesaji-input" placeholder="Örn: Bugün 23 Nisan Ulusal Egemenlik Bayramı! Herkese kutlu olsun 🎉" maxlength="120" oninput="GUNMESAJI_TEMP=this.value" onchange="GUNMESAJI_TEMP=this.value">
         <div style="font-size:11px;color:var(--t3);margin-top:4px;">Max 120 karakter · Boş bırakırsanız slogan gösterilir</div>
-        <button class="save-daily-btn" onclick="saveGunMesaji(document.getElementById('gun-mesaji-input').value)">Yayınla</button>
+        <button class="save-daily-btn" onclick="saveGunMesaji()">Yayınla</button>
         <button onclick="gunMesajiSil()" style="width:100%;padding:8px;background:transparent;border:1.5px solid var(--border);border-radius:10px;font-size:12px;color:var(--t2);cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:6px;">Mesajı Kaldır</button>
       </div>
 
@@ -1497,6 +1497,7 @@ async function saveKullaniciDB(key, u) {
 
 // ══ ÇOK DİLLİ SİSTEM ══
 let AKTIF_DIL = 'tr';
+let GUNMESAJI_TEMP = '';
 
 const DILLER = {
   tr: { ad:'Türkçe', bayrak:'🇹🇷' },
@@ -4794,7 +4795,12 @@ function gunMesajiniGoster(mesaj){
 }
 
 async function saveGunMesaji(degerParam){
-  const metin = (degerParam !== undefined ? degerParam : (document.getElementById('gun-mesaji-input')?.value||'')).trim();
+  // Önce parametre, sonra global temp, sonra DOM
+  const metin = (
+    (degerParam !== undefined && degerParam !== '') ? degerParam :
+    GUNMESAJI_TEMP ? GUNMESAJI_TEMP :
+    (document.getElementById('gun-mesaji-input')?.value||'')
+  ).trim();
   // Aktif seferi bul — önce getCurrentSeferId, sonra VOYAGES'dan ilk aktif
   let sv=getCurrentSeferId();
   if(!sv){
