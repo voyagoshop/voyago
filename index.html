@@ -1545,7 +1545,7 @@ const T = {
   ara:             {tr:'Ara...', en:'Search...', es:'Buscar...', de:'Suchen...', ru:'Поиск...', el:'Αναζήτηση...', pt:'Buscar...'},
 };
 
-function t(key){ return (T[key] && T[key][AKTIF_DIL]) || (T[key] && T[key]['tr']) || key; }
+function tr(key){ return (T[key] && T[key][AKTIF_DIL]) || (T[key] && T[key]['tr']) || key; }
 
 function dilAyarla(dil){
   AKTIF_DIL = dil;
@@ -1579,11 +1579,11 @@ function dilGuncelle(){
   // Statik data-t elementlerini güncelle
   document.querySelectorAll('[data-t]').forEach(el=>{
     const key=el.getAttribute('data-t');
-    el.textContent=t(key);
+    el.textContent=tr(key);
   });
   document.querySelectorAll('[data-t-ph]').forEach(el=>{
     const key=el.getAttribute('data-t-ph');
-    el.placeholder=t(key);
+    el.placeholder=tr(key);
   });
   // Dil butonunu güncelle
   const dilBtn=document.getElementById('dil-btn');
@@ -1878,8 +1878,8 @@ function renderProgramPage(sv){
           <img src="${item.img}" onclick="lightboxAc('${item.img}')" style="width:100%;max-height:140px;object-fit:cover;border-radius:10px;cursor:zoom-in;">
         </div>`:''}
       </div>`).join('');
-    pra.innerHTML=`<div class="sl2">${t('gunun_programi')}</div><div class="card">${items}</div>`;
-  } else pra.innerHTML=`<div class="sl2">${t('gunun_programi')}</div><div class="no-data">${t('program_yok')}</div>`;
+    pra.innerHTML=`<div class="sl2">${tr('gunun_programi')}</div><div class="card">${items}</div>`;
+  } else pra.innerHTML=`<div class="sl2">${tr('gunun_programi')}</div><div class="no-data">${tr('program_yok')}</div>`;
 
   // Promosyonlar — resimli
   const proa=document.getElementById('promo-area');
@@ -1892,7 +1892,7 @@ function renderProgramPage(sv){
           ${p.img?`<img src="${p.img}" onclick="lightboxAc('${p.img}')" style="height:52px;width:52px;object-fit:cover;border-radius:8px;margin-left:8px;cursor:zoom-in;">`:''}
         </div>
       </div>`).join('');
-    proa.innerHTML=`<div class="sl2">${t('aktif_promo')}</div>${items}`;
+    proa.innerHTML=`<div class="sl2">${tr('aktif_promo')}</div>${items}`;
   } else proa.innerHTML='';
 }
 
@@ -1931,12 +1931,12 @@ function renderPassTours(sv){
         <div class="tpc">Toplam: <span>E${total}</span><br><span style="font-size:10px;color:var(--t3);">${det.join(' + ')}</span></div>
         ${j
           ? `<div style="display:flex;flex-direction:column;gap:6px;width:100%;">
-               <button class="bj joined" style="cursor:default;opacity:.9;">${t('katiliyorum')}</button>
+               <button class="bj joined" style="cursor:default;opacity:.9;">${tr('katiliyorum')}</button>
                <button onclick="turIptalMesaj('${t.name}')" style="padding:8px;background:transparent;border:1.5px solid var(--border);border-radius:10px;font-size:12px;color:var(--t2);cursor:pointer;font-family:'DM Sans',sans-serif;">
                  İptal için rehbere başvurun →
                </button>
              </div>`
-          : `<button class="bj" onclick="toggleTour('${t.id}')">${t('tura_katil')}</button>`
+          : `<button class="bj" onclick="toggleTour('${t.id}')">${tr('tura_katil')}</button>`
         }
       </div>
     </div>`;
@@ -4144,8 +4144,8 @@ function renderAnket(sv){
   if(!d.anket_aktif){
     el.innerHTML=`<div style="text-align:center;padding:40px 20px;">
       <div style="font-size:48px;margin-bottom:12px;">📋</div>
-      <div style="font-size:16px;font-weight:500;color:var(--t);">${t('anket_baslamadi')}</div>
-      <div style="font-size:13px;color:var(--t2);margin-top:8px;line-height:1.5;">${t('anket_sub')}</div>
+      <div style="font-size:16px;font-weight:500;color:var(--t);">${tr('anket_baslamadi')}</div>
+      <div style="font-size:13px;color:var(--t2);margin-top:8px;line-height:1.5;">${tr('anket_sub')}</div>
     </div>`;
     return;
   }
