@@ -1555,15 +1555,24 @@ function dilAyarla(dil){
 }
 
 function dilAlgila(){
-  // Önce localStorage'dan bak
   try{
     const kayitli = localStorage.getItem('voyago_dil');
     if(kayitli && DILLER[kayitli]){ AKTIF_DIL = kayitli; return; }
   }catch(e){}
-  // Tarayıcı dilini algıla
   const browserDil = navigator.language?.slice(0,2).toLowerCase();
   const dilMap = {tr:'tr',en:'en',es:'es',de:'de',ru:'ru',el:'el',pt:'pt'};
   AKTIF_DIL = dilMap[browserDil] || 'tr';
+}
+
+function dilMenuleriOlustur(){
+  ['dil-menu','dil-menu-admin','dil-menu-app'].forEach(menuId=>{
+    const menu=document.getElementById(menuId);
+    if(!menu)return;
+    menu.innerHTML=Object.entries(DILLER).map(([kod,dil])=>`
+      <button onclick="dilAyarla('${kod}')" class="${AKTIF_DIL===kod?'aktif':''}">
+        ${dil.bayrak} ${dil.ad}
+      </button>`).join('');
+  });
 }
 
 function dilGuncelle(){
@@ -3691,53 +3700,50 @@ function baslat() {
   dilAlgila();
   dilMenuleriOlustur();
   dilGuncelle();
-  // Önce loading animasyonunu başlat
-  let loadingBitti = false;
-  let dbBitti = false;
 
-  function kontrolEt() {
-    if (loadingBitti && dbBitti) {
-      autoLogin();
-    }
-  }
-
-  // Loading: 3 saniye sayıp kapanır
   const screen = document.getElementById('loading-screen');
   const countEl = document.getElementById('loading-count');
   const vehicle = document.getElementById('loading-vehicle');
   const araclar = ['🚢','🚢','🚢','🚌','✈️'];
   if(vehicle) vehicle.textContent = araclar[Math.floor(Math.random()*araclar.length)];
 
+  function hideScreen(cb) {
+    if(screen) {
+      screen.style.opacity = '0';
+      screen.style.transition = 'opacity .5s ease';
+      setTimeout(() => { screen.style.display = 'none'; if(cb)cb(); }, 500);
+    } else { if(cb)cb(); }
+  }
+
+  // Loading ve DB tamamen bağımsız
+  let loadingDone = false, dbDone = false;
+  function tryAutoLogin() {
+    if(loadingDone && dbDone) autoLogin();
+  }
+
+  // Loading: her zaman 3 saniyede biter
   let sayi = 3;
+  const maxWait = setTimeout(()=>{ loadingDone=true; tryAutoLogin(); }, 4500);
   const tick = setInterval(() => {
     sayi--;
     if(countEl) countEl.textContent = sayi > 0 ? sayi : '✓';
     if(sayi <= 0) {
       clearInterval(tick);
-      setTimeout(() => {
-        if(screen) {
-          screen.style.opacity = '0';
-          screen.style.transition = 'opacity .5s ease';
-          setTimeout(() => {
-            screen.style.display = 'none';
-            loadingBitti = true;
-            kontrolEt();
-          }, 500);
-        } else {
-          loadingBitti = true;
-          kontrolEt();
-        }
-      }, 300);
+      clearTimeout(maxWait);
+      setTimeout(() => hideScreen(()=>{ loadingDone=true; tryAutoLogin(); }), 300);
     }
   }, 750);
 
-  // DB: arka planda yükle
+  // DB: max 5 saniyede timeout
+  const dbTimeout = setTimeout(()=>{ dbDone=true; tryAutoLogin(); }, 5000);
   initDB().then(() => {
-    dbBitti = true;
-    kontrolEt();
+    clearTimeout(dbTimeout);
+    dbDone = true;
+    tryAutoLogin();
   }).catch(() => {
-    dbBitti = true;
-    kontrolEt();
+    clearTimeout(dbTimeout);
+    dbDone = true;
+    tryAutoLogin();
   });
 }
 
