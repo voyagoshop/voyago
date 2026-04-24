@@ -2943,6 +2943,10 @@ function renderTA(s){
             <div style="margin-top:5px;">${sT}</div>
           </div>
           <div style="display:flex;gap:5px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
+            <div style="display:flex;gap:3px;">
+              <button onclick="turSirayukari('${t.id}')" style="padding:4px 10px;border-radius:20px;font-size:13px;cursor:pointer;border:1.5px solid var(--border);color:var(--t2);background:transparent;" title="Yukarı taşı">▲</button>
+              <button onclick="turSiraAsagi('${t.id}')" style="padding:4px 10px;border-radius:20px;font-size:13px;cursor:pointer;border:1.5px solid var(--border);color:var(--t2);background:transparent;" title="Aşağı taşı">▼</button>
+            </div>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--blue);color:var(--blue);background:transparent;" onclick="turDuzenle('${t.id}')">Düzenle</button>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid ${aktif?'var(--amber)':'var(--green)'};color:${aktif?'var(--amber)':'var(--green)'};background:transparent;" onclick="turAktifToggle('${t.id}')">${aktif?'Kapat':'Aç'}</button>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid ${t.uyari_aktif?'var(--red)':'var(--purple)'};color:${t.uyari_aktif?'var(--red)':'var(--purple)'};background:${t.uyari_aktif?'var(--rl)':'transparent'};" onclick="turUyariToggle('${t.id}')">${t.uyari_aktif?'⚠️ Uyarı Açık':'⚠️ Uyarı'}</button>
@@ -2981,6 +2985,36 @@ function turUyariToggle(tid){
 
 // ══ TUR SIRA DEĞIŞTIRME ══
 let _dragTurId = null;
+
+function turSirayukari(tid){
+  const iS=CU?.role==='super';
+  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  let tours=TOURS.filter(t=>t.ship===activeShip||!t.ship).slice().sort((a,b)=>(a.sira||0)-(b.sira||0));
+  const idx=tours.findIndex(t=>t.id===tid);
+  if(idx<=0)return;
+  // Üstteki ile yer değiştir
+  const temp=tours[idx].sira||0;
+  tours[idx].sira=tours[idx-1].sira||0;
+  tours[idx-1].sira=temp;
+  // Sıralar aynıysa index ata
+  tours.forEach((t,i)=>{t.sira=i;});
+  tours.forEach(t=>saveTurDB(t));
+  renderTA(CTSF);
+}
+
+function turSiraAsagi(tid){
+  const iS=CU?.role==='super';
+  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  let tours=TOURS.filter(t=>t.ship===activeShip||!t.ship).slice().sort((a,b)=>(a.sira||0)-(b.sira||0));
+  const idx=tours.findIndex(t=>t.id===tid);
+  if(idx<0||idx>=tours.length-1)return;
+  tours.forEach((t,i)=>{t.sira=i;});
+  const temp=tours[idx].sira;
+  tours[idx].sira=tours[idx+1].sira;
+  tours[idx+1].sira=temp;
+  tours.forEach(t=>saveTurDB(t));
+  renderTA(CTSF);
+}
 
 function turDragStart(e, tid){
   _dragTurId = tid;
