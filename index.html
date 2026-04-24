@@ -415,6 +415,10 @@ textarea.ai2{resize:none;}
     <div style="text-align:center;margin-bottom:24px;padding:0 10px;">
       <div style="font-family:'DM Serif Display',serif;font-size:22px;color:white;line-height:1.3;" data-t="slogan">Yolculuğunuz Başlamak Üzere</div>
       <div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:6px;" data-t="slogan_sub">Giriş yapın, her şey hazır sizi bekliyor.</div>
+      <!-- Telefona yükle butonu -->
+      <button onclick="pwaKılavuzGoster()" style="margin-top:14px;padding:8px 20px;background:rgba(255,255,255,.15);color:white;border:1.5px solid rgba(255,255,255,.4);border-radius:20px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">
+        📱 Uygulamayı Telefona Yükle
+      </button>
     </div>
 
     <!-- Tekrar hoş geldiniz kartı (varsa göster) -->
@@ -5424,6 +5428,54 @@ const gcStyle=document.createElement('style');
 gcStyle.textContent='.gc{background:white;border-radius:14px;padding:12px 15px;margin-bottom:9px;box-shadow:var(--sh);display:flex;align-items:center;gap:11px;}';
 document.head.appendChild(gcStyle);
 </script>
+<!-- PWA Kılavuz Modal -->
+<div id="pwa-kilavuz-modal" onclick="pwaMKapat(event)" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9997;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);">
+  <div onclick="event.stopPropagation()" style="background:white;border-radius:24px 24px 0 0;padding:24px 20px 40px;width:100%;max-width:480px;animation:slideUp .3s ease;">
+    <div style="width:40px;height:4px;background:#e0e0e0;border-radius:2px;margin:0 auto 20px;"></div>
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="font-size:40px;margin-bottom:8px;">⚓</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:22px;color:#1a1a1a;">VOYAGO'yu Yükle</div>
+      <div style="font-size:13px;color:#6b6b6b;margin-top:6px;">Ana ekrana ekle, uygulama gibi kullan</div>
+    </div>
+
+    <!-- Android -->
+    <div style="background:#f0f6ff;border-radius:14px;padding:14px 16px;margin-bottom:10px;">
+      <div style="font-size:13px;font-weight:600;color:#1a5fa8;margin-bottom:10px;">🤖 Android (Chrome)</div>
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;">
+        <div style="width:22px;height:22px;background:#1a5fa8;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;">1</div>
+        <div style="font-size:13px;color:#333;">Chrome ile siteyi açın</div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;">
+        <div style="width:22px;height:22px;background:#1a5fa8;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;">2</div>
+        <div style="font-size:13px;color:#333;">Sağ üstte <b>⋮</b> (üç nokta) tuşuna basın</div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:10px;">
+        <div style="width:22px;height:22px;background:#1a5fa8;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;">3</div>
+        <div style="font-size:13px;color:#333;"><b>"Ana ekrana ekle"</b> veya <b>"Uygulamayı yükle"</b> seçin</div>
+      </div>
+    </div>
+
+    <!-- iPhone -->
+    <div style="background:#f0f6ff;border-radius:14px;padding:14px 16px;margin-bottom:20px;">
+      <div style="font-size:13px;font-weight:600;color:#1a5fa8;margin-bottom:10px;">🍎 iPhone (Safari)</div>
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;">
+        <div style="width:22px;height:22px;background:#1a5fa8;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;">1</div>
+        <div style="font-size:13px;color:#333;"><b>Safari</b> ile siteyi açın</div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;">
+        <div style="width:22px;height:22px;background:#1a5fa8;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;">2</div>
+        <div style="font-size:13px;color:#333;">Alt ortada <b>□↑</b> paylaş butonuna basın</div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:10px;">
+        <div style="width:22px;height:22px;background:#1a5fa8;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;">3</div>
+        <div style="font-size:13px;color:#333;"><b>"Ana Ekrana Ekle"</b> → <b>"Ekle"</b> basın</div>
+      </div>
+    </div>
+
+    <button onclick="pwaMKapat()" style="width:100%;padding:13px;background:#1a5fa8;color:white;border:none;border-radius:12px;font-size:15px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">Anladım</button>
+  </div>
+</div>
+
 <!-- PWA Install Banner -->
 <div id="pwa-banner" style="display:none;position:fixed;bottom:80px;left:12px;right:12px;background:white;border-radius:16px;padding:14px 16px;box-shadow:0 8px 30px rgba(0,0,0,.15);z-index:8000;display:none;align-items:center;gap:12px;">
   <div style="width:44px;height:44px;background:linear-gradient(135deg,#1a5fa8,#0d3b6e);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">⚓</div>
@@ -5446,6 +5498,26 @@ document.head.appendChild(gcStyle);
   <div class="voyago-slogan">© 2026 VOYAGO · All rights reserved by Climantacis · Unauthorized use is prohibited</div>
 </div>
 <script>
+function pwaKılavuzGoster(){
+  const m=document.getElementById('pwa-kilavuz-modal');
+  if(m){m.style.display='flex';}
+  // Eğer Chrome install event varsa direkt yükle
+  if(pwaInstallEvent){
+    pwaInstallEvent.prompt();
+    pwaInstallEvent.userChoice.then(result=>{
+      if(result.outcome==='accepted') showToast('VOYAGO ana ekrana eklendi! ⚓');
+      pwaInstallEvent=null;
+      if(m)m.style.display='none';
+    });
+  }
+}
+
+function pwaMKapat(e){
+  if(e && e.target!==document.getElementById('pwa-kilavuz-modal') && e.type==='click') return;
+  const m=document.getElementById('pwa-kilavuz-modal');
+  if(m)m.style.display='none';
+}
+
 // ══ PWA SERVICE WORKER ══
 let pwaInstallEvent = null;
 
