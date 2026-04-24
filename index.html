@@ -2147,7 +2147,8 @@ function turDetayAc(tid){
   let butonHtml='';
   if(j){
     butonHtml=`<button style="width:100%;padding:13px;background:var(--gl);color:var(--green);border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:default;font-family:'DM Sans',sans-serif;">✓ Tura Katılıyorsunuz</button>
-    <button onclick="turIptalMesaj('${t.name}');turDetayKapat();" style="width:100%;padding:10px;background:transparent;border:1.5px solid var(--border);border-radius:12px;font-size:13px;color:var(--t2);cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:8px;">İptal için rehbere yazın →</button>`;
+    <button onclick="turDetayKapat();biletGoster('${tid}');" style="width:100%;padding:11px;background:var(--blue);color:white;border:none;border-radius:12px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:8px;">🎫 Biletimi Göster</button>
+    <button onclick="turIptalMesaj('${t.name}');turDetayKapat();" style="width:100%;padding:10px;background:transparent;border:1.5px solid var(--border);border-radius:12px;font-size:13px;color:var(--t2);cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:6px;">İptal için rehbere yazın →</button>`;
   } else if(!turAktif){
     butonHtml=`<button style="width:100%;padding:13px;background:var(--gray);color:var(--t3);border:none;border-radius:12px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;">Kayıt Kapalı</button>`;
   } else if(turDolu){
