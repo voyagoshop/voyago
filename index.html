@@ -2058,9 +2058,15 @@ function renderPassTours(sv){
   const el=document.getElementById('tl-pass');
   if(!CP){el.innerHTML='';return;}
   const p=CP;
-  const today=1;
-  const tours=TOURS.filter(t=>t.seferler.includes(sv)&&t.gun===today);
-  if(!tours.length){el.innerHTML='<div class="no-data" style="margin-top:10px;">Bugün için tur bulunmuyor.</div>';return;}
+  // Gemi bazlı — o geminin tüm seferlerindeki turlar
+  const v=VOYAGES.find(v=>v.id===sv);
+  const gemiAdi=v?.ship||'';
+  const tours=TOURS.filter(t=>
+    t.ship===gemiAdi ||
+    t.seferler.includes(sv) ||
+    (gemiAdi && VOYAGES.filter(vv=>vv.ship===gemiAdi).some(vv=>t.seferler.includes(vv.id)))
+  );
+  if(!tours.length){el.innerHTML='<div class="no-data" style="margin-top:10px;">Henüz tur eklenmemis.</div>';return;}
   el.innerHTML=tours.map(t=>{
     const j=p.joinedTours.includes(t.id);
     const total=(p.adult*t.ap)+(p.child*t.cp)+(p.baby*t.bp);
