@@ -831,6 +831,10 @@ textarea.ai2{resize:none;}
         <div style="margin-top:10px;"><label class="fl" style="margin-bottom:3px;">Görsel</label>
           <div style="border:2px dashed var(--border);border-radius:10px;padding:10px;text-align:center;cursor:pointer;background:var(--gray);" onclick="document.getElementById('tur-img-input').click()">
             <div id="tur-img-preview" style="font-size:20px;color:var(--t3);">📷 Görsel ekle</div>
+        <div class="two" style="margin-top:8px;">
+          <div><label class="fl" style="margin-bottom:3px;">Maks. Kişi (0=sınırsız)</label><input class="ai2" type="number" id="nt-max-kisi" placeholder="40" style="margin:0;"></div>
+          <div><label class="fl" style="margin-bottom:3px;">Uyarı Eşiği (kalan)</label><input class="ai2" type="number" id="nt-uyari-esigi" placeholder="5" style="margin:0;" value="5"></div>
+        </div>
             <input type="file" id="tur-img-input" accept="image/*" style="display:none;" onchange="previewTurImg(this)">
           </div>
         </div>
@@ -1330,7 +1334,9 @@ async function initDB() {
       id: t.id, name: t.ad, liman: t.liman || '',
       saat: t.saat || '', gun: t.gun || 1,
       ap: t.fiyat_yetiskin || 0, cp: t.fiyat_cocuk || 0, bp: t.fiyat_bebek || 0,
-      ship: t.gemi || '', seferler: t.sefer_listesi || [], img: t.gorsel || null
+      ship: t.gemi || '', seferler: t.sefer_listesi || [], img: t.gorsel || null,
+      max_kisi: t.max_kisi || 0, uyari_esigi: t.uyari_esigi || 5,
+      aktif: t.aktif !== false
     }));
 
     // Günlük içerikleri yükle
@@ -1428,7 +1434,10 @@ async function saveTurDB(tur) {
     saat: tur.saat, gun: tur.gun,
     fiyat_yetiskin: tur.ap, fiyat_cocuk: tur.cp, fiyat_bebek: tur.bp,
     gemi: tur.ship, sefer_listesi: tur.seferler,
-    gorsel: tur.img || null, acente_id: getMyAcente()
+    gorsel: tur.img || null, acente_id: getMyAcente(),
+    max_kisi: tur.max_kisi || 0,
+    uyari_esigi: tur.uyari_esigi || 5,
+    aktif: tur.aktif !== false
   };
   if(mevcut.length > 0) {
     await dbUpdate('turlar', {id: tur.id}, veri);
@@ -2153,7 +2162,11 @@ function setupAdmin(){
   document.getElementById('apt').textContent=isVoyago?'VOYAGO App':isAcente?'Acente Paneli — '+u.name:'Rehber Paneli';
   // Rehber için sefer bilgisi göster
   if(!isVoyago && !isAcente){
-    const aktifV = VOYAGES.find(v=>(v.guide===u.key||v.guide===CU?.key)&&v.status!=='archived'&&v.visible);
+    const myKey2 = CU?.key || u.key;
+    const aktifV = VOYAGES.find(v=>
+      (v.guide===myKey2||v.guide===u.name||(u.ship&&v.ship===u.ship))
+      &&v.status!=='archived'&&v.visible
+    );
     document.getElementById('aps').textContent = u.name + (aktifV?' — '+aktifV.label:'');
   } else {
     document.getElementById('aps').textContent=isVoyago?'Süper Yönetici':u.city||'';
@@ -2171,12 +2184,21 @@ function setupAdmin(){
   else{rb.className='rsb rsg';rb.style.cssText='';rb.textContent='Rehber';}
   // Rehber için atandığı seferi bul
   if(!isVoyago && !isAcente){
-    const rehberSeferleri = VOYAGES.filter(v=>v.guide===u.key||v.guide===CU?.key);
+    // guide alanı kullanıcı adı veya tam ad olabilir
+    const myKey = CU?.key || u.key;
+    const myName = u.name;
+    const myShip = u.ship;
+    const rehberSeferleri = VOYAGES.filter(v=>
+      v.guide===myKey || v.guide===myName ||
+      (myShip && v.ship===myShip)
+    );
     if(rehberSeferleri.length>0){
       const aktifSefer = rehberSeferleri.find(v=>v.status!=='archived'&&v.visible) || rehberSeferleri[0];
-      document.getElementById('rde').textContent = aktifSefer.label + (aktifSefer.ship?' — '+aktifSefer.ship:'');
+      // Gemi adı seferden al, yoksa kullanıcı kaydındaki gemi
+      const gemiAdi = aktifSefer.ship || myShip || '';
+      document.getElementById('rde').textContent = aktifSefer.label + (gemiAdi?' — '+gemiAdi:'');
     } else {
-      document.getElementById('rde').textContent = u.ship ? u.ship+' gemisi' : 'Seferleriniz';
+      document.getElementById('rde').textContent = myShip ? myShip : 'Seferleriniz';
     }
   } else {
     document.getElementById('rde').textContent=isVoyago?'Tüm acenteleri ve kullanıcıları yönetiyorsunuz.':'Kendi acente paneliniz.';
@@ -2636,7 +2658,16 @@ function renderTA(s){
     const total=kat.reduce((a,p)=>a+(p.adult*t.ap)+(p.child*t.cp)+(p.baby*t.bp),0);
     const kisi=kat.reduce((a,p)=>a+p.adult+p.child+p.baby,0);
     const sT=t.seferler.map(sid=>{const v=VOYAGES.find(v=>v.id===sid);return v?`<span class="badge bb" style="font-size:10px;margin-right:4px;">${v.label.split('-')[0].trim()}</span>`:''}).join('');
-    return `<div class="tur-admin-card">
+    // Kapasite hesapla
+    const maxK = t.max_kisi || 0;
+    const uyariE = t.uyari_esigi || 5;
+    const kalanYer = maxK > 0 ? maxK - kisi : null;
+    const doluluk = maxK > 0 ? Math.round((kisi/maxK)*100) : 0;
+    const sonYerUyari = kalanYer !== null && kalanYer <= uyariE && kalanYer > 0;
+    const turDolu = kalanYer !== null && kalanYer <= 0;
+    const aktif = t.aktif !== false;
+
+    return `<div class="tur-admin-card" style="${!aktif?'opacity:.6;':''}">
       <div class="tur-admin-img" onclick="document.getElementById('tei-${t.id}').click()">
         ${t.img?`<img src="${t.img}">`:'<span>🗺️</span>'}
         <div class="img-ov">Görsel degistir</div>
@@ -2644,20 +2675,91 @@ function renderTA(s){
       </div>
       <div class="tur-admin-body">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <div><div style="font-size:14px;font-weight:500;color:var(--t);">${t.name}</div>
-          <div style="font-size:11px;color:var(--t2);margin-top:2px;">📍 ${t.liman} · ${t.saat} · ${t.gun}. gün</div>
-          <div style="margin-top:5px;">${sT}</div></div>
-          <button style="padding:4px 11px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--red);color:var(--red);background:transparent;" onclick="deleteTour('${t.id}')">Sil</button>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:500;color:var(--t);">${t.name}</div>
+            <div style="font-size:11px;color:var(--t2);margin-top:2px;">📍 ${t.liman} · ${t.saat} · ${t.gun}. gün</div>
+            ${maxK>0?`<div style="font-size:11px;margin-top:3px;color:${turDolu?'var(--red)':sonYerUyari?'var(--amber)':'var(--green)'};">
+              ${turDolu?'🔴 Tur dolu':''}
+              ${sonYerUyari&&!turDolu?`⚠️ Son ${kalanYer} yer kaldı!`:''}
+              ${!turDolu&&!sonYerUyari?`✓ ${kalanYer} yer müsait`:''}
+              <span style="color:var(--t3);"> (${kisi}/${maxK})</span>
+            </div>`:''}
+            <div style="margin-top:5px;">${sT}</div>
+          </div>
+          <div style="display:flex;gap:5px;flex-shrink:0;">
+            <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--blue);color:var(--blue);background:transparent;" onclick="turDuzenle('${t.id}')">Düzenle</button>
+            <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid ${aktif?'var(--amber)':'var(--green)'};color:${aktif?'var(--amber)':'var(--green)'};background:transparent;" onclick="turAktifToggle('${t.id}')">${aktif?'Kapat':'Aç'}</button>
+            <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--red);color:var(--red);background:transparent;" onclick="deleteTour('${t.id}')">Sil</button>
+          </div>
         </div>
         <div style="display:flex;gap:7px;margin-top:10px;flex-wrap:wrap;">
           <div class="sc2" style="flex:1;min-width:55px;padding:8px;cursor:pointer;" onclick="showKatilimcilar('${t.id}')"><div class="sn" style="font-size:16px;">${kat.length}</div><div class="slb">Kabin</div></div>
-          <div class="sc2" style="flex:1;min-width:55px;padding:8px;"><div class="sn" style="font-size:16px;">${kisi}</div><div class="slb">Kisi</div></div>
-          <div class="sc2" style="flex:1;min-width:55px;padding:8px;"><div class="sn" style="font-size:16px;">E${total}</div><div class="slb">Toplam</div></div>
+          <div class="sc2" style="flex:1;min-width:55px;padding:8px;"><div class="sn" style="font-size:16px;">${kisi}</div><div class="slb">Kişi</div></div>
+          <div class="sc2" style="flex:1;min-width:55px;padding:8px;"><div class="sn" style="font-size:16px;">€${total}</div><div class="slb">Toplam</div></div>
+          ${maxK>0?`<div class="sc2" style="flex:1;min-width:55px;padding:8px;background:${turDolu?'var(--rl)':sonYerUyari?'var(--al)':'var(--gl)'};"><div class="sn" style="font-size:16px;color:${turDolu?'var(--red)':sonYerUyari?'var(--amber)':'var(--green)'};">${kalanYer}</div><div class="slb">Kalan</div></div>`:''}
         </div>
       </div>
     </div>`;
   }).join('') || '<div class="es">Tur bulunamadi.</div>';
 }
+function turAktifToggle(tid){
+  const t=TOURS.find(t=>t.id===tid);
+  if(!t)return;
+  t.aktif = t.aktif === false ? true : false;
+  saveTurDB(t);
+  renderTA(CTSF);
+  showToast(t.aktif?'Tur açıldı — yolcular kayıt yapabilir.':'Tur kapatıldı — yeni kayıt alınmıyor.');
+}
+
+function turDuzenle(tid){
+  const t=TOURS.find(t=>t.id===tid);
+  if(!t)return;
+  // Formu doldur
+  document.getElementById('ntn').value=t.name;
+  document.getElementById('ntl').value=t.liman||'';
+  document.getElementById('nts').value=t.saat||'';
+  document.getElementById('ntgun').value=t.gun||1;
+  document.getElementById('nta').value=t.ap||'';
+  document.getElementById('ntc').value=t.cp||'';
+  document.getElementById('ntb').value=t.bp||'';
+  const mkEl=document.getElementById('nt-max-kisi');if(mkEl)mkEl.value=t.max_kisi||'';
+  const ueEl=document.getElementById('nt-uyari-esigi');if(ueEl)ueEl.value=t.uyari_esigi||5;
+  if(t.img)document.getElementById('tur-img-preview').innerHTML=`<img src="${t.img}" style="width:100%;height:70px;object-fit:cover;border-radius:8px;">`;
+  // Düzenleme moduna geç
+  window._editTurId = tid;
+  const btn=document.querySelector('[onclick="addTour()"]');
+  if(btn){btn.textContent='Güncelle';btn.setAttribute('onclick','addTourGuncelle()');}
+  document.getElementById('ntn').focus();
+  document.getElementById('ntn').scrollIntoView({behavior:'smooth'});
+  showToast('Tur bilgileri forma yuklendi. Duzenleyip Guncelle butonuna basin.');
+}
+
+function addTourGuncelle(){
+  const tid=window._editTurId;
+  if(!tid){addTour();return;}
+  const t=TOURS.find(t=>t.id===tid);
+  if(!t)return;
+  t.name=document.getElementById('ntn').value.trim()||t.name;
+  t.liman=document.getElementById('ntl').value.trim()||t.liman;
+  t.saat=document.getElementById('nts').value||t.saat;
+  t.gun=parseInt(document.getElementById('ntgun').value)||t.gun;
+  t.ap=parseFloat(document.getElementById('nta').value)||t.ap;
+  t.cp=parseFloat(document.getElementById('ntc').value)||t.cp;
+  t.bp=parseFloat(document.getElementById('ntb').value)||t.bp;
+  t.max_kisi=parseInt(document.getElementById('nt-max-kisi')?.value)||0;
+  t.uyari_esigi=parseInt(document.getElementById('nt-uyari-esigi')?.value)||5;
+  if(newTurImg)t.img=newTurImg;
+  saveTurDB(t);
+  newTurImg=null;
+  ['ntn','ntl','nta','ntc','ntb'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('tur-img-preview').innerHTML='📷 Görsel ekle';
+  window._editTurId=null;
+  const btn=document.querySelector('[onclick="addTourGuncelle()"]');
+  if(btn){btn.textContent='Turu Ekle';btn.setAttribute('onclick','addTour()');}
+  renderTA(CTSF);
+  showToast('Tur güncellendi!');
+}
+
 function editTurImg(input,tid){const f=input.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{const t=TOURS.find(t=>t.id===tid);if(t)t.img=e.target.result;renderTA(CTSF);showToast('Görsel güncellendi');};r.readAsDataURL(f);}
 function deleteTour(tid){if(!confirm('Silinsin mi?'))return;const i=TOURS.findIndex(t=>t.id===tid);if(i>=0){TOURS.splice(i,1);dbDelete('turlar',{id:tid});renderTA(CTSF);showToast('Tur silindi.');}}
 function previewTurImg(input){const f=input.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{newTurImg=e.target.result;document.getElementById('tur-img-preview').innerHTML=`<img src="${e.target.result}" style="width:100%;height:70px;object-fit:cover;border-radius:8px;">`;};r.readAsDataURL(f);}
@@ -2670,17 +2772,20 @@ function addTour(){
   const cp=parseFloat(document.getElementById('ntc').value)||0;
   const bp=parseFloat(document.getElementById('ntb').value)||0;
   const sefer=document.getElementById('ntse').value;
+  const maxKisi=parseInt(document.getElementById('nt-max-kisi')?.value)||0;
+  const uyariEsigi=parseInt(document.getElementById('nt-uyari-esigi')?.value)||5;
   if(!name||!liman){showToast('Ad ve liman gereklidir.');return;}
   const iS=CU?.role==='super';
   const activeShip=iS?ACTIVE_SHIP:CU?.ship;
-  TOURS.push({id:'t'+Date.now(),name,liman,saat,gun,ap,cp,bp,ship:activeShip,seferler:[sefer],img:newTurImg});
+  TOURS.push({id:'t'+Date.now(),name,liman,saat,gun,ap,cp,bp,ship:activeShip,
+    seferler:sefer?[sefer]:[],img:newTurImg,
+    max_kisi:maxKisi,uyari_esigi:uyariEsigi,aktif:true});
   newTurImg=null;
-  document.getElementById('ntn').value='';document.getElementById('ntl').value='';
-  document.getElementById('nta').value='';document.getElementById('ntc').value='';document.getElementById('ntb').value='';
+  ['ntn','ntl','nta','ntc','ntb'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const mkEl=document.getElementById('nt-max-kisi');if(mkEl)mkEl.value='';
   document.getElementById('tur-img-preview').innerHTML='📷 Görsel ekle';
   const yeniTur=TOURS[TOURS.length-1];
   saveTurDB(yeniTur);
-  saveTurDB(TOURS[TOURS.length-1]);
   renderTA(CTSF);
   const allT=TOURS.filter(t=>t.ship===activeShip);
   document.getElementById('tur-ekle-tur').innerHTML=allT.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
