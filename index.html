@@ -513,23 +513,33 @@ textarea.ai2{resize:none;}
   <div class="topbar" style="padding-bottom:8px;">
     <div class="tbi">
       <div class="tbr">
-        <div>
+        <!-- Sol: Yolcu bilgisi -->
+        <div style="flex:1;min-width:0;">
           <div class="app-logo">VOYAGO</div>
-          <div class="app-ship" id="app-ship-name">Celestyal Journey</div>
-          <div class="app-meta">
+          <div style="font-size:14px;font-weight:600;color:white;margin-top:1px;" id="app-yolcu-adi">Hoş geldiniz</div>
+          <div class="app-ship" id="app-ship-name" style="font-size:11px;opacity:.8;"></div>
+          <div class="app-meta" style="margin-top:4px;">
             <div class="app-meta-pill" id="app-date-pill">29 Mar 2026</div>
             <div class="app-meta-pill" id="app-sefer-pill">Sefer 1/4</div>
           </div>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-          <!-- Büyük saat -->
+        <!-- Sağ: Saat + hava + kontroller -->
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
           <div id="app-clock" style="font-family:'DM Serif Display',serif;font-size:28px;color:white;letter-spacing:1px;line-height:1;">00:00</div>
-          <div class="tpill" id="akl">Kabin 214</div>
-          <div class="dil-wrapper">
-            <button class="dil-btn" id="dil-btn-app" onclick="dilMenuAc('app')" style="font-size:16px;padding:3px 8px;">🇹🇷</button>
-            <div class="dil-menu" id="dil-menu-app"></div>
+          <!-- Hava durumu -->
+          <div id="hava-pill" style="display:none;background:rgba(255,255,255,.2);border-radius:20px;padding:3px 10px;font-size:12px;color:white;display:flex;align-items:center;gap:4px;cursor:pointer;" onclick="switchTab('program')">
+            <span id="hava-icon">🌤️</span>
+            <span id="hava-sicaklik"></span>
+            <span id="hava-sehir" style="opacity:.8;font-size:11px;"></span>
           </div>
-          <button class="lob" onclick="doLogout()" data-t="cikis">Çıkış</button>
+          <div class="tpill" id="akl">Kabin 214</div>
+          <div style="display:flex;gap:5px;align-items:center;">
+            <div class="dil-wrapper">
+              <button class="dil-btn" id="dil-btn-app" onclick="dilMenuAc('app')" style="font-size:16px;padding:3px 8px;">🇹🇷</button>
+              <div class="dil-menu" id="dil-menu-app"></div>
+            </div>
+            <button class="lob" onclick="doLogout()" data-t="cikis">Çıkış</button>
+          </div>
         </div>
       </div>
       <!-- Geri sayım şeridi -->
@@ -1816,6 +1826,10 @@ function startClock(){
           if(nbAnket){nbAnket.style.display='flex';nbAnket.style.animation='pulse 1s ease 3';}
           renderAnket(CP.sefer);
           showToast('Anket hazır! 📝 Lütfen doldurun.');
+        }
+        // Liman değişince hava durumunu güncelle
+        if(d.port?.name && havaDurumSon?.sehir !== d.port.name){
+          havaDurumAl(d.port.name + ', ' + (d.port.country||''));
         }
         // Aktif sekmeyi yenile
         const aktifTab=document.querySelector('.tp.active');
@@ -4272,8 +4286,12 @@ async function devamEt() {
     renderMesajlar(p.sefer);
     renderTurAnonsPano(p.sefer);
     renderGsSerit(p.sefer);
+    // Yolcu adını topbar'a yaz
+    const yolcuAdiEl = document.getElementById('app-yolcu-adi');
+    if(yolcuAdiEl && p.name) yolcuAdiEl.textContent = p.name;
     showScreen('sa');
     startClock();
+    havaDurumBaslat(p.sefer);
     showToast('Hoş geldiniz, ' + (p.name?p.name.split(' ')[0]:'') + '! 👋');
     // Anket DB'den direkt kontrol et
     await checkAnketGoster(p.sefer);
@@ -5219,6 +5237,88 @@ function lightboxKapat(){
 }
 // ESC ile kapat
 document.addEventListener('keydown',e=>{if(e.key==='Escape')lightboxKapat();});
+
+// ══ HAVA DURUMU ══
+const HAVA_API = 'https://wttr.in/';
+let havaDurumSon = null;
+
+async function havaDurumAl(sehir){
+  try{
+    const url = HAVA_API + encodeURIComponent(sehir) + '?format=j1&lang=tr';
+    const res = await fetch(url);
+    const data = await res.json();
+    const current = data?.current_condition?.[0];
+    if(!current) return null;
+    const sicaklik = current.temp_C + '°C';
+    const kod = parseInt(current.weatherCode);
+    const icon = havaDurumIkon(kod, current.uvIndex);
+    const desc = current.lang_tr?.[0]?.value || current.weatherDesc?.[0]?.value || '';
+    havaDurumGoster(icon, sicaklik, sehir, desc);
+    havaDurumSon = {icon, sicaklik, sehir, desc};
+  }catch(e){
+    console.log('Hava API hatası:', e);
+  }
+}
+
+async function havaDurumKonumdan(){
+  if(!navigator.geolocation){ return; }
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    try{
+      const lat = pos.coords.latitude.toFixed(2);
+      const lon = pos.coords.longitude.toFixed(2);
+      const url = HAVA_API + lat + ',' + lon + '?format=j1';
+      const res = await fetch(url);
+      const data = await res.json();
+      const current = data?.current_condition?.[0];
+      const nearestArea = data?.nearest_area?.[0]?.areaName?.[0]?.value || '';
+      if(!current) return;
+      const sicaklik = current.temp_C + '°C';
+      const kod = parseInt(current.weatherCode);
+      const icon = havaDurumIkon(kod);
+      havaDurumGoster(icon, sicaklik, nearestArea, '');
+      havaDurumSon = {icon, sicaklik, sehir:nearestArea};
+    }catch(e){}
+  }, err=>{
+    console.log('Konum alınamadı:', err.message);
+  });
+}
+
+function havaDurumIkon(kod){
+  if(kod<=113) return '☀️';
+  if(kod<=116) return '⛅';
+  if(kod<=119) return '☁️';
+  if(kod<=143) return '🌫️';
+  if(kod<=176) return '🌦️';
+  if(kod<=200) return '⛈️';
+  if(kod<=227) return '❄️';
+  if(kod<=260) return '🌧️';
+  if(kod<=299) return '🌧️';
+  if(kod<=399) return '❄️';
+  return '🌤️';
+}
+
+function havaDurumGoster(icon, sicaklik, sehir, desc){
+  const pill = document.getElementById('hava-pill');
+  const iconEl = document.getElementById('hava-icon');
+  const sicEl = document.getElementById('hava-sicaklik');
+  const sehirEl = document.getElementById('hava-sehir');
+  if(!pill) return;
+  if(iconEl) iconEl.textContent = icon;
+  if(sicEl) sicEl.textContent = sicaklik;
+  if(sehirEl) sehirEl.textContent = sehir ? '· '+sehir : '';
+  pill.style.display = 'flex';
+}
+
+async function havaDurumBaslat(sv){
+  // Önce liman bilgisinden al
+  const d = getDailyForSefer(sv);
+  if(d?.port?.name){
+    await havaDurumAl(d.port.name + ', ' + (d.port.country||''));
+  } else {
+    // Liman yoksa konumdan al
+    havaDurumKonumdan();
+  }
+}
 
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);}
 
