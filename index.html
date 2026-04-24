@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 :root{
   --blue:#1a5fa8;--bl:#e8f1fb;--green:#0f6e56;--gl:#e1f5ee;
@@ -5452,6 +5453,247 @@ async function havaDurumBaslat(sv){
   }
 }
 
+// ══ QR KOD ÜRETİCİ (Canvas ile) ══
+function qrVeriOlustur(kabin, turId, seferid){
+  return btoa(JSON.stringify({k:kabin, t:turId, s:seferid, v:'VOYAGO'}));
+}
+
+function qrCizCanvas(canvas, veri){
+  // Basit QR benzeri barkod — gerçek QR için jsQR kullanıyoruz okuma için
+  // Görsel olarak unique bir pattern oluştur
+  const ctx = canvas.getContext('2d');
+  const size = canvas.width;
+  ctx.fillStyle = 'white';
+  ctx.fillRect(0,0,size,size);
+  ctx.fillStyle = '#1a5fa8';
+  
+  // Hash'ten deterministic pattern
+  let hash = 0;
+  for(let i=0;i<veri.length;i++) hash = ((hash<<5)-hash)+veri.charCodeAt(i);
+  
+  const cells = 21;
+  const cell = size/cells;
+  
+  // Finder patterns
+  [[0,0],[0,14],[14,0]].forEach(([r,c])=>{
+    for(let i=0;i<7;i++) for(let j=0;j<7;j++){
+      if(i===0||i===6||j===0||j===6||(i>=2&&i<=4&&j>=2&&j<=4)){
+        ctx.fillRect((c+j)*cell,(r+i)*cell,cell,cell);
+      }
+    }
+  });
+  
+  // Timing
+  for(let i=8;i<13;i++){
+    if(i%2===0){ctx.fillRect(i*cell,6*cell,cell,cell);ctx.fillRect(6*cell,i*cell,cell,cell);}
+  }
+  
+  // Data
+  const bits = [];
+  for(let i=0;i<veri.length;i++) bits.push(...Array.from({length:8},(_,b)=>(veri.charCodeAt(i)>>(7-b))&1));
+  let bi=0;
+  for(let r=0;r<cells;r++) for(let c=0;c<cells;c++){
+    const skip=(r<9&&c<9)||(r<9&&c>12)||(r>12&&c<9)||r===6||c===6;
+    if(!skip&&bi<bits.length){if(bits[bi++])ctx.fillRect(c*cell,r*cell,cell,cell);}
+  }
+}
+
+// ══ BİLET SİSTEMİ ══
+let _biletData = null;
+
+function biletGoster(turId){
+  if(!CP) return;
+  const t = TOURS.find(t=>t.id===turId);
+  if(!t) return;
+  const v = VOYAGES.find(v=>v.id===CP.sefer);
+  
+  const total = (CP.adult*t.ap)+(CP.child*t.cp)+(CP.baby*t.bp);
+  const kisiler = [];
+  if(CP.adult>0) kisiler.push(CP.adult+' Yetişkin');
+  if(CP.child>0) kisiler.push(CP.child+' Çocuk');
+  if(CP.baby>0) kisiler.push(CP.baby+' Bebek');
+  
+  const qrVeri = qrVeriOlustur(CP.kabin, turId, CP.sefer);
+  _biletData = {t, v, qrVeri, total, kisiler};
+  
+  const el = document.getElementById('bilet-icerik');
+  el.innerHTML = `
+    <div style="text-align:center;margin-bottom:16px;">
+      <canvas id="bilet-qr" width="140" height="140" style="border-radius:8px;"></canvas>
+      <div style="font-size:10px;color:var(--t3);margin-top:4px;">Rehbere gösterin</div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <div style="font-size:18px;font-weight:600;color:var(--t);margin-bottom:4px;">${t.name}</div>
+      <div style="font-size:12px;color:var(--t2);">📍 ${t.liman} &nbsp;·&nbsp; ⏰ ${t.saat}</div>
+    </div>
+    <div style="background:var(--gray);border-radius:10px;padding:12px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+        <span style="font-size:12px;color:var(--t2);">Yolcu</span>
+        <span style="font-size:12px;font-weight:500;color:var(--t);">${CP.name}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+        <span style="font-size:12px;color:var(--t2);">Kabin</span>
+        <span style="font-size:12px;font-weight:500;color:var(--t);">${CP.kabin}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+        <span style="font-size:12px;color:var(--t2);">Kişiler</span>
+        <span style="font-size:12px;font-weight:500;color:var(--t);">${kisiler.join(', ')}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:8px;margin-top:5px;">
+        <span style="font-size:13px;font-weight:600;color:var(--t);">Toplam</span>
+        <span style="font-size:13px;font-weight:600;color:var(--blue);">€${total}</span>
+      </div>
+    </div>
+    ${v?`<div style="font-size:11px;color:var(--t3);text-align:center;">${v.label} &nbsp;·&nbsp; ${v.ship||''}</div>`:''}
+  `;
+  
+  const modal = document.getElementById('bilet-modal');
+  modal.style.display = 'flex';
+  
+  // QR çiz
+  setTimeout(()=>{
+    const canvas = document.getElementById('bilet-qr');
+    if(canvas) qrCizCanvas(canvas, qrVeri);
+  }, 100);
+}
+
+function biletKapat(e){
+  if(e && e.target !== document.getElementById('bilet-modal')) return;
+  document.getElementById('bilet-modal').style.display = 'none';
+}
+
+function biletWhatsapp(){
+  if(!_biletData) return;
+  const {t, v, total, kisiler} = _biletData;
+  const NL = '%0A';
+  const msg = 'VOYAGO TUR BİLETİ'+NL+
+    '━━━━━━━━━━━━━━'+NL+
+    '🗺️ '+t.name+NL+
+    '📍 '+t.liman+NL+
+    '⏰ '+t.saat+NL+
+    '👤 '+CP.name+' | Kabin '+CP.kabin+NL+
+    '👥 '+kisiler.join(', ')+NL+
+    '💶 Toplam: €'+total+NL+
+    '━━━━━━━━━━━━━━'+NL+
+    (v?'🚢 '+v.label+NL:'')+
+    'VOYAGO Dijital Bilet';
+  window.open('https://wa.me/?text='+msg, '_blank');
+}
+
+function biletKopyala(){
+  if(!_biletData) return;
+  const {t, v, total, kisiler} = _biletData;
+  const NL = String.fromCharCode(10);
+  const txt = 'VOYAGO TUR BİLETİ'+NL+
+    '━━━━━━━━━━━━━━'+NL+
+    t.name+NL+
+    'Liman: '+t.liman+NL+
+    'Saat: '+t.saat+NL+
+    'Yolcu: '+CP.name+' | Kabin '+CP.kabin+NL+
+    'Kişiler: '+kisiler.join(', ')+NL+
+    'Toplam: €'+total+NL+
+    (v?v.label+NL:'')+
+    'VOYAGO';
+  navigator.clipboard?.writeText(txt).then(()=>showToast('Bilet kopyalandı!')).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showToast('Kopyalandı!');
+  });
+}
+
+// ══ QR OKUYUCU ══
+let qrStream = null;
+let qrInterval = null;
+
+function qrOkuyucuAc(){
+  const modal = document.getElementById('qr-modal');
+  modal.style.display = 'flex';
+  const video = document.getElementById('qr-video');
+  const sonuc = document.getElementById('qr-sonuc');
+  sonuc.textContent = '';
+  
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}})
+    .then(stream=>{
+      qrStream = stream;
+      video.srcObject = stream;
+      video.play();
+      
+      const canvas = document.getElementById('qr-canvas');
+      const ctx = canvas.getContext('2d');
+      
+      qrInterval = setInterval(()=>{
+        if(video.readyState === video.HAVE_ENOUGH_DATA){
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0);
+          const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
+          const code = jsQR(imageData.data, imageData.width, imageData.height);
+          if(code){
+            qrOkuSonuc(code.data);
+          }
+        }
+      }, 200);
+    })
+    .catch(err=>{
+      sonuc.textContent = 'Kamera izni verilmedi: '+err.message;
+    });
+}
+
+function qrOkuSonuc(veri){
+  try{
+    const data = JSON.parse(atob(veri));
+    if(data.v !== 'VOYAGO') throw new Error('Geçersiz');
+    
+    // Yolcuyu bul
+    const yolcu = passengers.find(p=>p.kabin===data.k&&p.sefer===data.s);
+    const tur = TOURS.find(t=>t.id===data.t);
+    
+    if(!yolcu||!tur){
+      document.getElementById('qr-sonuc').innerHTML = '<span style="color:#ff6b6b;">❌ Bilet bulunamadı</span>';
+      bildirimSesi('mesaj');
+      return;
+    }
+    
+    const katildi = yolcu.joinedTours.includes(data.t);
+    const sonucEl = document.getElementById('qr-sonuc');
+    
+    if(katildi){
+      sonucEl.innerHTML = `<div style="background:rgba(15,110,86,.3);border-radius:12px;padding:12px 16px;">
+        <div style="font-size:20px;margin-bottom:4px;">✅ Geldi!</div>
+        <div style="font-size:14px;font-weight:600;">${yolcu.name}</div>
+        <div style="font-size:12px;opacity:.8;">Kabin ${yolcu.kabin} · ${tur.name}</div>
+      </div>`;
+      bildirimSesi('mesaj');
+      
+      // Kontrol listesinde işaretle
+      if(!yolcu.checkinDone){
+        yolcu.checkinDone = true;
+        saveYolcuDB(yolcu);
+      }
+    } else {
+      sonucEl.innerHTML = `<div style="background:rgba(163,45,45,.3);border-radius:12px;padding:12px 16px;">
+        <div style="font-size:20px;margin-bottom:4px;">⚠️ Tura Kayıtlı Değil</div>
+        <div style="font-size:14px;font-weight:600;">${yolcu.name}</div>
+        <div style="font-size:12px;opacity:.8;">Kabin ${yolcu.kabin}</div>
+      </div>`;
+    }
+    
+    // 3 saniye sonra temizle
+    setTimeout(()=>{
+      document.getElementById('qr-sonuc').textContent = '';
+    }, 3000);
+    
+  } catch(e){
+    document.getElementById('qr-sonuc').innerHTML = '<span style="color:#ff6b6b;">❌ Geçersiz QR kod</span>';
+  }
+}
+
+function qrKapat(){
+  if(qrInterval) clearInterval(qrInterval);
+  if(qrStream) qrStream.getTracks().forEach(t=>t.stop());
+  qrStream = null; qrInterval = null;
+  document.getElementById('qr-modal').style.display = 'none';
+  document.getElementById('qr-sonuc').textContent = '';
+}
+
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);}
 
 // gc class fix
@@ -5459,6 +5701,43 @@ const gcStyle=document.createElement('style');
 gcStyle.textContent='.gc{background:white;border-radius:14px;padding:12px 15px;margin-bottom:9px;box-shadow:var(--sh);display:flex;align-items:center;gap:11px;}';
 document.head.appendChild(gcStyle);
 </script>
+<!-- DİJİTAL BİLET MODAL -->
+<div id="bilet-modal" onclick="biletKapat(event)" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9996;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+  <div onclick="event.stopPropagation()" style="background:white;border-radius:20px;padding:0;width:92%;max-width:380px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <!-- Bilet başlık -->
+    <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);padding:20px;color:white;text-align:center;">
+      <div style="font-family:'DM Serif Display',serif;font-size:22px;">VOYAGO</div>
+      <div style="font-size:11px;opacity:.7;letter-spacing:2px;text-transform:uppercase;margin-top:2px;">Tur Bileti</div>
+    </div>
+    <!-- Bilet içerik -->
+    <div id="bilet-icerik" style="padding:20px;"></div>
+    <!-- Kesik çizgi -->
+    <div style="border-top:2px dashed #e0e0e0;margin:0 16px;"></div>
+    <!-- Butonlar -->
+    <div style="padding:14px 16px;display:flex;gap:8px;">
+      <button onclick="biletWhatsapp()" style="flex:1;padding:10px;background:#25D366;color:white;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">📱 WhatsApp</button>
+      <button onclick="biletKopyala()" style="flex:1;padding:10px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 Kopyala</button>
+      <button onclick="biletKapat()" style="padding:10px 14px;background:var(--gray);color:var(--t2);border:none;border-radius:10px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">✕</button>
+    </div>
+  </div>
+</div>
+
+<!-- QR OKUYUCU MODAL -->
+<div id="qr-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9995;flex-direction:column;align-items:center;justify-content:center;">
+  <div style="color:white;font-size:16px;font-weight:500;margin-bottom:16px;">📷 QR Kodu Kameraya Tutun</div>
+  <div style="position:relative;width:280px;height:280px;">
+    <video id="qr-video" style="width:280px;height:280px;border-radius:16px;object-fit:cover;"></video>
+    <canvas id="qr-canvas" style="display:none;"></canvas>
+    <!-- Köşe çerçeveleri -->
+    <div style="position:absolute;top:8px;left:8px;width:40px;height:40px;border-top:3px solid #1a5fa8;border-left:3px solid #1a5fa8;border-radius:4px 0 0 0;"></div>
+    <div style="position:absolute;top:8px;right:8px;width:40px;height:40px;border-top:3px solid #1a5fa8;border-right:3px solid #1a5fa8;border-radius:0 4px 0 0;"></div>
+    <div style="position:absolute;bottom:8px;left:8px;width:40px;height:40px;border-bottom:3px solid #1a5fa8;border-left:3px solid #1a5fa8;border-radius:0 0 0 4px;"></div>
+    <div style="position:absolute;bottom:8px;right:8px;width:40px;height:40px;border-bottom:3px solid #1a5fa8;border-right:3px solid #1a5fa8;border-radius:0 0 4px 0;"></div>
+  </div>
+  <div id="qr-sonuc" style="color:white;margin-top:16px;font-size:14px;min-height:40px;text-align:center;padding:0 20px;"></div>
+  <button onclick="qrKapat()" style="margin-top:16px;padding:10px 28px;background:white;color:#1a1a1a;border:none;border-radius:20px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">Kapat</button>
+</div>
+
 <!-- PWA Kılavuz Modal -->
 <div id="pwa-kilavuz-modal" onclick="pwaMKapat(event)" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9997;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);">
   <div onclick="event.stopPropagation()" style="background:white;border-radius:24px 24px 0 0;padding:24px 20px 40px;width:100%;max-width:480px;animation:slideUp .3s ease;">
