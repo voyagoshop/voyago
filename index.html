@@ -1779,7 +1779,7 @@ let AKTIF_ANKET_SEFER = null;
 let MESAJLAR_DB = [];
 let TUR_ANONS_DB = []; // Anket başlatıldığında set edilir
 let CU=null, CP=null, CIF='hepsi', CASF='hepsi', CTSF='hepsi', CGK2=null;
-let ACTIVE_SHIP = 'Celestyal Journey';
+let ACTIVE_SHIP = '';
 let newTurImg = null;
 const loginKisi = {adult:1,child:0,baby:0};
 const adminKisi = {ya:1,yc:0,yb:0};
@@ -2241,9 +2241,13 @@ function doAL(){
   err.style.display='none';
   CU={key:u,...USERS[u]};
   // Rol bazlı başlangıç gemisi
-  if(CU.role==='voyago') ACTIVE_SHIP=SHIPS[0];
-  else if(CU.role==='acente') ACTIVE_SHIP=SHIPS[0];
-  else ACTIVE_SHIP=CU.ship||SHIPS[0];
+  if(CU.role==='voyago') ACTIVE_SHIP=SHIPS[0]||VOYAGES[0]?.ship||'';
+  else if(CU.role==='acente') ACTIVE_SHIP=SHIPS[0]||VOYAGES[0]?.ship||'';
+  else {
+    // Rehber için atandığı seferin gemisini bul
+    const rehberSeferi=VOYAGES.find(v=>v.guide===CU.key&&v.status!=='archived');
+    ACTIVE_SHIP=rehberSeferi?.ship||CU.ship||SHIPS[0]||VOYAGES[0]?.ship||'';
+  }
   setupAdmin();
   showScreen('sc');
 }
@@ -2370,7 +2374,7 @@ function setupAdmin(){
     mv.map(v=>`<div class="fc" onclick="filterTS(this,'${v.id}')">${v.label.split('-')[0].trim()}</div>`).join('');
   document.getElementById('ntse').innerHTML=mv.map(v=>`<option value="${v.id}">${v.label}</option>`).join('');
   document.getElementById('ye-sefer').innerHTML=mv.map(v=>`<option value="${v.id}">${v.label}</option>`).join('');
-  const allT=TOURS.filter(t=>t.ship===activeShip);
+  const allT=TOURS.filter(t=>t.ship===activeShip||!t.ship);
   document.getElementById('tur-ekle-tur').innerHTML=allT.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
   document.getElementById('tur-ekle-sefer').innerHTML=mv.map(v=>`<option value="${v.id}">${v.label}</option>`).join('');
 
