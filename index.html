@@ -302,6 +302,14 @@ textarea.ai2{resize:none;}
   <button onclick="lightboxKapat()" style="position:absolute;top:16px;right:16px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:white;font-size:22px;cursor:pointer;">×</button>
 </div>
 
+<!-- TUR DETAY MODAL -->
+<div id="tur-detay-modal" onclick="turDetayKapat(event)" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);">
+  <div id="tur-detay-icerik" onclick="event.stopPropagation()" style="background:white;border-radius:24px 24px 0 0;padding:24px 20px 36px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;animation:slideUp .3s ease;">
+    <div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px;"></div>
+    <div id="tur-detay-body"></div>
+  </div>
+</div>
+
 <!-- SABİT DİL BUTONU — giriş ekranı için -->
 <div id="fixed-dil-wrapper" class="dil-wrapper" style="position:fixed;top:16px;right:16px;z-index:9000;">
   <button class="dil-btn" id="dil-btn" onclick="dilMenuAc('yolcu')" style="font-size:18px;padding:6px 12px;display:flex;align-items:center;gap:6px;">
@@ -374,6 +382,10 @@ textarea.ai2{resize:none;}
 @keyframes pulse {
   0%,100% { transform:scale(1); }
   50%      { transform:scale(1.2); }
+}
+@keyframes slideUp {
+  from { transform:translateY(100%); opacity:0; }
+  to   { transform:translateY(0); opacity:1; }
 }
 @keyframes countdown-flash {
   0%,100% { opacity:1; }
@@ -2032,8 +2044,10 @@ function renderPassTours(sv){
     if(p.adult>0)det.push(p.adult+' yetiskin x E'+t.ap);
     if(p.child>0)det.push(p.child+' cocuk x E'+t.cp);
     if(p.baby>0)det.push(p.baby+' bebek x E'+t.bp);
-    return `<div class="ti ${j?'joined':''}">
-      <div class="ti-img">${t.img?`<img src="${t.img}" alt="${t.name}">`:'🗺️'}</div>
+    return `<div class="ti ${j?'joined':''}" style="cursor:pointer;" onclick="turDetayAc('${t.id}')">
+      <div class="ti-img" onclick="event.stopPropagation();${t.img?`lightboxAc('${t.img}')`:''}">
+        ${t.img?`<img src="${t.img}" alt="${t.name}" style="cursor:zoom-in;">`:'🗺️'}
+      </div>
       <div class="ti-body">
         <div class="th2"><div><div class="tn">${t.name}</div><span class="badge ${j?'bg':'bb'}" style="margin-top:4px;">${j?'Katiliyorum':'Katilmiyorum'}</span></div><div class="tpr">E${t.ap}</div></div>
         <div class="td">&#128205; ${t.liman} &nbsp;·&nbsp; Toplanti: ${t.saat} &nbsp;·&nbsp; ${t.gun}. gün</div>
@@ -2050,6 +2064,75 @@ function renderPassTours(sv){
       </div>
     </div>`;
   }).join('');
+}
+
+function turDetayAc(tid){
+  const t=TOURS.find(t=>t.id===tid);
+  if(!t||!CP)return;
+  const p=CP;
+  const j=p.joinedTours.includes(tid);
+  const total=(p.adult*t.ap)+(p.child*t.cp)+(p.baby*t.bp);
+  const det=[];
+  if(p.adult>0)det.push(p.adult+' yetişkin × €'+t.ap);
+  if(p.child>0)det.push(p.child+' çocuk × €'+t.cp);
+  if(p.baby>0)det.push(p.baby+' bebek × €'+t.bp);
+
+  // Kapasite
+  const maxK=t.max_kisi||0;
+  const katKisi=passengers.filter(px=>px.joinedTours.includes(tid)).reduce((a,px)=>a+px.adult+px.child+px.baby,0);
+  const kalanYer=maxK>0?maxK-katKisi:null;
+  const sonYer=kalanYer!==null&&kalanYer<=(t.uyari_esigi||5)&&kalanYer>0;
+  const turDolu=kalanYer!==null&&kalanYer<=0;
+  const turAktif=t.aktif!==false;
+
+  const kapasiteHtml=maxK>0?`
+    <div style="margin-bottom:14px;">
+      <div style="height:6px;background:var(--gray);border-radius:3px;overflow:hidden;">
+        <div style="height:100%;width:${Math.min(100,(katKisi/maxK)*100)}%;background:${turDolu?'var(--red)':sonYer?'var(--amber)':'var(--green)'};border-radius:3px;transition:width .5s;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-top:4px;">
+        <span>${katKisi} kişi kayıtlı</span>
+        <span style="color:${turDolu?'var(--red)':sonYer?'var(--amber)':'var(--green)'};">${turDolu?'🔴 Dolu':sonYer?'⚠️ Son '+kalanYer+' yer':'✓ '+kalanYer+' yer müsait'}</span>
+      </div>
+    </div>`:'';
+
+  let butonHtml='';
+  if(j){
+    butonHtml=`<button style="width:100%;padding:13px;background:var(--gl);color:var(--green);border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:default;font-family:'DM Sans',sans-serif;">✓ Tura Katılıyorsunuz</button>
+    <button onclick="turIptalMesaj('${t.name}');turDetayKapat();" style="width:100%;padding:10px;background:transparent;border:1.5px solid var(--border);border-radius:12px;font-size:13px;color:var(--t2);cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:8px;">İptal için rehbere yazın →</button>`;
+  } else if(!turAktif){
+    butonHtml=`<button style="width:100%;padding:13px;background:var(--gray);color:var(--t3);border:none;border-radius:12px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;">Kayıt Kapalı</button>`;
+  } else if(turDolu){
+    butonHtml=`<button style="width:100%;padding:13px;background:var(--rl);color:var(--red);border:none;border-radius:12px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;">🔴 Tur Dolu</button>`;
+  } else {
+    butonHtml=`<button onclick="toggleTour('${tid}');turDetayKapat();" style="width:100%;padding:13px;background:var(--blue);color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">${tr('tura_katil')}</button>`;
+  }
+
+  document.getElementById('tur-detay-body').innerHTML=`
+    ${t.img?`<img src="${t.img}" onclick="lightboxAc('${t.img}')" style="width:100%;height:200px;object-fit:cover;border-radius:16px;margin-bottom:16px;cursor:zoom-in;">`:''}
+    <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--t);margin-bottom:8px;">${t.name}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+      <span style="background:var(--bl);color:#0c447c;padding:4px 12px;border-radius:20px;font-size:12px;">📍 ${t.liman}</span>
+      <span style="background:var(--bl);color:#0c447c;padding:4px 12px;border-radius:20px;font-size:12px;">⏰ ${t.saat}</span>
+      <span style="background:var(--bl);color:#0c447c;padding:4px 12px;border-radius:20px;font-size:12px;">${t.gun}. Gün</span>
+    </div>
+    ${kapasiteHtml}
+    <div style="background:var(--gray);border-radius:12px;padding:14px;margin-bottom:16px;">
+      <div style="font-size:12px;color:var(--t2);margin-bottom:8px;">ÜCRET HESABI</div>
+      ${det.map(d=>`<div style="font-size:13px;color:var(--t);margin-bottom:3px;">${d}</div>`).join('')}
+      <div style="font-size:18px;font-weight:600;color:var(--blue);margin-top:8px;border-top:1px solid var(--border);padding-top:8px;">Toplam: €${total}</div>
+    </div>
+    ${butonHtml}
+  `;
+  const modal=document.getElementById('tur-detay-modal');
+  modal.style.display='flex';
+  document.body.style.overflow='hidden';
+}
+
+function turDetayKapat(e){
+  if(e&&e.target!==document.getElementById('tur-detay-modal'))return;
+  document.getElementById('tur-detay-modal').style.display='none';
+  document.body.style.overflow='';
 }
 
 function toggleTour(tid){
