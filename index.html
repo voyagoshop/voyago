@@ -2809,8 +2809,14 @@ function filterTS(el,s){document.querySelectorAll('#tsf .fc').forEach(c=>c.class
 function renderTA(s){
   const iS=CU?.role==='super';
   const activeShip=iS?ACTIVE_SHIP:CU?.ship;
-  let tours=TOURS.filter(t=>t.ship===activeShip);
-  if(s!=='hepsi')tours=tours.filter(t=>t.seferler.includes(s));
+  // Gemi bazlı — sefer ID eşleşmese de aynı geminin tüm turlarını göster
+  let tours=TOURS.filter(t=>t.ship===activeShip||!t.ship);
+  // Sefer filtresi varsa önce o seferdekileri, yoksa hepsini göster
+  if(s!=='hepsi'){
+    const seferTours=tours.filter(t=>t.seferler.includes(s));
+    if(seferTours.length>0) tours=seferTours;
+    // Sefer eşleşmiyorsa gemi bazlı tümünü göster
+  }
   const el=document.getElementById('tal');
   el.innerHTML=tours.map(t=>{
     const kat=passengers.filter(p=>p.joinedTours.includes(t.id));
