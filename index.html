@@ -1383,8 +1383,11 @@ async function initDB() {
     // Gazete yükle
     const gazeteDB = await dbGet('gazete');
     if(gazeteDB.length > 0) {
-      const son = gazeteDB.sort((a,b)=>new Date(b.guncelleme)-new Date(a.guncelleme))[0];
-      GAZETE_IMGS = son.gorseller || [];
+      // Önce aktif sefer ID'sine göre, yoksa en son güncellenen
+      const aktifSefer = VOYAGES.find(v=>v.status!=='archived'&&v.visible);
+      let hedefGazete = aktifSefer ? gazeteDB.find(g=>g.sefer_id===aktifSefer.id) : null;
+      if(!hedefGazete) hedefGazete = gazeteDB.sort((a,b)=>new Date(b.guncelleme)-new Date(a.guncelleme))[0];
+      GAZETE_IMGS = hedefGazete?.gorseller || [];
     }
 
     // Rehber raporları yükle
@@ -2223,7 +2226,7 @@ function delGazete(i){GAZETE_IMGS.splice(i,1);saveGazeteDB();renderGazeteAdmin()
 function clearGazete(){GAZETE_IMGS=[];saveGazeteDB();renderGazeteAdmin();renderGazete();showToast('Temizlendi.');}
 
 async function saveGazeteDB(){
-  const sv=getCurrentSeferId()||'genel';
+  const sv=getCurrentSeferId()||VOYAGES.find(v=>v.status!=='archived')?.id||'genel';
   const mevcut=await dbGet('gazete',{sefer_id:sv});
   if(mevcut.length>0){
     await dbUpdate('gazete',{sefer_id:sv},{gorseller:GAZETE_IMGS,guncelleme:new Date().toISOString()});
@@ -2510,9 +2513,22 @@ function initDailyForms(){
 
 function getCurrentSeferId(){
   const iS=CU?.role==='super';
-  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  const isAcente=CU?.role==='acente';
+  const isGuide=CU?.role==='guide';
+  // Rehber için önce atandığı aktif seferi bul
+  if(isGuide){
+    const rehberSeferi=VOYAGES.find(v=>
+      (v.guide===CU.key||v.guide===CU.name)&&v.status!=='archived'&&v.visible
+    );
+    if(rehberSeferi) return rehberSeferi.id;
+    // Atama yoksa gemi bazlı bul
+    const activeShip=CU.ship||ACTIVE_SHIP;
+    const gemSeferi=VOYAGES.find(v=>v.ship===activeShip&&v.status!=='archived');
+    if(gemSeferi) return gemSeferi.id;
+  }
+  const activeShip=iS?ACTIVE_SHIP:CU?.ship||ACTIVE_SHIP;
   const mv=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived');
-  return mv[0]?.id;
+  return mv[0]?.id||VOYAGES.find(v=>v.status!=='archived')?.id;
 }
 
 function savePort(){
