@@ -3140,7 +3140,7 @@ async function loadVoyagesAndRenderSef(){
 }
 
 async function loadVoyagesFromDB(){
-  if(VOYAGES.length>0) return; // zaten yüklü
+  // Her zaman çek — güncel kalsın
   try{
     const seferlerDB=await dbGet('seferler');
     seferlerDB.forEach(s=>{
