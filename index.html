@@ -759,8 +759,13 @@ textarea.ai2{resize:none;}
 
     <!-- GÜNLÜK İÇERİK -->
     <div id="admin-gunluk" class="apg">
+      <!-- Sefer seçici -->
+      <div style="background:var(--bl);border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
+        <div style="font-size:13px;font-weight:500;color:#0c447c;flex-shrink:0;">Sefer:</div>
+        <select id="gunluk-sefer-sel" onchange="gunlukSeferDegis(this.value)" style="flex:1;padding:7px 10px;border:1.5px solid #b8d4f0;border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif;background:white;color:var(--t);"></select>
+      </div>
       <div class="fs2" style="background:var(--rl);">
-        <div class="fst" style="color:var(--red);">Toplantı Bilgisi — Misafire görünür</div>
+        <div class="fst" style="color:var(--red);">Toplanti Bilgisi</div>
         <div class="two"><div><label class="fl" style="margin-bottom:3px;">Saat</label><input class="ai2" type="time" id="m-saat" style="margin:0;"></div><div><label class="fl" style="margin-bottom:3px;">Yer</label><input class="ai2" type="text" id="m-yer" placeholder="Ana Salon" style="margin:0;"></div></div>
         <div style="margin-top:8px;"><label class="fl" style="margin-bottom:3px;">Konu</label><input class="ai2" type="text" id="m-konu" placeholder="Yarınki tur bilgilendirmesi" style="margin:0;"></div>
         <button class="save-daily-btn" style="background:var(--red);margin-top:10px;" onclick="saveMeeting()">Kaydet ve Misafire Göster</button>
@@ -2569,6 +2574,51 @@ function saveMeeting(){
   if(CP&&CP.sefer===sv)renderProgramPage(sv);
   showToast('Toplanti bilgisi misafire gönderildi!');
 }
+function gunlukSeferDegis(sv){
+  if(!sv)return;
+  // Seçilen seferin günlük verilerini forma yükle
+  const d=getDailyForSefer(sv);
+  // Toplantı
+  if(document.getElementById('m-saat'))document.getElementById('m-saat').value=d.meeting?.saat||'';
+  if(document.getElementById('m-yer'))document.getElementById('m-yer').value=d.meeting?.yer||'';
+  if(document.getElementById('m-konu'))document.getElementById('m-konu').value=d.meeting?.konu||'';
+  // Liman
+  if(document.getElementById('port-name'))document.getElementById('port-name').value=d.port?.name||'';
+  if(document.getElementById('port-country'))document.getElementById('port-country').value=d.port?.country||'';
+  if(document.getElementById('port-arival'))document.getElementById('port-arival').value=d.port?.arival||'';
+  if(document.getElementById('port-depart'))document.getElementById('port-depart').value=d.port?.depart||'';
+  // Program
+  programItems=d.program||[];
+  renderProgramForm(programItems);
+  // Promosyon
+  promoItems=d.promos||[];
+  renderPromoForm(promoItems);
+  // Günün mesajı
+  const inp=document.getElementById('gun-mesaji-input');
+  if(inp){inp.value=d.gun_mesaji||'';GUNMESAJI_TEMP=d.gun_mesaji||'';}
+  showToast('Sefer verileri yuklendi.');
+}
+
+// getCurrentSeferId sefer seçiciye gore de alsın
+function getCurrentSeferId(){
+  // Önce sefer seçiciye bak
+  const sel=document.getElementById('gunluk-sefer-sel');
+  if(sel&&sel.value) return sel.value;
+  const iS=CU?.role==='super';
+  const isAcente=CU?.role==='acente';
+  const isGuide=CU?.role==='guide';
+  if(isGuide){
+    const rehberSeferi=VOYAGES.find(v=>(v.guide===CU.key||v.guide===CU.name)&&v.status!=='archived'&&v.visible);
+    if(rehberSeferi) return rehberSeferi.id;
+    const activeShip=CU.ship||ACTIVE_SHIP;
+    const gemSeferi=VOYAGES.find(v=>v.ship===activeShip&&v.status!=='archived');
+    if(gemSeferi) return gemSeferi.id;
+  }
+  const activeShip=iS?ACTIVE_SHIP:CU?.ship||ACTIVE_SHIP;
+  const mv=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived');
+  return mv[0]?.id||VOYAGES.find(v=>v.status!=='archived')?.id;
+}
+
 function saveMeeting2(){
   document.getElementById('m-saat').value=document.getElementById('m-saat2').value;
   document.getElementById('m-yer').value=document.getElementById('m-yer2').value;
