@@ -1010,12 +1010,16 @@ textarea.ai2{resize:none;}
       <div class="sl2" style="margin-top:16px;">Geçmiş Seferler</div>
       <div id="vl-archived"></div>
       <div class="fs2" style="margin-top:14px;">
-        <div class="fst">Yeni Sefer Ekle</div>
-        <input class="ai2" type="text" id="nvl" placeholder="Sefer adı — Örn: 29 Mar - 5 Nis 2026">
-        <div class="two"><div><label class="fl" style="margin-bottom:3px;">Başlangıç</label><input class="ai2" type="date" id="nvs" style="margin:0;"></div><div><label class="fl" style="margin-bottom:3px;">Bitiş</label><input class="ai2" type="date" id="nve" style="margin:0;"></div></div>
-        <input class="ai2" type="text" id="nvr" placeholder="Güzergah" style="margin-top:8px;">
+        <div class="fst" id="sefer-form-baslik">Yeni Sefer Ekle</div>
+        <input class="ai2" type="text" id="nvl" placeholder="Sefer adı — Örn: 2-5 May 2026">
+        <div class="two" style="margin-top:8px;">
+          <div><label class="fl" style="margin-bottom:3px;">Başlangıç</label><input class="ai2" type="date" id="nvs" style="margin:0;"></div>
+          <div><label class="fl" style="margin-bottom:3px;">Bitiş</label><input class="ai2" type="date" id="nve" style="margin:0;"></div>
+        </div>
+        <input class="ai2" type="text" id="nvr" placeholder="Güzergah — Örn: Pire-Santorini-Rodos" style="margin-top:8px;">
+        <input class="ai2" type="text" id="nvgemi" placeholder="Gemi adı — Örn: Celestyal Discovery" style="margin-top:8px;">
         <div id="vgf"></div>
-        <button class="bp" onclick="addVoyage()">Seferi Kaydet</button>
+        <button class="bp" id="sefer-kaydet-btn" onclick="addVoyage()">Seferi Kaydet</button>
       </div>
     </div>
 
@@ -2416,6 +2420,48 @@ function toggleVoyageVisible(id){
   const v=VOYAGES.find(v=>v.id===id);
   if(v){v.visible=!v.visible;saveSeferDB(v);setupAdmin();populateSeferler();showToast(v.visible?'Sefer misafire görünür.':'Sefer gizlendi.');}
 }
+function seferDuzenle(id){
+  const v=VOYAGES.find(v=>v.id===id);
+  if(!v)return;
+  document.getElementById('nvl').value=v.label||'';
+  document.getElementById('nvs').value=v.startDate||'';
+  document.getElementById('nve').value=v.endDate||'';
+  document.getElementById('nvr').value=v.route||'';
+  const nvgemi=document.getElementById('nvgemi');
+  if(nvgemi)nvgemi.value=v.ship||'';
+  window._editVoyageId=id;
+  const btn=document.getElementById('sefer-kaydet-btn');
+  const baslik=document.getElementById('sefer-form-baslik');
+  if(btn){btn.textContent='Güncelle';btn.setAttribute('onclick','seferGuncelle()');}
+  if(baslik)baslik.textContent='Seferi Düzenle';
+  document.getElementById('nvl').focus();
+  document.getElementById('nvl').scrollIntoView({behavior:'smooth'});
+  showToast('Bilgiler forma yuklendi!');
+}
+
+function seferGuncelle(){
+  const id=window._editVoyageId;
+  if(!id){addVoyage();return;}
+  const v=VOYAGES.find(v=>v.id===id);
+  if(!v)return;
+  v.label=document.getElementById('nvl').value.trim()||v.label;
+  v.startDate=document.getElementById('nvs').value||v.startDate;
+  v.endDate=document.getElementById('nve').value||v.endDate;
+  v.route=document.getElementById('nvr').value.trim()||v.route;
+  const gemiVal=document.getElementById('nvgemi')?.value.trim();
+  if(gemiVal)v.ship=gemiVal;
+  saveSeferDB(v);
+  ['nvl','nvs','nve','nvr','nvgemi'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  window._editVoyageId=null;
+  const btn=document.getElementById('sefer-kaydet-btn');
+  const baslik=document.getElementById('sefer-form-baslik');
+  if(btn){btn.textContent='Seferi Kaydet';btn.setAttribute('onclick','addVoyage()');}
+  if(baslik)baslik.textContent='Yeni Sefer Ekle';
+  populateSeferler();
+  renderSeferPanel();
+  showToast('Sefer güncellendi!');
+}
+
 function archiveVoyage(id){
   if(!confirm('Bu sefer arsivlensin mi?'))return;
   const v=VOYAGES.find(v=>v.id===id);
@@ -3005,6 +3051,7 @@ function renderSeferPanel(){
             <div style="font-size:11px;color:var(--t2);margin-top:2px;">${v.ship||''} ${v.startDate?'· '+v.startDate:''} ${v.endDate?'→ '+v.endDate:''}</div>
           </div>
           <button onclick="toggleVoyageVisible('${v.id}')" style="padding:4px 10px;border-radius:20px;font-size:11px;border:1.5px solid ${v.visible?'var(--green)':'var(--border)'};color:${v.visible?'var(--green)':'var(--t3)'};background:transparent;cursor:pointer;">${v.visible?'Görünür':'Gizli'}</button>
+          <button onclick="seferDuzenle('${v.id}')" style="padding:4px 10px;border-radius:20px;font-size:11px;border:1.5px solid var(--blue);color:var(--blue);background:transparent;cursor:pointer;">Düzenle</button>
           <button onclick="archiveVoyage('${v.id}')" style="padding:4px 10px;border-radius:20px;font-size:11px;border:1.5px solid var(--amber);color:var(--amber);background:transparent;cursor:pointer;">Arşivle</button>
           <button onclick="deleteVoyageDB('${v.id}')" style="padding:4px 10px;border-radius:20px;font-size:11px;border:1.5px solid var(--red);color:var(--red);background:transparent;cursor:pointer;">Sil</button>
         </div>`).join('');
@@ -3061,6 +3108,8 @@ function addVoyage(){
   saveSeferDB(yeniV);
   populateSeferler();setupAdmin();
   renderSeferPanel();
+  // Formu temizle
+  ['nvl','nvs','nve','nvr','nvgemi'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   showToast('Sefer eklendi!');
 }
 
