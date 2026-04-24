@@ -1366,7 +1366,9 @@ async function initDB() {
       ap: t.fiyat_yetiskin || 0, cp: t.fiyat_cocuk || 0, bp: t.fiyat_bebek || 0,
       ship: t.gemi || '', seferler: t.sefer_listesi || [], img: t.gorsel || null,
       max_kisi: t.max_kisi || 0, uyari_esigi: t.uyari_esigi || 5,
-      aktif: t.aktif !== false
+      aktif: t.aktif !== false,
+      uyari_mesaji: t.uyari_mesaji || '',
+      uyari_aktif: t.uyari_aktif || false
     }));
 
     // Günlük içerikleri yükle
@@ -1470,7 +1472,9 @@ async function saveTurDB(tur) {
     gorsel: tur.img || null, acente_id: getMyAcente(),
     max_kisi: tur.max_kisi || 0,
     uyari_esigi: tur.uyari_esigi || 5,
-    aktif: tur.aktif !== false
+    aktif: tur.aktif !== false,
+    uyari_mesaji: tur.uyari_mesaji || '',
+    uyari_aktif: tur.uyari_aktif || false
   };
   if(mevcut.length > 0) {
     await dbUpdate('turlar', {id: tur.id}, veri);
@@ -2081,7 +2085,13 @@ function renderPassTours(sv){
     if(p.adult>0)det.push(p.adult+' yetiskin x E'+t.ap);
     if(p.child>0)det.push(p.child+' cocuk x E'+t.cp);
     if(p.baby>0)det.push(p.baby+' bebek x E'+t.bp);
+    // Uyarı mesajı
+    const uyariHtml = t.uyari_aktif && t.uyari_mesaji && !j
+      ? `<div style="background:linear-gradient(135deg,#7B0F0F,#a32d2d);color:white;border-radius:10px;padding:8px 12px;margin-bottom:6px;font-size:12px;font-weight:500;text-align:center;animation:countdown-flash 2s ease-in-out infinite;">${t.uyari_mesaji}</div>`
+      : '';
+
     return `<div class="ti ${j?'joined':''}" style="cursor:pointer;" onclick="turDetayAc('${t.id}')">
+      ${uyariHtml}
       <div class="ti-img" onclick="event.stopPropagation();${t.img?`lightboxAc('${t.img}')`:''}">
         ${t.img?`<img src="${t.img}" alt="${t.name}" style="cursor:zoom-in;">`:'🗺️'}
       </div>
@@ -2871,9 +2881,10 @@ function renderTA(s){
             </div>`:''}
             <div style="margin-top:5px;">${sT}</div>
           </div>
-          <div style="display:flex;gap:5px;flex-shrink:0;">
+          <div style="display:flex;gap:5px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--blue);color:var(--blue);background:transparent;" onclick="turDuzenle('${t.id}')">Düzenle</button>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid ${aktif?'var(--amber)':'var(--green)'};color:${aktif?'var(--amber)':'var(--green)'};background:transparent;" onclick="turAktifToggle('${t.id}')">${aktif?'Kapat':'Aç'}</button>
+            <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid ${t.uyari_aktif?'var(--red)':'var(--purple)'};color:${t.uyari_aktif?'var(--red)':'var(--purple)'};background:${t.uyari_aktif?'var(--rl)':'transparent'};" onclick="turUyariToggle('${t.id}')">${t.uyari_aktif?'⚠️ Uyarı Açık':'⚠️ Uyarı'}</button>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--red);color:var(--red);background:transparent;" onclick="deleteTour('${t.id}')">Sil</button>
           </div>
         </div>
@@ -2887,6 +2898,26 @@ function renderTA(s){
     </div>`;
   }).join('') || '<div class="es">Tur bulunamadi.</div>';
 }
+function turUyariToggle(tid){
+  const t=TOURS.find(t=>t.id===tid);
+  if(!t)return;
+  if(!t.uyari_aktif){
+    // Uyarı mesajı seç
+    const secenekler=['Kisitli yer kaldi - hemen kayit olun!','Kayitlar dolmak uzere!','Son birkac yer kaldi!','Tur neredeyse dolu!'];
+    const secim=prompt('Uyari mesaji secin (1-4) veya kendi mesajinizi yazin:'+String.fromCharCode(10)+'1. '+secenekler[0]+String.fromCharCode(10)+'2. '+secenekler[1]+String.fromCharCode(10)+'3. '+secenekler[2]+String.fromCharCode(10)+'4. '+secenekler[3]);
+    if(!secim)return;
+    const idx=parseInt(secim);
+    t.uyari_mesaji=(!isNaN(idx)&&idx>=1&&idx<=4)?'⚠️ '+secenekler[idx-1]:secim;
+    t.uyari_aktif=true;
+  } else {
+    t.uyari_aktif=false;
+    t.uyari_mesaji='';
+  }
+  saveTurDB(t);
+  renderTA(CTSF);
+  showToast(t.uyari_aktif?'Uyarı yolculara gösterilecek!':'Uyarı kaldırıldı.');
+}
+
 function turAktifToggle(tid){
   const t=TOURS.find(t=>t.id===tid);
   if(!t)return;
