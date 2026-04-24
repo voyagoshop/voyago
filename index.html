@@ -2151,7 +2151,13 @@ function setupAdmin(){
   else topClass+='gub';
   document.getElementById('atop').className=topClass;
   document.getElementById('apt').textContent=isVoyago?'VOYAGO App':isAcente?'Acente Paneli — '+u.name:'Rehber Paneli';
-  document.getElementById('aps').textContent=isVoyago?'Süper Yönetici':isAcente?u.city||'':u.name+' - '+u.ship;
+  // Rehber için sefer bilgisi göster
+  if(!isVoyago && !isAcente){
+    const aktifV = VOYAGES.find(v=>(v.guide===u.key||v.guide===CU?.key)&&v.status!=='archived'&&v.visible);
+    document.getElementById('aps').textContent = u.name + (aktifV?' — '+aktifV.label:'');
+  } else {
+    document.getElementById('aps').textContent=isVoyago?'Süper Yönetici':u.city||'';
+  }
 
   // Gemi seçici (voyago ve acente görür)
   const ssa=document.getElementById('ship-select-area');
@@ -2163,7 +2169,18 @@ function setupAdmin(){
   if(isVoyago){rb.className='rsb';rb.style.cssText='padding:3px 11px;border-radius:20px;font-size:12px;font-weight:600;background:#26215c;color:white;';rb.textContent='VOYAGO';}
   else if(isAcente){rb.className='rsb rsu';rb.style.cssText='';rb.textContent='Acente';}
   else{rb.className='rsb rsg';rb.style.cssText='';rb.textContent='Rehber';}
-  document.getElementById('rde').textContent=isVoyago?'Tüm acenteleri ve kullanıcıları yönetiyorsunuz.':isAcente?'Kendi acente paneliniz.':u.ship+' gemisindeki seferleriniz.';
+  // Rehber için atandığı seferi bul
+  if(!isVoyago && !isAcente){
+    const rehberSeferleri = VOYAGES.filter(v=>v.guide===u.key||v.guide===CU?.key);
+    if(rehberSeferleri.length>0){
+      const aktifSefer = rehberSeferleri.find(v=>v.status!=='archived'&&v.visible) || rehberSeferleri[0];
+      document.getElementById('rde').textContent = aktifSefer.label + (aktifSefer.ship?' — '+aktifSefer.ship:'');
+    } else {
+      document.getElementById('rde').textContent = u.ship ? u.ship+' gemisi' : 'Seferleriniz';
+    }
+  } else {
+    document.getElementById('rde').textContent=isVoyago?'Tüm acenteleri ve kullanıcıları yönetiyorsunuz.':'Kendi acente paneliniz.';
+  }
 
   // Sekme görünürlükleri
   document.getElementById('atab-reh').style.display=isAcente?'block':'none';
