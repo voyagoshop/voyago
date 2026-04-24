@@ -2915,12 +2915,7 @@ function renderTA(s){
     const turDolu = kalanYer !== null && kalanYer <= 0;
     const aktif = t.aktif !== false;
 
-    return `<div class="tur-admin-card" draggable="true" id="tac-${t.id}" 
-      ondragstart="turDragStart(event,'${t.id}')" 
-      ondragover="turDragOver(event)"
-      ondrop="turDrop(event,'${t.id}')"
-      ondragend="turDragEnd(event)"
-      style="${!aktif?'opacity:.6;':''}cursor:grab;">
+    return `<div class="tur-admin-card" style="${!aktif?'opacity:.6;':''}">
       <div class="tur-admin-img" onclick="document.getElementById('tei-${t.id}').click()">
         ${t.img?`<img src="${t.img}">`:'<span>🗺️</span>'}
         <div class="img-ov">Görsel degistir</div>
@@ -2929,10 +2924,7 @@ function renderTA(s){
       <div class="tur-admin-body">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
           <div style="flex:1;">
-            <div style="display:flex;align-items:center;gap:6px;">
-              <span style="color:var(--border);font-size:16px;cursor:grab;" title="Sürükle">⠿</span>
-              <div style="font-size:14px;font-weight:500;color:var(--t);">${t.name}</div>
-            </div>
+            <div style="font-size:14px;font-weight:500;color:var(--t);">${t.name}</div>
             <div style="font-size:11px;color:var(--t2);margin-top:2px;">📍 ${t.liman} · ${t.saat} · ${t.gun}. gün</div>
             ${maxK>0?`<div style="font-size:11px;margin-top:3px;color:${turDolu?'var(--red)':sonYerUyari?'var(--amber)':'var(--green)'};">
               ${turDolu?'🔴 Tur dolu':''}
@@ -2943,10 +2935,6 @@ function renderTA(s){
             <div style="margin-top:5px;">${sT}</div>
           </div>
           <div style="display:flex;gap:5px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
-            <div style="display:flex;gap:3px;">
-              <button onclick="turSirayukari('${t.id}')" style="padding:4px 10px;border-radius:20px;font-size:13px;cursor:pointer;border:1.5px solid var(--border);color:var(--t2);background:transparent;" title="Yukarı taşı">▲</button>
-              <button onclick="turSiraAsagi('${t.id}')" style="padding:4px 10px;border-radius:20px;font-size:13px;cursor:pointer;border:1.5px solid var(--border);color:var(--t2);background:transparent;" title="Aşağı taşı">▼</button>
-            </div>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--blue);color:var(--blue);background:transparent;" onclick="turDuzenle('${t.id}')">Düzenle</button>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid ${aktif?'var(--amber)':'var(--green)'};color:${aktif?'var(--amber)':'var(--green)'};background:transparent;" onclick="turAktifToggle('${t.id}')">${aktif?'Kapat':'Aç'}</button>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid ${t.uyari_aktif?'var(--red)':'var(--purple)'};color:${t.uyari_aktif?'var(--red)':'var(--purple)'};background:${t.uyari_aktif?'var(--rl)':'transparent'};" onclick="turUyariToggle('${t.id}')">${t.uyari_aktif?'⚠️ Uyarı Açık':'⚠️ Uyarı'}</button>
