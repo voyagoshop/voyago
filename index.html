@@ -1936,7 +1936,13 @@ function doPL(){
   document.getElementById('app-ship-name').textContent=v?.ship||'Celestyal Journey';
   // Tarih pill
   const now=new Date();
-  document.getElementById('app-date-pill').textContent=now.toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'});
+  // Seferin tarih aralığını göster
+  const seferTarih = v?.startDate && v?.endDate
+    ? new Date(v.startDate).toLocaleDateString('tr-TR',{day:'numeric',month:'short'}) + ' – ' + new Date(v.endDate).toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'})
+    : v?.startDate
+    ? new Date(v.startDate).toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'})
+    : now.toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'});
+  document.getElementById('app-date-pill').textContent = seferTarih;
   // Sefer sayısı pill
   const visCount=VOYAGES.filter(vv=>vv.visible&&vv.status!=='archived'&&vv.ship===v?.ship).length;
   const myIdx=VOYAGES.filter(vv=>vv.visible&&vv.status!=='archived'&&vv.ship===v?.ship).findIndex(vv=>vv.id===sv)+1;
@@ -4190,7 +4196,12 @@ function autoLogin() {
     document.getElementById('akl').textContent = 'Kabin ' + p.kabin;
     document.getElementById('app-ship-name').textContent = v.ship || '';
     const now = new Date();
-    document.getElementById('app-date-pill').textContent = now.toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'});
+    const seferTarihA = v?.startDate && v?.endDate
+      ? new Date(v.startDate).toLocaleDateString('tr-TR',{day:'numeric',month:'short'}) + ' – ' + new Date(v.endDate).toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'})
+      : v?.startDate
+      ? new Date(v.startDate).toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'})
+      : now.toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'});
+    document.getElementById('app-date-pill').textContent = seferTarihA;
     const visVoyages = VOYAGES.filter(vv=>vv.visible&&vv.status!=='archived'&&vv.ship===v.ship);
     const myIdx = visVoyages.findIndex(vv=>vv.id===p.sefer)+1;
     const gunYazisiA=gemiGunYazisi(v);
@@ -4272,7 +4283,12 @@ async function devamEt() {
     document.getElementById('akl').textContent = 'Kabin ' + p.kabin;
     document.getElementById('app-ship-name').textContent = v.ship || '';
     const now = new Date();
-    document.getElementById('app-date-pill').textContent = now.toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'});
+    const seferTarihD = v?.startDate && v?.endDate
+      ? new Date(v.startDate).toLocaleDateString('tr-TR',{day:'numeric',month:'short'}) + ' – ' + new Date(v.endDate).toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'})
+      : v?.startDate
+      ? new Date(v.startDate).toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'})
+      : now.toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'});
+    document.getElementById('app-date-pill').textContent = seferTarihD;
     const visV = VOYAGES.filter(vv=>vv.visible&&vv.status!=='archived'&&vv.ship===v.ship);
     const myIdx = visV.findIndex(vv=>vv.id===p.sefer)+1;
     const gunYazisiD=gemiGunYazisi(v);
