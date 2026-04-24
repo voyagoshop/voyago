@@ -1374,7 +1374,8 @@ async function initDB() {
       max_kisi: t.max_kisi || 0, uyari_esigi: t.uyari_esigi || 5,
       aktif: t.aktif !== false,
       uyari_mesaji: t.uyari_mesaji || '',
-      uyari_aktif: t.uyari_aktif || false
+      uyari_aktif: t.uyari_aktif || false,
+      sira: t.sira || 0
     }));
 
     // Günlük içerikleri yükle
@@ -1480,7 +1481,8 @@ async function saveTurDB(tur) {
     uyari_esigi: tur.uyari_esigi || 5,
     aktif: tur.aktif !== false,
     uyari_mesaji: tur.uyari_mesaji || '',
-    uyari_aktif: tur.uyari_aktif || false
+    uyari_aktif: tur.uyari_aktif || false,
+    sira: tur.sira || 0
   };
   if(mevcut.length > 0) {
     await dbUpdate('turlar', {id: tur.id}, veri);
@@ -2891,14 +2893,13 @@ function filterTS(el,s){document.querySelectorAll('#tsf .fc').forEach(c=>c.class
 function renderTA(s){
   const iS=CU?.role==='super';
   const activeShip=iS?ACTIVE_SHIP:CU?.ship;
-  // Gemi bazlı — sefer ID eşleşmese de aynı geminin tüm turlarını göster
   let tours=TOURS.filter(t=>t.ship===activeShip||!t.ship);
-  // Sefer filtresi varsa önce o seferdekileri, yoksa hepsini göster
   if(s!=='hepsi'){
     const seferTours=tours.filter(t=>t.seferler.includes(s));
     if(seferTours.length>0) tours=seferTours;
-    // Sefer eşleşmiyorsa gemi bazlı tümünü göster
   }
+  // Sıralama alanına göre sırala
+  tours=tours.slice().sort((a,b)=>(a.sira||0)-(b.sira||0));
   const el=document.getElementById('tal');
   el.innerHTML=tours.map(t=>{
     const kat=passengers.filter(p=>p.joinedTours.includes(t.id));
@@ -2914,7 +2915,12 @@ function renderTA(s){
     const turDolu = kalanYer !== null && kalanYer <= 0;
     const aktif = t.aktif !== false;
 
-    return `<div class="tur-admin-card" style="${!aktif?'opacity:.6;':''}">
+    return `<div class="tur-admin-card" draggable="true" id="tac-${t.id}" 
+      ondragstart="turDragStart(event,'${t.id}')" 
+      ondragover="turDragOver(event)"
+      ondrop="turDrop(event,'${t.id}')"
+      ondragend="turDragEnd(event)"
+      style="${!aktif?'opacity:.6;':''}cursor:grab;">
       <div class="tur-admin-img" onclick="document.getElementById('tei-${t.id}').click()">
         ${t.img?`<img src="${t.img}">`:'<span>🗺️</span>'}
         <div class="img-ov">Görsel degistir</div>
@@ -2923,7 +2929,10 @@ function renderTA(s){
       <div class="tur-admin-body">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
           <div style="flex:1;">
-            <div style="font-size:14px;font-weight:500;color:var(--t);">${t.name}</div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="color:var(--border);font-size:16px;cursor:grab;" title="Sürükle">⠿</span>
+              <div style="font-size:14px;font-weight:500;color:var(--t);">${t.name}</div>
+            </div>
             <div style="font-size:11px;color:var(--t2);margin-top:2px;">📍 ${t.liman} · ${t.saat} · ${t.gun}. gün</div>
             ${maxK>0?`<div style="font-size:11px;margin-top:3px;color:${turDolu?'var(--red)':sonYerUyari?'var(--amber)':'var(--green)'};">
               ${turDolu?'🔴 Tur dolu':''}
@@ -2968,6 +2977,59 @@ function turUyariToggle(tid){
   saveTurDB(t);
   renderTA(CTSF);
   showToast(t.uyari_aktif?'Uyarı yolculara gösterilecek!':'Uyarı kaldırıldı.');
+}
+
+// ══ TUR SIRA DEĞIŞTIRME ══
+let _dragTurId = null;
+
+function turDragStart(e, tid){
+  _dragTurId = tid;
+  e.currentTarget.style.opacity = '0.5';
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function turDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.style.borderTop = '3px solid var(--blue)';
+}
+
+function turDrop(e, hedefId){
+  e.preventDefault();
+  e.currentTarget.style.borderTop = '';
+  if(!_dragTurId || _dragTurId === hedefId) return;
+  
+  // Sıraları değiştir
+  const kaynak = TOURS.find(t=>t.id===_dragTurId);
+  const hedef = TOURS.find(t=>t.id===hedefId);
+  if(!kaynak||!hedef) return;
+  
+  const tempSira = kaynak.sira||0;
+  kaynak.sira = hedef.sira||0;
+  hedef.sira = tempSira;
+  
+  // Eğer sıralar aynıysa index'e göre ata
+  const iS=CU?.role==='super';
+  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  const tours=TOURS.filter(t=>t.ship===activeShip||!t.ship).slice().sort((a,b)=>(a.sira||0)-(b.sira||0));
+  const srcIdx=tours.findIndex(t=>t.id===_dragTurId);
+  const dstIdx=tours.findIndex(t=>t.id===hedefId);
+  
+  // Yeniden sırala
+  tours.splice(srcIdx,1);
+  tours.splice(dstIdx,0,kaynak);
+  tours.forEach((t,i)=>{t.sira=i;});
+  
+  // DB'ye kaydet
+  tours.forEach(t=>saveTurDB(t));
+  renderTA(CTSF);
+  showToast('Tur sirasi guncellendi!');
+}
+
+function turDragEnd(e){
+  e.currentTarget.style.opacity = '1';
+  e.currentTarget.style.borderTop = '';
+  _dragTurId = null;
 }
 
 function turAktifToggle(tid){
