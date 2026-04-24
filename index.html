@@ -971,6 +971,14 @@ textarea.ai2{resize:none;}
 
     <!-- SEFERLER -->
     <div id="admin-sef" class="apg">
+      <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);border-radius:16px;padding:16px;margin-bottom:14px;color:white;">
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:4px;">Seferler</div>
+        <div style="font-size:12px;opacity:.75;">Aktif ve geçmiş seferler</div>
+      </div>
+      <div class="sl2">AKTİF SEFERLER</div>
+      <div id="sefer-aktif-liste"></div>
+      <div class="sl2" style="margin-top:16px;">GEÇMİŞ SEFERLER</div>
+      <div id="sefer-gecmis-liste"></div>
       <div class="sl2">Aktif Seferler</div>
       <div id="vl"></div>
       <div class="sl2" style="margin-top:16px;">Geçmiş Seferler</div>
@@ -2721,6 +2729,99 @@ function pushNotif(t,b){
 }
 
 // ── SEFER ──
+async function loadVoyagesAndInitTur(){
+  await loadVoyagesFromDB();
+  const iS=CU?.role==='super'||CU?.role==='acente';
+  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  let mv=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived');
+  if(!mv.length) mv=VOYAGES.filter(v=>v.status!=='archived');
+  // Tur sefer dropdown
+  const sel1=document.getElementById('tur-sefer');
+  if(sel1) sel1.innerHTML=mv.map(v=>`<option value="${v.id}">${v.label}${v.ship?' — '+v.ship:''}</option>`).join('');
+  // Mevcut tur sefere ekle dropdown
+  const sel2=document.getElementById('tur-ekle-sefer');
+  if(sel2) sel2.innerHTML=mv.map(v=>`<option value="${v.id}">${v.label}${v.ship?' — '+v.ship:''}</option>`).join('');
+  renderTA(CTSF);
+}
+
+async function loadVoyagesAndRenderSef(){
+  await loadVoyagesFromDB();
+  renderSeferPanel();
+}
+
+async function loadVoyagesFromDB(){
+  if(VOYAGES.length>0) return; // zaten yüklü
+  try{
+    const seferlerDB=await dbGet('seferler');
+    seferlerDB.forEach(s=>{
+      if(!VOYAGES.find(v=>v.id===s.id)){
+        VOYAGES.push({
+          id:s.id, label:s.etiket, route:s.guzergah||'',
+          ship:s.gemi||'', guide:s.rehber_adi||'',
+          status:s.durum||'active', visible:s.gorunur!==false,
+          startDate:s.baslangic||'', endDate:s.bitis||''
+        });
+      }
+    });
+  }catch(e){ console.error('Sefer yükleme hatası:', e); }
+}
+
+function renderSeferPanel(){
+  const aktif=VOYAGES.filter(v=>v.status!=='archived'&&v.visible!==false);
+  const gecmis=VOYAGES.filter(v=>v.status==='archived');
+  const aktifEl=document.getElementById('sefer-aktif-liste');
+  const gecmisEl=document.getElementById('sefer-gecmis-liste');
+  if(aktifEl){
+    if(aktif.length){
+      aktifEl.innerHTML=aktif.map(v=>`
+        <div style="background:white;border-radius:12px;padding:12px 14px;margin-bottom:8px;box-shadow:var(--sh);display:flex;align-items:center;gap:10px;">
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:500;color:var(--t);">${v.label}</div>
+            <div style="font-size:11px;color:var(--t2);margin-top:2px;">${v.ship||''} ${v.startDate?'· '+v.startDate:''} ${v.endDate?'→ '+v.endDate:''}</div>
+          </div>
+          <button onclick="toggleVoyageVisible('${v.id}')" style="padding:4px 10px;border-radius:20px;font-size:11px;border:1.5px solid ${v.visible?'var(--green)':'var(--border)'};color:${v.visible?'var(--green)':'var(--t3)'};background:transparent;cursor:pointer;">${v.visible?'Görünür':'Gizli'}</button>
+          <button onclick="archiveVoyage('${v.id}')" style="padding:4px 10px;border-radius:20px;font-size:11px;border:1.5px solid var(--amber);color:var(--amber);background:transparent;cursor:pointer;">Arşivle</button>
+          <button onclick="deleteVoyageDB('${v.id}')" style="padding:4px 10px;border-radius:20px;font-size:11px;border:1.5px solid var(--red);color:var(--red);background:transparent;cursor:pointer;">Sil</button>
+        </div>`).join('');
+    } else {
+      aktifEl.innerHTML='<div class="es">Aktif sefer yok.</div>';
+    }
+  }
+  if(gecmisEl){
+    if(gecmis.length){
+      gecmisEl.innerHTML=gecmis.map(v=>`
+        <div style="background:white;border-radius:12px;padding:12px 14px;margin-bottom:8px;box-shadow:var(--sh);display:flex;align-items:center;gap:10px;opacity:.7;">
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:500;color:var(--t2);">${v.label}</div>
+            <div style="font-size:11px;color:var(--t3);">${v.ship||''}</div>
+          </div>
+          <button onclick="deleteVoyageDB('${v.id}')" style="padding:4px 10px;border-radius:20px;font-size:11px;border:1.5px solid var(--red);color:var(--red);background:transparent;cursor:pointer;">Sil</button>
+        </div>`).join('');
+    } else {
+      gecmisEl.innerHTML='<div class="es">Geçmiş sefer yok.</div>';
+    }
+  }
+}
+
+function archiveVoyage(id){
+  const v=VOYAGES.find(v=>v.id===id);
+  if(!v)return;
+  v.status='archived';
+  saveSeferDB(v);
+  renderSeferPanel();
+  showToast('Sefer arşivlendi.');
+}
+
+async function deleteVoyageDB(id){
+  if(!confirm('Bu sefer silinsin mi?'))return;
+  await dbDelete('seferler',{id});
+  const i=VOYAGES.findIndex(v=>v.id===id);
+  if(i>=0)VOYAGES.splice(i,1);
+  renderSeferPanel();
+  populateSeferler();
+  showToast('Sefer silindi.');
+}
+
 function addVoyage(){
   const label=document.getElementById('nvl').value.trim();
   const route=document.getElementById('nvr').value.trim();
@@ -2733,7 +2834,9 @@ function addVoyage(){
   VOYAGES.push({id:'v'+Date.now(),label,route,ship,guide,status:'active',visible:true,startDate,endDate});
   const yeniV=VOYAGES[VOYAGES.length-1];
   saveSeferDB(yeniV);
-  populateSeferler();setupAdmin();showToast('Sefer eklendi!');
+  populateSeferler();setupAdmin();
+  renderSeferPanel();
+  showToast('Sefer eklendi!');
 }
 
 // ── REHBERLER ──
