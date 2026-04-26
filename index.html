@@ -740,6 +740,15 @@ textarea.ai2{resize:none;}
 
     <!-- CHECK-IN -->
     <div id="admin-ci" class="apg active">
+      <!-- TOPLU WHATSAPP DUYURU -->
+      <div style="background:linear-gradient(135deg,#075e54,#128c7e);border-radius:14px;padding:12px 14px;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:600;color:white;margin-bottom:8px;">📢 Tüm Yolculara WhatsApp Duyurusu</div>
+        <textarea id="duyuru-mesaj" style="width:100%;padding:10px;border:none;border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif;resize:none;height:65px;margin-bottom:8px;" placeholder="Duyuru mesajınızı yazın..."></textarea>
+        <div style="display:flex;gap:8px;">
+          <button onclick="tumNuMaralariKopyala()" style="flex:1;padding:9px;background:rgba(255,255,255,.2);color:white;border:1.5px solid rgba(255,255,255,.4);border-radius:10px;font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 Numaraları Kopyala</button>
+          <button onclick="duyuruMesajKopyala()" style="flex:1;padding:9px;background:white;color:#075e54;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">✉️ Mesajı Kopyala</button>
+        </div>
+      </div>
       <div class="sf" id="af"></div>
       <div class="sg">
         <div class="sc2"><div class="sn" id="s-t">0</div><div class="slb" data-t="toplam">Toplam</div></div>
@@ -3036,6 +3045,7 @@ function renderPS(s){
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
         <span class="cb ${p.checkedIn?'cby':'cbn'}">${p.checkedIn?'Check-in':'Bekleyen'}</span>
         <div style="display:flex;gap:4px;">
+          ${p.tel?`<button onclick="yolcuWhatsapp('${p.tel}','${p.name}','${p.kabin}')" style="padding:3px 8px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid #25D366;color:#25D366;background:transparent;">💬</button>`:''}
           <button style="padding:3px 8px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--blue);color:var(--blue);background:transparent;font-family:'DM Sans',sans-serif;" onclick="toggleCI('${p.kabin}','${p.sefer}')">${p.checkedIn?'Geri':'CI'}</button>
           <button style="padding:3px 8px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--red);color:var(--red);background:transparent;font-family:'DM Sans',sans-serif;" onclick="deletePassenger('${p.kabin}','${p.sefer}')">Sil</button>
         </div>
@@ -3043,6 +3053,49 @@ function renderPS(s){
     </div>`;
   }).join('');
 }
+function yolcuWhatsapp(tel, isim, kabin){
+  // Telefon numarasını düzenle
+  let num = tel.replace(/\D/g,'');
+  if(num.startsWith('0')) num = '90'+num.slice(1);
+  if(!num.startsWith('9')) num = '90'+num;
+  const sv = VOYAGES.find(v=>passengers.find(p=>p.kabin===kabin&&p.tel===tel)?.sefer===v.id);
+  const mesaj = encodeURIComponent('Merhaba '+isim.split(' ')[0]+'! VOYAGO gemi rehberi olarak size ulaşıyoruz.');
+  window.open('https://wa.me/'+num+'?text='+mesaj, '_blank');
+}
+
+function tumNuMaralariKopyala(){
+  const sid = CASF !== 'hepsi' ? CASF : null;
+  let liste = sid ? passengers.filter(p=>p.sefer===sid) : passengers;
+  const numlar = liste.filter(p=>p.tel).map(p=>{
+    let num = p.tel.replace(/\D/g,'');
+    if(num.startsWith('0')) num = '90'+num.slice(1);
+    if(!num.startsWith('9')) num = '90'+num;
+    return num;
+  }).filter((v,i,a)=>a.indexOf(v)===i); // tekrar eden numaraları kaldır
+  if(!numlar.length){showToast('Telefon numarası bulunamadı!');return;}
+  const text = numlar.join(String.fromCharCode(10));
+  navigator.clipboard?.writeText(text).then(()=>{
+    showToast(numlar.length+' numara kopyalandı! WhatsApp Broadcast listesine ekleyin.');
+  }).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=text;
+    document.body.appendChild(ta);ta.select();document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast(numlar.length+' numara kopyalandı!');
+  });
+}
+
+function duyuruMesajKopyala(){
+  const mesaj = document.getElementById('duyuru-mesaj')?.value.trim();
+  if(!mesaj){showToast('Önce mesajı yazın!');return;}
+  navigator.clipboard?.writeText(mesaj).then(()=>{
+    showToast('Mesaj kopyalandı! WhatsApp Broadcast listesine yapıştırın.');
+  }).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=mesaj;
+    document.body.appendChild(ta);ta.select();document.execCommand('copy');
+    document.body.removeChild(ta);showToast('Mesaj kopyalandı!');
+  });
+}
+
 function toggleCI(kabin,sefer){const p=passengers.find(p=>p.kabin===kabin&&p.sefer===sefer);if(p){p.checkedIn=!p.checkedIn;renderPS(CASF);saveYolcuDB(p);showToast(p.checkedIn?'Check-in yapildi':'Geri alindi');}}
 function deletePassenger(kabin,sefer){if(!confirm('Silinsin mi?'))return;const i=passengers.findIndex(p=>p.kabin===kabin&&p.sefer===sefer);if(i>=0){passengers.splice(i,1);dbDelete('yolcular',{kabin,sefer_id:sefer});renderPS(CASF);showToast('Silindi.');}}
 function addPassenger(){
