@@ -2185,6 +2185,8 @@ function turDetayAc(tid){
   const p=CP;
   const j=p.joinedTours.includes(tid);
   const total=(p.adult*t.ap)+(p.child*t.cp)+(p.baby*t.bp);
+  const totalN=(p.adult*(t.apN||0))+(p.child*(t.cpN||0))+(p.baby*(t.bpN||0));
+  const tasarruf=totalN>total?totalN-total:0;
   const det=[];
   if(p.adult>0)det.push(p.adult+' yetişkin × €'+t.ap);
   if(p.child>0)det.push(p.child+' çocuk × €'+t.cp);
