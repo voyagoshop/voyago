@@ -600,6 +600,11 @@ textarea.ai2{resize:none;}
     </div>
 
     <div id="tab-anket" class="tp">
+      <div style="padding:8px 0 12px;">
+        <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--t);margin-bottom:4px;">📊 Anket</div>
+        <div style="font-size:13px;color:var(--t2);">Görüşleriniz bizim için değerli</div>
+      </div>
+      <div id="anket-yolcu-alan"></div>
       <div style="background:linear-gradient(135deg,#26215c,#534ab7);border-radius:16px;padding:18px;margin-bottom:16px;color:white;">
         <div style="font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:4px;">Memnuniyet Anketi</div>
         <div style="font-size:12px;opacity:.75;">Görüşleriniz bizim için çok değerli</div>
@@ -677,6 +682,7 @@ textarea.ai2{resize:none;}
       <button class="att" id="ratab-mesaj" onclick="adminTab('mesaj')"><span class="aico">💬</span><span>Mesajlar</span></button>
       <button class="att" id="ratab-turanons" onclick="adminTab('turanons')"><span class="aico">📢</span><span>Tur Anonsu</span></button>
       <button class="att" id="ratab-bil" onclick="adminTab('bil')"><span class="aico">🔔</span><span>Bildirim</span></button>
+      <button class="att" id="ratab-anketyonet" onclick="adminTab('anketyonet')"><span class="aico">📊</span><span>Anket</span></button>
       <button class="att" id="ratab-sef" onclick="adminTab('sef')"><span class="aico">🚢</span><span>Seferler</span></button>
       <button class="att" id="ratab-gemiplan" onclick="adminTab('gemiplan')"><span class="aico">🗺️</span><span>Gemi Planı</span></button>
       <button class="att" id="ratab-rehrapor" onclick="adminTab('rehrapor')"><span class="aico">📝</span><span>Raporlar</span></button>
@@ -1080,6 +1086,46 @@ textarea.ai2{resize:none;}
     </div>
 
     <!-- BİLDİRİM -->
+    <div id="admin-anketyonet" class="apg">
+      <div style="background:linear-gradient(135deg,#3c3489,#6b5ce7);border-radius:16px;padding:16px;margin-bottom:14px;color:white;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:4px;">📊 Anket Yönetimi</div>
+            <div style="font-size:12px;opacity:.75;">Soruları düzenle, anketi aç/kapat, raporu indir</div>
+          </div>
+          <div id="anket-durum-badge" style="background:rgba(255,255,255,.2);padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;">Kapalı</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button onclick="anketAcKapat()" id="anket-ac-kapat-btn" style="flex:1;padding:9px;background:rgba(255,255,255,.2);color:white;border:1.5px solid rgba(255,255,255,.4);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">Anketi Aç</button>
+          <button onclick="anketPDFIndir()" style="flex:1;padding:9px;background:white;color:#3c3489;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">📄 PDF Rapor</button>
+        </div>
+      </div>
+
+      <!-- Soru Ekle -->
+      <div class="fs2" style="margin-bottom:12px;">
+        <div class="fst">Soru Ekle</div>
+        <input class="ai2" type="text" id="anket-soru-metin" placeholder="Soruyu yazın...">
+        <select class="fs" id="anket-soru-tip" style="margin-bottom:8px;">
+          <option value="yildiz">⭐ Yıldız Puanlama (1-5)</option>
+          <option value="metin">✏️ Açık Uçlu Metin</option>
+          <option value="evet_hayir">👍 Evet / Hayır</option>
+          <option value="secmeli">📋 Çoktan Seçmeli</option>
+        </select>
+        <div id="anket-secenekler-alan" style="display:none;">
+          <input class="ai2" type="text" id="anket-secenekler" placeholder="Seçenekleri virgülle yazın: İyi, Orta, Kötü">
+        </div>
+        <button class="bp" onclick="anketSoruEkle()">+ Soru Ekle</button>
+      </div>
+
+      <!-- Soru Listesi -->
+      <div style="font-size:13px;font-weight:600;color:var(--t);margin-bottom:8px;">Sorular</div>
+      <div id="anket-sorular-liste"></div>
+
+      <!-- Cevap Özeti -->
+      <div style="font-size:13px;font-weight:600;color:var(--t);margin:14px 0 8px;">📈 Cevap Özeti</div>
+      <div id="anket-cevap-ozet"></div>
+    </div>
+
     <div id="admin-bil" class="apg">
       <div class="fs2"><div class="fst">Sefer seç</div><div class="sc3" id="nsc"></div><div class="fst">Tür</div><div class="tc3"><div class="tch active" onclick="togType(this)">Tur hatırlatma</div><div class="tch" onclick="togType(this)">Promosyon</div><div class="tch" onclick="togType(this)">Acil duyuru</div><div class="tch" onclick="togType(this)">Genel bilgi</div></div></div>
       <div class="fs2"><div class="fst">Mesaj</div><input class="ai2" type="text" id="nt" placeholder="Başlık" oninput="updWA()"><textarea class="ai2" rows="4" id="nb3" placeholder="Mesaj metni..." oninput="updWA()"></textarea><div class="two"><div><label class="fl" style="margin-bottom:3px;">Zaman</label><select class="fs" style="margin:0;"><option>Hemen</option><option>Bu gece 20:00</option><option>Yarın 07:00</option></select></div><div><label class="fl" style="margin-bottom:3px;">Kanal</label><select class="fs" style="margin:0;"><option>WhatsApp + Uygulama</option><option>Sadece WhatsApp</option><option>Sadece uygulama</option></select></div></div></div>
@@ -3905,6 +3951,33 @@ function adminTab(name){
       }).catch(()=>renderAlisverisYolcu());
     } else renderAlisverisYolcu();
   }
+  if(name==='anketyonet'){
+    // Anket cevaplarını DB'den yükle
+    const sv=getCurrentSeferId()||VOYAGES.find(v=>v.status!=='archived')?.id;
+    if(sv){
+      dbGet('gunluk',{sefer_id:sv}).then(rows=>{
+        if(rows&&rows.length){
+          const g=rows[0];
+          if(g.anket_sorular) ANKET_SORULAR=g.anket_sorular;
+          if(g.anket_aktif!==undefined) ANKET_AKTIF=g.anket_aktif;
+        }
+        // Cevapları yükle
+        dbGet('anketler',{sefer_id:sv}).then(crows=>{
+          ANKET_CEVAPLAR={};
+          (crows||[]).forEach(r=>{
+            try{
+              const c=typeof r.cevaplar==='string'?JSON.parse(r.cevaplar):r.cevaplar;
+              Object.entries(c).forEach(([sid,cevap])=>{
+                if(!ANKET_CEVAPLAR[sid])ANKET_CEVAPLAR[sid]=[];
+                ANKET_CEVAPLAR[sid].push(cevap);
+              });
+            }catch(e){}
+          });
+          renderAnketSorular();
+        });
+      });
+    } else renderAnketSorular();
+  }
   if(name==='gemiplan'){
     const sv=getCurrentSeferId()||VOYAGES.find(v=>v.status!=='archived')?.id;
     if(sv){dbGet('gunluk',{sefer_id:sv}).then(rows=>{
@@ -3922,7 +3995,19 @@ function switchTab(name){
   document.getElementById('tab-'+name).classList.add('active');
   document.getElementById('nb-'+name).classList.add('active');
   if(name==='gelecek')renderGelecekTurlar();
-  if(name==='anket'){if(CP)checkAnketGoster(CP.sefer).then(()=>renderAnket(CP.sefer));else renderAnket('');}
+  if(name==='anket'){
+    if(CP){
+      // Anket durumunu DB'den çek
+      dbGet('gunluk',{sefer_id:CP.sefer}).then(rows=>{
+        if(rows&&rows.length){
+          const g=rows[0];
+          if(g.anket_sorular) ANKET_SORULAR=g.anket_sorular;
+          if(g.anket_aktif!==undefined) ANKET_AKTIF=g.anket_aktif;
+        }
+        renderAnketYolcu(CP.sefer);
+      }).catch(()=>renderAnketYolcu(CP?.sefer||''));
+    } else renderAnketYolcu('');
+  }
   if(name==='rehber'&&CP){renderMesajlar(CP.sefer);}
   if(name==='gemiplan'){
     // DB'den taze yükle, sonra yolcu ekranını göster
@@ -5529,12 +5614,7 @@ function komisyonRaporKopyala(){
   catch(e){navigator.clipboard?.writeText(txt).then(()=>showToast('Kopyalandı!')).catch(()=>showToast('Kopyalanamadı.'));}
 }
 
-// ══ ANKET ══
-const ANKET_SORULAR = [
-  {id:'rehber',  soru:'Rehber memnuniyeti',    icon:'🧭'},
-  {id:'program', soru:'Tur programı kalitesi', icon:'🗺️'},
-  {id:'genel',   soru:'Genel memnuniyet',      icon:'⭐'},
-];
+// ══ ESKİ ANKET (kaldırıldı) ══
 
 function renderAnket(sv){
   const el=document.getElementById('anket-icerik');
@@ -6880,6 +6960,332 @@ function renderAlisverisYolcu(){
     </div>`).join('');
 }
 
+// ══ YENİ ANKET SİSTEMİ ══
+let ANKET_SORULAR = [];
+let ANKET_AKTIF = false;
+let ANKET_CEVAPLAR = {}; // {soruId: [cevaplar]}
+let _anketGonderildi = false;
+
+// Soru tipi değişince seçenekler alanını göster/gizle
+document.addEventListener('change', e=>{
+  if(e.target.id==='anket-soru-tip'){
+    const alan = document.getElementById('anket-secenekler-alan');
+    if(alan) alan.style.display = e.target.value==='secmeli'?'block':'none';
+  }
+});
+
+function anketSoruEkle(){
+  const metin = document.getElementById('anket-soru-metin')?.value.trim();
+  const tip = document.getElementById('anket-soru-tip')?.value || 'yildiz';
+  const seceneklerStr = document.getElementById('anket-secenekler')?.value.trim();
+  if(!metin){showToast('Soru metnini yazın!');return;}
+  const soru = {
+    id: 'sq'+Date.now(),
+    metin,
+    tip,
+    secenekler: tip==='secmeli' ? seceneklerStr.split(',').map(s=>s.trim()).filter(Boolean) : []
+  };
+  ANKET_SORULAR.push(soru);
+  anketDB_Kaydet();
+  document.getElementById('anket-soru-metin').value='';
+  document.getElementById('anket-secenekler').value='';
+  renderAnketSorular();
+  showToast('Soru eklendi!');
+}
+
+function anketSoruSil(id){
+  ANKET_SORULAR = ANKET_SORULAR.filter(s=>s.id!==id);
+  anketDB_Kaydet();
+  renderAnketSorular();
+}
+
+function anketAcKapat(){
+  ANKET_AKTIF = !ANKET_AKTIF;
+  anketDB_Kaydet();
+  renderAnketSorular();
+  renderAnketDurum();
+  showToast(ANKET_AKTIF?'Anket açıldı! Yolcular şimdi görebilir.':'Anket kapatıldı.');
+}
+
+function renderAnketDurum(){
+  const badge = document.getElementById('anket-durum-badge');
+  const btn = document.getElementById('anket-ac-kapat-btn');
+  if(badge) badge.textContent = ANKET_AKTIF ? '🟢 Açık' : '🔴 Kapalı';
+  if(badge) badge.style.background = ANKET_AKTIF ? 'rgba(15,110,86,.4)' : 'rgba(163,45,45,.4)';
+  if(btn) btn.textContent = ANKET_AKTIF ? 'Anketi Kapat' : 'Anketi Aç';
+}
+
+function renderAnketSorular(){
+  const el = document.getElementById('anket-sorular-liste');
+  if(!el) return;
+  renderAnketDurum();
+  if(!ANKET_SORULAR.length){
+    el.innerHTML='<div style="text-align:center;padding:16px;color:var(--t3);font-size:13px;">Henüz soru eklenmedi.</div>';
+    return;
+  }
+  const tipIkon = {yildiz:'⭐', metin:'✏️', evet_hayir:'👍', secmeli:'📋'};
+  el.innerHTML = ANKET_SORULAR.map((s,i)=>`
+    <div style="background:white;border-radius:12px;box-shadow:var(--sh);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
+      <div style="width:24px;height:24px;background:var(--purple);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;">${i+1}</div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;color:var(--t);">${s.metin}</div>
+        <div style="font-size:11px;color:var(--t2);margin-top:2px;">${tipIkon[s.tip]||''} ${s.tip==='yildiz'?'Yıldız (1-5)':s.tip==='metin'?'Açık uçlu':s.tip==='evet_hayir'?'Evet/Hayır':'Çoktan seçmeli'}</div>
+        ${s.secenekler?.length?`<div style="font-size:11px;color:var(--t3);">${s.secenekler.join(' · ')}</div>`:''}
+      </div>
+      <button onclick="anketSoruSil('${s.id}')" style="padding:4px 10px;border-radius:20px;font-size:11px;border:1.5px solid var(--red);color:var(--red);background:transparent;cursor:pointer;">Sil</button>
+    </div>`).join('');
+
+  // Cevap özeti
+  renderAnketOzet();
+}
+
+function renderAnketOzet(){
+  const el = document.getElementById('anket-cevap-ozet');
+  if(!el) return;
+  const toplamCevap = Object.values(ANKET_CEVAPLAR).reduce((a,v)=>Math.max(a,v.length),0);
+  if(!toplamCevap){
+    el.innerHTML='<div style="text-align:center;padding:12px;color:var(--t3);font-size:13px;">Henüz cevap yok.</div>';
+    return;
+  }
+  el.innerHTML = `<div style="background:var(--bl);border-radius:12px;padding:12px;margin-bottom:12px;">
+    <div style="font-size:13px;font-weight:600;color:#0c447c;">${toplamCevap} kişi cevapladı</div>
+  </div>` + ANKET_SORULAR.map(s=>{
+    const cevaplar = ANKET_CEVAPLAR[s.id] || [];
+    if(!cevaplar.length) return '';
+    let ozet = '';
+    if(s.tip==='yildiz'){
+      const ort = (cevaplar.reduce((a,v)=>a+Number(v),0)/cevaplar.length).toFixed(1);
+      const yildizlar = '⭐'.repeat(Math.round(Number(ort)));
+      ozet = `<div style="font-size:18px;font-weight:700;color:var(--amber);">${ort} ${yildizlar}</div>`;
+    } else if(s.tip==='evet_hayir'){
+      const evet = cevaplar.filter(v=>v==='evet').length;
+      const hayir = cevaplar.filter(v=>v==='hayir').length;
+      ozet = `<div style="display:flex;gap:10px;"><span style="color:var(--green);">✅ Evet: ${evet}</span><span style="color:var(--red);">❌ Hayır: ${hayir}</span></div>`;
+    } else if(s.tip==='secmeli'){
+      const sayim = {};
+      cevaplar.forEach(v=>{sayim[v]=(sayim[v]||0)+1;});
+      ozet = Object.entries(sayim).map(([k,v])=>`<div style="font-size:12px;color:var(--t);">${k}: <b>${v}</b></div>`).join('');
+    } else {
+      ozet = cevaplar.map(v=>`<div style="font-size:12px;color:var(--t2);border-left:3px solid var(--purple);padding-left:8px;margin-bottom:4px;">${v}</div>`).join('');
+    }
+    return `<div style="background:white;border-radius:12px;box-shadow:var(--sh);padding:12px 14px;margin-bottom:8px;">
+      <div style="font-size:12px;font-weight:600;color:var(--t);margin-bottom:8px;">${s.metin}</div>
+      ${ozet}
+    </div>`;
+  }).join('');
+}
+
+// Yolcu anket render
+function renderAnketYolcu(sv){
+  const el = document.getElementById('anket-yolcu-alan');
+  if(!el) return;
+
+  if(!ANKET_AKTIF || !ANKET_SORULAR.length){
+    el.innerHTML=`<div style="text-align:center;padding:40px 20px;">
+      <div style="font-size:48px;margin-bottom:12px;">📊</div>
+      <div style="font-size:16px;font-weight:500;color:var(--t2);">Anket Henüz Açılmadı</div>
+      <div style="font-size:13px;color:var(--t3);margin-top:8px;">Rehberiniz sefer sonunda anketi açacak.</div>
+    </div>`;
+    return;
+  }
+
+  if(_anketGonderildi){
+    el.innerHTML=`<div style="text-align:center;padding:40px 20px;">
+      <div style="font-size:48px;margin-bottom:12px;">✅</div>
+      <div style="font-size:16px;font-weight:500;color:var(--green);">Teşekkürler!</div>
+      <div style="font-size:13px;color:var(--t2);margin-top:8px;">Cevaplarınız kaydedildi.</div>
+    </div>`;
+    return;
+  }
+
+  const tipIkon = {yildiz:'⭐', metin:'✏️', evet_hayir:'👍', secmeli:'📋'};
+  el.innerHTML = `<div style="display:flex;flex-direction:column;gap:12px;">` +
+    ANKET_SORULAR.map(s=>`
+      <div style="background:white;border-radius:14px;box-shadow:var(--sh);padding:14px;">
+        <div style="font-size:14px;font-weight:500;color:var(--t);margin-bottom:10px;">${s.metin}</div>
+        ${s.tip==='yildiz'?`
+          <div style="display:flex;gap:8px;justify-content:center;">
+            ${[1,2,3,4,5].map(n=>`<button onclick="anketYildizSec(this,'${s.id}',${n})" data-val="${n}"
+              style="width:44px;height:44px;border-radius:50%;border:2px solid var(--border);background:white;font-size:20px;cursor:pointer;transition:all .2s;">⭐</button>`).join('')}
+          </div>`
+        :s.tip==='evet_hayir'?`
+          <div style="display:flex;gap:8px;">
+            <button onclick="anketCevapSec(this,'${s.id}','evet')" style="flex:1;padding:10px;border:2px solid var(--border);border-radius:10px;background:white;font-size:14px;cursor:pointer;">👍 Evet</button>
+            <button onclick="anketCevapSec(this,'${s.id}','hayir')" style="flex:1;padding:10px;border:2px solid var(--border);border-radius:10px;background:white;font-size:14px;cursor:pointer;">👎 Hayır</button>
+          </div>`
+        :s.tip==='secmeli'?`
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            ${(s.secenekler||[]).map(opt=>`<button onclick="anketCevapSec(this,'${s.id}','${opt}')" style="padding:10px;border:2px solid var(--border);border-radius:10px;background:white;font-size:13px;cursor:pointer;text-align:left;">${opt}</button>`).join('')}
+          </div>`
+        :`<textarea id="anket-metin-${s.id}" placeholder="Cevabınızı yazın..." style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif;resize:none;height:80px;box-sizing:border-box;"></textarea>`}
+      </div>`).join('') +
+    `<button onclick="anketGonder('${sv}')" style="width:100%;padding:14px;background:linear-gradient(135deg,#3c3489,#6b5ce7);color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">
+      📊 Anketi Gönder
+    </button></div>`;
+}
+
+function anketYildizSec(btn, soruId, deger){
+  const parent = btn.parentElement;
+  parent.querySelectorAll('button').forEach((b,i)=>{
+    b.style.background = i < deger ? '#fbbf24' : 'white';
+    b.style.borderColor = i < deger ? '#fbbf24' : 'var(--border)';
+  });
+  btn.dataset.soru = soruId;
+  parent.dataset.secilen = deger;
+  parent.dataset.soruId = soruId;
+}
+
+function anketCevapSec(btn, soruId, deger){
+  const parent = btn.parentElement;
+  parent.querySelectorAll('button').forEach(b=>{
+    b.style.background='white';b.style.borderColor='var(--border)';b.style.color='var(--t)';
+  });
+  btn.style.background='var(--purple)';btn.style.borderColor='var(--purple)';btn.style.color='white';
+  parent.dataset.secilen=deger;parent.dataset.soruId=soruId;
+}
+
+async function anketGonder(sv){
+  const cevaplar = {};
+  let eksik = false;
+  ANKET_SORULAR.forEach(s=>{
+    if(s.tip==='metin'){
+      const ta = document.getElementById('anket-metin-'+s.id);
+      if(ta?.value.trim()) cevaplar[s.id] = ta.value.trim();
+    } else {
+      const parent = document.querySelector(`[data-soru-id="${s.id}"]`);
+      if(parent?.dataset.secilen) cevaplar[s.id] = parent.dataset.secilen;
+      else eksik=true;
+    }
+  });
+  if(eksik){showToast('Lütfen tüm soruları cevaplayın!');return;}
+  // Cevapları DB'ye kaydet
+  const kayit = {
+    sefer_id: sv,
+    kabin: CP?.kabin||'',
+    isim: CP?.name||'',
+    cevaplar: JSON.stringify(cevaplar),
+    tarih: new Date().toISOString()
+  };
+  try{
+    await dbInsert('anketler', kayit);
+    // ANKET_CEVAPLAR güncelle
+    Object.entries(cevaplar).forEach(([soruId, cevap])=>{
+      if(!ANKET_CEVAPLAR[soruId]) ANKET_CEVAPLAR[soruId]=[];
+      ANKET_CEVAPLAR[soruId].push(cevap);
+    });
+  }catch(e){console.log('Anket kayıt hatası:',e);}
+  _anketGonderildi = true;
+  renderAnketYolcu(sv);
+  bildirimSesi('anket');
+  showToast('Anketiniz gönderildi! Teşekkürler 🙏');
+}
+
+async function anketDB_Kaydet(){
+  const sv = getCurrentSeferId()||VOYAGES.find(v=>v.status!=='archived')?.id||'genel';
+  const mevcut = await dbGet('gunluk',{sefer_id:sv});
+  const veri = {anket_sorular: ANKET_SORULAR, anket_aktif: ANKET_AKTIF};
+  if(mevcut&&mevcut.length>0){
+    await dbUpdate('gunluk',{sefer_id:sv},veri);
+  } else {
+    await dbInsert('gunluk',{sefer_id:sv,...veri});
+  }
+}
+
+// PDF Rapor
+async function anketPDFIndir(){
+  const sv = getCurrentSeferId()||VOYAGES.find(v=>v.status!=='archived')?.id;
+  const sefer = VOYAGES.find(v=>v.id===sv);
+
+  // Cevapları DB'den çek
+  let tumCevaplar = [];
+  try{
+    const rows = await dbGet('anketler',{sefer_id:sv});
+    tumCevaplar = rows || [];
+  }catch(e){}
+
+  // Her soru için cevapları topla
+  const cevapOzet = {};
+  ANKET_SORULAR.forEach(s=>{cevapOzet[s.id]=[];});
+  tumCevaplar.forEach(r=>{
+    try{
+      const c = typeof r.cevaplar==='string'?JSON.parse(r.cevaplar):r.cevaplar;
+      Object.entries(c).forEach(([soruId,cevap])=>{
+        if(cevapOzet[soruId]) cevapOzet[soruId].push(cevap);
+      });
+    }catch(e){}
+  });
+
+  // HTML rapor oluştur — yeni sekmede aç, print et
+  const NL = '<br>';
+  let html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>VOYAGO Anket Raporu</title>
+    <style>
+      body{font-family:Arial,sans-serif;padding:30px;max-width:800px;margin:0 auto;color:#1a1a1a;}
+      h1{color:#3c3489;border-bottom:3px solid #3c3489;padding-bottom:10px;}
+      h2{color:#1a5fa8;margin-top:24px;}
+      .soru{background:#f8f8ff;border-radius:8px;padding:14px;margin-bottom:14px;border-left:4px solid #3c3489;}
+      .soru-metin{font-weight:600;margin-bottom:8px;}
+      .ort{font-size:24px;font-weight:700;color:#3c3489;}
+      .cevap{border-left:3px solid #ddd;padding-left:10px;margin:4px 0;font-size:13px;color:#555;}
+      .ozet{background:#e8f0fe;border-radius:8px;padding:14px;margin:20px 0;}
+      @media print{body{padding:10px;}}
+    </style>
+  </head><body>
+    <h1>📊 VOYAGO Anket Raporu</h1>
+    <div class="ozet">
+      <b>Sefer:</b> ${sefer?.label||''} ${sefer?.ship?'— '+sefer.ship:''}<br>
+      <b>Tarih:</b> ${new Date().toLocaleDateString('tr-TR')}<br>
+      <b>Toplam Cevap:</b> ${tumCevaplar.length} kişi<br>
+      <b>Toplam Soru:</b> ${ANKET_SORULAR.length}
+    </div>`;
+
+  ANKET_SORULAR.forEach((s,i)=>{
+    const cevaplar = cevapOzet[s.id]||[];
+    html += `<div class="soru">
+      <div class="soru-metin">${i+1}. ${s.metin}</div>`;
+
+    if(s.tip==='yildiz'&&cevaplar.length){
+      const ort=(cevaplar.reduce((a,v)=>a+Number(v),0)/cevaplar.length).toFixed(2);
+      html+=`<div class="ort">⭐ ${ort} / 5</div>
+        <div style="font-size:13px;color:#555;">${cevaplar.length} kişi değerlendirdi</div>
+        <div style="margin-top:8px;">`;
+      [1,2,3,4,5].forEach(n=>{
+        const say=cevaplar.filter(v=>Number(v)===n).length;
+        const yuz=cevaplar.length?Math.round(say/cevaplar.length*100):0;
+        html+=`<div style="display:flex;align-items:center;gap:8px;margin:3px 0;">
+          <span style="width:20px;">${n}⭐</span>
+          <div style="background:#e0e0e0;border-radius:4px;flex:1;height:12px;">
+            <div style="background:#3c3489;width:${yuz}%;height:100%;border-radius:4px;"></div>
+          </div>
+          <span style="width:40px;font-size:12px;">${say} (${yuz}%)</span>
+        </div>`;
+      });
+      html+=`</div>`;
+    } else if(s.tip==='evet_hayir'){
+      const evet=cevaplar.filter(v=>v==='evet').length;
+      const hayir=cevaplar.filter(v=>v==='hayir').length;
+      html+=`<div>✅ Evet: <b>${evet}</b> | ❌ Hayır: <b>${hayir}</b></div>`;
+    } else if(s.tip==='secmeli'){
+      const sayim={};cevaplar.forEach(v=>{sayim[v]=(sayim[v]||0)+1;});
+      Object.entries(sayim).forEach(([k,v])=>{
+        html+=`<div class="cevap">${k}: <b>${v}</b></div>`;
+      });
+    } else {
+      cevaplar.forEach(v=>{html+=`<div class="cevap">${v}</div>`;});
+    }
+    html+=`</div>`;
+  });
+
+  html+=`<div style="margin-top:30px;font-size:11px;color:#999;border-top:1px solid #eee;padding-top:10px;">
+    © ${new Date().getFullYear()} VOYAGO · Climantacis · Tüm hakları saklıdır.
+  </div></body></html>`;
+
+  const win = window.open('','_blank');
+  win.document.write(html);
+  win.document.close();
+  setTimeout(()=>win.print(), 500);
+}
+
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);}
 
 // gc class fix
@@ -7111,26 +7517,7 @@ window.addEventListener('appinstalled', () => {
   showToast('VOYAGO yüklendi! ⚓');
 });
 
-// Service Worker kaydet
-if('serviceWorker' in navigator) {
-  const swCode = `
-    const CACHE = 'voyago-v1';
-    const URLS = ['/'];
-    self.addEventListener('install', e => {
-      e.waitUntil(caches.open(CACHE).then(c => c.addAll(URLS)));
-    });
-    self.addEventListener('fetch', e => {
-      e.respondWith(
-        fetch(e.request).catch(() => caches.match(e.request))
-      );
-    });
-  `;
-  const blob = new Blob([swCode], {type: 'application/javascript'});
-  const swUrl = URL.createObjectURL(blob);
-  navigator.serviceWorker.register(swUrl, {scope: '/'})
-    .then(() => console.log('SW kayıtlı'))
-    .catch(e => console.log('SW hatası:', e));
-}
+// Service Worker devre dışı
 </script>
 </body>
 </html>
