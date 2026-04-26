@@ -1516,7 +1516,7 @@ async function initDB() {
 
     // Turları yükle
     let turlarDB = [];
-    try { turlarDB = await dbGetSelect('turlar', 'id,ad,liman,saat,gun,fiyat_yetiskin,fiyat_cocuk,fiyat_bebek,gemi,sefer_listesi'); } catch(e) { console.log('turlar hatası:', e); }
+    try { turlarDB = await dbGetSelect('turlar', 'id,ad,liman,saat,gun,fiyat_yetiskin,fiyat_cocuk,fiyat_bebek,gemi,sefer_listesi,gorsel'); } catch(e) { console.log('turlar hatası:', e); }
     TOURS = turlarDB.map(t => ({
       id: t.id, name: t.ad, liman: t.liman || '',
       saat: t.saat || '', gun: t.gun || 1,
@@ -3352,9 +3352,50 @@ function addTourGuncelle(){
   showToast('Tur güncellendi!');
 }
 
-function editTurImg(input,tid){const f=input.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{const t=TOURS.find(t=>t.id===tid);if(t)t.img=e.target.result;renderTA(CTSF);showToast('Görsel güncellendi');};r.readAsDataURL(f);}
+function editTurImg(input,tid){
+  const f=input.files[0];if(!f)return;
+  gorselSikistir(f, 150, result=>{
+    const t=TOURS.find(t=>t.id===tid);
+    if(t){t.img=result;saveTurDB(t);renderTA(CTSF);showToast('Görsel güncellendi');}
+  });
+}
 function deleteTour(tid){if(!confirm('Silinsin mi?'))return;const i=TOURS.findIndex(t=>t.id===tid);if(i>=0){TOURS.splice(i,1);dbDelete('turlar',{id:tid});renderTA(CTSF);showToast('Tur silindi.');}}
-function previewTurImg(input){const f=input.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{newTurImg=e.target.result;document.getElementById('tur-img-preview').innerHTML=`<img src="${e.target.result}" style="width:100%;height:70px;object-fit:cover;border-radius:8px;">`;};r.readAsDataURL(f);}
+// Görsel sıkıştırma — max 150KB
+function gorselSikistir(file, maxKB, callback){
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      // Max 800px
+      if(w > 800){ h = Math.round(h*800/w); w = 800; }
+      if(h > 800){ w = Math.round(w*800/h); h = 800; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      let quality = 0.85;
+      let result = canvas.toDataURL('image/jpeg', quality);
+      // Boyutu düşür
+      while(result.length > maxKB*1024*1.37 && quality > 0.3){
+        quality -= 0.1;
+        result = canvas.toDataURL('image/jpeg', quality);
+      }
+      callback(result);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function previewTurImg(input){
+  const f=input.files[0];if(!f)return;
+  gorselSikistir(f, 150, result=>{
+    newTurImg=result;
+    document.getElementById('tur-img-preview').innerHTML=`<img src="${result}" style="width:100%;height:70px;object-fit:cover;border-radius:8px;">`;
+    const kb = Math.round(result.length*0.75/1024);
+    showToast('Görsel hazır ('+kb+'KB)');
+  });
+}
 function addTour(){
   const name=document.getElementById('ntn').value.trim();
   const liman=document.getElementById('ntl').value.trim();
