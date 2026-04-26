@@ -718,7 +718,10 @@ textarea.ai2{resize:none;}
         <div class="sc2"><div class="sn" id="s-k">0</div><div class="slb" data-t="kisi">Kişi</div></div>
       </div>
       <div class="yolcu-ekle-form">
-        <div class="yolcu-ekle-title">Yolcu ekle</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div class="yolcu-ekle-title" style="margin-bottom:0;">Yolcu ekle</div>
+          <button onclick="celestyalQROkuyucuAc()" style="padding:6px 14px;background:var(--blue);color:white;border:none;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">📷 QR ile Ekle</button>
+        </div>
         <div class="two"><div><input class="ai2" type="text" id="ye-name" placeholder="Ad Soyad" style="margin:0;"></div><div><input class="ai2" type="text" id="ye-kabin" placeholder="Kabin No" style="margin:0;"></div></div>
         <div class="two" style="margin-top:8px;"><div><input class="ai2" type="tel" id="ye-tel" placeholder="WhatsApp" style="margin:0;"></div><div><select class="fs" id="ye-sefer" style="height:40px;"></select></div></div>
         <div style="display:flex;gap:8px;margin-top:8px;">
@@ -5825,6 +5828,148 @@ function qrKapat(){
   document.getElementById('qr-sonuc').textContent = '';
 }
 
+// ══ CELESTYAL QR CHECK-IN ══
+let cqrStream = null;
+let cqrInterval = null;
+let cqrKisiSay = {ya:1, yc:0, yb:0};
+
+function celestyalQROkuyucuAc(){
+  const modal = document.getElementById('celestyal-qr-modal');
+  modal.style.display = 'flex';
+  // Sefer dropdown doldur
+  const sel = document.getElementById('cqr-sefer');
+  if(sel){
+    const mv = VOYAGES.filter(v=>v.status!=='archived');
+    sel.innerHTML = mv.map(v=>`<option value="${v.id}">${v.label}</option>`).join('');
+    const sv = getCurrentSeferId();
+    if(sv) sel.value = sv;
+  }
+  // Form gizle, kamera göster
+  document.getElementById('cqr-form').style.display = 'none';
+  document.getElementById('cqr-kamera-alan').style.display = 'block';
+  document.getElementById('cqr-durum').textContent = 'Kamera aciliyor...';
+  cqrKisiSay = {ya:1, yc:0, yb:0};
+  cqrKisiGuncelle();
+  // Kamerayı aç
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}})
+    .then(stream=>{
+      cqrStream = stream;
+      const video = document.getElementById('cqr-video');
+      video.srcObject = stream;
+      video.play();
+      document.getElementById('cqr-durum').textContent = 'QR kodu kameraya tutun...';
+      const canvas = document.getElementById('cqr-canvas');
+      const ctx = canvas.getContext('2d');
+      cqrInterval = setInterval(()=>{
+        if(video.readyState === video.HAVE_ENOUGH_DATA){
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video,0,0);
+          const imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
+          const code = jsQR(imgData.data, imgData.width, imgData.height);
+          if(code) cqrOkuVeIsle(code.data);
+        }
+      }, 300);
+    })
+    .catch(err=>{
+      document.getElementById('cqr-durum').textContent = 'Kamera izni gerekli: '+err.message;
+    });
+}
+
+function cqrOkuVeIsle(veri){
+  // QR içeriğini parse et
+  let kabin = '', ad = '', yetiskin = 1;
+  
+  // Celestyal URL formatı: sale.celestyal.com/touch?...
+  if(veri.includes('celestyal.com')){
+    try{
+      const url = new URL(veri);
+      // URL'den booking ve stateroom çek
+      const booking = url.searchParams.get('bookingId') || url.searchParams.get('booking') || '';
+      const stateroom = url.searchParams.get('stateroom') || url.searchParams.get('cabin') || '';
+      if(stateroom) kabin = stateroom;
+      // Yolcu adı URL'den gelmeyebilir, boş bırak
+    }catch(e){}
+  }
+  
+  // Düz metin formatı: "4133|TARIK AYDIN|3" gibi
+  if(!kabin && veri.includes('|')){
+    const parts = veri.split('|');
+    kabin = parts[0]||'';
+    ad = parts[1]||'';
+    yetiskin = parseInt(parts[2])||1;
+  }
+  
+  // Sadece sayı — kabin numarası
+  if(!kabin && /^\d{3,5}$/.test(veri.trim())){
+    kabin = veri.trim();
+  }
+  
+  // Formu doldur
+  document.getElementById('cqr-ad').value = ad;
+  document.getElementById('cqr-kabin').value = kabin;
+  cqrKisiSay.ya = yetiskin;
+  cqrKisiGuncelle();
+  
+  // Özet göster
+  document.getElementById('cqr-ozet').textContent = 
+    (kabin?'Kabin: '+kabin:'') + (ad?' | '+ad:'') + ' | '+yetiskin+' kisi';
+  
+  // Formu göster, kamerayı durdur
+  cqrKameraKapat();
+  document.getElementById('cqr-kamera-alan').style.display = 'none';
+  document.getElementById('cqr-form').style.display = 'block';
+  
+  // Telefon alanına odaklan
+  setTimeout(()=>document.getElementById('cqr-tel')?.focus(), 300);
+}
+
+function cqrKisiDegis(tip, delta){
+  cqrKisiSay[tip] = Math.max(0, (cqrKisiSay[tip]||0) + delta);
+  if(tip==='ya') cqrKisiSay.ya = Math.max(1, cqrKisiSay.ya);
+  cqrKisiGuncelle();
+}
+
+function cqrKisiGuncelle(){
+  const ya = document.getElementById('cqr-ya');
+  const yc = document.getElementById('cqr-yc');
+  const yb = document.getElementById('cqr-yb');
+  if(ya) ya.textContent = cqrKisiSay.ya||1;
+  if(yc) yc.textContent = cqrKisiSay.yc||0;
+  if(yb) yb.textContent = cqrKisiSay.yb||0;
+}
+
+async function cqrKaydet(){
+  const ad = document.getElementById('cqr-ad')?.value.trim();
+  const kabin = document.getElementById('cqr-kabin')?.value.trim();
+  const tel = document.getElementById('cqr-tel')?.value.trim();
+  const sefer = document.getElementById('cqr-sefer')?.value;
+  if(!ad||!kabin){showToast('Ad ve kabin zorunludur.');return;}
+  if(!tel){showToast('Telefon numarası gereklidir.');return;}
+  
+  const p = {
+    name:ad, kabin:kabin, tel:tel, sefer:sefer||getCurrentSeferId(),
+    adult:cqrKisiSay.ya||1, child:cqrKisiSay.yc||0, baby:cqrKisiSay.yb||0,
+    checkedIn:true, checkinDone:true, joinedTours:[]
+  };
+  passengers.push(p);
+  await saveYolcuDB(p);
+  renderPS(CASF);
+  celestyalQRKapat();
+  bildirimSesi('mesaj');
+  showToast(ad + ' check-in yapildi!');
+}
+
+function cqrKameraKapat(){
+  if(cqrInterval){clearInterval(cqrInterval);cqrInterval=null;}
+  if(cqrStream){cqrStream.getTracks().forEach(t=>t.stop());cqrStream=null;}
+}
+
+function celestyalQRKapat(){
+  cqrKameraKapat();
+  document.getElementById('celestyal-qr-modal').style.display = 'none';
+}
+
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);}
 
 // gc class fix
@@ -5853,6 +5998,72 @@ document.head.appendChild(gcStyle);
   </div>
 </div>
 
+<!-- CELESTYAL QR CHECK-IN MODAL -->
+<div id="celestyal-qr-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9994;flex-direction:column;align-items:center;justify-content:flex-start;overflow-y:auto;padding:20px;">
+  <div style="background:white;border-radius:20px;width:100%;max-width:440px;overflow:hidden;margin-top:20px;">
+    <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);padding:16px 20px;color:white;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;">QR ile Check-in</div>
+        <div style="font-size:11px;opacity:.7;margin-top:2px;">Celestyal bilet QR kodunu okutun</div>
+      </div>
+      <button onclick="celestyalQRKapat()" style="background:rgba(255,255,255,.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;">x</button>
+    </div>
+    <div id="cqr-kamera-alan" style="padding:16px;">
+      <div style="position:relative;width:100%;aspect-ratio:1;background:#000;border-radius:12px;overflow:hidden;margin-bottom:12px;">
+        <video id="cqr-video" style="width:100%;height:100%;object-fit:cover;"></video>
+        <canvas id="cqr-canvas" style="display:none;"></canvas>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+          <div style="width:200px;height:200px;border:3px solid rgba(255,255,255,.8);border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,.4);"></div>
+        </div>
+      </div>
+      <div id="cqr-durum" style="text-align:center;font-size:13px;color:#666;">Kamera hazirlanıyor...</div>
+    </div>
+    <div id="cqr-form" style="display:none;padding:16px;padding-top:0;">
+      <div style="border-top:1px solid #eee;padding-top:14px;margin-bottom:14px;">
+        <div style="font-size:13px;font-weight:600;color:#0f6e56;margin-bottom:4px;">QR Okundu!</div>
+        <div id="cqr-ozet" style="font-size:12px;color:#666;"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <div><label style="font-size:11px;color:#666;display:block;margin-bottom:3px;">Ad Soyad</label><input class="ai2" type="text" id="cqr-ad" style="margin:0;"></div>
+        <div><label style="font-size:11px;color:#666;display:block;margin-bottom:3px;">Kabin No</label><input class="ai2" type="text" id="cqr-kabin" style="margin:0;"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <div>
+          <label style="font-size:11px;color:#854f0b;display:block;margin-bottom:3px;">WhatsApp (manuel)</label>
+          <input class="ai2" type="tel" id="cqr-tel" placeholder="+90 5xx..." style="margin:0;border-color:#854f0b;">
+        </div>
+        <div><label style="font-size:11px;color:#666;display:block;margin-bottom:3px;">Sefer</label><select class="fs" id="cqr-sefer" style="height:40px;"></select></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <div style="flex:1;text-align:center;background:#f5f5f3;border-radius:8px;padding:8px;">
+          <div style="font-size:9px;color:#999;margin-bottom:3px;">YETİŞKİN</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
+            <button onclick="cqrKisiDegis('ya',-1)" style="width:24px;height:24px;border-radius:50%;border:1.5px solid #ddd;background:white;cursor:pointer;">-</button>
+            <span id="cqr-ya" style="font-size:16px;font-weight:600;color:#1a5fa8;">1</span>
+            <button onclick="cqrKisiDegis('ya',1)" style="width:24px;height:24px;border-radius:50%;border:1.5px solid #ddd;background:white;cursor:pointer;">+</button>
+          </div>
+        </div>
+        <div style="flex:1;text-align:center;background:#f5f5f3;border-radius:8px;padding:8px;">
+          <div style="font-size:9px;color:#999;margin-bottom:3px;">COCUK</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
+            <button onclick="cqrKisiDegis('yc',-1)" style="width:24px;height:24px;border-radius:50%;border:1.5px solid #ddd;background:white;cursor:pointer;">-</button>
+            <span id="cqr-yc" style="font-size:16px;font-weight:600;color:#1a5fa8;">0</span>
+            <button onclick="cqrKisiDegis('yc',1)" style="width:24px;height:24px;border-radius:50%;border:1.5px solid #ddd;background:white;cursor:pointer;">+</button>
+          </div>
+        </div>
+        <div style="flex:1;text-align:center;background:#f5f5f3;border-radius:8px;padding:8px;">
+          <div style="font-size:9px;color:#999;margin-bottom:3px;">BEBEK</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
+            <button onclick="cqrKisiDegis('yb',-1)" style="width:24px;height:24px;border-radius:50%;border:1.5px solid #ddd;background:white;cursor:pointer;">-</button>
+            <span id="cqr-yb" style="font-size:16px;font-weight:600;color:#1a5fa8;">0</span>
+            <button onclick="cqrKisiDegis('yb',1)" style="width:24px;height:24px;border-radius:50%;border:1.5px solid #ddd;background:white;cursor:pointer;">+</button>
+          </div>
+        </div>
+      </div>
+      <button onclick="cqrKaydet()" style="width:100%;padding:13px;background:#0f6e56;color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">Check-in Yap</button>
+    </div>
+  </div>
+</div>
 <!-- QR OKUYUCU MODAL -->
 <div id="qr-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9995;flex-direction:column;align-items:center;justify-content:center;">
   <div style="color:white;font-size:16px;font-weight:500;margin-bottom:16px;">📷 QR Kodu Kameraya Tutun</div>
