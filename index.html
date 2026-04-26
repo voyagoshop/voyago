@@ -2456,8 +2456,7 @@ function doAL(){
     const rehberSeferi=VOYAGES.find(v=>v.guide===CU.key&&v.status!=='archived');
     ACTIVE_SHIP=rehberSeferi?.ship||CU.ship||SHIPS[0]||VOYAGES[0]?.ship||'';
   }
-  setupAdmin();
-  showScreen('sc');
+  setupAdmin().then(()=>showScreen('sc'));
 }
 
 function doForgot(){
