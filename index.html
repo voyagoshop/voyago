@@ -679,6 +679,7 @@ textarea.ai2{resize:none;}
       <button class="att" id="aatab-tur" onclick="adminTab('tur')"><span class="aico">🗺️</span><span>Turlar</span></button>
       <button class="att" id="aatab-gz" onclick="adminTab('gz')"><span class="aico">📰</span><span>Gazete</span></button>
       <button class="att" id="aatab-reh" onclick="adminTab('reh')"><span class="aico">🧭</span><span>Rehberler</span></button>
+      <button class="att" id="aatab-gemiler" onclick="adminTab('gemiler')"><span class="aico">⚓</span><span>Gemiler</span></button>
     </div>
 
     <div class="atsw" id="voyago-menu" style="display:none;">
@@ -1241,8 +1242,31 @@ textarea.ai2{resize:none;}
     </div>
     <div id="admin-gemiler" class="apg">
       <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);border-radius:16px;padding:16px;margin-bottom:14px;color:white;">
-        <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:4px;">Gemiler ve Kara Turları</div>
-        <div style="font-size:12px;opacity:.75;">Ürün → Sefer/Tarih → Rehber hiyerarşisi</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:4px;">⚓ Gemiler & Rehber Yönetimi</div>
+        <div style="font-size:12px;opacity:.75;">Seferlere rehber ata, tur yönet</div>
+      </div>
+
+      <!-- SEFERLER & REHBER ATAMA -->
+      <div style="background:white;border-radius:14px;padding:16px;box-shadow:var(--sh);margin-bottom:12px;">
+        <div style="font-size:14px;font-weight:600;color:var(--t);margin-bottom:12px;">Seferler & Rehber Atama</div>
+        <div id="acente-sefer-rehber-liste"></div>
+      </div>
+
+      <!-- YENİ SEFER EKLE -->
+      <div class="fs2">
+        <div class="fst">Yeni Sefer Ekle</div>
+        <input class="ai2" type="text" id="a-nvl" placeholder="Sefer adı — 2-5 May 2026">
+        <div class="two" style="margin-top:8px;">
+          <div><label class="fl" style="margin-bottom:3px;">Başlangıç</label><input class="ai2" type="date" id="a-nvs" style="margin:0;"></div>
+          <div><label class="fl" style="margin-bottom:3px;">Bitiş</label><input class="ai2" type="date" id="a-nve" style="margin:0;"></div>
+        </div>
+        <input class="ai2" type="text" id="a-nvgemi" placeholder="Gemi adı — Celestyal Discovery" style="margin-top:8px;">
+        <div style="margin-top:8px;"><label class="fl" style="margin-bottom:3px;">Rehber Ata</label>
+          <select class="fs" id="a-nvrehber" style="margin:0;">
+            <option value="">-- Rehber seç --</option>
+          </select>
+        </div>
+        <button class="bp" onclick="acenteSeferEkle()" style="margin-top:10px;">Sefer Ekle</button>
       </div>
 
       <!-- SEKMELİ GÖRÜNÜM -->
@@ -4124,6 +4148,77 @@ function getMyRehberler(){
 }
 
 function renderGemilerPanel(){
+  // Rehber listesini doldur
+  const rehberSel = document.getElementById('a-nvrehber');
+  if(rehberSel){
+    rehberSel.innerHTML = '<option value="">-- Rehber seç --</option>' +
+      Object.entries(USERS).filter(([k,u])=>u.role==='guide')
+        .map(([k,u])=>`<option value="${k}">${u.name}</option>`).join('');
+  }
+
+  // Seferler listesi — rehber atama
+  const liste = document.getElementById('acente-sefer-rehber-liste');
+  if(liste){
+    const mv = VOYAGES.filter(v=>v.status!=='archived');
+    if(!mv.length){
+      liste.innerHTML = '<div style="text-align:center;padding:16px;color:var(--t3);font-size:13px;">Henüz sefer yok.</div>';
+    } else {
+      liste.innerHTML = mv.map(v=>{
+        const rehberOptions = Object.entries(USERS).filter(([k,u])=>u.role==='guide')
+          .map(([k,u])=>`<option value="${k}" ${v.guide===k?'selected':''}>${u.name}</option>`).join('');
+        return `<div style="background:var(--gray);border-radius:12px;padding:12px 14px;margin-bottom:8px;">
+          <div style="font-size:14px;font-weight:500;color:var(--t);margin-bottom:8px;">🚢 ${v.label}</div>
+          <div style="font-size:11px;color:var(--t2);margin-bottom:8px;">${v.ship||''} ${v.startDate?'· '+v.startDate:''} ${v.endDate?'→ '+v.endDate:''}</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select onchange="acenteRehberAta('${v.id}',this.value)" style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif;">
+              <option value="">-- Rehber seç --</option>
+              ${rehberOptions}
+            </select>
+            <button onclick="acenteSeferSil('${v.id}')" style="padding:6px 12px;border-radius:20px;font-size:11px;border:1.5px solid var(--red);color:var(--red);background:transparent;cursor:pointer;">Sil</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+}
+
+async function acenteRehberAta(seferId, rehberKey){
+  const v = VOYAGES.find(v=>v.id===seferId);
+  if(!v) return;
+  v.guide = rehberKey;
+  await saveSeferDB(v);
+  showToast(rehberKey ? 'Rehber atandı!' : 'Rehber kaldırıldı.');
+}
+
+async function acenteSeferEkle(){
+  const label = document.getElementById('a-nvl')?.value.trim();
+  const start = document.getElementById('a-nvs')?.value;
+  const end = document.getElementById('a-nve')?.value;
+  const gemi = document.getElementById('a-nvgemi')?.value.trim();
+  const rehber = document.getElementById('a-nvrehber')?.value;
+  if(!label){showToast('Sefer adı gerekli.');return;}
+  const vid = 'v'+Date.now();
+  VOYAGES.push({id:vid, label, route:'', ship:gemi||'', guide:rehber||'',
+    status:'active', visible:true, startDate:start||'', endDate:end||''});
+  const yeni = VOYAGES[VOYAGES.length-1];
+  await saveSeferDB(yeni);
+  ['a-nvl','a-nvs','a-nve','a-nvgemi'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  renderGemilerPanel();
+  populateSeferler();
+  showToast('Sefer eklendi!');
+}
+
+async function acenteSeferSil(id){
+  if(!confirm('Bu sefer silinsin mi?'))return;
+  await dbDelete('seferler',{id});
+  const i=VOYAGES.findIndex(v=>v.id===id);
+  if(i>=0)VOYAGES.splice(i,1);
+  renderGemilerPanel();
+  populateSeferler();
+  showToast('Sefer silindi.');
+}
+
+function renderGemilerPanel_eski(){
   const ac=getMyAcente();
   if(!ac)return;
 
