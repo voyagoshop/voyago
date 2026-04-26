@@ -1367,8 +1367,12 @@ async function dbDelete(tablo, filtre) {
 let DB_READY = false;
 
 async function initDB() {
-  // Zaten yüklendiyse tekrar çalıştırma
-  if(DB_READY) return;
+  // Her seferinde tüm verileri sıfırla — çift yükleme önle
+  DB_READY = false;
+  VOYAGES.length = 0;
+  TOURS.length = 0;
+  GEMI_PLANLARI.length = 0;
+  passengers.length = 0;
   try {
     // Kullanıcıları yükle
     const kullanicilar = await dbGet('kullanicilar');
@@ -1446,8 +1450,7 @@ async function initDB() {
       if(g.gerisayimlar && g.gerisayimlar.length) d.gerisayimlar = g.gerisayimlar;
       if(g.gun_mesaji) d.gun_mesaji = g.gun_mesaji;
       if(g.gemi_planlari && g.gemi_planlari.length){
-        // Sadece bir kez yükle
-        if(!GEMI_PLANLARI.length) g.gemi_planlari.forEach(p=>GEMI_PLANLARI.push(p));
+        g.gemi_planlari.forEach(p=>GEMI_PLANLARI.push(p));
       }
     });
 
@@ -2337,11 +2340,12 @@ function doAL(){
   if(!USERS[u]||USERS[u].pass!==p){err.style.display='block';return;}
   err.style.display='none';
   CU={key:u,...USERS[u]};
+  // localStorage'a kaydet — F5'te hatırlasın
+  try{ localStorage.setItem('voyago_admin', JSON.stringify({key:u})); }catch(e){}
   // Rol bazlı başlangıç gemisi
   if(CU.role==='voyago') ACTIVE_SHIP=SHIPS[0]||VOYAGES[0]?.ship||'';
   else if(CU.role==='acente') ACTIVE_SHIP=SHIPS[0]||VOYAGES[0]?.ship||'';
   else {
-    // Rehber için atandığı seferin gemisini bul
     const rehberSeferi=VOYAGES.find(v=>v.guide===CU.key&&v.status!=='archived');
     ACTIVE_SHIP=rehberSeferi?.ship||CU.ship||SHIPS[0]||VOYAGES[0]?.ship||'';
   }
@@ -4541,69 +4545,31 @@ function baslat() {
 
 // ── OTOMATİK GİRİŞ ──
 function autoLogin() {
-  // Önce hoş geldin kartını kontrol et
+  // Admin oturumu kontrolü — F5'te rehber/acente geri gelsin
+  try{
+    const adminKayit = localStorage.getItem('voyago_admin');
+    if(adminKayit){
+      const {key} = JSON.parse(adminKayit);
+      if(key && USERS[key]){
+        CU = {key, ...USERS[key]};
+        if(CU.role==='voyago') ACTIVE_SHIP=SHIPS[0]||VOYAGES[0]?.ship||'';
+        else if(CU.role==='acente') ACTIVE_SHIP=SHIPS[0]||VOYAGES[0]?.ship||'';
+        else {
+          const rehberSeferi=VOYAGES.find(v=>v.guide===CU.key&&v.status!=='archived');
+          ACTIVE_SHIP=rehberSeferi?.ship||CU.ship||VOYAGES[0]?.ship||'';
+        }
+        setupAdmin();
+        showScreen('sc');
+        return;
+      }
+    }
+  }catch(e){}
+  // Yolcu oturumu kontrolü
   checkHosgeldin();
-  return; // Artık otomatik giriş yok — kullanıcı "Devam Et" butonuna bassın
-  try {
-    const kayit = localStorage.getItem('voyago_yolcu');
-    if (!kayit) return;
-    const p = JSON.parse(kayit);
-    if (!p || !p.kabin || !p.sefer) return;
-
-    // Sefer hâlâ görünür mü kontrol et
-    const v = VOYAGES.find(v => v.id === p.sefer && v.visible && v.status !== 'archived');
-    if (!v) { localStorage.removeItem('voyago_yolcu'); return; }
-
-    // Yolcuyu bellekte oluştur
-    let yolcu = passengers.find(px => px.kabin === p.kabin && px.sefer === p.sefer);
-    if (!yolcu) {
-      yolcu = {name:p.name, kabin:p.kabin, tel:p.tel, sefer:p.sefer,
-        adult:p.adult||1, child:p.child||0, baby:p.baby||0,
-        checkedIn:true, checkinDone:true, joinedTours:[]};
-      passengers.push(yolcu);
-    }
-    CP = yolcu;
-
-    // Ekranı güncelle
-    document.getElementById('akl').textContent = 'Kabin ' + p.kabin;
-    document.getElementById('app-ship-name').textContent = v.ship || '';
-    const now = new Date();
-    const seferTarihA = v?.startDate && v?.endDate
-      ? new Date(v.startDate).toLocaleDateString('tr-TR',{day:'numeric',month:'short'}) + ' – ' + new Date(v.endDate).toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'})
-      : v?.startDate
-      ? new Date(v.startDate).toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'})
-      : now.toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'});
-    document.getElementById('app-date-pill').textContent = seferTarihA;
-    const visVoyages = VOYAGES.filter(vv=>vv.visible&&vv.status!=='archived'&&vv.ship===v.ship);
-    const myIdx = visVoyages.findIndex(vv=>vv.id===p.sefer)+1;
-    const gunYazisiA=gemiGunYazisi(v);
-    document.getElementById('app-sefer-pill').textContent = gunYazisiA||('Sefer '+myIdx+'/'+visVoyages.length);
-
-    if (USERS[v.guide]) {
-      const g = USERS[v.guide];
-      document.getElementById('agn').textContent = g.name;
-      document.getElementById('aga').textContent = g.initials || g.name.slice(0,2).toUpperCase();
-      document.getElementById('aga').style.background = g.color || '#1a5fa8';
-    }
-
-    renderPassTours(p.sefer);
-    renderProgramPage(p.sefer);
-    renderYemekPage(p.sefer);
-    renderGazete();
-    showScreen('sa');
-    startClock();
-    // Anket kontrolü — DB yüklendikten sonra yap
-    setTimeout(()=>checkAnketGoster(p.sefer), 1000);
-    console.log('Otomatik giris: ' + p.name);
-  } catch(e) {
-    console.error('autoLogin hatasi:', e);
-    localStorage.removeItem('voyago_yolcu');
-  }
 }
-
 function doLogout() {
   CP = null; CU = null;
-  // Sadece oturumu temizle — veriler bellekte kalsın
+  try{ localStorage.removeItem('voyago_admin'); }catch(e){}
   showScreen('sl');
   setTimeout(()=>{ checkHosgeldin(); }, 100);
 }
