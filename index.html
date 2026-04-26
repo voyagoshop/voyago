@@ -2428,26 +2428,29 @@ async function setupAdmin(){
 
   // Sekme görünürlükleri
   // ══ SEKME GÖRÜNÜRLÜKLERİ ══
-  // Rehber sekmeleri — sadece rehberde görünsün
-  const rehberOnly = ['atab-rehrapor','atab-mesaj','atab-turanons','atab-bil','atab-gelecek','atab-kontrol','atab-sef','atab-gemiplan'];
-  rehberOnly.forEach(id=>{
+  // Önce tümünü gizle
+  const tumSekmeler = ['atab-ci','atab-gunluk','atab-tur','atab-gz','atab-gelecek',
+    'atab-kontrol','atab-rehrapor','atab-komisyon','atab-mesaj','atab-turanons',
+    'atab-bil','atab-sef','atab-gemiplan','atab-reh','atab-gemiler','atab-rapor'];
+  tumSekmeler.forEach(id=>{
     const el=document.getElementById(id);
-    if(el) el.style.display=isGuide?'':'none';
+    if(el) el.style.display='none';
   });
 
-  // Acente sekmeleri — sadece acentede görünsün
-  const acenteOnly = ['atab-reh','atab-gemiler','atab-rapor','atab-komisyon'];
-  acenteOnly.forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.style.display=isAcente?'':'none';
-  });
-
-  // Ortak sekmeler — hem rehber hem acentede
-  const ortak = ['atab-ci','atab-gunluk','atab-tur','atab-gz'];
-  ortak.forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.style.display='';
-  });
+  if(isGuide){
+    // Rehber: Check-in, Günlük, Turlar, Gazete, Mesajlar, Tur Anonsu, Bildirim, Seferler, Gemi Planı, Raporlar
+    ['atab-ci','atab-gunluk','atab-tur','atab-gz','atab-mesaj','atab-turanons',
+     'atab-bil','atab-sef','atab-gemiplan','atab-rehrapor'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el) el.style.display='';
+    });
+  } else if(isAcente){
+    // Acente: sadece Check-in, Günlük, Turlar, Gazete, Rehberler
+    ['atab-ci','atab-gunluk','atab-tur','atab-gz','atab-reh'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el) el.style.display='';
+    });
+  }
   // Rehber rapor yazma alanı
   const rrya=document.getElementById('rehber-rapor-yaz-alani');
   const rrea=document.getElementById('rehber-rapor-email-alani');
