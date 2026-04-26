@@ -2427,13 +2427,27 @@ async function setupAdmin(){
   }
 
   // Sekme görünürlükleri
-  document.getElementById('atab-reh').style.display=isAcente?'block':'none';
-  document.getElementById('atab-gemiler').style.display=isAcente?'block':'none';
-  document.getElementById('atab-rapor').style.display=isAcente?'block':'none';
-  document.getElementById('atab-rehrapor').style.display=(isAcente||isGuide)?'block':'none';
-  document.getElementById('atab-komisyon').style.display=isAcente?'block':'none';
-  document.getElementById('atab-mesaj').style.display=(isAcente||isGuide)?'block':'none';
-  document.getElementById('atab-turanons').style.display=isGuide?'block':'none';
+  // ══ SEKME GÖRÜNÜRLÜKLERİ ══
+  // Rehber sekmeleri — sadece rehberde görünsün
+  const rehberOnly = ['atab-rehrapor','atab-mesaj','atab-turanons','atab-bil','atab-gelecek','atab-kontrol','atab-sef','atab-gemiplan'];
+  rehberOnly.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display=isGuide?'':'none';
+  });
+
+  // Acente sekmeleri — sadece acentede görünsün
+  const acenteOnly = ['atab-reh','atab-gemiler','atab-rapor','atab-komisyon'];
+  acenteOnly.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display=isAcente?'':'none';
+  });
+
+  // Ortak sekmeler — hem rehber hem acentede
+  const ortak = ['atab-ci','atab-gunluk','atab-tur','atab-gz'];
+  ortak.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display='';
+  });
   // Rehber rapor yazma alanı
   const rrya=document.getElementById('rehber-rapor-yaz-alani');
   const rrea=document.getElementById('rehber-rapor-email-alani');
@@ -4571,7 +4585,7 @@ function baslat() {
 }
 
 // ── OTOMATİK GİRİŞ ──
-function autoLogin() {
+async function autoLogin() {
   // Admin oturumu kontrolü — F5'te rehber/acente geri gelsin
   try{
     const adminKayit = localStorage.getItem('voyago_admin');
@@ -4579,18 +4593,22 @@ function autoLogin() {
       const {key} = JSON.parse(adminKayit);
       if(key && USERS[key]){
         CU = {key, ...USERS[key]};
+        // DB henüz yüklenmediyse bekle
+        if(!DB_READY){
+          await initDB();
+        }
         if(CU.role==='voyago') ACTIVE_SHIP=SHIPS[0]||VOYAGES[0]?.ship||'';
         else if(CU.role==='acente') ACTIVE_SHIP=SHIPS[0]||VOYAGES[0]?.ship||'';
         else {
           const rehberSeferi=VOYAGES.find(v=>v.guide===CU.key&&v.status!=='archived');
           ACTIVE_SHIP=rehberSeferi?.ship||CU.ship||VOYAGES[0]?.ship||'';
         }
-        setupAdmin();
+        await setupAdmin();
         showScreen('sc');
         return;
       }
     }
-  }catch(e){}
+  }catch(e){console.log('autoLogin hatası:',e);}
   // Yolcu oturumu kontrolü
   checkHosgeldin();
 }
