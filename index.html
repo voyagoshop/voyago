@@ -671,6 +671,7 @@ textarea.ai2{resize:none;}
       <button class="att" id="ratab-sef" onclick="adminTab('sef')"><span class="aico">🚢</span><span>Seferler</span></button>
       <button class="att" id="ratab-gemiplan" onclick="adminTab('gemiplan')"><span class="aico">🗺️</span><span>Gemi Planı</span></button>
       <button class="att" id="ratab-rehrapor" onclick="adminTab('rehrapor')"><span class="aico">📝</span><span>Raporlar</span></button>
+      <button class="att" id="ratab-kontrol" onclick="adminTab('kontrol')"><span class="aico">✅</span><span>Tur Kontrol</span></button>
       <button class="att" id="ratab-gelecek" onclick="adminTab('gelecek')"><span class="aico">🌟</span><span>Fırsat Turları</span></button>
     </div>
 
@@ -1483,7 +1484,7 @@ async function initDB() {
 
     // Turları yükle
     let turlarDB = [];
-    try { turlarDB = await dbGetSelect('turlar', 'id,ad,liman,saat,gun,fiyat_yetiskin,fiyat_cocuk,fiyat_bebek,fiyat_normal_yetiskin,fiyat_normal_cocuk,fiyat_normal_bebek,gemi,sefer_listesi,max_kisi,uyari_esigi,aktif,uyari_mesaji,uyari_aktif,sira,acente_id'); } catch(e) { console.log('turlar hatası:', e); }
+    try { turlarDB = await dbGetSelect('turlar', 'id,ad,liman,saat,gun,fiyat_yetiskin,fiyat_cocuk,fiyat_bebek,gemi,sefer_listesi'); } catch(e) { console.log('turlar hatası:', e); }
     TOURS = turlarDB.map(t => ({
       id: t.id, name: t.ad, liman: t.liman || '',
       saat: t.saat || '', gun: t.gun || 1,
@@ -1558,8 +1559,8 @@ async function initDB() {
 
     DB_READY = true;
     console.log('Veritabani hazir!');
-    // Görselleri arka planda yükle
-    setTimeout(loadTurGorselleri, 1000);
+    // Görsel yükleme geçici kapalı — tablo optimize edilecek
+    // setTimeout(loadTurGorselleri, 1000);
     populateSeferler();
   } catch(e) {
     console.error('DB init hatasi:', e);
