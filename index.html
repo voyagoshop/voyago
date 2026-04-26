@@ -605,7 +605,7 @@ textarea.ai2{resize:none;}
     </div>
     <div id="tab-gelecek" class="tp">
       <div style="text-align:center;padding:16px 0 8px;">
-        <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--blue);">Gelecek Turlar</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--blue);">🌟 Gelecek Fırsat Turları</div>
         <div style="font-size:12px;color:var(--t2);margin-top:4px;">Erken kayıt fırsatlarını kaçırmayın!</div>
       </div>
       <div id="gelecek-tur-list"></div>
@@ -634,7 +634,7 @@ textarea.ai2{resize:none;}
       </button>
       <button class="nb" id="nb-anket" onclick="switchTab('anket')"><span class="ni">📝</span><span data-t="anket">Anket</span></button>
       <button class="nb" id="nb-bildirim" onclick="switchTab('bildirim')"><span class="ni">🔔</span><span data-t="bildirim">Bildirim</span></button>
-      <button class="nb" id="nb-gelecek" onclick="switchTab('gelecek')"><span class="ni">🌟</span><span data-t="firsatlar">Fırsatlar</span></button>
+      <button class="nb" id="nb-gelecek" onclick="switchTab('gelecek')"><span class="ni">🌟</span><span style="font-size:9px;">Fırsat Turları</span></button>
       <button class="nb" id="nb-rehber" onclick="switchTab('rehber')"><span class="ni">💬</span><span data-t="rehber">Rehber</span></button>
     </div>
   </div>
@@ -671,6 +671,7 @@ textarea.ai2{resize:none;}
       <button class="att" id="ratab-sef" onclick="adminTab('sef')"><span class="aico">🚢</span><span>Seferler</span></button>
       <button class="att" id="ratab-gemiplan" onclick="adminTab('gemiplan')"><span class="aico">🗺️</span><span>Gemi Planı</span></button>
       <button class="att" id="ratab-rehrapor" onclick="adminTab('rehrapor')"><span class="aico">📝</span><span>Raporlar</span></button>
+      <button class="att" id="ratab-gelecek" onclick="adminTab('gelecek')"><span class="aico">🌟</span><span>Fırsat Turları</span></button>
     </div>
 
     <div class="atsw" id="acente-menu" style="display:none;">
@@ -932,6 +933,10 @@ textarea.ai2{resize:none;}
 
     <!-- GELECEK TURLAR -->
     <div id="admin-gelecek" class="apg">
+      <div style="background:linear-gradient(135deg,#854f0b,#c47a1e);border-radius:16px;padding:16px;margin-bottom:14px;color:white;">
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:4px;">🌟 Gelecek Fırsat Turları</div>
+        <div style="font-size:12px;opacity:.75;">Yolculara özel fırsat ve gelecek tur teklifleri</div>
+      </div>
       <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);border-radius:16px;padding:16px;margin-bottom:14px;color:white;">
         <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:4px;">Gelecek Tur / Fırsat Ekle</div>
         <div style="font-size:12px;opacity:.75;">Yolcular "Fırsatlar" sekmesinde görecek</div>
@@ -3584,7 +3589,13 @@ function adminTab(name){
   if(btn)btn.classList.add('active');
   if(name==='gz')renderGazeteAdmin();
   if(name==='gunluk'){initDailyForms();setTimeout(renderGsAdmin,200);}
-  if(name==='gelecek')renderGelecekAdmin();
+  if(name==='gelecek'){
+    renderGelecekAdmin();
+    // Fırsat tur görsel butonu sıfırla
+    newGtImg=null;
+    const prev=document.getElementById('gt-img-preview');
+    if(prev)prev.innerHTML='📷 Görsel ekle';
+  }
   if(name==='kontrol')initKontrolListesi();
   if(name==='voyago')renderVoyagoPanel();
   if(name==='reh'){try{renderGuides();}catch(e){}}
