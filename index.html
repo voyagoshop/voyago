@@ -2288,12 +2288,16 @@ function doForgot(){
   res.style.display='block';
 }
 
-function setupAdmin(){
+async function setupAdmin(){
   const u=CU;
   const isVoyago=u.role==='voyago';
   const isAcente=u.role==='acente';
   const isGuide=u.role==='guide';
-  const iS=isVoyago||isAcente; // admin seviyesi
+  const iS=isVoyago||isAcente;
+  // VOYAGES boşsa DB'den yükle
+  if(!VOYAGES.length){
+    await loadVoyagesFromDB();
+  }
 
   // Topbar rengi
   let topClass='atb ';
