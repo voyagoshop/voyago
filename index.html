@@ -1115,6 +1115,18 @@ textarea.ai2{resize:none;}
         </div>
       </div>
 
+      <!-- HIZLI KABİN ARAMA -->
+      <div style="background:var(--gl);border-radius:14px;padding:12px 14px;margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:600;color:var(--green);margin-bottom:6px;">⚡ Hızlı Kabin Arama</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input class="ai2" type="text" id="kontrol-kabin-ara" placeholder="Kabin no yaz..." 
+            style="margin:0;flex:1;font-size:15px;font-weight:600;"
+            oninput="kabinHizliAra()" onkeydown="if(event.key==='Enter')kabinHizliGeldi()">
+          <button onclick="kabinHizliGeldi()" style="padding:10px 16px;background:var(--green);color:white;border:none;border-radius:10px;font-size:20px;cursor:pointer;">✓</button>
+        </div>
+        <div id="kontrol-kabin-sonuc" style="margin-top:8px;font-size:13px;min-height:20px;"></div>
+      </div>
+
       <!-- Sayaç -->
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;" id="kontrol-stats">
         <div class="sc2"><div class="sn" id="ks-toplam" style="font-size:20px;">0</div><div class="slb">Toplam Kişi</div></div>
@@ -1129,6 +1141,26 @@ textarea.ai2{resize:none;}
           <span id="kontrol-kisi-ozet" style="font-weight:400;"></span>
         </div>
         <div id="kontrol-list"></div>
+      </div>
+
+      <!-- TUR ALMAYANLAR -->
+      <div style="background:white;border-radius:14px;box-shadow:var(--sh);margin-top:14px;overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#854f0b,#c47a1e);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:14px;font-weight:600;color:white;">⚠️ Tur Almayan Yolcular</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.75);margin-top:2px;">Son fırsat mesajı gönder</div>
+          </div>
+          <div style="background:rgba(255,255,255,.2);color:white;font-size:18px;font-weight:700;padding:4px 14px;border-radius:20px;" id="tur-almayan-sayi">0</div>
+        </div>
+        <div id="tur-almayan-liste" style="max-height:300px;overflow-y:auto;"></div>
+        <div style="padding:12px 14px;border-top:1px solid var(--border);">
+          <textarea id="tur-almayan-mesaj" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif;resize:none;height:70px;margin-bottom:8px;" 
+            placeholder="Son fırsat! Bugün için hâlâ tur yerimiz mevcut. Katılmak ister misiniz? Rehberinize yazın."></textarea>
+          <div style="display:flex;gap:8px;">
+            <button onclick="turAlmayanMesajKopyala()" style="flex:1;padding:10px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 Mesajı Kopyala</button>
+            <button onclick="turAlmayanWhatsapp()" style="flex:1;padding:10px;background:#25D366;color:white;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">📱 WhatsApp</button>
+          </div>
+        </div>
       </div>
 
       <!-- Paylaş -->
@@ -3800,6 +3832,7 @@ function renderKontrolListesi(){
   const sid=sSel.value;
   if(!tid||!sid){
     document.getElementById('kontrol-list').innerHTML='<div class="es">Tur ve sefer seçin.</div>';
+    renderTurAlmayanlar();
     return;
   }
   const tur=TOURS.find(t=>t.id===tid);
@@ -3830,6 +3863,7 @@ function renderKontrolListesi(){
     return;
   }
 
+  renderTurAlmayanlar();
   document.getElementById('kontrol-list').innerHTML=kat.map(p=>{
     const key=p.kabin+'_'+sid+'_'+tid;
     const d=kontrolDurum[key]||0;
@@ -3849,9 +3883,108 @@ function renderKontrolListesi(){
 }
 
 function setKontrol(key, val, tid, sid){
-  // Aynı butona basınca toggle (geri al)
   kontrolDurum[key] = kontrolDurum[key]===val ? 0 : val;
   renderKontrolListesi();
+  renderTurAlmayanlar();
+}
+
+function renderTurAlmayanlar(){
+  const sid = document.getElementById('kontrol-sefer-sel')?.value;
+  const el = document.getElementById('tur-almayan-liste');
+  const sayiEl = document.getElementById('tur-almayan-sayi');
+  if(!el||!sid) return;
+
+  // Bu seferdeki tüm yolcular
+  const tumYolcular = passengers.filter(p=>p.sefer===sid);
+  // Hiç tur almamış olanlar
+  const turAlmayanlar = tumYolcular.filter(p=>!p.joinedTours||p.joinedTours.length===0);
+
+  if(sayiEl) sayiEl.textContent = turAlmayanlar.length;
+
+  if(!turAlmayanlar.length){
+    el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--green);font-size:13px;">✅ Tüm yolcular en az bir tura katılmış!</div>';
+    return;
+  }
+
+  el.innerHTML = turAlmayanlar.map(p=>`
+    <div style="padding:10px 14px;border-bottom:1px solid var(--gray);display:flex;align-items:center;gap:10px;">
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;color:var(--t);">${p.name}</div>
+        <div style="font-size:11px;color:var(--t2);margin-top:2px;">Kabin ${p.kabin} · ${p.adult}Y${p.child>0?' '+p.child+'Ç':''}${p.baby>0?' '+p.baby+'B':''}</div>
+      </div>
+      <div style="font-size:11px;background:var(--al);color:var(--amber);padding:3px 10px;border-radius:20px;font-weight:500;">Tur yok</div>
+    </div>`).join('');
+}
+
+function turAlmayanMesajKopyala(){
+  const sid = document.getElementById('kontrol-sefer-sel')?.value;
+  const mesaj = document.getElementById('tur-almayan-mesaj')?.value.trim();
+  if(!sid||!mesaj){showToast('Sefer seçin ve mesaj yazın.');return;}
+  const tumYolcular = passengers.filter(p=>p.sefer===sid);
+  const turAlmayanlar = tumYolcular.filter(p=>!p.joinedTours||p.joinedTours.length===0);
+  if(!turAlmayanlar.length){showToast('Tur almayan yolcu yok!');return;}
+  const NL = String.fromCharCode(10);
+  const liste = turAlmayanlar.map(p=>'• Kabin '+p.kabin+' — '+p.name).join(NL);
+  const tam = mesaj+NL+NL+'--- Tur Almayan Kabinler ---'+NL+liste;
+  navigator.clipboard?.writeText(tam).then(()=>showToast('Kopyalandı!')).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=tam;
+    document.body.appendChild(ta);ta.select();document.execCommand('copy');
+    document.body.removeChild(ta);showToast('Kopyalandı!');
+  });
+}
+
+function turAlmayanWhatsapp(){
+  const sid = document.getElementById('kontrol-sefer-sel')?.value;
+  const mesaj = document.getElementById('tur-almayan-mesaj')?.value.trim();
+  if(!mesaj){showToast('Mesaj yazın.');return;}
+  // WhatsApp'ta mesajı aç
+  const encoded = encodeURIComponent(mesaj);
+  window.open('https://wa.me/?text='+encoded, '_blank');
+}
+
+function kabinHizliAra(){
+  const kabin = document.getElementById('kontrol-kabin-ara')?.value.trim();
+  const sonuc = document.getElementById('kontrol-kabin-sonuc');
+  if(!sonuc) return;
+  if(!kabin){sonuc.innerHTML='';return;}
+  const tid = document.getElementById('kontrol-tur-sel')?.value;
+  const sid = document.getElementById('kontrol-sefer-sel')?.value;
+  if(!tid||!sid){sonuc.innerHTML='<span style="color:var(--amber);">Önce tur seçin</span>';return;}
+  // Kabin ara
+  const p = passengers.find(px=>px.kabin===kabin&&px.sefer===sid&&px.joinedTours.includes(tid));
+  if(!p){
+    sonuc.innerHTML='<span style="color:var(--red);">❌ Kabin '+kabin+' bu turda kayıtlı değil</span>';
+    return;
+  }
+  const key = kabin+'_'+sid+'_'+tid;
+  const d = kontrolDurum[key]||0;
+  const kisi = p.adult+p.child+p.baby;
+  if(d===1){
+    sonuc.innerHTML='<span style="color:var(--green);">✓ '+p.name+' ('+kisi+' kişi) — Geldi</span>';
+  } else {
+    sonuc.innerHTML='<span style="color:var(--blue);">👤 '+p.name+' · Kabin '+kabin+' · '+kisi+' kişi — <b>Henüz işaretlenmedi</b></span>';
+  }
+}
+
+function kabinHizliGeldi(){
+  const kabin = document.getElementById('kontrol-kabin-ara')?.value.trim();
+  if(!kabin) return;
+  const tid = document.getElementById('kontrol-tur-sel')?.value;
+  const sid = document.getElementById('kontrol-sefer-sel')?.value;
+  if(!tid||!sid){showToast('Önce tur seçin.');return;}
+  const p = passengers.find(px=>px.kabin===kabin&&px.sefer===sid&&px.joinedTours.includes(tid));
+  if(!p){showToast('Kabin '+kabin+' bu turda kayıtlı değil!');return;}
+  const key = kabin+'_'+sid+'_'+tid;
+  kontrolDurum[key] = 1; // Geldi
+  document.getElementById('kontrol-kabin-ara').value = '';
+  document.getElementById('kontrol-kabin-sonuc').innerHTML = 
+    '<span style="color:var(--green);">✅ '+p.name+' geldi olarak işaretlendi!</span>';
+  renderKontrolListesi();
+  // 2 saniye sonra temizle
+  setTimeout(()=>{
+    const el=document.getElementById('kontrol-kabin-sonuc');
+    if(el)el.innerHTML='';
+  }, 2000);
 }
 
 function buildKontrolMetin(){
@@ -5739,46 +5872,46 @@ function gemiGunYazisi(v){
 function bildirimSesi(tip='mesaj'){
   try{
     const ctx=new(window.AudioContext||window.webkitAudioContext)();
-    const osc=ctx.createOscillator();
-    const gain=ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+
+    function nota(frekans, baslangic, sure, guclukluk=0.4){
+      const osc=ctx.createOscillator();
+      const gain=ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.setValueAtTime(frekans, ctx.currentTime+baslangic);
+      gain.gain.setValueAtTime(guclukluk, ctx.currentTime+baslangic);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+baslangic+sure);
+      osc.start(ctx.currentTime+baslangic);
+      osc.stop(ctx.currentTime+baslangic+sure);
+    }
 
     if(tip==='mesaj'){
-      // İki nota — ding dong
-      osc.frequency.setValueAtTime(880,ctx.currentTime);
-      osc.frequency.setValueAtTime(660,ctx.currentTime+0.15);
-      gain.gain.setValueAtTime(0.3,ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime+0.5);
-    } else if(tip==='duyuru'){
-      // Üç nota — önemli duyuru
-      osc.frequency.setValueAtTime(523,ctx.currentTime);
-      osc.frequency.setValueAtTime(659,ctx.currentTime+0.15);
-      osc.frequency.setValueAtTime(784,ctx.currentTime+0.30);
-      gain.gain.setValueAtTime(0.3,ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.6);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime+0.6);
-    } else if(tip==='anket'){
-      // Yumuşak tek nota
-      osc.frequency.setValueAtTime(440,ctx.currentTime);
-      gain.gain.setValueAtTime(0.2,ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.4);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime+0.4);
-    } else if(tip==='gerisayim'){
-      // Alarm — kısa tekrarlı
-      [0,0.2,0.4].forEach(t=>{
-        const o2=ctx.createOscillator();
-        const g2=ctx.createGain();
-        o2.connect(g2);g2.connect(ctx.destination);
-        o2.frequency.setValueAtTime(1000,ctx.currentTime+t);
-        g2.gain.setValueAtTime(0.3,ctx.currentTime+t);
-        g2.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+t+0.15);
-        o2.start(ctx.currentTime+t);
-        o2.stop(ctx.currentTime+t+0.15);
+      // Ping ping — klasik mesaj sesi
+      nota(1046, 0,    0.12, 0.5);
+      nota(784,  0.13, 0.25, 0.3);
+    }
+    else if(tip==='duyuru'){
+      // Üç artan nota — önemli duyuru, daha güçlü
+      nota(523, 0,    0.18, 0.6);
+      nota(659, 0.20, 0.18, 0.6);
+      nota(1047,0.40, 0.35, 0.7);
+    }
+    else if(tip==='anket'){
+      // Yumuşak ding
+      nota(880, 0,    0.12, 0.4);
+      nota(1108,0.13, 0.30, 0.3);
+    }
+    else if(tip==='gerisayim'){
+      // Güçlü alarm — 3 kez tekrar
+      [0, 0.25, 0.5, 0.75].forEach(t=>{
+        nota(1320, t, 0.18, 0.7);
+      });
+    }
+    else if(tip==='uyari'){
+      // Tehlike — alçak-yüksek tekrar
+      [0, 0.3, 0.6].forEach(t=>{
+        nota(440,  t,      0.2, 0.6);
+        nota(880,  t+0.15, 0.1, 0.5);
       });
     }
   }catch(e){}
