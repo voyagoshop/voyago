@@ -609,7 +609,7 @@ textarea.ai2{resize:none;}
         <div style="font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:4px;">Memnuniyet Anketi</div>
         <div style="font-size:12px;opacity:.75;">Görüşleriniz bizim için çok değerli</div>
       </div>
-      <div id="anket-icerik"></div>
+      <div id="anket-yolcu-alan"></div>
     </div>
 
     <div id="tab-bildirim" class="tp">
@@ -5617,6 +5617,10 @@ function komisyonRaporKopyala(){
 // ══ ESKİ ANKET (kaldırıldı) ══
 
 function renderAnket(sv){
+  // Eski fonksiyon — yeni renderAnketYolcu kullanılıyor
+  renderAnketYolcu(sv);
+}
+function renderAnket_eski(sv){
   const el=document.getElementById('anket-icerik');
   if(!el)return;
 
