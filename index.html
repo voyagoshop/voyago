@@ -1455,7 +1455,8 @@ async function initDB() {
     }));
 
     // Turları yükle
-    const turlarDB = await dbGet('turlar');
+    let turlarDB = [];
+    try { turlarDB = await dbGet('turlar'); } catch(e) { console.log('turlar hatası:', e); }
     TOURS = turlarDB.map(t => ({
       id: t.id, name: t.ad, liman: t.liman || '',
       saat: t.saat || '', gun: t.gun || 1,
@@ -1471,7 +1472,8 @@ async function initDB() {
     }));
 
     // Günlük içerikleri yükle
-    const gunlukDB = await dbGet('gunluk');
+    let gunlukDB = [];
+    try { gunlukDB = await dbGet('gunluk'); } catch(e) { console.log('gunluk hatası:', e); }
     gunlukDB.forEach(g => {
       if(!DAILY[g.sefer_id]) DAILY[g.sefer_id] = getDailyForSefer(g.sefer_id);
       const d = DAILY[g.sefer_id];
@@ -2476,13 +2478,10 @@ async function setupAdmin(){
   const adw=document.getElementById('admin-dil-wrapper');
   if(adw)adw.style.display='block';
   dilGuncelle();
-  document.getElementById('atab-voyago').style.display=isVoyago?'flex':'none';
+  const atv=document.getElementById('atab-voyago'); if(atv)atv.style.display=isVoyago?'flex':'none';
 
   // VOYAGO rolündeyse diğer admin sekmeleri gizle, sadece VOYAGO sekmesi kalsın
-  ['atab-ci','atab-gunluk','atab-tur','atab-gz','atab-gelecek','atab-kontrol','atab-bil','atab-sef','atab-mesaj','atab-turanons','atab-rehrapor','atab-komisyon'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el)el.style.display=isVoyago?'none':'';
-  });
+  // Eski atab- elementleri artık yok (menüler ayrıldı)
 
   // VOYAGO rolü — sadece VOYAGO panelini aç ve dur
   if(isVoyago){
