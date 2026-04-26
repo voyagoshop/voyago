@@ -3591,7 +3591,13 @@ function adminTab(name){
   if(name==='gemiler')renderGemilerPanel();
   if(name==='rapor')renderRaporPanel();
   if(name==='ci'){renderPS(CASF);}
-  if(name==='tur'){loadVoyagesAndInitTur();}
+  if(name==='tur'){
+    loadVoyagesAndInitTur();
+    // Düzenleme modunu sıfırla
+    window._editTurId = null;
+    const btn = document.querySelector('[onclick="addTourGuncelle()"]');
+    if(btn){btn.textContent='Turu Ekle';btn.setAttribute('onclick','addTour()');}
+  }
   if(name==='sef'){loadVoyagesAndRenderSef();}
   if(name==='gemiplan'){
     const sv=getCurrentSeferId()||VOYAGES.find(v=>v.status!=='archived')?.id;
@@ -3612,6 +3618,21 @@ function switchTab(name){
   if(name==='gelecek')renderGelecekTurlar();
   if(name==='anket'){if(CP)checkAnketGoster(CP.sefer).then(()=>renderAnket(CP.sefer));else renderAnket('');}
   if(name==='rehber'&&CP){renderMesajlar(CP.sefer);}
+  if(name==='gemiplan'){
+    // DB'den taze yükle, sonra yolcu ekranını göster
+    const sv = CP?.sefer || getCurrentSeferId() || VOYAGES.find(v=>v.status!=='archived')?.id;
+    if(sv){
+      dbGet('gunluk',{sefer_id:sv}).then(rows=>{
+        if(rows&&rows.length&&rows[0].gemi_planlari&&rows[0].gemi_planlari.length){
+          GEMI_PLANLARI.length=0;
+          rows[0].gemi_planlari.forEach(p=>GEMI_PLANLARI.push(p));
+        }
+        renderGemiplanYolcu();
+      }).catch(()=>renderGemiplanYolcu());
+    } else {
+      renderGemiplanYolcu();
+    }
+  }
   if(name==='turlar'&&CP){renderTurAnonsPano(CP.sefer);}
 }
 function sendMsg(){
