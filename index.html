@@ -660,24 +660,29 @@ textarea.ai2{resize:none;}
       <div class="dil-menu" id="dil-menu-admin"></div>
     </div>
   </div>
-    <div class="atsw">
-      <button class="att" id="atab-voyago" onclick="adminTab('voyago')" style="display:none;background:#26215c;color:white;"><span class="aico">🌐</span>VOYAGO</button>
-      <button class="att active" id="atab-ci" onclick="adminTab('ci')"><span class="aico">✅</span><span data-t="checkin_tab">Check-in</span></button>
-      <button class="att" id="atab-gunluk" onclick="adminTab('gunluk')"><span class="aico">📅</span><span data-t="gunluk_tab">Günlük</span></button>
-      <button class="att" id="atab-tur" onclick="adminTab('tur')"><span class="aico">🗺️</span><span data-t="turlar_tab">Turlar</span></button>
-      <button class="att" id="atab-gz" onclick="adminTab('gz')"><span class="aico">📰</span><span data-t="gazete_tab">Gazete</span></button>
-      <button class="att" id="atab-gelecek" onclick="adminTab('gelecek')"><span class="aico">🌟</span><span data-t="firsatlar_tab">Fırsatlar</span></button>
-      <button class="att" id="atab-kontrol" onclick="adminTab('kontrol')"><span class="aico">📋</span><span data-t="tur_listesi">Tur Listesi</span></button>
-      <button class="att" id="atab-rehrapor" onclick="adminTab('rehrapor')"><span class="aico">📝</span><span data-t="raporlar_tab">Raporlar</span></button>
-      <button class="att" id="atab-komisyon" onclick="adminTab('komisyon')"><span class="aico">💰</span><span data-t="komisyon_tab">Komisyon</span></button>
-      <button class="att" id="atab-mesaj" onclick="adminTab('mesaj')"><span class="aico">💬</span><span data-t="mesajlar_tab">Mesajlar</span></button>
-      <button class="att" id="atab-turanons" onclick="adminTab('turanons')"><span class="aico">📢</span><span data-t="tur_anonsu_tab">Tur Anonsu</span></button>
-      <button class="att" id="atab-bil" onclick="adminTab('bil')"><span class="aico">🔔</span><span data-t="bildirim_tab">Bildirim</span></button>
-      <button class="att" id="atab-sef" onclick="adminTab('sef')"><span class="aico">🚢</span><span data-t="seferler_tab">Seferler</span></button>
-      <button class="att" id="atab-gemiplan" onclick="adminTab('gemiplan')"><span class="aico">🗺️</span><span>Gemi Planı</span></button>
-      <button class="att" id="atab-reh" onclick="adminTab('reh')" style="display:none;"><span class="aico">🧭</span><span data-t="rehberler_tab">Rehberler</span></button>
-      <button class="att" id="atab-gemiler" onclick="adminTab('gemiler')" style="display:none;"><span class="aico">⚓</span><span data-t="gemiler_tab">Gemiler</span></button>
-      <button class="att" id="atab-rapor" onclick="adminTab('rapor')" style="display:none;"><span class="aico">📊</span>Raporlar</button>
+    <div class="atsw" id="rehber-menu" style="display:none;">
+      <button class="att active" id="ratab-ci" onclick="adminTab('ci')"><span class="aico">✅</span><span>Check-in</span></button>
+      <button class="att" id="ratab-gunluk" onclick="adminTab('gunluk')"><span class="aico">📅</span><span>Günlük</span></button>
+      <button class="att" id="ratab-tur" onclick="adminTab('tur')"><span class="aico">🗺️</span><span>Turlar</span></button>
+      <button class="att" id="ratab-gz" onclick="adminTab('gz')"><span class="aico">📰</span><span>Gazete</span></button>
+      <button class="att" id="ratab-mesaj" onclick="adminTab('mesaj')"><span class="aico">💬</span><span>Mesajlar</span></button>
+      <button class="att" id="ratab-turanons" onclick="adminTab('turanons')"><span class="aico">📢</span><span>Tur Anonsu</span></button>
+      <button class="att" id="ratab-bil" onclick="adminTab('bil')"><span class="aico">🔔</span><span>Bildirim</span></button>
+      <button class="att" id="ratab-sef" onclick="adminTab('sef')"><span class="aico">🚢</span><span>Seferler</span></button>
+      <button class="att" id="ratab-gemiplan" onclick="adminTab('gemiplan')"><span class="aico">🗺️</span><span>Gemi Planı</span></button>
+      <button class="att" id="ratab-rehrapor" onclick="adminTab('rehrapor')"><span class="aico">📝</span><span>Raporlar</span></button>
+    </div>
+
+    <div class="atsw" id="acente-menu" style="display:none;">
+      <button class="att active" id="aatab-ci" onclick="adminTab('ci')"><span class="aico">✅</span><span>Check-in</span></button>
+      <button class="att" id="aatab-gunluk" onclick="adminTab('gunluk')"><span class="aico">📅</span><span>Günlük</span></button>
+      <button class="att" id="aatab-tur" onclick="adminTab('tur')"><span class="aico">🗺️</span><span>Turlar</span></button>
+      <button class="att" id="aatab-gz" onclick="adminTab('gz')"><span class="aico">📰</span><span>Gazete</span></button>
+      <button class="att" id="aatab-reh" onclick="adminTab('reh')"><span class="aico">🧭</span><span>Rehberler</span></button>
+    </div>
+
+    <div class="atsw" id="voyago-menu" style="display:none;">
+      <button class="att active" id="vatab-voyago" onclick="adminTab('voyago')" style="background:#26215c;color:white;"><span class="aico">🌐</span>VOYAGO</button>
     </div>
 
     <!-- VOYAGO APP PANELİ -->
@@ -2427,30 +2432,10 @@ async function setupAdmin(){
   }
 
   // Sekme görünürlükleri
-  // ══ SEKME GÖRÜNÜRLÜKLERİ ══
-  // Önce tümünü gizle
-  const tumSekmeler = ['atab-ci','atab-gunluk','atab-tur','atab-gz','atab-gelecek',
-    'atab-kontrol','atab-rehrapor','atab-komisyon','atab-mesaj','atab-turanons',
-    'atab-bil','atab-sef','atab-gemiplan','atab-reh','atab-gemiler','atab-rapor'];
-  tumSekmeler.forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.style.display='none';
-  });
-
-  if(isGuide){
-    // Rehber: Check-in, Günlük, Turlar, Gazete, Mesajlar, Tur Anonsu, Bildirim, Seferler, Gemi Planı, Raporlar
-    ['atab-ci','atab-gunluk','atab-tur','atab-gz','atab-mesaj','atab-turanons',
-     'atab-bil','atab-sef','atab-gemiplan','atab-rehrapor'].forEach(id=>{
-      const el=document.getElementById(id);
-      if(el) el.style.display='';
-    });
-  } else if(isAcente){
-    // Acente: sadece Check-in, Günlük, Turlar, Gazete, Rehberler
-    ['atab-ci','atab-gunluk','atab-tur','atab-gz','atab-reh'].forEach(id=>{
-      const el=document.getElementById(id);
-      if(el) el.style.display='';
-    });
-  }
+  // ══ SEKME MENÜSÜ — ROL BAZLI ══
+  document.getElementById('rehber-menu').style.display = isGuide ? '' : 'none';
+  document.getElementById('acente-menu').style.display = isAcente ? '' : 'none';
+  document.getElementById('voyago-menu').style.display = isVoyago ? '' : 'none';
   // Rehber rapor yazma alanı
   const rrya=document.getElementById('rehber-rapor-yaz-alani');
   const rrea=document.getElementById('rehber-rapor-email-alani');
@@ -3566,9 +3551,13 @@ function adminTab(name){
   document.querySelectorAll('.apg').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.att').forEach(b=>b.classList.remove('active'));
   const pg=document.getElementById('admin-'+name);
-  const tb=document.getElementById('atab-'+name);
   if(pg)pg.classList.add('active');
-  if(tb)tb.classList.add('active');
+  // Rol bazlı prefix ile aktif butonu bul
+  const isGuide=CU?.role==='guide';
+  const isAcente=CU?.role==='acente';
+  const prefix=isGuide?'ratab-':isAcente?'aatab-':'vatab-';
+  const btn=document.getElementById(prefix+name);
+  if(btn)btn.classList.add('active');
   if(name==='gz')renderGazeteAdmin();
   if(name==='gunluk'){initDailyForms();setTimeout(renderGsAdmin,200);}
   if(name==='gelecek')renderGelecekAdmin();
@@ -3577,6 +3566,19 @@ function adminTab(name){
   if(name==='reh'){try{renderGuides();}catch(e){}}
   if(name==='gemiler')renderGemilerPanel();
   if(name==='rapor')renderRaporPanel();
+  if(name==='ci'){renderPS(CASF);}
+  if(name==='tur'){loadVoyagesAndInitTur();}
+  if(name==='sef'){loadVoyagesAndRenderSef();}
+  if(name==='gemiplan'){
+    const sv=getCurrentSeferId()||VOYAGES.find(v=>v.status!=='archived')?.id;
+    if(sv){dbGet('gunluk',{sefer_id:sv}).then(rows=>{
+      if(rows&&rows.length&&rows[0].gemi_planlari&&rows[0].gemi_planlari.length){
+        GEMI_PLANLARI.length=0;
+        rows[0].gemi_planlari.forEach(p=>GEMI_PLANLARI.push(p));
+      }
+      renderGemiplanAdmin();
+    }).catch(()=>renderGemiplanAdmin());}else renderGemiplanAdmin();
+  }
 }
 function switchTab(name){
   document.querySelectorAll('.tp').forEach(p=>p.classList.remove('active'));
