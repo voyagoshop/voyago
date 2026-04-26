@@ -2526,6 +2526,33 @@ async function setupAdmin(){
   renderPS('hepsi');
   renderTA('hepsi');
   initDailyForms();
+
+  // Rehber için aktif sekmeyi yükle
+  if(isGuide){
+    adminTab('ci');
+    // Günlük veriyi taze çek
+    const svNow = getCurrentSeferId();
+    if(svNow){
+      dbGet('gunluk',{sefer_id:svNow}).then(rows=>{
+        if(rows&&rows.length){
+          const g=rows[0];
+          const d=getDailyForSefer(svNow);
+          if(g.liman) d.port=g.liman;
+          if(g.program) d.program=g.program;
+          if(g.promosyonlar) d.promos=g.promosyonlar;
+          if(g.yemek) d.yemek=g.yemek;
+          if(g.toplanti_saat||g.toplanti_yer||g.toplanti_konu) d.meeting={saat:g.toplanti_saat||'',yer:g.toplanti_yer||'',konu:g.toplanti_konu||''};
+          if(g.gun_mesaji){d.gun_mesaji=g.gun_mesaji;GUNMESAJI_TEMP=g.gun_mesaji;}
+          if(g.gemi_planlari&&g.gemi_planlari.length){
+            GEMI_PLANLARI.length=0;
+            g.gemi_planlari.forEach(p=>GEMI_PLANLARI.push(p));
+          }
+          if(g.gerisayimlar) d.gerisayimlar=g.gerisayimlar;
+          if(g.anket_aktif!==undefined) d.anket_aktif=g.anket_aktif;
+        }
+      }).catch(e=>console.log('Gunluk yükleme hatasi:',e));
+    }
+  }
 }
 
 function selectShipIdx(i){ACTIVE_SHIP=SHIPS[i];setupAdmin();}
