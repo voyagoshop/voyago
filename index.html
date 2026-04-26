@@ -1375,6 +1375,25 @@ async function dbGetSelect(tablo, kolonlar) {
   } catch(e) { console.error(tablo, e); return []; }
 }
 
+// Tur görsellerini ayrıca yükle
+async function loadTurGorselleri(){
+  try{
+    const {data, error} = await sb.from('turlar').select('id,gorsel');
+    if(error||!data) return;
+    data.forEach(row=>{
+      if(!row.gorsel) return;
+      const tur = TOURS.find(t=>t.id===row.id);
+      if(tur) tur.img = row.gorsel;
+    });
+    // Yüklendikten sonra görsel elementlerini güncelle
+    document.querySelectorAll('[data-tur-img]').forEach(el=>{
+      const tid = el.getAttribute('data-tur-img');
+      const tur = TOURS.find(t=>t.id===tid);
+      if(tur?.img) el.src = tur.img;
+    });
+  }catch(e){ console.log('Gorsel yükleme hatası:', e); }
+}
+
 async function dbGet(tablo, filtre = {}) {
   let q = sb.from(tablo).select('*');
   Object.entries(filtre).forEach(([k,v]) => { q = q.eq(k, v); });
@@ -1539,6 +1558,8 @@ async function initDB() {
 
     DB_READY = true;
     console.log('Veritabani hazir!');
+    // Görselleri arka planda yükle
+    setTimeout(loadTurGorselleri, 1000);
     populateSeferler();
   } catch(e) {
     console.error('DB init hatasi:', e);
@@ -2211,7 +2232,7 @@ function renderPassTours(sv){
     return `<div class="ti ${j?'joined':''}" style="cursor:pointer;" onclick="turDetayAc('${t.id}')">
       ${uyariHtml}
       <div class="ti-img" onclick="event.stopPropagation();${t.img?`lightboxAc('${t.img}')`:''}">
-        ${t.img?`<img src="${t.img}" alt="${t.name}" style="cursor:zoom-in;">`:'🗺️'}
+        ${t.img?`<img src="${t.img}" alt="${t.name}" data-tur-img="${t.id}" style="cursor:zoom-in;">`:`<img data-tur-img="${t.id}" src="" style="display:none;"><span style="font-size:32px;">🗺️</span>`}
       </div>
       <div class="ti-body">
         <div class="th2"><div><div class="tn">${t.name}</div><span class="badge ${j?'bg':'bb'}" style="margin-top:4px;">${j?'Katiliyorum':'Katilmiyorum'}</span></div><div class="tpr">E${t.ap}</div></div>
@@ -3061,7 +3082,7 @@ function renderTA(s){
 
     return `<div class="tur-admin-card" style="${!aktif?'opacity:.6;':''}">
       <div class="tur-admin-img" onclick="document.getElementById('tei-${t.id}').click()">
-        ${t.img?`<img src="${t.img}">`:'<span>🗺️</span>'}
+        ${t.img?`<img src="${t.img}" data-tur-img="${t.id}">`:`<img data-tur-img="${t.id}" src="" onerror="this.style.display='none'" style="display:none;"><span>🗺️</span>`}
         <div class="img-ov">Görsel degistir</div>
         <input type="file" id="tei-${t.id}" accept="image/*" style="display:none;" onchange="editTurImg(this,'${t.id}')">
       </div>
