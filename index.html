@@ -1367,6 +1367,14 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ── VERİTABANI YARDIMCI FONKSİYONLARI ──
+async function dbGetSelect(tablo, kolonlar) {
+  try {
+    const { data, error } = await sb.from(tablo).select(kolonlar);
+    if(error) throw error;
+    return data || [];
+  } catch(e) { console.error(tablo, e); return []; }
+}
+
 async function dbGet(tablo, filtre = {}) {
   let q = sb.from(tablo).select('*');
   Object.entries(filtre).forEach(([k,v]) => { q = q.eq(k, v); });
@@ -1456,7 +1464,7 @@ async function initDB() {
 
     // Turları yükle
     let turlarDB = [];
-    try { turlarDB = await dbGet('turlar'); } catch(e) { console.log('turlar hatası:', e); }
+    try { turlarDB = await dbGetSelect('turlar', 'id,ad,liman,saat,gun,fiyat_yetiskin,fiyat_cocuk,fiyat_bebek,fiyat_normal_yetiskin,fiyat_normal_cocuk,fiyat_normal_bebek,gemi,sefer_listesi,max_kisi,uyari_esigi,aktif,uyari_mesaji,uyari_aktif,sira,acente_id'); } catch(e) { console.log('turlar hatası:', e); }
     TOURS = turlarDB.map(t => ({
       id: t.id, name: t.ad, liman: t.liman || '',
       saat: t.saat || '', gun: t.gun || 1,
@@ -1473,7 +1481,7 @@ async function initDB() {
 
     // Günlük içerikleri yükle
     let gunlukDB = [];
-    try { gunlukDB = await dbGet('gunluk'); } catch(e) { console.log('gunluk hatası:', e); }
+    try { gunlukDB = await dbGet('gunluk'); } catch(e) { console.log('gunluk hatası:', e); gunlukDB = []; }
     gunlukDB.forEach(g => {
       if(!DAILY[g.sefer_id]) DAILY[g.sefer_id] = getDailyForSefer(g.sefer_id);
       const d = DAILY[g.sefer_id];
