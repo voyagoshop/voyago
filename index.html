@@ -591,6 +591,14 @@ textarea.ai2{resize:none;}
       </div>
     </div>
 
+    <div id="tab-alisveris" class="tp">
+      <div style="padding:8px 0 12px;">
+        <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--t);margin-bottom:4px;">🛍️ Alışveriş</div>
+        <div style="font-size:13px;color:var(--t2);">Rehberinizin önerdiği özel ürünler</div>
+      </div>
+      <div id="alisveris-yolcu-liste"></div>
+    </div>
+
     <div id="tab-anket" class="tp">
       <div style="background:linear-gradient(135deg,#26215c,#534ab7);border-radius:16px;padding:18px;margin-bottom:16px;color:white;">
         <div style="font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:4px;">Memnuniyet Anketi</div>
@@ -636,6 +644,7 @@ textarea.ai2{resize:none;}
       <button class="nb" id="nb-bildirim" onclick="switchTab('bildirim')"><span class="ni">🔔</span><span data-t="bildirim">Bildirim</span></button>
       <button class="nb" id="nb-gelecek" onclick="switchTab('gelecek')"><span class="ni">🌟</span><span style="font-size:9px;">Fırsat Turları</span></button>
       <button class="nb" id="nb-rehber" onclick="switchTab('rehber')"><span class="ni">💬</span><span data-t="rehber">Rehber</span></button>
+      <button class="nb" id="nb-alisveris" onclick="switchTab('alisveris')"><span class="ni">🛍️</span><span style="font-size:9px;">Alışveriş</span></button>
     </div>
   </div>
 </div>
@@ -673,6 +682,7 @@ textarea.ai2{resize:none;}
       <button class="att" id="ratab-rehrapor" onclick="adminTab('rehrapor')"><span class="aico">📝</span><span>Raporlar</span></button>
       <button class="att" id="ratab-kontrol" onclick="adminTab('kontrol')"><span class="aico">✅</span><span>Tur Kontrol</span></button>
       <button class="att" id="ratab-gelecek" onclick="adminTab('gelecek')"><span class="aico">🌟</span><span>Fırsat Turları</span></button>
+      <button class="att" id="ratab-alisveris" onclick="adminTab('alisveris')"><span class="aico">🛍️</span><span>Alışveriş</span></button>
     </div>
 
     <div class="atsw" id="acente-menu" style="display:none;">
@@ -952,6 +962,33 @@ textarea.ai2{resize:none;}
     </div>
 
     <!-- GELECEK TURLAR -->
+    <div id="admin-alisveris" class="apg">
+      <div style="background:linear-gradient(135deg,#0f6e56,#1D9E75);border-radius:16px;padding:16px;margin-bottom:14px;color:white;">
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:4px;">🛍️ Alışveriş Ürünleri</div>
+        <div style="font-size:12px;opacity:.75;">Yolculara önerdiğiniz ürünleri ekleyin</div>
+      </div>
+
+      <!-- Ürün Ekle Formu -->
+      <div class="fs2">
+        <div class="fst">Yeni Ürün Ekle</div>
+        <input class="ai2" type="text" id="av-urun-ad" placeholder="Ürün adı — Örn: El Yapımı Zeytinyağı Sabunu">
+        <textarea id="av-urun-aciklama" placeholder="Kısa açıklama — Örn: Doğal malzemelerle üretilmiş, 150gr" style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:12px;font-size:13px;font-family:'DM Sans',sans-serif;resize:none;height:70px;margin-bottom:8px;box-sizing:border-box;"></textarea>
+        <input class="ai2" type="text" id="av-urun-fiyat" placeholder="Fiyat — Örn: €15 veya 500₺">
+        <input class="ai2" type="url" id="av-urun-link" placeholder="Alışveriş linki — https://...">
+        <div onclick="document.getElementById('av-urun-img-input').click()" 
+          style="border:2px dashed var(--border);border-radius:12px;padding:16px;text-align:center;cursor:pointer;margin-bottom:8px;"
+          onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div id="av-urun-img-prev" style="font-size:28px;color:var(--t3);">📸 Ürün fotoğrafı ekle</div>
+          <input type="file" id="av-urun-img-input" accept="image/*" style="display:none;" onchange="avResimSecim(this)">
+        </div>
+        <button class="bp" onclick="avUrunEkle()">Ürünü Ekle</button>
+      </div>
+
+      <!-- Ürün Listesi -->
+      <div style="font-size:13px;font-weight:600;color:var(--t);margin:14px 0 8px;">Eklenen Ürünler</div>
+      <div id="alisveris-admin-liste"></div>
+    </div>
+
     <div id="admin-gelecek" class="apg">
       <div style="background:linear-gradient(135deg,#854f0b,#c47a1e);border-radius:16px;padding:16px;margin-bottom:14px;color:white;">
         <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:4px;">🌟 Gelecek Fırsat Turları</div>
@@ -1576,6 +1613,9 @@ async function initDB() {
       if(g.gun_mesaji) d.gun_mesaji = g.gun_mesaji;
       if(g.gemi_planlari && g.gemi_planlari.length){
         g.gemi_planlari.forEach(p=>GEMI_PLANLARI.push(p));
+      }
+      if(g.alisveris_urunler && g.alisveris_urunler.length){
+        g.alisveris_urunler.forEach(u=>ALISVERIS_URUNLER.push(u));
       }
     });
 
@@ -2205,9 +2245,17 @@ function renderProgramPage(sv){
   // Liman
   const pa=document.getElementById('port-area');
   if(d.port?.name){
+    const mapsUrl = 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(d.port.name+(d.port.country?', '+d.port.country:''))+'+port+liman';
     pa.innerHTML=`<div class="pc-card">
-      <div class="pn">${d.port.name}</div>
-      <div class="pco">${d.port.country||''}</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div class="pn">${d.port.name}</div>
+          <div class="pco">${d.port.country||''}</div>
+        </div>
+        <a href="${mapsUrl}" target="_blank" style="display:flex;align-items:center;gap:5px;background:#1a73e8;color:white;padding:7px 12px;border-radius:20px;font-size:12px;font-weight:500;text-decoration:none;flex-shrink:0;margin-top:4px;">
+          📍 Haritada Gör
+        </a>
+      </div>
       <div class="pts">
         <div class="pt"><div class="ptl">Varis</div><div class="ptv">${d.port.arival||'--:--'}</div><div class="pts2">Bugün</div></div>
         <div class="pt"><div class="ptl">Ayrilis</div><div class="ptv">${d.port.depart||'--:--'}</div><div class="pts2">Bugün</div></div>
@@ -3827,6 +3875,16 @@ function adminTab(name){
   if(name==='gemiler')renderGemilerPanel();
   if(name==='rapor')renderRaporPanel();
   if(name==='ci'){renderPS(CASF);}
+  if(name==='alisveris'){
+    const sv=getCurrentSeferId()||VOYAGES.find(v=>v.status!=='archived')?.id;
+    if(sv){dbGet('gunluk',{sefer_id:sv}).then(rows=>{
+      if(rows&&rows.length&&rows[0].alisveris_urunler){
+        ALISVERIS_URUNLER.length=0;
+        rows[0].alisveris_urunler.forEach(u=>ALISVERIS_URUNLER.push(u));
+      }
+      renderAlisverisAdmin();
+    }).catch(()=>renderAlisverisAdmin());}else renderAlisverisAdmin();
+  }
   if(name==='tur'){
     loadVoyagesAndInitTur();
     // Düzenleme modunu sıfırla
@@ -3835,6 +3893,18 @@ function adminTab(name){
     if(btn){btn.textContent='Turu Ekle';btn.setAttribute('onclick','addTour()');}
   }
   if(name==='sef'){loadVoyagesAndRenderSef();}
+  if(name==='alisveris'){
+    const sv = CP?.sefer || VOYAGES.find(v=>v.status!=='archived')?.id;
+    if(sv){
+      dbGet('gunluk',{sefer_id:sv}).then(rows=>{
+        if(rows&&rows.length&&rows[0].alisveris_urunler){
+          ALISVERIS_URUNLER.length=0;
+          rows[0].alisveris_urunler.forEach(u=>ALISVERIS_URUNLER.push(u));
+        }
+        renderAlisverisYolcu();
+      }).catch(()=>renderAlisverisYolcu());
+    } else renderAlisverisYolcu();
+  }
   if(name==='gemiplan'){
     const sv=getCurrentSeferId()||VOYAGES.find(v=>v.status!=='archived')?.id;
     if(sv){dbGet('gunluk',{sefer_id:sv}).then(rows=>{
@@ -6705,6 +6775,109 @@ function renderGemiplanYolcu(){
         <img src="${p.img}" style="width:100%;object-fit:contain;background:#f8f8f6;cursor:zoom-in;max-height:300px;" onclick="lightboxAc('${p.img}')">
         <div style="padding:10px 14px;font-size:13px;font-weight:500;color:var(--t);">🗺️ ${p.baslik}</div>
       </div>`).join('')}`;
+}
+
+// ══ ALIŞVERİŞ SİSTEMİ ══
+let ALISVERIS_URUNLER = [];
+let _avImg = null;
+
+function avResimSecim(input){
+  const f = input.files[0]; if(!f) return;
+  gorselSikistir(f, 150, result=>{
+    _avImg = result;
+    document.getElementById('av-urun-img-prev').innerHTML = 
+      `<img src="${result}" style="width:100%;height:80px;object-fit:cover;border-radius:8px;">`;
+  });
+}
+
+async function avUrunEkle(){
+  const ad = document.getElementById('av-urun-ad')?.value.trim();
+  const aciklama = document.getElementById('av-urun-aciklama')?.value.trim();
+  const fiyat = document.getElementById('av-urun-fiyat')?.value.trim();
+  const link = document.getElementById('av-urun-link')?.value.trim();
+  if(!ad){showToast('Ürün adı gerekli!');return;}
+  const urun = {id:'av'+Date.now(), ad, aciklama, fiyat, link, img:_avImg};
+  ALISVERIS_URUNLER.push(urun);
+  await avDB_Kaydet();
+  // Formu temizle
+  ['av-urun-ad','av-urun-fiyat','av-urun-link'].forEach(id=>{
+    const el=document.getElementById(id); if(el)el.value='';
+  });
+  const ta=document.getElementById('av-urun-aciklama'); if(ta)ta.value='';
+  document.getElementById('av-urun-img-prev').innerHTML='📸 Ürün fotoğrafı ekle';
+  _avImg=null;
+  document.getElementById('av-urun-img-input').value='';
+  renderAlisverisAdmin();
+  renderAlisverisYolcu();
+  showToast('Ürün eklendi!');
+}
+
+async function avUrunSil(id){
+  ALISVERIS_URUNLER = ALISVERIS_URUNLER.filter(u=>u.id!==id);
+  await avDB_Kaydet();
+  renderAlisverisAdmin();
+  renderAlisverisYolcu();
+  showToast('Ürün silindi.');
+}
+
+async function avDB_Kaydet(){
+  const sv = getCurrentSeferId() || VOYAGES.find(v=>v.status!=='archived')?.id || 'genel';
+  const mevcut = await dbGet('gunluk',{sefer_id:sv});
+  const veri = {alisveris_urunler: ALISVERIS_URUNLER};
+  if(mevcut&&mevcut.length>0){
+    await dbUpdate('gunluk',{sefer_id:sv},veri);
+  } else {
+    await dbInsert('gunluk',{sefer_id:sv,...veri});
+  }
+}
+
+function renderAlisverisAdmin(){
+  const el = document.getElementById('alisveris-admin-liste');
+  if(!el) return;
+  if(!ALISVERIS_URUNLER.length){
+    el.innerHTML='<div style="text-align:center;padding:20px;color:var(--t3);font-size:13px;">Henüz ürün eklenmedi.</div>';
+    return;
+  }
+  el.innerHTML = ALISVERIS_URUNLER.map(u=>`
+    <div style="background:white;border-radius:12px;box-shadow:var(--sh);margin-bottom:10px;overflow:hidden;display:flex;gap:0;">
+      ${u.img?`<img src="${u.img}" style="width:80px;height:80px;object-fit:cover;flex-shrink:0;">`:'<div style="width:80px;height:80px;background:var(--gray);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;">🛍️</div>'}
+      <div style="padding:10px 12px;flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;color:var(--t);margin-bottom:2px;">${u.ad}</div>
+        ${u.aciklama?`<div style="font-size:11px;color:var(--t2);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.aciklama}</div>`:''}
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          ${u.fiyat?`<div style="font-size:13px;font-weight:600;color:var(--green);">${u.fiyat}</div>`:'<div></div>'}
+          <button onclick="avUrunSil('${u.id}')" style="padding:3px 10px;border-radius:20px;font-size:11px;border:1.5px solid var(--red);color:var(--red);background:transparent;cursor:pointer;">Sil</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function renderAlisverisYolcu(){
+  const el = document.getElementById('alisveris-yolcu-liste');
+  if(!el) return;
+  if(!ALISVERIS_URUNLER.length){
+    el.innerHTML=`<div style="text-align:center;padding:40px 20px;">
+      <div style="font-size:48px;margin-bottom:12px;">🛍️</div>
+      <div style="font-size:15px;font-weight:500;color:var(--t2);">Henüz ürün eklenmedi</div>
+      <div style="font-size:13px;color:var(--t3);margin-top:6px;">Rehberiniz yakında önerileri ekleyecek</div>
+    </div>`;
+    return;
+  }
+  el.innerHTML = ALISVERIS_URUNLER.map(u=>`
+    <div style="background:white;border-radius:16px;box-shadow:var(--sh);margin-bottom:14px;overflow:hidden;">
+      ${u.img?`<img src="${u.img}" onclick="lightboxAc('${u.img}')" style="width:100%;height:180px;object-fit:cover;cursor:zoom-in;">`
+        :'<div style="width:100%;height:100px;background:linear-gradient(135deg,#0f6e56,#1D9E75);display:flex;align-items:center;justify-content:center;font-size:48px;">🛍️</div>'}
+      <div style="padding:14px;">
+        <div style="font-size:17px;font-weight:600;color:var(--t);margin-bottom:5px;">${u.ad}</div>
+        ${u.aciklama?`<div style="font-size:13px;color:var(--t2);line-height:1.6;margin-bottom:10px;">${u.aciklama}</div>`:''}
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+          ${u.fiyat?`<div style="font-size:18px;font-weight:700;color:var(--green);">${u.fiyat}</div>`:'<div></div>'}
+          ${u.link?`<a href="${u.link}" target="_blank" style="display:flex;align-items:center;gap:6px;background:var(--blue);color:white;padding:10px 16px;border-radius:20px;font-size:13px;font-weight:600;text-decoration:none;">
+            🛒 Satın Al
+          </a>`:''}
+        </div>
+      </div>
+    </div>`).join('');
 }
 
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);}
