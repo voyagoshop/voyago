@@ -2503,8 +2503,7 @@ async function setupAdmin(){
 
   // Gemi seçici (voyago ve acente görür)
   const ssa=document.getElementById('ship-select-area');
-  // Gemi seçici acente panelinde gereksiz — her zaman gizle
-  ssa.style.display='none';
+  if(ssa) ssa.style.display='none';
 
   // Rol bandı
   const rb=document.getElementById('rbe');
