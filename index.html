@@ -749,6 +749,16 @@ textarea.ai2{resize:none;}
           <button onclick="duyuruMesajKopyala()" style="flex:1;padding:9px;background:white;color:#075e54;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">✉️ Mesajı Kopyala</button>
         </div>
       </div>
+
+      <!-- YOlcu Listesi Kopyala -->
+      <div style="background:white;border-radius:14px;box-shadow:var(--sh);padding:14px;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:600;color:var(--t);margin-bottom:10px;">📋 Yolcu Listesi Kopyala</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button onclick="yolcuListesiKopyala('hepsi')" style="flex:1;min-width:120px;padding:9px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">👥 Tüm Yolcular</button>
+          <button onclick="yolcuListesiKopyala('checkin')" style="flex:1;min-width:120px;padding:9px;background:var(--green);color:white;border:none;border-radius:10px;font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">✅ Check-in Yapanlar</button>
+          <button onclick="yolcuListesiKopyala('bekleyen')" style="flex:1;min-width:120px;padding:9px;background:var(--amber);color:white;border:none;border-radius:10px;font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">⏳ Bekleyenler</button>
+        </div>
+      </div>
       <div class="sf" id="af"></div>
       <div class="sg">
         <div class="sc2"><div class="sn" id="s-t">0</div><div class="slb" data-t="toplam">Toplam</div></div>
@@ -1169,6 +1179,16 @@ textarea.ai2{resize:none;}
             <button onclick="turAlmayanMesajKopyala()" style="flex:1;padding:10px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 Mesajı Kopyala</button>
             <button onclick="turAlmayanWhatsapp()" style="flex:1;padding:10px;background:#25D366;color:white;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">📱 WhatsApp</button>
           </div>
+        </div>
+      </div>
+
+      <!-- TUR LİSTESİ KOPYALA -->
+      <div style="background:white;border-radius:14px;box-shadow:var(--sh);padding:14px;margin-top:14px;">
+        <div style="font-size:13px;font-weight:600;color:var(--t);margin-bottom:10px;">📋 Tur Listesi Kopyala</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button onclick="turListesiKopyala('katilan')" style="flex:1;min-width:120px;padding:9px;background:var(--green);color:white;border:none;border-radius:10px;font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">✅ Tura Katılanlar</button>
+          <button onclick="turListesiKopyala('katilmayan')" style="flex:1;min-width:120px;padding:9px;background:var(--amber);color:white;border:none;border-radius:10px;font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">❌ Tura Katılmayanlar</button>
+          <button onclick="turListesiKopyala('hepsi')" style="flex:1;min-width:120px;padding:9px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">👥 Tüm Liste</button>
         </div>
       </div>
 
@@ -3095,6 +3115,57 @@ function duyuruMesajKopyala(){
   });
 }
 
+function yolcuListesiKopyala(tip){
+  const sid = CASF !== 'hepsi' ? CASF : null;
+  const iS = CU?.role==='super';
+  const activeShip = iS ? ACTIVE_SHIP : CU?.ship;
+  const mvi = VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived').map(v=>v.id);
+
+  let liste = passengers.filter(p=>mvi.includes(p.sefer));
+  if(sid) liste = liste.filter(p=>p.sefer===sid);
+  if(tip==='checkin') liste = liste.filter(p=>p.checkedIn);
+  if(tip==='bekleyen') liste = liste.filter(p=>!p.checkedIn);
+
+  if(!liste.length){showToast('Liste boş!');return;}
+
+  const NL = String.fromCharCode(10);
+  const baslik = tip==='checkin'?'CHECK-IN YAPANLAR':tip==='bekleyen'?'BEKLEYENLEr':'TÜM YOLCULAR';
+  const sefer = sid ? VOYAGES.find(v=>v.id===sid) : null;
+
+  let metin = 'VOYAGO — '+baslik+NL;
+  if(sefer) metin += sefer.label+(sefer.ship?' — '+sefer.ship:'')+NL;
+  metin += new Date().toLocaleDateString('tr-TR')+NL;
+  metin += '━━━━━━━━━━━━━━'+NL;
+
+  const topKisi = liste.reduce((a,p)=>a+p.adult+p.child+p.baby,0);
+  metin += liste.length+' kabin · '+topKisi+' kişi'+NL+'━━━━━━━━━━━━━━'+NL+NL;
+
+  liste.forEach((p,i)=>{
+    const kisi = p.adult+p.child+p.baby;
+    const kisiStr = p.adult+'Y'+(p.child>0?' '+p.child+'Ç':'')+(p.baby>0?' '+p.baby+'B':'');
+    metin += (i+1)+'. '+p.name+NL;
+    metin += '   Kabin: '+p.kabin+' · '+kisiStr+' ('+kisi+' kişi)'+NL;
+    if(p.tel) metin += '   Tel: '+p.tel+NL;
+    metin += NL;
+  });
+
+  metin += '━━━━━━━━━━━━━━'+NL;
+  metin += 'Toplam: '+liste.length+' kabin / '+topKisi+' kişi'+NL;
+  metin += 'VOYAGO Gemi Rehberi';
+
+  navigator.clipboard?.writeText(metin).then(()=>{
+    showToast(liste.length+' yolcu listesi kopyalandı! ✓');
+  }).catch(()=>{
+    const ta=document.createElement('textarea');
+    ta.value=metin;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast(liste.length+' yolcu listesi kopyalandı! ✓');
+  });
+}
+
 function toggleCI(kabin,sefer){const p=passengers.find(p=>p.kabin===kabin&&p.sefer===sefer);if(p){p.checkedIn=!p.checkedIn;renderPS(CASF);saveYolcuDB(p);showToast(p.checkedIn?'Check-in yapildi':'Geri alindi');}}
 function deletePassenger(kabin,sefer){if(!confirm('Silinsin mi?'))return;const i=passengers.findIndex(p=>p.kabin===kabin&&p.sefer===sefer);if(i>=0){passengers.splice(i,1);dbDelete('yolcular',{kabin,sefer_id:sefer});renderPS(CASF);showToast('Silindi.');}}
 function addPassenger(){
@@ -4078,6 +4149,59 @@ function kabinHizliGeldi(){
     const el=document.getElementById('kontrol-kabin-sonuc');
     if(el)el.innerHTML='';
   }, 2000);
+}
+
+function turListesiKopyala(tip){
+  const tid = document.getElementById('kontrol-tur-sel')?.value;
+  const sid = document.getElementById('kontrol-sefer-sel')?.value;
+  if(!tid||!sid){showToast('Önce tur ve sefer seçin!');return;}
+
+  const tur = TOURS.find(t=>t.id===tid);
+  const sefer = VOYAGES.find(v=>v.id===sid);
+  const tumKatilan = passengers.filter(p=>p.sefer===sid&&p.joinedTours.includes(tid));
+  const tumSefer = passengers.filter(p=>p.sefer===sid);
+  const katilmayan = tumSefer.filter(p=>!p.joinedTours.includes(tid));
+
+  let liste = tip==='katilan' ? tumKatilan : tip==='katilmayan' ? katilmayan : tumSefer;
+  if(!liste.length){showToast('Liste boş!');return;}
+
+  const NL = String.fromCharCode(10);
+  const baslik = tip==='katilan'?'TURA KATILANLAR':tip==='katilmayan'?'TURA KATILMAYANLAR':'TÜM YOLCULAR';
+  const topKisi = liste.reduce((a,p)=>a+p.adult+p.child+p.baby,0);
+
+  let metin = 'VOYAGO — '+baslik+NL;
+  metin += 'Tur: '+(tur?.name||'')+NL;
+  if(sefer) metin += 'Sefer: '+sefer.label+(sefer.ship?' — '+sefer.ship:'')+NL;
+  metin += 'Toplanma: '+(tur?.saat||'')+' · '+(tur?.liman||'')+NL;
+  metin += new Date().toLocaleDateString('tr-TR')+NL;
+  metin += '━━━━━━━━━━━━━━'+NL;
+  metin += liste.length+' kabin · '+topKisi+' kişi'+NL;
+  metin += '━━━━━━━━━━━━━━'+NL+NL;
+
+  liste.forEach((p,i)=>{
+    const kisi = p.adult+p.child+p.baby;
+    const kisiStr = p.adult+'Y'+(p.child>0?' '+p.child+'Ç':'')+(p.baby>0?' '+p.baby+'B':'');
+    const key = p.kabin+'_'+sid+'_'+tid;
+    const durum = kontrolDurum[key]===1?'✓ Geldi':kontrolDurum[key]===2?'✗ Gelmedi':'⏳';
+    metin += (i+1)+'. '+p.name+NL;
+    metin += '   Kabin: '+p.kabin+' · '+kisiStr+' ('+kisi+' kişi)';
+    if(tip==='katilan') metin += ' '+durum;
+    metin += NL;
+    if(p.tel) metin += '   Tel: '+p.tel+NL;
+    metin += NL;
+  });
+
+  metin += '━━━━━━━━━━━━━━'+NL;
+  metin += 'Toplam: '+liste.length+' kabin / '+topKisi+' kişi'+NL;
+  metin += 'VOYAGO Gemi Rehberi';
+
+  navigator.clipboard?.writeText(metin).then(()=>{
+    showToast(liste.length+' kişilik liste kopyalandı! ✓');
+  }).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=metin;
+    document.body.appendChild(ta);ta.select();document.execCommand('copy');
+    document.body.removeChild(ta);showToast('Kopyalandı! ✓');
+  });
 }
 
 function buildKontrolMetin(){
