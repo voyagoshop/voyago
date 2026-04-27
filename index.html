@@ -354,6 +354,17 @@ textarea.ai2{resize:none;}
 .tk-opt{padding:14px 0;background:var(--gray);border:2px solid transparent;border-radius:12px;font-size:18px;font-weight:600;color:var(--t);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
 .tk-opt:hover{background:var(--bl);}
 .tk-opt.selected{background:var(--bl);border-color:var(--blue);color:var(--blue);}
+
+/* Kategori bazlı sayı seçici (yeni) */
+.tk-kat-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--gray);border-radius:14px;margin-bottom:10px;}
+.tk-kat-info{flex:1;}
+.tk-kat-label{font-size:14px;font-weight:600;color:var(--t);margin-bottom:2px;}
+.tk-kat-fiyat{font-size:11px;color:var(--t2);}
+.tk-kat-stepper{display:flex;align-items:center;gap:0;background:white;border-radius:10px;overflow:hidden;border:1px solid var(--border);}
+.tk-kat-btn{width:34px;height:34px;border:none;background:white;color:var(--blue);font-size:18px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;transition:background .12s;}
+.tk-kat-btn:hover:not(:disabled){background:var(--bl);}
+.tk-kat-btn:disabled{color:var(--t3);cursor:not-allowed;opacity:.4;}
+.tk-kat-deger{min-width:34px;text-align:center;font-size:15px;font-weight:600;color:var(--t);}
 .tk-summary{background:var(--gray);border-radius:14px;padding:14px;margin-bottom:14px;}
 .tk-summary-row{display:flex;justify-content:space-between;font-size:13px;color:var(--t2);padding:3px 0;}
 .tk-summary-row.tot{border-top:1px solid var(--border);margin-top:8px;padding-top:8px;font-weight:600;color:var(--t);font-size:15px;}
@@ -364,6 +375,8 @@ textarea.ai2{resize:none;}
 /* REHBER FORM YAZDIR BUTONU */
 .tk-form-btn{padding:6px 11px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;}
 .tk-form-btn:hover{opacity:.9;}
+.tk-wa-btn{padding:6px 11px;background:#25d366;color:white;border:none;border-radius:8px;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.tk-wa-btn:hover{opacity:.9;}
 </style>
 </head>
 <body onload="baslat()">
@@ -3767,7 +3780,7 @@ function showKatilimcilar(tid){
   const iS=CU?.role==='super';const activeShip=iS?ACTIVE_SHIP:CU?.ship;
   const mvi=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived').map(v=>v.id);
   const notJoined=passengers.filter(p=>mvi.includes(p.sefer)&&!p.joinedTours.includes(tid));
-  body.innerHTML=(kat.length?kat.map(p=>`<div class="katilimci-card"><div><div class="katilimci-name">${p.name}</div><div class="katilimci-detail">Kabin ${p.kabin} · ${(p.tur_katilim_detay&&p.tur_katilim_detay[tid])?p.tur_katilim_detay[tid].kisi+' kişi · €'+p.tur_katilim_detay[tid].ucret:p.adult+'Y'+(p.child>0?' '+p.child+'C':'')+(p.baby>0?' '+p.baby+'B':'')}</div></div><div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;"><button class="tk-form-btn" onclick="tkFormYazdir('${p.kabin}','${p.sefer}','${tid}')">📄 Form</button><button style="padding:3px 9px;border-radius:20px;font-size:11px;border:1.5px solid var(--red);color:var(--red);background:transparent;cursor:pointer;" onclick="removeFromTour('${p.kabin}','${p.sefer}','${tid}')">Cikar</button></div></div>`).join(''):'<div class="es">Katilan yok.</div>')+
+  body.innerHTML=(kat.length?kat.map(p=>`<div class="katilimci-card"><div><div class="katilimci-name">${p.name}</div><div class="katilimci-detail">Kabin ${p.kabin} · ${(p.tur_katilim_detay&&p.tur_katilim_detay[tid])?p.tur_katilim_detay[tid].kisi+' kişi · €'+p.tur_katilim_detay[tid].ucret:p.adult+'Y'+(p.child>0?' '+p.child+'C':'')+(p.baby>0?' '+p.baby+'B':'')}</div></div><div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;"><button class="tk-form-btn" onclick="tkFormYazdir('${p.kabin}','${p.sefer}','${tid}')">📄 Form</button><button class="tk-wa-btn" onclick="tkWhatsappGonder('${p.kabin}','${p.sefer}','${tid}')">📱 WhatsApp</button><button style="padding:3px 9px;border-radius:20px;font-size:11px;border:1.5px solid var(--red);color:var(--red);background:transparent;cursor:pointer;" onclick="removeFromTour('${p.kabin}','${p.sefer}','${tid}')">Cikar</button></div></div>`).join(''):'<div class="es">Katilan yok.</div>')+
   (notJoined.length?`<div style="font-size:11px;font-weight:600;color:var(--t3);margin:12px 0 6px;text-transform:uppercase;">Katilmayan (${notJoined.length})</div>`+notJoined.map(p=>`<div class="katilimci-card" style="opacity:.6;"><div><div class="katilimci-name">${p.name}</div><div class="katilimci-detail">Kabin ${p.kabin}</div></div><button style="padding:3px 9px;border-radius:20px;font-size:11px;border:1.5px solid var(--green);color:var(--green);background:transparent;cursor:pointer;" onclick="addToTour('${p.kabin}','${p.sefer}','${tid}')">Ekle</button></div>`).join(''):'');
   document.getElementById('kat-modal').classList.add('show');
 }
@@ -7588,8 +7601,8 @@ document.head.appendChild(gcStyle);
     <div class="tk-modal-title">Tura Katılım Onayı</div>
     <div class="tk-modal-tur" id="tk-modal-tur-adi">Tur Adı</div>
 
-    <div class="tk-modal-q">Bu tura kabininizden kaç kişi katılıyor?</div>
-    <div class="tk-options" id="tk-options"></div>
+    <div class="tk-modal-q">Bu tura kabininizden kimler katılıyor?</div>
+    <div id="tk-kategoriler"></div>
 
     <div class="tk-summary" id="tk-summary" style="display:none;"></div>
 
@@ -7718,76 +7731,110 @@ window.addEventListener('appinstalled', () => {
 <!-- ══ TUR KATILIM SİSTEMİ ══ -->
 <script>
 let TK_TUR_ID = null;
-let TK_KISI = 0;
+let TK_SECIM = { yet: 0, coc: 0, beb: 0 };
 
 function tkModalAc(tid){
   TK_TUR_ID = tid;
-  TK_KISI = 0;
+  TK_SECIM = { yet: 0, coc: 0, beb: 0 };
   const t = TOURS.find(x=>x.id===tid);
   if(!t || !CP) return;
   document.getElementById('tk-modal-tur-adi').textContent = t.name;
-  // Kişi seçeneklerini hazırla — kabindeki toplam kişi sayısı kadar (max 4)
-  const maks = Math.min((CP.adult||0) + (CP.child||0) + (CP.baby||0), 4) || 4;
-  const opts = document.getElementById('tk-options');
-  let html = '';
-  for(let i=1; i<=maks; i++){
-    html += `<button class="tk-opt" onclick="tkSec(${i})">${i} ${i===1?'kişi':'kişi'}</button>`;
-  }
-  opts.innerHTML = html;
+
+  // Sadece kabinde olan kategorileri göster
+  const kategoriler = [];
+  if((CP.adult||0) > 0) kategoriler.push({key:'yet', label:'Yetişkin', max:CP.adult, fiyat:t.ap, ico:'👤'});
+  if((CP.child||0) > 0) kategoriler.push({key:'coc', label:'Çocuk', max:CP.child, fiyat:t.cp, ico:'🧒'});
+  if((CP.baby||0) > 0) kategoriler.push({key:'beb', label:'Bebek', max:CP.baby, fiyat:t.bp, ico:'👶'});
+
+  const div = document.getElementById('tk-kategoriler');
+  div.innerHTML = kategoriler.map(k=>`
+    <div class="tk-kat-row">
+      <div class="tk-kat-info">
+        <div class="tk-kat-label">${k.ico} ${k.label}</div>
+        <div class="tk-kat-fiyat">€${k.fiyat} kişi başı · maks ${k.max}</div>
+      </div>
+      <div class="tk-kat-stepper">
+        <button class="tk-kat-btn" id="tk-${k.key}-eks" onclick="tkArttir('${k.key}',-1,${k.max})">−</button>
+        <div class="tk-kat-deger" id="tk-${k.key}-val">0</div>
+        <button class="tk-kat-btn" id="tk-${k.key}-art" onclick="tkArttir('${k.key}',1,${k.max})">+</button>
+      </div>
+    </div>
+  `).join('');
+
   document.getElementById('tk-summary').style.display = 'none';
   document.getElementById('tk-confirm-btn').disabled = true;
   document.getElementById('tk-modal').classList.add('active');
+  tkButonDurum();
 }
 
-function tkSec(sayi){
-  TK_KISI = sayi;
-  document.querySelectorAll('.tk-opt').forEach((b,i)=>{
-    b.classList.toggle('selected', (i+1)===sayi);
+function tkArttir(key, delta, max){
+  const yeniDeger = TK_SECIM[key] + delta;
+  if(yeniDeger < 0 || yeniDeger > max) return;
+  TK_SECIM[key] = yeniDeger;
+  document.getElementById('tk-'+key+'-val').textContent = yeniDeger;
+  tkButonDurum();
+  tkOzetGuncelle();
+}
+
+function tkButonDurum(){
+  // - butonları için disable durumu
+  ['yet','coc','beb'].forEach(k=>{
+    const eks = document.getElementById('tk-'+k+'-eks');
+    if(eks) eks.disabled = (TK_SECIM[k] <= 0);
   });
-  // Özet hesapla
+  // Onayla butonu en az 1 kişi seçildiyse aktif
+  const toplam = TK_SECIM.yet + TK_SECIM.coc + TK_SECIM.beb;
+  document.getElementById('tk-confirm-btn').disabled = (toplam === 0);
+  // Maks butonları
+  if(CP){
+    const m = {yet:CP.adult||0, coc:CP.child||0, beb:CP.baby||0};
+    ['yet','coc','beb'].forEach(k=>{
+      const art = document.getElementById('tk-'+k+'-art');
+      if(art) art.disabled = (TK_SECIM[k] >= m[k]);
+    });
+  }
+}
+
+function tkOzetGuncelle(){
   const t = TOURS.find(x=>x.id===TK_TUR_ID);
   if(!t) return;
-  // Kabin yapısını esnek dağıt: önce yetişkinler, sonra çocuk, sonra bebek
-  let kalan = sayi;
-  let yet = Math.min(CP.adult||0, kalan); kalan -= yet;
-  let coc = Math.min(CP.child||0, kalan); kalan -= coc;
-  let beb = Math.min(CP.baby||0, kalan); kalan -= beb;
-  // Eğer kabinde olduğundan fazla seçtiyse hepsini yetişkin say (esnek)
-  if(kalan > 0){ yet += kalan; kalan = 0; }
-  const ucret = (yet*t.ap) + (coc*t.cp) + (beb*t.bp);
+  const ucret = (TK_SECIM.yet*t.ap) + (TK_SECIM.coc*t.cp) + (TK_SECIM.beb*t.bp);
+  const toplam = TK_SECIM.yet + TK_SECIM.coc + TK_SECIM.beb;
+
+  if(toplam === 0){
+    document.getElementById('tk-summary').style.display = 'none';
+    return;
+  }
 
   let detay = '';
-  if(yet>0) detay += `<div class="tk-summary-row"><span>${yet} yetişkin × €${t.ap}</span><span>€${yet*t.ap}</span></div>`;
-  if(coc>0) detay += `<div class="tk-summary-row"><span>${coc} çocuk × €${t.cp}</span><span>€${coc*t.cp}</span></div>`;
-  if(beb>0) detay += `<div class="tk-summary-row"><span>${beb} bebek × €${t.bp}</span><span>€${beb*t.bp}</span></div>`;
-  detay += `<div class="tk-summary-row tot"><span>TOPLAM</span><span>€${ucret}</span></div>`;
+  if(TK_SECIM.yet>0) detay += `<div class="tk-summary-row"><span>${TK_SECIM.yet} yetişkin × €${t.ap}</span><span>€${TK_SECIM.yet*t.ap}</span></div>`;
+  if(TK_SECIM.coc>0) detay += `<div class="tk-summary-row"><span>${TK_SECIM.coc} çocuk × €${t.cp}</span><span>€${TK_SECIM.coc*t.cp}</span></div>`;
+  if(TK_SECIM.beb>0) detay += `<div class="tk-summary-row"><span>${TK_SECIM.beb} bebek × €${t.bp}</span><span>€${TK_SECIM.beb*t.bp}</span></div>`;
+  detay += `<div class="tk-summary-row tot"><span>TOPLAM (${toplam} kişi)</span><span>€${ucret}</span></div>`;
 
   document.getElementById('tk-summary').innerHTML = detay;
   document.getElementById('tk-summary').style.display = 'block';
-  document.getElementById('tk-confirm-btn').disabled = false;
 }
 
 async function tkOnayla(){
-  if(!TK_KISI || !TK_TUR_ID || !CP) return;
+  const toplam = TK_SECIM.yet + TK_SECIM.coc + TK_SECIM.beb;
+  if(!toplam || !TK_TUR_ID || !CP) return;
   const tid = TK_TUR_ID;
   const t = TOURS.find(x=>x.id===tid);
   if(!t) return;
 
-  // Hesapla
-  let kalan = TK_KISI;
-  let yet = Math.min(CP.adult||0, kalan); kalan -= yet;
-  let coc = Math.min(CP.child||0, kalan); kalan -= coc;
-  let beb = Math.min(CP.baby||0, kalan); kalan -= beb;
-  if(kalan > 0){ yet += kalan; }
+  const yet = TK_SECIM.yet;
+  const coc = TK_SECIM.coc;
+  const beb = TK_SECIM.beb;
   const ucret = (yet*t.ap) + (coc*t.cp) + (beb*t.bp);
 
   // Tura ekle
   if(!CP.joinedTours.includes(tid)) CP.joinedTours.push(tid);
 
-  // Katılım detayını sakla (yolcu objesinin içinde)
+  // Katılım detayını sakla
   if(!CP.tur_katilim_detay) CP.tur_katilim_detay = {};
   CP.tur_katilim_detay[tid] = {
-    kisi: TK_KISI,
+    kisi: toplam,
     yetiskin: yet,
     cocuk: coc,
     bebek: beb,
@@ -7809,7 +7856,8 @@ async function tkOnayla(){
 function tkModalKapat(e){
   if(e && e.target && e.target.id !== 'tk-modal' && !e.target.classList.contains('tk-cancel')) return;
   document.getElementById('tk-modal').classList.remove('active');
-  TK_TUR_ID = null; TK_KISI = 0;
+  TK_TUR_ID = null;
+  TK_SECIM = { yet: 0, coc: 0, beb: 0 };
 }
 
 // ── A5 FORM ÜRETİCİ (rehber tarafı) ──
@@ -7899,47 +7947,47 @@ function tkFormYazdir(kabin, sefer, tid){
 <meta charset="UTF-8">
 <title>Tur Katılım Formu — ${p.name} — ${t.name}</title>
 <style>
-  @page { size: A5 landscape; margin: 0; }
+  @page { size: A4 portrait; margin: 0; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html,body { width: 210mm; height: 148mm; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; color: #1a1a1a; }
-  body { display: flex; padding: 0; background: white; }
+  html,body { width: 210mm; height: 297mm; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; color: #1a1a1a; }
+  body { display: flex; flex-direction: column; padding: 0; background: white; }
   .form-card {
-    width: 105mm; height: 148mm; padding: 7mm 8mm;
-    border-right: 1px dashed #aaa;
+    width: 210mm; height: 148mm; padding: 8mm 12mm;
+    border-bottom: 1px dashed #aaa;
     display: flex; flex-direction: column;
   }
-  .form-card:last-child { border-right: none; }
+  .form-card:last-child { border-bottom: none; }
 
   .form-head {
     display: flex; justify-content: space-between; align-items: center;
-    padding-bottom: 4mm; border-bottom: 2px solid #1a5fa8; margin-bottom: 4mm;
+    padding-bottom: 4mm; border-bottom: 2px solid #1a5fa8; margin-bottom: 5mm;
   }
   .form-logo {
-    font-family: 'Times New Roman', serif; font-size: 18px; font-weight: 700;
+    font-family: 'Times New Roman', serif; font-size: 22px; font-weight: 700;
     color: #1a5fa8; letter-spacing: 1px;
   }
-  .form-title { font-size: 10px; font-weight: 600; letter-spacing: 1px; color: #555; }
+  .form-title { font-size: 11px; font-weight: 600; letter-spacing: 1px; color: #555; }
   .form-no { font-size: 9px; color: #888; font-family: 'Courier New', monospace; }
 
-  .form-section { margin-bottom: 3mm; }
+  .form-section { margin-bottom: 4mm; }
   .form-section-title {
-    font-size: 9px; font-weight: 600; color: #1a5fa8;
-    border-bottom: 1px solid #ddd; padding-bottom: 1mm; margin-bottom: 2mm;
+    font-size: 10px; font-weight: 600; color: #1a5fa8;
+    border-bottom: 1px solid #ddd; padding-bottom: 1.5mm; margin-bottom: 3mm;
     text-transform: uppercase; letter-spacing: 0.5px;
   }
-  .form-row { display: flex; gap: 3mm; margin-bottom: 2mm; }
+  .form-row { display: flex; gap: 6mm; margin-bottom: 3mm; }
   .form-col { flex: 1; }
-  .form-lbl { font-size: 7.5px; color: #888; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 0.5mm; }
-  .form-val { font-size: 10px; color: #222; line-height: 1.3; }
+  .form-lbl { font-size: 8px; color: #888; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 1mm; }
+  .form-val { font-size: 11px; color: #222; line-height: 1.3; }
 
   .form-onay {
     background: #f0f6fb; border: 1px solid #c8d8e8; border-radius: 4px;
-    padding: 2mm 3mm; margin: 2mm 0;
+    padding: 3mm 4mm; margin: 3mm 0;
   }
 
   .form-kosul {
-    margin-top: auto; font-size: 7.5px; color: #555; line-height: 1.4;
-    padding: 2mm 3mm; background: #fff8e6;
+    margin-top: auto; font-size: 8.5px; color: #555; line-height: 1.45;
+    padding: 3mm 4mm; background: #fff8e6;
     border-left: 3px solid #f59e0b; border-radius: 2px;
   }
 
@@ -7967,6 +8015,68 @@ function tkFormYazdir(kabin, sefer, tid){
   if(!w){ showToast('Pop-up engellendi — izin verin'); return; }
   w.document.write(html);
   w.document.close();
+}
+
+// ── WHATSAPP GÖNDER ──
+function tkWhatsappGonder(kabin, sefer, tid){
+  const p = passengers.find(x=>x.kabin===kabin && x.sefer===sefer);
+  const t = TOURS.find(x=>x.id===tid);
+  const v = VOYAGES.find(x=>x.id===sefer);
+  if(!p || !t){ showToast('Yolcu/tur bulunamadı'); return; }
+
+  // Telefon kontrolü
+  const ham = (p.tel || '').replace(/[^0-9]/g, ''); // sadece rakam
+  if(!ham || ham.length < 10){
+    showToast('⚠️ Bu yolcunun telefon numarası eksik');
+    return;
+  }
+
+  // Katılım detayı
+  const det = (p.tur_katilim_detay && p.tur_katilim_detay[tid]) || null;
+  const yet = det ? det.yetiskin : (p.adult||0);
+  const coc = det ? det.cocuk : (p.child||0);
+  const beb = det ? det.bebek : (p.baby||0);
+  const toplam = det ? det.kisi : (yet+coc+beb);
+  const ucret = det ? det.ucret : ((yet*t.ap)+(coc*t.cp)+(beb*t.bp));
+
+  const seferTarih = v ? ((v.start_date||'') + (v.end_date?(' — '+v.end_date):'')) : '';
+  const gemi = v ? (v.ship || '') : '';
+
+  // Mesaj oluştur
+  const satirlar = [];
+  satirlar.push('🚢 *VOYAGO Tur Katılım Onayı*');
+  satirlar.push('');
+  satirlar.push('Sayın *' + p.name + '*,');
+  satirlar.push('');
+  satirlar.push('Aşağıdaki tura katılımınız onaylanmıştır:');
+  satirlar.push('');
+  satirlar.push('🎫 *Tur Bilgileri*');
+  satirlar.push('• Tur: ' + t.name);
+  if(t.liman) satirlar.push('• Liman: ' + t.liman);
+  if(t.saat) satirlar.push('• Toplanma Saati: ' + t.saat);
+  if(t.gun) satirlar.push('• Gün: ' + t.gun + '. Gün');
+  satirlar.push('');
+  satirlar.push('👥 *Katılımcılar*');
+  if(yet>0) satirlar.push('• ' + yet + ' Yetişkin × €' + t.ap + ' = €' + (yet*t.ap));
+  if(coc>0) satirlar.push('• ' + coc + ' Çocuk × €' + t.cp + ' = €' + (coc*t.cp));
+  if(beb>0) satirlar.push('• ' + beb + ' Bebek × €' + t.bp + ' = €' + (beb*t.bp));
+  satirlar.push('• *Toplam (' + toplam + ' kişi): €' + ucret + '*');
+  satirlar.push('');
+  satirlar.push('📍 *Kabin:* ' + p.kabin);
+  if(gemi) satirlar.push('🚢 *Gemi:* ' + gemi);
+  if(seferTarih) satirlar.push('📅 *Sefer:* ' + seferTarih);
+  satirlar.push('');
+  satirlar.push('⚠️ Tura katılmama durumunda ücret iadesi yapılmaz.');
+  satirlar.push('Sağlık ve özel durumlar için rehberinizle görüşünüz.');
+  satirlar.push('');
+  satirlar.push('İyi yolculuklar dileriz! ⚓');
+
+  const mesaj = encodeURIComponent(satirlar.join('\n'));
+
+  // wa.me linki — Desktop'ta WhatsApp Desktop, telefonda native, hiçbiri yoksa Web açar
+  const url = 'https://wa.me/' + ham + '?text=' + mesaj;
+  window.open(url, '_blank');
+  showToast('📱 WhatsApp açılıyor...');
 }
 </script>
 
