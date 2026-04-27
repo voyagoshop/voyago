@@ -325,6 +325,23 @@ textarea.ai2{resize:none;}
 .ses-yukle-zone input{display:none;}
 .ses-yukle-icon{font-size:30px;color:var(--blue);margin-bottom:6px;}
 .ses-yukle-meta{display:flex;justify-content:space-between;font-size:12px;color:var(--t2);background:white;border-radius:10px;padding:8px 12px;margin-bottom:10px;}
+
+/* PUSH PERMISSION MODAL */
+.push-modal{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9998;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
+.push-modal.active{display:flex;animation:sesFadeIn .3s ease;}
+.push-modal-i{background:white;border-radius:24px 24px 0 0;padding:26px 22px 30px;max-width:430px;width:100%;text-align:center;box-shadow:0 -10px 40px rgba(0,0,0,.25);animation:pushSlideUp .35s ease;}
+@keyframes pushSlideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.push-modal-icon{width:72px;height:72px;background:linear-gradient(135deg,#1a5fa8,#0d3b6e);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:white;}
+.push-modal-title{font-family:'DM Serif Display',serif;font-size:22px;color:var(--t);margin-bottom:8px;line-height:1.25;}
+.push-modal-text{font-size:13px;color:var(--t2);line-height:1.5;margin-bottom:18px;}
+.push-modal-feats{text-align:left;background:var(--bl);border-radius:14px;padding:14px;margin-bottom:18px;}
+.push-modal-feat{font-size:13px;color:var(--t);padding:5px 0;display:flex;align-items:center;gap:9px;}
+.push-modal-feat span{color:var(--blue);font-size:14px;}
+.push-modal-aktif{width:100%;padding:14px;background:var(--blue);color:white;border:none;border-radius:14px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.push-modal-iptal{width:100%;padding:11px;background:transparent;color:var(--t3);border:none;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:6px;}
+.push-status-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;border:none;}
+.push-status-pill.aktif{background:#e8f5e8;color:#2e7d32;}
+.push-status-pill.pasif{background:#fff3e0;color:#e65100;}
 </style>
 </head>
 <body onload="baslat()">
@@ -2315,6 +2332,8 @@ function doPL(){
   startClock();
   // Sesli anons kanalını başlat
   try{ sesAnonsKanaliBaslat(); }catch(e){console.log('ses kanal:', e);}
+  // Push bildirim sistemi başlat
+  try{ if(typeof pushYolcuBaslat==='function') pushYolcuBaslat(); }catch(e){console.log('push:', e);}
   // Veritabanına kaydet
   saveYolcuDB(p);
   // Tarayıcıya kaydet — bir sonraki ziyarette otomatik giriş
@@ -7530,6 +7549,25 @@ document.head.appendChild(gcStyle);
   </div>
 </div>
 
+<!-- PUSH BİLDİRİM İZİN MODAL -->
+<div id="push-modal" class="push-modal" onclick="pushModalKapat(event)">
+  <div class="push-modal-i" onclick="event.stopPropagation()">
+    <div class="push-modal-icon">
+      <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+    </div>
+    <div class="push-modal-title">Önemli Anonsları Kaçırmayın</div>
+    <div class="push-modal-text">Bildirimleri açın, telefonunuz cebinizdeyken bile rehberinizden gelen önemli haberleri anında öğrenin.</div>
+    <div class="push-modal-feats">
+      <div class="push-modal-feat"><span>🔊</span>Sesli anonslar ve duyurular</div>
+      <div class="push-modal-feat"><span>📢</span>Tur toplanma saatleri</div>
+      <div class="push-modal-feat"><span>💬</span>Rehberden gelen mesajlar</div>
+      <div class="push-modal-feat"><span>⏰</span>Tur hatırlatmaları (30 dk önce)</div>
+    </div>
+    <button class="push-modal-aktif" onclick="pushIzinIste()">🔔 Bildirimleri Aç</button>
+    <button class="push-modal-iptal" onclick="pushModalKapat()">Şimdi değil</button>
+  </div>
+</div>
+
 <!-- SESLİ ANONS MODAL (yolcu) -->
 <div id="ses-anons-modal" class="ses-modal" onclick="sesAnonsModalKapat(event)">
   <div class="ses-modal-i" onclick="event.stopPropagation()">
@@ -7936,6 +7974,417 @@ function sesAnonsModalKapat(e){
         sesAnonsYukleListe();
       }
       return r;
+    };
+  }
+})();
+</script>
+
+<!-- ══ PUSH BİLDİRİM SİSTEMİ ══ -->
+<script>
+const VAPID_PUBLIC_KEY = "BApqD3qde-VLXacziJdmAJJTpebNnhrfvg_-33sbD99G8LrA6E-xwUUFT-gOJYBuULZs4Wd7VknemyTflGoN0o4";
+const PUSH_FN_URL = SUPABASE_URL + "/functions/v1/send-push";
+let pushSwReg = null;
+let pushSecondTry = false;
+
+// ── Base64 → Uint8Array (VAPID için) ──
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const out = new Uint8Array(rawData.length);
+  for(let i=0;i<rawData.length;i++) out[i] = rawData.charCodeAt(i);
+  return out;
+}
+
+// ── Tarayıcı destekliyor mu? ──
+function pushDestekVarMi(){
+  return ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window);
+}
+
+// ── Service Worker'ı kaydet ──
+async function pushSwKaydet(){
+  if(!pushDestekVarMi()) return null;
+  try{
+    pushSwReg = await navigator.serviceWorker.register('sw.js', { scope: './' });
+    await navigator.serviceWorker.ready;
+    return pushSwReg;
+  }catch(e){
+    console.log('SW kayıt hatası:', e);
+    return null;
+  }
+}
+
+// ── İzin durumu ──
+function pushIzinDurumu(){
+  if(!('Notification' in window)) return 'unsupported';
+  return Notification.permission; // 'default' | 'granted' | 'denied'
+}
+
+// ── Modal aç ──
+function pushModalAc(){
+  const m = document.getElementById('push-modal');
+  if(m) m.classList.add('active');
+}
+
+// ── Modal kapat ──
+function pushModalKapat(e){
+  if(e && e.target && e.target.id !== 'push-modal' && !e.target.classList.contains('push-modal-iptal')) return;
+  const m = document.getElementById('push-modal');
+  if(m) m.classList.remove('active');
+  // "Şimdi değil" — 24 saat sorma
+  try{ localStorage.setItem('voyago_push_ertele', String(Date.now())); }catch(e){}
+}
+
+// ── İzin iste ve abone ol ──
+async function pushIzinIste(){
+  const m = document.getElementById('push-modal');
+  if(!pushDestekVarMi()){
+    showToast('Tarayıcınız bildirimleri desteklemiyor');
+    if(m) m.classList.remove('active');
+    return;
+  }
+  try{
+    const izin = await Notification.requestPermission();
+    if(izin !== 'granted'){
+      showToast('Bildirim izni verilmedi');
+      if(m) m.classList.remove('active');
+      return;
+    }
+    if(m) m.classList.remove('active');
+    await pushAboneOl();
+    showToast('🔔 Bildirimler açık — anonsları kaçırmayacaksınız!');
+  }catch(e){
+    console.error('İzin hatası:', e);
+    showToast('İzin alınamadı: ' + e.message);
+  }
+}
+
+// ── Push Manager'a abone ol ──
+async function pushAboneOl(){
+  if(!pushSwReg){
+    pushSwReg = await pushSwKaydet();
+    if(!pushSwReg) return null;
+  }
+  try{
+    let sub = await pushSwReg.pushManager.getSubscription();
+    if(!sub){
+      sub = await pushSwReg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    await pushSubKaydet(sub);
+    return sub;
+  }catch(e){
+    console.error('Abone olma hatası:', e);
+    return null;
+  }
+}
+
+// ── Aboneliği DB'ye kaydet ──
+async function pushSubKaydet(sub){
+  if(!sub || !CP) return;
+  try{
+    const json = sub.toJSON();
+    const veri = {
+      yolcu_kabin: CP.kabin || null,
+      yolcu_sefer: CP.sefer || null,
+      yolcu_ad: CP.name || null,
+      endpoint: json.endpoint,
+      p256dh: json.keys.p256dh,
+      auth: json.keys.auth,
+      user_agent: navigator.userAgent.slice(0,200),
+      son_kullanim: new Date().toISOString()
+    };
+    // Önce upsert dene (endpoint unique)
+    const { error } = await sb.from('push_subscriptions')
+      .upsert(veri, { onConflict: 'endpoint' });
+    if(error) console.error('Sub kayıt:', error);
+  }catch(e){
+    console.error('Sub kayıt hatası:', e);
+  }
+}
+
+// ── Aboneliği iptal et (logout) ──
+async function pushAboneliktenCik(){
+  try{
+    if(!pushSwReg) return;
+    const sub = await pushSwReg.pushManager.getSubscription();
+    if(sub){
+      try{
+        await sb.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+      }catch(e){}
+      await sub.unsubscribe();
+    }
+  }catch(e){console.log('Unsub:', e);}
+}
+
+// ── Push gönder (admin tetikleyicilerinden çağrılır) ──
+async function pushGonder(opts){
+  // opts: { title, body, tag, sefer, kabin, hedefTip, click_action }
+  try{
+    const res = await fetch(PUSH_FN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'apikey': SUPABASE_KEY
+      },
+      body: JSON.stringify(opts)
+    });
+    const j = await res.json();
+    if(!res.ok) console.error('Push gönderim:', j);
+    return j;
+  }catch(e){
+    console.error('Push fetch:', e);
+    return null;
+  }
+}
+
+// ── Yolcu girişinde push akışını başlat ──
+async function pushYolcuBaslat(){
+  if(!pushDestekVarMi()) return;
+  await pushSwKaydet();
+  const izin = pushIzinDurumu();
+
+  if(izin === 'granted'){
+    // Zaten izin var → sessizce abone ol/güncelle
+    await pushAboneOl();
+    return;
+  }
+  if(izin === 'denied'){
+    // Engellenmiş, modal göstermeye gerek yok
+    return;
+  }
+  // izin === 'default' → modal göster (24 saat erteleme kontrolü ile)
+  try{
+    const ertele = localStorage.getItem('voyago_push_ertele');
+    if(ertele && (Date.now() - parseInt(ertele) < 24*60*60*1000)) return;
+  }catch(e){}
+  // 3 saniye sonra modal aç (önce karşılama bitsin)
+  setTimeout(()=>{ pushModalAc(); }, 3000);
+}
+
+// ── Service worker'dan gelen tıklama mesajını dinle ──
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.addEventListener('message', (e)=>{
+    if(e.data && e.data.type === 'voyago-notification-click'){
+      pushBildirimTiklandi(e.data.tag, e.data.target);
+    }
+  });
+}
+
+// ── Bildirime tıklayınca yönlendir ──
+function pushBildirimTiklandi(tag, target){
+  if(!tag) return;
+  // tag formatı: "tip:detay" örn "sesanons:123", "mesaj:42", "turanons:5"
+  const [tip, detay] = tag.split(':');
+  setTimeout(()=>{
+    try{
+      if(tip === 'sesanons'){
+        // Anasayfada zaten otomatik açılır (realtime), bir şey yapmaya gerek yok
+        switchTab('program');
+      } else if(tip === 'turanons'){
+        switchTab('turlar');
+      } else if(tip === 'mesaj'){
+        switchTab('rehber');
+      } else if(tip === 'gazete'){
+        switchTab('gazete');
+      } else if(tip === 'bildirim'){
+        switchTab('bildirim');
+      } else if(tip === 'anket'){
+        switchTab('anket');
+      } else if(tip === 'firsat'){
+        switchTab('gelecek');
+      } else if(tip === 'turhatirla'){
+        switchTab('turlar');
+      }
+    }catch(e){console.log('Yönlendirme:', e);}
+  }, 300);
+}
+
+// ── ADMIN: Hook'lar — mevcut fonksiyonları sarmala ──
+(function(){
+  // Sesli anons → realtime + push
+  const orjSimdiCal = window.sesAnonsSimdiCal;
+  if(typeof orjSimdiCal === 'function'){
+    window.sesAnonsSimdiCal = async function(id){
+      const a = SES_ANONS_DB.find(x=>String(x.id)===String(id));
+      const r = await orjSimdiCal.apply(this, arguments);
+      if(a){
+        const sefer = (CP && CP.sefer) || (CU && CU.sefer) || null;
+        await pushGonder({
+          title: '🔊 Sesli Anons',
+          body: a.baslik || 'Yeni anons',
+          tag: 'sesanons:' + a.id,
+          hedefTip: sefer ? 'sefer' : 'tum',
+          sefer: sefer,
+          click_action: '/'
+        });
+      }
+      return r;
+    };
+  }
+
+  // Tur Anonsu
+  const orjTurAnons = window.turAnonsEkle;
+  if(typeof orjTurAnons === 'function'){
+    window.turAnonsEkle = async function(){
+      const r = await orjTurAnons.apply(this, arguments);
+      // turAnonsEkle başarılı olduktan sonra son eklenen anonsu bul
+      try{
+        const sv = (CP && CP.sefer) || (CU && CU.sefer) || (typeof seferSec === 'function' ? seferSec() : null);
+        const son = TUR_ANONS_DB && TUR_ANONS_DB[0];
+        if(son){
+          const body = (son.tur_adi || 'Yeni tur') + (son.saat ? ' · ' + son.saat : '') + (son.nokta ? ' · ' + son.nokta : '');
+          await pushGonder({
+            title: '📢 Tur Anonsu',
+            body: body,
+            tag: 'turanons:' + son.id,
+            hedefTip: sv ? 'sefer' : 'tum',
+            sefer: sv,
+            click_action: '/'
+          });
+        }
+      }catch(e){console.log('Tur anons push:', e);}
+      return r;
+    };
+  }
+
+  // Genel Duyuru → tüm yolculara
+  const orjDuyuru = window.duyuruGonder;
+  if(typeof orjDuyuru === 'function'){
+    window.duyuruGonder = async function(){
+      const baslik = document.getElementById('bil-baslik')?.value?.trim() || '';
+      const metin = document.getElementById('bil-metin')?.value?.trim() || '';
+      const r = await orjDuyuru.apply(this, arguments);
+      if(baslik || metin){
+        const sv = (CU && CU.sefer) || null;
+        await pushGonder({
+          title: '🔔 ' + (baslik || 'Duyuru'),
+          body: metin || baslik,
+          tag: 'bildirim:' + Date.now(),
+          hedefTip: sv ? 'sefer' : 'tum',
+          sefer: sv,
+          click_action: '/'
+        });
+      }
+      return r;
+    };
+  }
+
+  // Özel Mesaj → tek yolcuya
+  const orjOzelMesaj = window.ozelMesajGonder;
+  if(typeof orjOzelMesaj === 'function'){
+    window.ozelMesajGonder = async function(){
+      const kabin = document.getElementById('mesaj-kabin')?.value?.trim() || '';
+      const metin = document.getElementById('mesaj-metin')?.value?.trim() || '';
+      const r = await orjOzelMesaj.apply(this, arguments);
+      if(kabin && metin){
+        const sv = (CU && CU.sefer) || null;
+        await pushGonder({
+          title: '💬 Rehberden Mesaj',
+          body: metin,
+          tag: 'mesaj:' + Date.now(),
+          hedefTip: 'kabin',
+          sefer: sv,
+          kabin: kabin,
+          click_action: '/'
+        });
+      }
+      return r;
+    };
+  }
+
+  // Cevap (mesaj cevabı)
+  const orjCevap = window.cevapGonder;
+  if(typeof orjCevap === 'function'){
+    window.cevapGonder = async function(kabin){
+      const cevapEl = document.getElementById('cevap-' + kabin);
+      const cevapMetni = cevapEl?.value?.trim() || '';
+      const r = await orjCevap.apply(this, arguments);
+      if(kabin && cevapMetni){
+        const sv = (CU && CU.sefer) || null;
+        // kabin+sefer formatı: "214:VYG-25-01" gibi olabilir, ayır
+        const [k, s] = String(kabin).split(':');
+        await pushGonder({
+          title: '💬 Rehberden Cevap',
+          body: cevapMetni,
+          tag: 'mesaj:' + Date.now(),
+          hedefTip: 'kabin',
+          sefer: s || sv,
+          kabin: k || kabin,
+          click_action: '/'
+        });
+      }
+      return r;
+    };
+  }
+
+  // Anket
+  const orjAnketAcKapat = window.anketAcKapat;
+  if(typeof orjAnketAcKapat === 'function'){
+    window.anketAcKapat = async function(){
+      const oncesi = window.ANKET_AKTIF;
+      const r = await orjAnketAcKapat.apply(this, arguments);
+      // Eğer anket yeni açıldıysa
+      setTimeout(async ()=>{
+        if(window.ANKET_AKTIF && !oncesi){
+          const sv = (CU && CU.sefer) || null;
+          await pushGonder({
+            title: '📊 Yeni Anket',
+            body: 'Görüşleriniz bizim için değerli — anketi doldurmak için dokunun',
+            tag: 'anket:' + Date.now(),
+            hedefTip: sv ? 'sefer' : 'tum',
+            sefer: sv,
+            click_action: '/'
+          });
+        }
+      }, 500);
+      return r;
+    };
+  }
+
+  // Fırsat Turu (gtEkle veya benzeri — varsa)
+  if(typeof window.gtEkle === 'function'){
+    const orjGt = window.gtEkle;
+    window.gtEkle = async function(){
+      const baslik = document.getElementById('gt-baslik')?.value?.trim() || 'Yeni Fırsat Turu';
+      const r = await orjGt.apply(this, arguments);
+      await pushGonder({
+        title: '🌟 Fırsat Turu',
+        body: baslik,
+        tag: 'firsat:' + Date.now(),
+        hedefTip: 'tum',
+        click_action: '/'
+      });
+      return r;
+    };
+  }
+})();
+
+// ── Yolcu girişinde otomatik başlat ──
+(function(){
+  const orjDevamEt = window.devamEt;
+  if(typeof orjDevamEt === 'function'){
+    window.devamEt = async function(){
+      const r = await orjDevamEt.apply(this, arguments);
+      try{ await pushYolcuBaslat(); }catch(e){console.log('Push başlat:', e);}
+      return r;
+    };
+  }
+})();
+
+// İlk yeni girişten sonra da çalıştır (yeni yolcu kaydolduğunda)
+window.addEventListener('voyago:yeni-giris', ()=>{ pushYolcuBaslat(); });
+
+// Logout'ta aboneliği sil
+(function(){
+  const orjLogout = window.doLogout;
+  if(typeof orjLogout === 'function'){
+    window.doLogout = async function(){
+      try{ await pushAboneliktenCik(); }catch(e){}
+      return orjLogout.apply(this, arguments);
     };
   }
 })();
