@@ -342,6 +342,28 @@ textarea.ai2{resize:none;}
 .push-status-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;border:none;}
 .push-status-pill.aktif{background:#e8f5e8;color:#2e7d32;}
 .push-status-pill.pasif{background:#fff3e0;color:#e65100;}
+
+/* TUR KATILIM MODAL */
+.tk-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
+.tk-modal.active{display:flex;animation:sesFadeIn .25s ease;}
+.tk-modal-i{background:white;border-radius:24px;padding:24px 22px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.4);animation:sesPopIn .3s ease;}
+.tk-modal-title{font-family:'DM Serif Display',serif;font-size:20px;color:var(--t);margin-bottom:6px;text-align:center;}
+.tk-modal-tur{font-size:13px;color:var(--blue);text-align:center;margin-bottom:16px;font-weight:500;}
+.tk-modal-q{font-size:13px;color:var(--t);font-weight:500;margin-bottom:10px;}
+.tk-options{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;}
+.tk-opt{padding:14px 0;background:var(--gray);border:2px solid transparent;border-radius:12px;font-size:18px;font-weight:600;color:var(--t);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
+.tk-opt:hover{background:var(--bl);}
+.tk-opt.selected{background:var(--bl);border-color:var(--blue);color:var(--blue);}
+.tk-summary{background:var(--gray);border-radius:14px;padding:14px;margin-bottom:14px;}
+.tk-summary-row{display:flex;justify-content:space-between;font-size:13px;color:var(--t2);padding:3px 0;}
+.tk-summary-row.tot{border-top:1px solid var(--border);margin-top:8px;padding-top:8px;font-weight:600;color:var(--t);font-size:15px;}
+.tk-confirm{width:100%;padding:13px;background:var(--blue);color:white;border:none;border-radius:12px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.tk-confirm:disabled{opacity:.5;cursor:not-allowed;}
+.tk-cancel{width:100%;padding:11px;background:transparent;color:var(--t2);border:1.5px solid var(--border);border-radius:12px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:8px;}
+
+/* REHBER FORM YAZDIR BUTONU */
+.tk-form-btn{padding:6px 11px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.tk-form-btn:hover{opacity:.9;}
 </style>
 </head>
 <body onload="baslat()">
@@ -1696,7 +1718,8 @@ async function initDB() {
       sefer: y.sefer_id || '', adult: y.yetiskin || 1,
       child: y.cocuk || 0, baby: y.bebek || 0,
       checkedIn: y.checkin || false, checkinDone: y.checkin_yapildi || false,
-      joinedTours: y.katildigi_turlar || []
+      joinedTours: y.katildigi_turlar || [],
+      tur_katilim_detay: y.tur_katilim_detay || {}
     }));
 
     // Turları yükle
@@ -1848,7 +1871,8 @@ async function saveYolcuDB(p) {
       ad: p.name, telefon: p.tel,
       yetiskin: p.adult, cocuk: p.child, bebek: p.baby,
       checkin: p.checkedIn, checkin_yapildi: p.checkinDone,
-      katildigi_turlar: p.joinedTours
+      katildigi_turlar: p.joinedTours,
+      tur_katilim_detay: p.tur_katilim_detay || {}
     });
   } else {
     await dbInsert('yolcular', {
@@ -1856,7 +1880,8 @@ async function saveYolcuDB(p) {
       sefer_id: p.sefer, yetiskin: p.adult,
       cocuk: p.child, bebek: p.baby,
       checkin: p.checkedIn, checkin_yapildi: p.checkinDone,
-      katildigi_turlar: p.joinedTours
+      katildigi_turlar: p.joinedTours,
+      tur_katilim_detay: p.tur_katilim_detay || {}
     });
   }
 }
@@ -2566,6 +2591,14 @@ function turDetayKapat(e){
 function toggleTour(tid){
   if(!CP)return;
   if(CP.joinedTours.includes(tid))return; // zaten katılmış, iptal yok
+  // Önce katılım sayısı modal'ını aç
+  tkModalAc(tid);
+}
+
+// Eski direkt katılım (rehber tarafından "Ekle" için)
+function _toggleTourDirect(tid){
+  if(!CP)return;
+  if(CP.joinedTours.includes(tid))return;
   CP.joinedTours.push(tid);
   saveYolcuDB(CP);
   renderPassTours(CP.sefer);
@@ -3734,7 +3767,7 @@ function showKatilimcilar(tid){
   const iS=CU?.role==='super';const activeShip=iS?ACTIVE_SHIP:CU?.ship;
   const mvi=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived').map(v=>v.id);
   const notJoined=passengers.filter(p=>mvi.includes(p.sefer)&&!p.joinedTours.includes(tid));
-  body.innerHTML=(kat.length?kat.map(p=>`<div class="katilimci-card"><div><div class="katilimci-name">${p.name}</div><div class="katilimci-detail">Kabin ${p.kabin} · ${p.adult}Y${p.child>0?' '+p.child+'C':''}${p.baby>0?' '+p.baby+'B':''}</div></div><div style="display:flex;gap:5px;"><button style="padding:3px 9px;border-radius:20px;font-size:11px;border:1.5px solid var(--red);color:var(--red);background:transparent;cursor:pointer;" onclick="removeFromTour('${p.kabin}','${p.sefer}','${tid}')">Cikar</button></div></div>`).join(''):'<div class="es">Katilan yok.</div>')+
+  body.innerHTML=(kat.length?kat.map(p=>`<div class="katilimci-card"><div><div class="katilimci-name">${p.name}</div><div class="katilimci-detail">Kabin ${p.kabin} · ${(p.tur_katilim_detay&&p.tur_katilim_detay[tid])?p.tur_katilim_detay[tid].kisi+' kişi · €'+p.tur_katilim_detay[tid].ucret:p.adult+'Y'+(p.child>0?' '+p.child+'C':'')+(p.baby>0?' '+p.baby+'B':'')}</div></div><div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;"><button class="tk-form-btn" onclick="tkFormYazdir('${p.kabin}','${p.sefer}','${tid}')">📄 Form</button><button style="padding:3px 9px;border-radius:20px;font-size:11px;border:1.5px solid var(--red);color:var(--red);background:transparent;cursor:pointer;" onclick="removeFromTour('${p.kabin}','${p.sefer}','${tid}')">Cikar</button></div></div>`).join(''):'<div class="es">Katilan yok.</div>')+
   (notJoined.length?`<div style="font-size:11px;font-weight:600;color:var(--t3);margin:12px 0 6px;text-transform:uppercase;">Katilmayan (${notJoined.length})</div>`+notJoined.map(p=>`<div class="katilimci-card" style="opacity:.6;"><div><div class="katilimci-name">${p.name}</div><div class="katilimci-detail">Kabin ${p.kabin}</div></div><button style="padding:3px 9px;border-radius:20px;font-size:11px;border:1.5px solid var(--green);color:var(--green);background:transparent;cursor:pointer;" onclick="addToTour('${p.kabin}','${p.sefer}','${tid}')">Ekle</button></div>`).join(''):'');
   document.getElementById('kat-modal').classList.add('show');
 }
@@ -7549,6 +7582,29 @@ document.head.appendChild(gcStyle);
   </div>
 </div>
 
+<!-- TUR KATILIM MODAL -->
+<div id="tk-modal" class="tk-modal" onclick="tkModalKapat(event)">
+  <div class="tk-modal-i" onclick="event.stopPropagation()">
+    <div class="tk-modal-title">Tura Katılım Onayı</div>
+    <div class="tk-modal-tur" id="tk-modal-tur-adi">Tur Adı</div>
+
+    <div class="tk-modal-q">Bu tura kabininizden kaç kişi katılıyor?</div>
+    <div class="tk-options" id="tk-options"></div>
+
+    <div class="tk-summary" id="tk-summary" style="display:none;"></div>
+
+    <div style="font-size:11px;color:var(--t3);line-height:1.5;margin-bottom:14px;padding:10px;background:#fff8e6;border-radius:10px;border-left:3px solid #f59e0b;">
+      ⚠️ <b>Onay Koşulları:</b><br>
+      • Bu turu onaylayarak katılımınızı taahhüt etmiş olursunuz.<br>
+      • Sağlık ve özel durumlar dışında iptal için rehberinizle görüşün.<br>
+      • Tura katılmama durumunda ücret iadesi yapılmaz.
+    </div>
+
+    <button class="tk-confirm" id="tk-confirm-btn" onclick="tkOnayla()" disabled>Onaylıyorum & Tura Katıl</button>
+    <button class="tk-cancel" onclick="tkModalKapat()">Vazgeç</button>
+  </div>
+</div>
+
 <!-- PUSH BİLDİRİM İZİN MODAL -->
 <div id="push-modal" class="push-modal" onclick="pushModalKapat(event)">
   <div class="push-modal-i" onclick="event.stopPropagation()">
@@ -7657,6 +7713,261 @@ window.addEventListener('appinstalled', () => {
 });
 
 // Service Worker devre dışı
+</script>
+
+<!-- ══ TUR KATILIM SİSTEMİ ══ -->
+<script>
+let TK_TUR_ID = null;
+let TK_KISI = 0;
+
+function tkModalAc(tid){
+  TK_TUR_ID = tid;
+  TK_KISI = 0;
+  const t = TOURS.find(x=>x.id===tid);
+  if(!t || !CP) return;
+  document.getElementById('tk-modal-tur-adi').textContent = t.name;
+  // Kişi seçeneklerini hazırla — kabindeki toplam kişi sayısı kadar (max 4)
+  const maks = Math.min((CP.adult||0) + (CP.child||0) + (CP.baby||0), 4) || 4;
+  const opts = document.getElementById('tk-options');
+  let html = '';
+  for(let i=1; i<=maks; i++){
+    html += `<button class="tk-opt" onclick="tkSec(${i})">${i} ${i===1?'kişi':'kişi'}</button>`;
+  }
+  opts.innerHTML = html;
+  document.getElementById('tk-summary').style.display = 'none';
+  document.getElementById('tk-confirm-btn').disabled = true;
+  document.getElementById('tk-modal').classList.add('active');
+}
+
+function tkSec(sayi){
+  TK_KISI = sayi;
+  document.querySelectorAll('.tk-opt').forEach((b,i)=>{
+    b.classList.toggle('selected', (i+1)===sayi);
+  });
+  // Özet hesapla
+  const t = TOURS.find(x=>x.id===TK_TUR_ID);
+  if(!t) return;
+  // Kabin yapısını esnek dağıt: önce yetişkinler, sonra çocuk, sonra bebek
+  let kalan = sayi;
+  let yet = Math.min(CP.adult||0, kalan); kalan -= yet;
+  let coc = Math.min(CP.child||0, kalan); kalan -= coc;
+  let beb = Math.min(CP.baby||0, kalan); kalan -= beb;
+  // Eğer kabinde olduğundan fazla seçtiyse hepsini yetişkin say (esnek)
+  if(kalan > 0){ yet += kalan; kalan = 0; }
+  const ucret = (yet*t.ap) + (coc*t.cp) + (beb*t.bp);
+
+  let detay = '';
+  if(yet>0) detay += `<div class="tk-summary-row"><span>${yet} yetişkin × €${t.ap}</span><span>€${yet*t.ap}</span></div>`;
+  if(coc>0) detay += `<div class="tk-summary-row"><span>${coc} çocuk × €${t.cp}</span><span>€${coc*t.cp}</span></div>`;
+  if(beb>0) detay += `<div class="tk-summary-row"><span>${beb} bebek × €${t.bp}</span><span>€${beb*t.bp}</span></div>`;
+  detay += `<div class="tk-summary-row tot"><span>TOPLAM</span><span>€${ucret}</span></div>`;
+
+  document.getElementById('tk-summary').innerHTML = detay;
+  document.getElementById('tk-summary').style.display = 'block';
+  document.getElementById('tk-confirm-btn').disabled = false;
+}
+
+async function tkOnayla(){
+  if(!TK_KISI || !TK_TUR_ID || !CP) return;
+  const tid = TK_TUR_ID;
+  const t = TOURS.find(x=>x.id===tid);
+  if(!t) return;
+
+  // Hesapla
+  let kalan = TK_KISI;
+  let yet = Math.min(CP.adult||0, kalan); kalan -= yet;
+  let coc = Math.min(CP.child||0, kalan); kalan -= coc;
+  let beb = Math.min(CP.baby||0, kalan); kalan -= beb;
+  if(kalan > 0){ yet += kalan; }
+  const ucret = (yet*t.ap) + (coc*t.cp) + (beb*t.bp);
+
+  // Tura ekle
+  if(!CP.joinedTours.includes(tid)) CP.joinedTours.push(tid);
+
+  // Katılım detayını sakla (yolcu objesinin içinde)
+  if(!CP.tur_katilim_detay) CP.tur_katilim_detay = {};
+  CP.tur_katilim_detay[tid] = {
+    kisi: TK_KISI,
+    yetiskin: yet,
+    cocuk: coc,
+    bebek: beb,
+    ucret: ucret,
+    onay_zamani: new Date().toISOString(),
+    e_imza: CP.name + ' (Kabin ' + CP.kabin + ')'
+  };
+
+  // DB'ye kaydet
+  await saveYolcuDB(CP);
+  renderPassTours(CP.sefer);
+  bildirimSesi('mesaj');
+
+  // Modal kapat
+  document.getElementById('tk-modal').classList.remove('active');
+  showToast('✓ Tur kaydınız alındı — Toplam: €' + ucret);
+}
+
+function tkModalKapat(e){
+  if(e && e.target && e.target.id !== 'tk-modal' && !e.target.classList.contains('tk-cancel')) return;
+  document.getElementById('tk-modal').classList.remove('active');
+  TK_TUR_ID = null; TK_KISI = 0;
+}
+
+// ── A5 FORM ÜRETİCİ (rehber tarafı) ──
+function tkFormYazdir(kabin, sefer, tid){
+  const p = passengers.find(x=>x.kabin===kabin && x.sefer===sefer);
+  const t = TOURS.find(x=>x.id===tid);
+  const v = VOYAGES.find(x=>x.id===sefer);
+  if(!p || !t){ showToast('Yolcu/tur bulunamadı'); return; }
+
+  // Katılım detayı
+  const det = (p.tur_katilim_detay && p.tur_katilim_detay[tid]) || null;
+  const kisi = det ? det.kisi : ((p.adult||0)+(p.child||0)+(p.baby||0));
+  const yet = det ? det.yetiskin : (p.adult||0);
+  const coc = det ? det.cocuk : (p.child||0);
+  const beb = det ? det.bebek : (p.baby||0);
+  const ucret = det ? det.ucret : ((yet*t.ap)+(coc*t.cp)+(beb*t.bp));
+  const onay = det ? new Date(det.onay_zamani).toLocaleString('tr-TR') : '—';
+  const eimza = det ? det.e_imza : p.name+' (Kabin '+p.kabin+')';
+
+  const turGun = t.gun ? t.gun + '. Gün' : '';
+  const seferAdi = v ? (v.label || '') : '';
+  const seferRota = v ? (v.route || '') : '';
+  const gemi = v ? (v.ship || '') : '';
+  const seferTarih = v ? ((v.start_date||'') + (v.end_date?(' — '+v.end_date):'')) : '';
+
+  // Tek formun HTML'i (A5 yatay'ın yarısı için ölçüler)
+  const formHTML = (numara) => `
+    <div class="form-card">
+      <div class="form-head">
+        <div class="form-logo">VOYAGO</div>
+        <div class="form-title">TUR KATILIM FORMU</div>
+        <div class="form-no">No: ${numara}</div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-col">
+          <div class="form-lbl">Gemi / Sefer</div>
+          <div class="form-val"><b>${gemi || '—'}</b><br><span style="font-size:9px;">${seferAdi}</span></div>
+        </div>
+        <div class="form-col">
+          <div class="form-lbl">Tarih</div>
+          <div class="form-val">${seferTarih || '—'}</div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">TUR BİLGİLERİ</div>
+        <div class="form-row">
+          <div class="form-col"><div class="form-lbl">Tur Adı</div><div class="form-val"><b>${t.name}</b></div></div>
+          <div class="form-col"><div class="form-lbl">Liman</div><div class="form-val">${t.liman||'—'}</div></div>
+        </div>
+        <div class="form-row">
+          <div class="form-col"><div class="form-lbl">Toplanma Saati</div><div class="form-val">${t.saat||'—'}</div></div>
+          <div class="form-col"><div class="form-lbl">Gün</div><div class="form-val">${turGun}</div></div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">YOLCU BİLGİLERİ</div>
+        <div class="form-row">
+          <div class="form-col"><div class="form-lbl">Yolcu Adı</div><div class="form-val"><b>${p.name}</b></div></div>
+          <div class="form-col"><div class="form-lbl">Kabin No</div><div class="form-val"><b>${p.kabin}</b></div></div>
+        </div>
+        <div class="form-row">
+          <div class="form-col"><div class="form-lbl">Katılımcı Sayısı</div><div class="form-val"><b>${kisi} kişi</b> ${yet>0?yet+'Y ':''}${coc>0?coc+'C ':''}${beb>0?beb+'B':''}</div></div>
+          <div class="form-col"><div class="form-lbl">Toplam Ücret</div><div class="form-val" style="color:#0d3b6e;font-weight:700;font-size:13px;">€${ucret}</div></div>
+        </div>
+      </div>
+
+      <div class="form-onay">
+        <div class="form-lbl">Elektronik Onay</div>
+        <div class="form-val" style="font-size:9px;">${eimza}</div>
+        <div style="font-size:8px;color:#888;">Onay zamanı: ${onay}</div>
+      </div>
+
+      <div class="form-kosul">
+        <b>KOŞULLAR:</b> Bu tur katılım formu ile tura katılımınızı onaylamış olursunuz.
+        Sağlık ve özel durumlar dışında iptal için rehberinizle görüşünüz.
+        Tura katılmama durumunda ücret iadesi yapılmaz.
+      </div>
+    </div>
+  `;
+
+  const html = `<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Tur Katılım Formu — ${p.name} — ${t.name}</title>
+<style>
+  @page { size: A5 landscape; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html,body { width: 210mm; height: 148mm; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; color: #1a1a1a; }
+  body { display: flex; padding: 0; background: white; }
+  .form-card {
+    width: 105mm; height: 148mm; padding: 7mm 8mm;
+    border-right: 1px dashed #aaa;
+    display: flex; flex-direction: column;
+  }
+  .form-card:last-child { border-right: none; }
+
+  .form-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 4mm; border-bottom: 2px solid #1a5fa8; margin-bottom: 4mm;
+  }
+  .form-logo {
+    font-family: 'Times New Roman', serif; font-size: 18px; font-weight: 700;
+    color: #1a5fa8; letter-spacing: 1px;
+  }
+  .form-title { font-size: 10px; font-weight: 600; letter-spacing: 1px; color: #555; }
+  .form-no { font-size: 9px; color: #888; font-family: 'Courier New', monospace; }
+
+  .form-section { margin-bottom: 3mm; }
+  .form-section-title {
+    font-size: 9px; font-weight: 600; color: #1a5fa8;
+    border-bottom: 1px solid #ddd; padding-bottom: 1mm; margin-bottom: 2mm;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .form-row { display: flex; gap: 3mm; margin-bottom: 2mm; }
+  .form-col { flex: 1; }
+  .form-lbl { font-size: 7.5px; color: #888; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 0.5mm; }
+  .form-val { font-size: 10px; color: #222; line-height: 1.3; }
+
+  .form-onay {
+    background: #f0f6fb; border: 1px solid #c8d8e8; border-radius: 4px;
+    padding: 2mm 3mm; margin: 2mm 0;
+  }
+
+  .form-kosul {
+    margin-top: auto; font-size: 7.5px; color: #555; line-height: 1.4;
+    padding: 2mm 3mm; background: #fff8e6;
+    border-left: 3px solid #f59e0b; border-radius: 2px;
+  }
+
+  @media print {
+    body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    .no-print { display: none; }
+  }
+  .no-print {
+    position: fixed; top: 10px; right: 10px;
+    background: #1a5fa8; color: white; padding: 8px 16px; border-radius: 8px;
+    border: none; font-size: 13px; cursor: pointer; z-index: 999;
+    box-shadow: 0 4px 12px rgba(0,0,0,.2);
+  }
+</style>
+</head>
+<body>
+  ${formHTML(1)}
+  ${formHTML(2)}
+  <button class="no-print" onclick="window.print()">🖨️ Yazdır</button>
+</body>
+</html>`;
+
+  // Yeni sekmede aç
+  const w = window.open('', '_blank');
+  if(!w){ showToast('Pop-up engellendi — izin verin'); return; }
+  w.document.write(html);
+  w.document.close();
+}
 </script>
 
 <!-- ══ SESLİ ANONS SİSTEMİ ══ -->
