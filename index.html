@@ -296,6 +296,35 @@ textarea.ai2{resize:none;}
 .mc{background:var(--gray);border:none;color:var(--t2);}.mcf{background:var(--blue);border:none;color:white;}
 .meeting-admin{background:var(--rl);border-radius:14px;padding:14px;margin-bottom:14px;}
 .meeting-admin-title{font-size:13px;font-weight:600;color:var(--red);margin-bottom:10px;}
+
+/* SESLİ ANONS */
+.ses-modal{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
+.ses-modal.active{display:flex;animation:sesFadeIn .3s ease;}
+@keyframes sesFadeIn{from{opacity:0}to{opacity:1}}
+.ses-modal-i{background:white;border-radius:24px;padding:26px 22px;max-width:380px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4);animation:sesPopIn .35s ease;}
+@keyframes sesPopIn{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+.ses-modal-icon{width:78px;height:78px;background:linear-gradient(135deg,var(--blue),#0d3b6e);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:white;animation:sesPulse 2s infinite;}
+@keyframes sesPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(26,95,168,.5);}50%{transform:scale(1.06);box-shadow:0 0 0 18px rgba(26,95,168,0);}}
+.ses-modal-badge{display:inline-block;background:var(--bl);color:var(--blue);font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;padding:4px 10px;border-radius:20px;margin-bottom:10px;}
+.ses-modal-title{font-family:'DM Serif Display',serif;font-size:21px;color:var(--t);margin-bottom:6px;line-height:1.25;}
+.ses-modal-sub{font-size:12px;color:var(--t2);margin-bottom:18px;}
+.ses-modal-audio{width:100%;margin-bottom:14px;border-radius:10px;}
+.ses-modal-btn{width:100%;padding:13px;background:var(--blue);color:white;border:none;border-radius:12px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.ses-modal-btn:active{opacity:.85;}
+.ses-modal-btn-2{width:100%;padding:11px;background:transparent;color:var(--t2);border:1.5px solid var(--border);border-radius:12px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:8px;}
+.ses-anons-card{background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:var(--sh);display:flex;align-items:center;gap:12px;}
+.ses-anons-card-info{flex:1;min-width:0;}
+.ses-anons-card-baslik{font-size:14px;font-weight:600;color:var(--t);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ses-anons-card-meta{font-size:11px;color:var(--t3);}
+.ses-anons-card-btns{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;}
+.ses-cal-btn{padding:8px 14px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.ses-onizle-btn{padding:8px 11px;background:var(--bl);color:var(--blue);border:none;border-radius:10px;font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.ses-sil-btn{padding:8px 10px;background:transparent;color:var(--red);border:1.5px solid var(--red);border-radius:10px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.ses-yukle-zone{border:2px dashed rgba(26,95,168,.35);border-radius:14px;padding:18px;text-align:center;background:var(--bl);margin-bottom:12px;cursor:pointer;transition:border-color .2s;}
+.ses-yukle-zone:hover{border-color:var(--blue);}
+.ses-yukle-zone input{display:none;}
+.ses-yukle-icon{font-size:30px;color:var(--blue);margin-bottom:6px;}
+.ses-yukle-meta{display:flex;justify-content:space-between;font-size:12px;color:var(--t2);background:white;border-radius:10px;padding:8px 12px;margin-bottom:10px;}
 </style>
 </head>
 <body onload="baslat()">
@@ -683,6 +712,7 @@ textarea.ai2{resize:none;}
       <button class="att" id="ratab-gz" onclick="adminTab('gz')"><span class="aico">📰</span><span>Gazete</span></button>
       <button class="att" id="ratab-mesaj" onclick="adminTab('mesaj')"><span class="aico">💬</span><span>Mesajlar</span></button>
       <button class="att" id="ratab-turanons" onclick="adminTab('turanons')"><span class="aico">📢</span><span>Tur Anonsu</span></button>
+      <button class="att" id="ratab-sesanons" onclick="adminTab('sesanons')"><span class="aico">🔊</span><span>Sesli Anons</span></button>
       <button class="att" id="ratab-bil" onclick="adminTab('bil')"><span class="aico">🔔</span><span>Bildirim</span></button>
       <button class="att" id="ratab-anketyonet" onclick="adminTab('anketyonet')"><span class="aico">📊</span><span>Anket</span></button>
       <button class="att" id="ratab-sef" onclick="adminTab('sef')"><span class="aico">🚢</span><span>Seferler</span></button>
@@ -1085,6 +1115,30 @@ textarea.ai2{resize:none;}
       </div>
       <div class="sl2">Aktif Anonslar</div>
       <div id="tur-anons-admin-liste"></div>
+    </div>
+
+    <!-- SESLİ ANONS -->
+    <div id="admin-sesanons" class="apg">
+      <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);border-radius:16px;padding:16px;margin-bottom:14px;color:white;">
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:4px;">🔊 Sesli Anons</div>
+        <div style="font-size:12px;opacity:.8;">Önceden hazırlanmış ses kayıtlarını anlık olarak tüm aktif yolculara dinletin</div>
+      </div>
+
+      <div class="fs2">
+        <div class="fst">Yeni Anons Yükle</div>
+        <input class="ai2" type="text" id="sa-baslik" placeholder="Anons başlığı — Örn: Akşam Programı Duyurusu" style="margin-bottom:10px;">
+        <label class="ses-yukle-zone" id="sa-zone">
+          <input type="file" id="sa-file" accept="audio/*" onchange="sesAnonsDosyaSec(event)">
+          <div class="ses-yukle-icon">🎙️</div>
+          <div style="font-size:13px;font-weight:500;color:var(--blue);margin-bottom:2px;">Ses dosyası seçin</div>
+          <div style="font-size:11px;color:var(--t2);">MP3, M4A, WAV, OGG · Maks. 10 MB</div>
+        </label>
+        <div id="sa-secilen" style="display:none;"></div>
+        <button onclick="sesAnonsYukle()" id="sa-yukle-btn" class="bp" style="margin-top:6px;" disabled>📤 Yükle</button>
+      </div>
+
+      <div class="sl2">Kayıtlı Anonslar</div>
+      <div id="ses-anons-liste"><div class="no-data">Henüz anons yok. Yukarıdan ses dosyası yükleyin.</div></div>
     </div>
 
     <!-- BİLDİRİM -->
@@ -2259,6 +2313,8 @@ function doPL(){
   renderGsSerit(sv);
   showScreen('sa');
   startClock();
+  // Sesli anons kanalını başlat
+  try{ sesAnonsKanaliBaslat(); }catch(e){console.log('ses kanal:', e);}
   // Veritabanına kaydet
   saveYolcuDB(p);
   // Tarayıcıya kaydet — bir sonraki ziyarette otomatik giriş
@@ -5287,6 +5343,7 @@ async function autoLogin() {
 function doLogout() {
   CP = null; CU = null;
   try{ localStorage.removeItem('voyago_admin'); }catch(e){}
+  try{ if(typeof sesAnonsKanaliKapat==='function') sesAnonsKanaliKapat(); }catch(e){}
   showScreen('sl');
   setTimeout(()=>{ checkHosgeldin(); }, 100);
 }
@@ -5361,6 +5418,8 @@ async function devamEt() {
     if(yolcuAdiEl && p.name) yolcuAdiEl.textContent = p.name;
     showScreen('sa');
     startClock();
+    // Sesli anons kanalını başlat
+    try{ sesAnonsKanaliBaslat(); }catch(e){console.log('ses kanal:', e);}
     havaDurumBaslat(p.sefer);
     showToast('Hoş geldiniz, ' + (p.name?p.name.split(' ')[0]:'') + '! 👋');
     // Anket DB'den direkt kontrol et
@@ -7471,6 +7530,21 @@ document.head.appendChild(gcStyle);
   </div>
 </div>
 
+<!-- SESLİ ANONS MODAL (yolcu) -->
+<div id="ses-anons-modal" class="ses-modal" onclick="sesAnonsModalKapat(event)">
+  <div class="ses-modal-i" onclick="event.stopPropagation()">
+    <div class="ses-modal-icon">
+      <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h3l4 4V6L7 10H4a1 1 0 0 0-1 1Z"/><path d="M16 8a5 5 0 0 1 0 8M19.5 4.5a9 9 0 0 1 0 15"/></svg>
+    </div>
+    <div class="ses-modal-badge">📢 Yeni Anons</div>
+    <div class="ses-modal-title" id="ses-modal-baslik">Anons</div>
+    <div class="ses-modal-sub" id="ses-modal-sub">Rehberinizden bir mesaj</div>
+    <audio id="ses-modal-audio" class="ses-modal-audio" controls></audio>
+    <button class="ses-modal-btn" id="ses-modal-cal-btn" onclick="sesAnonsModalCal()" style="display:none;">▶️ Anonsu Dinle</button>
+    <button class="ses-modal-btn-2" onclick="sesAnonsModalKapat()">Kapat</button>
+  </div>
+</div>
+
 <!-- PWA Install Banner -->
 <div id="pwa-banner" style="display:none;position:fixed;bottom:80px;left:12px;right:12px;background:white;border-radius:16px;padding:14px 16px;box-shadow:0 8px 30px rgba(0,0,0,.15);z-index:8000;display:none;align-items:center;gap:12px;">
   <div style="width:44px;height:44px;background:linear-gradient(135deg,#1a5fa8,#0d3b6e);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">⚓</div>
@@ -7545,6 +7619,326 @@ window.addEventListener('appinstalled', () => {
 });
 
 // Service Worker devre dışı
+</script>
+
+<!-- ══ SESLİ ANONS SİSTEMİ ══ -->
+<script>
+// ── Durum değişkenleri ──
+let SES_ANONS_DB = [];
+let sesAnonsKanal = null;
+let sesAnonsSecilenDosya = null;
+let sesAnonsModalSure = null;
+
+// ── Süre formatla (saniye → mm:ss) ──
+function sesAnonsSureFormat(sn){
+  if(!sn||isNaN(sn)) return '—';
+  const m = Math.floor(sn/60), s = Math.floor(sn%60);
+  return m+':'+(s<10?'0':'')+s;
+}
+
+// ── Boyut formatla (byte → KB/MB) ──
+function sesAnonsBoyutFormat(b){
+  if(b<1024) return b+' B';
+  if(b<1024*1024) return (b/1024).toFixed(0)+' KB';
+  return (b/1024/1024).toFixed(1)+' MB';
+}
+
+// ── Tarih formatla ──
+function sesAnonsTarihFormat(iso){
+  if(!iso) return '—';
+  try{
+    const d = new Date(iso);
+    return d.toLocaleDateString('tr-TR',{day:'numeric',month:'short'}) + ' · ' + d.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){ return '—'; }
+}
+
+// ── Admin: Dosya seçildiğinde ──
+function sesAnonsDosyaSec(e){
+  const f = e.target.files[0];
+  if(!f) return;
+  if(f.size > 10*1024*1024){
+    showToast('Dosya 10 MB\'dan büyük olamaz');
+    e.target.value = '';
+    return;
+  }
+  if(!f.type.startsWith('audio/')){
+    showToast('Lütfen bir ses dosyası seçin');
+    e.target.value = '';
+    return;
+  }
+  sesAnonsSecilenDosya = f;
+  sesAnonsModalSure = null;
+  // Süreyi öğren
+  const url = URL.createObjectURL(f);
+  const a = new Audio(url);
+  a.addEventListener('loadedmetadata', ()=>{
+    sesAnonsModalSure = Math.round(a.duration);
+    URL.revokeObjectURL(url);
+    sesAnonsSecilenGoster();
+  });
+  a.addEventListener('error', ()=>{
+    URL.revokeObjectURL(url);
+    sesAnonsSecilenGoster();
+  });
+}
+
+function sesAnonsSecilenGoster(){
+  const div = document.getElementById('sa-secilen');
+  const btn = document.getElementById('sa-yukle-btn');
+  if(!sesAnonsSecilenDosya){
+    div.style.display = 'none';
+    btn.disabled = true;
+    return;
+  }
+  div.style.display = 'block';
+  div.innerHTML = `<div class="ses-yukle-meta">
+    <span style="font-weight:500;color:var(--t);">${sesAnonsSecilenDosya.name}</span>
+    <span>${sesAnonsBoyutFormat(sesAnonsSecilenDosya.size)} · ${sesAnonsSureFormat(sesAnonsModalSure)}</span>
+  </div>`;
+  btn.disabled = false;
+}
+
+// ── Admin: Yükleme ──
+async function sesAnonsYukle(){
+  const baslik = document.getElementById('sa-baslik').value.trim();
+  if(!baslik){ showToast('Anons başlığı girin'); return; }
+  if(!sesAnonsSecilenDosya){ showToast('Ses dosyası seçin'); return; }
+
+  const btn = document.getElementById('sa-yukle-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Yükleniyor...';
+
+  try{
+    // Dosya yolunu hazırla
+    const ext = sesAnonsSecilenDosya.name.split('.').pop().toLowerCase();
+    const dosyaYolu = 'anons_' + Date.now() + '_' + Math.random().toString(36).slice(2,8) + '.' + ext;
+
+    // Storage'a yükle
+    const { error: upErr } = await sb.storage
+      .from('anonslar')
+      .upload(dosyaYolu, sesAnonsSecilenDosya, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: sesAnonsSecilenDosya.type
+      });
+    if(upErr) throw upErr;
+
+    // Public URL al
+    const { data: urlData } = sb.storage.from('anonslar').getPublicUrl(dosyaYolu);
+    const dosyaUrl = urlData.publicUrl;
+
+    // DB'ye kaydet
+    const yeni = await dbInsert('sesli_anonslar', {
+      baslik: baslik,
+      dosya_url: dosyaUrl,
+      dosya_yolu: dosyaYolu,
+      sure_sn: sesAnonsModalSure || null
+    });
+    if(!yeni) throw new Error('DB kayıt hatası');
+
+    showToast('Anons yüklendi ✓');
+    // Form sıfırla
+    document.getElementById('sa-baslik').value = '';
+    document.getElementById('sa-file').value = '';
+    sesAnonsSecilenDosya = null;
+    sesAnonsModalSure = null;
+    sesAnonsSecilenGoster();
+    // Listeyi yenile
+    await sesAnonsYukleListe();
+  }catch(e){
+    console.error('Ses anons yükleme:', e);
+    showToast('Yükleme başarısız: ' + (e.message||'bilinmeyen hata'));
+  }finally{
+    btn.disabled = false;
+    btn.textContent = '📤 Yükle';
+  }
+}
+
+// ── Admin: Listeyi DB'den çek ──
+async function sesAnonsYukleListe(){
+  try{
+    const { data, error } = await sb.from('sesli_anonslar').select('*').order('created_at',{ascending:false});
+    if(error) throw error;
+    SES_ANONS_DB = data || [];
+    sesAnonsRenderAdmin();
+  }catch(e){
+    console.error('Ses anons liste:', e);
+  }
+}
+
+// ── Admin: Listeyi render et ──
+function sesAnonsRenderAdmin(){
+  const liste = document.getElementById('ses-anons-liste');
+  if(!liste) return;
+  if(!SES_ANONS_DB.length){
+    liste.innerHTML = '<div class="no-data">Henüz anons yok. Yukarıdan ses dosyası yükleyin.</div>';
+    return;
+  }
+  liste.innerHTML = SES_ANONS_DB.map(a=>{
+    const yayin = a.son_yayin_at ? '· Son: ' + sesAnonsTarihFormat(a.son_yayin_at) : '';
+    const sayi = (a.yayin_sayisi>0) ? '· '+a.yayin_sayisi+'× yayın' : '';
+    return `<div class="ses-anons-card">
+      <div class="ses-anons-card-info">
+        <div class="ses-anons-card-baslik">${a.baslik||'Anons'}</div>
+        <div class="ses-anons-card-meta">${sesAnonsSureFormat(a.sure_sn)} ${sayi} ${yayin}</div>
+      </div>
+      <div class="ses-anons-card-btns">
+        <button class="ses-onizle-btn" onclick="sesAnonsOnizle('${a.id}')">▶</button>
+        <button class="ses-cal-btn" onclick="sesAnonsSimdiCal('${a.id}')">📢 Dinlet</button>
+        <button class="ses-sil-btn" onclick="sesAnonsSil('${a.id}')">Sil</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Admin: Önizleme (sadece bu cihazda çal) ──
+function sesAnonsOnizle(id){
+  const a = SES_ANONS_DB.find(x=>String(x.id)===String(id));
+  if(!a) return;
+  const audio = new Audio(a.dosya_url);
+  audio.play().catch(e=>showToast('Çalınamadı: ' + e.message));
+}
+
+// ── Admin: ŞİMDİ DİNLET (broadcast) ──
+async function sesAnonsSimdiCal(id){
+  const a = SES_ANONS_DB.find(x=>String(x.id)===String(id));
+  if(!a) return;
+  if(!confirm('Bu anonsu tüm aktif yolculara dinletmek istediğinizden emin misiniz?\n\n"' + a.baslik + '"')) return;
+
+  try{
+    // Realtime kanal üzerinden broadcast gönder
+    const kanal = sb.channel('voyago-ses-anons');
+    await kanal.subscribe();
+    await kanal.send({
+      type: 'broadcast',
+      event: 'cal',
+      payload: {
+        baslik: a.baslik,
+        url: a.dosya_url,
+        sure: a.sure_sn,
+        zaman: new Date().toISOString()
+      }
+    });
+    // Kısa bekleyip kanalı kapat
+    setTimeout(()=>{ try{ sb.removeChannel(kanal); }catch(e){} }, 1500);
+
+    // İstatistik güncelle
+    await dbUpdate('sesli_anonslar', {id: a.id}, {
+      son_yayin_at: new Date().toISOString(),
+      yayin_sayisi: (a.yayin_sayisi||0) + 1
+    });
+
+    showToast('📢 Anons yayınlandı — aktif yolcular dinliyor');
+    await sesAnonsYukleListe();
+  }catch(e){
+    console.error('Anons yayın:', e);
+    showToast('Yayın başarısız: ' + e.message);
+  }
+}
+
+// ── Admin: Sil ──
+async function sesAnonsSil(id){
+  const a = SES_ANONS_DB.find(x=>String(x.id)===String(id));
+  if(!a) return;
+  if(!confirm('"' + a.baslik + '" anonsunu silmek istediğinizden emin misiniz?')) return;
+
+  try{
+    // Storage'dan sil
+    if(a.dosya_yolu){
+      await sb.storage.from('anonslar').remove([a.dosya_yolu]);
+    }
+    // DB'den sil
+    await sb.from('sesli_anonslar').delete().eq('id', a.id);
+    showToast('Anons silindi');
+    await sesAnonsYukleListe();
+  }catch(e){
+    console.error('Anons sil:', e);
+    showToast('Silme başarısız');
+  }
+}
+
+// ── Yolcu: Realtime kanalını başlat ──
+function sesAnonsKanaliBaslat(){
+  if(sesAnonsKanal){
+    try{ sb.removeChannel(sesAnonsKanal); }catch(e){}
+    sesAnonsKanal = null;
+  }
+  sesAnonsKanal = sb.channel('voyago-ses-anons')
+    .on('broadcast', {event: 'cal'}, (msg)=>{
+      const p = msg?.payload;
+      if(p && p.url) sesAnonsModalAc(p);
+    })
+    .subscribe();
+}
+
+// ── Yolcu: Kanalı kapat (logout vb.) ──
+function sesAnonsKanaliKapat(){
+  if(sesAnonsKanal){
+    try{ sb.removeChannel(sesAnonsKanal); }catch(e){}
+    sesAnonsKanal = null;
+  }
+}
+
+// ── Yolcu: Modal aç ve oynat ──
+function sesAnonsModalAc(payload){
+  const modal = document.getElementById('ses-anons-modal');
+  const baslik = document.getElementById('ses-modal-baslik');
+  const sub = document.getElementById('ses-modal-sub');
+  const audio = document.getElementById('ses-modal-audio');
+  const calBtn = document.getElementById('ses-modal-cal-btn');
+  if(!modal || !audio) return;
+
+  baslik.textContent = payload.baslik || 'Anons';
+  sub.textContent = 'Rehberinizden bir mesaj' + (payload.sure ? ' · ' + sesAnonsSureFormat(payload.sure) : '');
+  audio.src = payload.url;
+  audio.load();
+  calBtn.style.display = 'none';
+
+  modal.classList.add('active');
+
+  // Otomatik oynatma dene
+  audio.play().catch(()=>{
+    // Autoplay engellendi → büyük buton göster
+    calBtn.style.display = 'block';
+  });
+
+  // Titreşim (destekleyen cihazlarda)
+  try{ if(navigator.vibrate) navigator.vibrate([200,100,200]); }catch(e){}
+}
+
+// ── Yolcu: Manuel oynat butonu ──
+function sesAnonsModalCal(){
+  const audio = document.getElementById('ses-modal-audio');
+  const calBtn = document.getElementById('ses-modal-cal-btn');
+  if(!audio) return;
+  audio.play().then(()=>{
+    calBtn.style.display = 'none';
+  }).catch(e=>showToast('Oynatılamadı: ' + e.message));
+}
+
+// ── Yolcu: Modal kapat ──
+function sesAnonsModalKapat(e){
+  // Eğer tıklama içerik üzerine geldiyse kapatma
+  if(e && e.target && e.target.id !== 'ses-anons-modal' && !e.target.classList.contains('ses-modal-btn-2')) return;
+  const modal = document.getElementById('ses-anons-modal');
+  const audio = document.getElementById('ses-modal-audio');
+  if(audio){ try{ audio.pause(); audio.currentTime = 0; }catch(e){} }
+  if(modal) modal.classList.remove('active');
+}
+
+// ── adminTab fonksiyonu çağrıldığında sesanons sekmesi açılırsa listeyi yükle ──
+(function(){
+  const orijinalAdminTab = window.adminTab;
+  if(typeof orijinalAdminTab === 'function'){
+    window.adminTab = function(tab){
+      const r = orijinalAdminTab.apply(this, arguments);
+      if(tab === 'sesanons'){
+        sesAnonsYukleListe();
+      }
+      return r;
+    };
+  }
+})();
 </script>
 </body>
 </html>
