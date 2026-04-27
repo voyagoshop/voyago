@@ -377,6 +377,33 @@ textarea.ai2{resize:none;}
 .tk-form-btn:hover{opacity:.9;}
 .tk-wa-btn{padding:6px 11px;background:#25d366;color:white;border:none;border-radius:8px;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;}
 .tk-wa-btn:hover{opacity:.9;}
+
+/* YOLCU DÜZENLEME MODAL */
+.yd-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
+.yd-modal.active{display:flex;animation:sesFadeIn .25s ease;}
+.yd-modal-i{background:white;border-radius:24px;padding:24px 22px;max-width:430px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.4);animation:sesPopIn .3s ease;}
+.yd-title{font-family:'DM Serif Display',serif;font-size:20px;color:var(--t);margin-bottom:4px;text-align:center;}
+.yd-subtitle{font-size:12px;color:var(--t2);text-align:center;margin-bottom:18px;}
+.yd-grup{margin-bottom:14px;}
+.yd-grup-title{font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+.yd-input{width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:'DM Sans',sans-serif;background:white;color:var(--t);box-sizing:border-box;}
+.yd-input:focus{outline:none;border-color:var(--blue);}
+.yd-input.locked{background:var(--gray);color:var(--t2);cursor:not-allowed;}
+.yd-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.yd-locked-note{font-size:10px;color:var(--t3);margin-top:3px;font-style:italic;}
+.yd-kisi{display:flex;justify-content:space-between;padding:10px 14px;background:var(--gray);border-radius:12px;margin-bottom:8px;align-items:center;}
+.yd-kisi-label{font-size:13px;font-weight:500;color:var(--t);}
+.yd-kisi-stepper{display:flex;align-items:center;background:white;border-radius:8px;overflow:hidden;border:1px solid var(--border);}
+.yd-kisi-btn{width:32px;height:32px;border:none;background:white;color:var(--blue);font-size:16px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.yd-kisi-btn:hover:not(:disabled){background:var(--bl);}
+.yd-kisi-btn:disabled{color:var(--t3);opacity:.4;cursor:not-allowed;}
+.yd-kisi-deger{min-width:32px;text-align:center;font-size:14px;font-weight:600;color:var(--t);}
+.yd-tur-uyari{background:#fff8e6;border-left:3px solid #f59e0b;padding:10px 12px;border-radius:8px;font-size:11px;color:#92400e;line-height:1.5;margin-bottom:14px;}
+.yd-tur-uyari b{color:#78350f;}
+.yd-actions{display:flex;gap:10px;margin-top:8px;}
+.yd-kaydet{flex:1;padding:12px;background:var(--blue);color:white;border:none;border-radius:12px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.yd-iptal{flex:1;padding:12px;background:transparent;color:var(--t2);border:1.5px solid var(--border);border-radius:12px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.yd-edit-btn{padding:3px 8px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--blue);color:var(--blue);background:transparent;font-family:'DM Sans',sans-serif;}
 </style>
 </head>
 <body onload="baslat()">
@@ -2372,6 +2399,8 @@ function doPL(){
   try{ sesAnonsKanaliBaslat(); }catch(e){console.log('ses kanal:', e);}
   // Push bildirim sistemi başlat
   try{ if(typeof pushYolcuBaslat==='function') pushYolcuBaslat(); }catch(e){console.log('push:', e);}
+  // Yolcu güncelleme realtime kanalı
+  try{ if(typeof ydRealtimeBaslat==='function') ydRealtimeBaslat(); }catch(e){console.log('yd realtime:', e);}
   // Veritabanına kaydet
   saveYolcuDB(p);
   // Tarayıcıya kaydet — bir sonraki ziyarette otomatik giriş
@@ -3280,8 +3309,9 @@ function renderPS(s){
       <div class="pi2"><div class="pn2">${p.name}</div><div class="pd">Kabin ${p.kabin} - ${v?.label||p.sefer} - ${p.tel||'—'}</div><div class="pk">${ks}</div>${myT.length?`<div class="ptr">${ts}</div>`:''}</div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
         <span class="cb ${p.checkedIn?'cby':'cbn'}">${p.checkedIn?'Check-in':'Bekleyen'}</span>
-        <div style="display:flex;gap:4px;">
+        <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">
           ${p.tel?`<button onclick="yolcuWhatsapp('${p.tel}','${p.name}','${p.kabin}')" style="padding:3px 8px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid #25D366;color:#25D366;background:transparent;">💬</button>`:''}
+          <button class="yd-edit-btn" onclick="ydAc('${p.kabin}','${p.sefer}')">✏️</button>
           <button style="padding:3px 8px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--blue);color:var(--blue);background:transparent;font-family:'DM Sans',sans-serif;" onclick="toggleCI('${p.kabin}','${p.sefer}')">${p.checkedIn?'Geri':'CI'}</button>
           <button style="padding:3px 8px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--red);color:var(--red);background:transparent;font-family:'DM Sans',sans-serif;" onclick="deletePassenger('${p.kabin}','${p.sefer}')">Sil</button>
         </div>
@@ -5409,6 +5439,7 @@ function doLogout() {
   CP = null; CU = null;
   try{ localStorage.removeItem('voyago_admin'); }catch(e){}
   try{ if(typeof sesAnonsKanaliKapat==='function') sesAnonsKanaliKapat(); }catch(e){}
+  try{ if(typeof ydRealtimeKapat==='function') ydRealtimeKapat(); }catch(e){}
   showScreen('sl');
   setTimeout(()=>{ checkHosgeldin(); }, 100);
 }
@@ -5485,6 +5516,8 @@ async function devamEt() {
     startClock();
     // Sesli anons kanalını başlat
     try{ sesAnonsKanaliBaslat(); }catch(e){console.log('ses kanal:', e);}
+    // Yolcu güncelleme realtime kanalı
+    try{ if(typeof ydRealtimeBaslat==='function') ydRealtimeBaslat(); }catch(e){console.log('yd realtime:', e);}
     havaDurumBaslat(p.sefer);
     showToast('Hoş geldiniz, ' + (p.name?p.name.split(' ')[0]:'') + '! 👋');
     // Anket DB'den direkt kontrol et
@@ -7595,6 +7628,66 @@ document.head.appendChild(gcStyle);
   </div>
 </div>
 
+<!-- YOLCU DÜZENLEME MODAL -->
+<div id="yd-modal" class="yd-modal" onclick="ydModalKapat(event)">
+  <div class="yd-modal-i" onclick="event.stopPropagation()">
+    <div class="yd-title">✏️ Yolcu Düzenle</div>
+    <div class="yd-subtitle" id="yd-subtitle">Bilgileri güncelle</div>
+
+    <div class="yd-grup">
+      <div class="yd-grup-title">Kişisel Bilgiler</div>
+      <input type="text" class="yd-input" id="yd-name" placeholder="Ad Soyad" style="margin-bottom:8px;">
+      <input type="tel" class="yd-input" id="yd-tel" placeholder="WhatsApp Numarası">
+    </div>
+
+    <div class="yd-grup">
+      <div class="yd-grup-title">Kabin & Sefer</div>
+      <div class="yd-row2">
+        <input type="text" class="yd-input" id="yd-kabin" placeholder="Kabin No">
+        <input type="text" class="yd-input locked" id="yd-sefer-label" readonly>
+      </div>
+      <div class="yd-locked-note">🔒 Sefer değiştirmek için yolcuyu silip yeniden ekleyin</div>
+    </div>
+
+    <div class="yd-grup">
+      <div class="yd-grup-title">Katılımcı Sayısı</div>
+      <div class="yd-kisi">
+        <div class="yd-kisi-label">👤 Yetişkin</div>
+        <div class="yd-kisi-stepper">
+          <button class="yd-kisi-btn" onclick="ydKisiArttir('adult',-1)">−</button>
+          <div class="yd-kisi-deger" id="yd-adult">1</div>
+          <button class="yd-kisi-btn" onclick="ydKisiArttir('adult',1)">+</button>
+        </div>
+      </div>
+      <div class="yd-kisi">
+        <div class="yd-kisi-label">🧒 Çocuk (2-12)</div>
+        <div class="yd-kisi-stepper">
+          <button class="yd-kisi-btn" onclick="ydKisiArttir('child',-1)">−</button>
+          <div class="yd-kisi-deger" id="yd-child">0</div>
+          <button class="yd-kisi-btn" onclick="ydKisiArttir('child',1)">+</button>
+        </div>
+      </div>
+      <div class="yd-kisi">
+        <div class="yd-kisi-label">👶 Bebek (0-2)</div>
+        <div class="yd-kisi-stepper">
+          <button class="yd-kisi-btn" onclick="ydKisiArttir('baby',-1)">−</button>
+          <div class="yd-kisi-deger" id="yd-baby">0</div>
+          <button class="yd-kisi-btn" onclick="ydKisiArttir('baby',1)">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="yd-tur-uyari" id="yd-tur-uyari" style="display:none;">
+      <b>ℹ️ Tur Kayıtları:</b> Bu yolcunun mevcut tur kayıtları varsa, kişi sayısı azalırsa otomatik düşülür ve fiyat yeniden hesaplanır. <b>Artırırsanız</b> turlara ekstra kişi otomatik eklenmez — turdan tekrar kayıt ekleyebilirsiniz.
+    </div>
+
+    <div class="yd-actions">
+      <button class="yd-iptal" onclick="ydModalKapat()">Vazgeç</button>
+      <button class="yd-kaydet" onclick="ydKaydet()">💾 Kaydet</button>
+    </div>
+  </div>
+</div>
+
 <!-- TUR KATILIM MODAL -->
 <div id="tk-modal" class="tk-modal" onclick="tkModalKapat(event)">
   <div class="tk-modal-i" onclick="event.stopPropagation()">
@@ -8077,6 +8170,255 @@ function tkWhatsappGonder(kabin, sefer, tid){
   const url = 'https://wa.me/' + ham + '?text=' + mesaj;
   window.open(url, '_blank');
   showToast('📱 WhatsApp açılıyor...');
+}
+
+// ══ YOLCU DÜZENLEME ══
+let YD_HEDEF = null; // {kabin, sefer} — düzenlenmekte olan yolcu
+let YD_SECIM = { adult: 1, child: 0, baby: 0 };
+let YD_KANAL = null; // realtime kanal
+
+function ydAc(kabin, sefer){
+  const p = passengers.find(x=>x.kabin===kabin && x.sefer===sefer);
+  if(!p){ showToast('Yolcu bulunamadı'); return; }
+  YD_HEDEF = { kabin, sefer };
+  YD_SECIM = {
+    adult: p.adult || 1,
+    child: p.child || 0,
+    baby: p.baby || 0
+  };
+
+  // Modal'ı doldur
+  document.getElementById('yd-name').value = p.name || '';
+  document.getElementById('yd-tel').value = p.tel || '';
+  document.getElementById('yd-kabin').value = p.kabin || '';
+
+  const v = VOYAGES.find(vv=>vv.id===p.sefer);
+  document.getElementById('yd-sefer-label').value = v ? (v.label || p.sefer) : p.sefer;
+  document.getElementById('yd-subtitle').textContent = (v?.label || p.sefer) + ' · ' + (p.name || '');
+
+  document.getElementById('yd-adult').textContent = YD_SECIM.adult;
+  document.getElementById('yd-child').textContent = YD_SECIM.child;
+  document.getElementById('yd-baby').textContent = YD_SECIM.baby;
+
+  // Tur kaydı varsa uyarı göster
+  const turCnt = (p.joinedTours||[]).length;
+  const uyari = document.getElementById('yd-tur-uyari');
+  if(turCnt > 0){
+    uyari.style.display = 'block';
+    uyari.querySelector('b').textContent = `ℹ️ Tur Kayıtları (${turCnt} tur):`;
+  } else {
+    uyari.style.display = 'none';
+  }
+
+  ydButonDurum();
+  document.getElementById('yd-modal').classList.add('active');
+}
+
+function ydKisiArttir(kategori, delta){
+  const yeni = YD_SECIM[kategori] + delta;
+  if(yeni < 0) return;
+  // Yetişkin en az 1 olmalı
+  if(kategori === 'adult' && yeni < 1) return;
+  // Maks 9 civarı, makul sınır
+  if(yeni > 9) return;
+  YD_SECIM[kategori] = yeni;
+  document.getElementById('yd-' + kategori).textContent = yeni;
+  ydButonDurum();
+}
+
+function ydButonDurum(){
+  // - butonları
+  ['adult','child','baby'].forEach(k=>{
+    const stepper = document.querySelectorAll(`[onclick="ydKisiArttir('${k}',-1)"]`)[0];
+    if(stepper){
+      const min = (k==='adult') ? 1 : 0;
+      stepper.disabled = (YD_SECIM[k] <= min);
+    }
+  });
+}
+
+async function ydKaydet(){
+  if(!YD_HEDEF) return;
+  const yeniName = document.getElementById('yd-name').value.trim();
+  const yeniTel = document.getElementById('yd-tel').value.trim();
+  const yeniKabin = document.getElementById('yd-kabin').value.trim();
+
+  if(!yeniName){ showToast('Ad Soyad zorunlu'); return; }
+  if(!yeniKabin){ showToast('Kabin No zorunlu'); return; }
+
+  const p = passengers.find(x=>x.kabin===YD_HEDEF.kabin && x.sefer===YD_HEDEF.sefer);
+  if(!p){ showToast('Yolcu bulunamadı'); return; }
+
+  // Kabin değişikliği — çakışma kontrolü
+  if(yeniKabin !== p.kabin){
+    const cakisma = passengers.find(x=>x.kabin===yeniKabin && x.sefer===p.sefer && x !== p);
+    if(cakisma){
+      showToast('⚠️ Bu sefer için "' + yeniKabin + '" kabini başka yolcuda kayıtlı');
+      return;
+    }
+  }
+
+  const eskiKabin = p.kabin;
+  const eskiAdult = p.adult || 1;
+  const eskiChild = p.child || 0;
+  const eskiBaby = p.baby || 0;
+
+  // Yeni değerler
+  p.name = yeniName;
+  p.tel = yeniTel;
+  p.kabin = yeniKabin;
+  p.adult = YD_SECIM.adult;
+  p.child = YD_SECIM.child;
+  p.baby = YD_SECIM.baby;
+
+  // Tur kayıtlarını güncelle (kişi sayısı azaldıysa)
+  if(p.tur_katilim_detay && Object.keys(p.tur_katilim_detay).length > 0){
+    const TOURS_MAP = {};
+    TOURS.forEach(t=>{ TOURS_MAP[t.id] = t; });
+    Object.keys(p.tur_katilim_detay).forEach(tid=>{
+      const det = p.tur_katilim_detay[tid];
+      const t = TOURS_MAP[tid];
+      if(!t) return;
+      // Mevcut tur kaydındaki kişi sayısını yeni limitlere göre kırp
+      let yeniYet = Math.min(det.yetiskin || 0, p.adult);
+      let yeniCoc = Math.min(det.cocuk || 0, p.child);
+      let yeniBeb = Math.min(det.bebek || 0, p.baby);
+      const yeniKisi = yeniYet + yeniCoc + yeniBeb;
+      // Eğer hiç kimse kalmadıysa tur kaydını sil
+      if(yeniKisi === 0){
+        delete p.tur_katilim_detay[tid];
+        const idx = (p.joinedTours||[]).indexOf(tid);
+        if(idx >= 0) p.joinedTours.splice(idx,1);
+        return;
+      }
+      // Fiyatı yeniden hesapla
+      const yeniUcret = (yeniYet*t.ap) + (yeniCoc*t.cp) + (yeniBeb*t.bp);
+      p.tur_katilim_detay[tid] = {
+        ...det,
+        yetiskin: yeniYet,
+        cocuk: yeniCoc,
+        bebek: yeniBeb,
+        kisi: yeniKisi,
+        ucret: yeniUcret,
+        guncelleme_zamani: new Date().toISOString()
+      };
+    });
+  }
+
+  // DB'ye kaydet — eğer kabin değiştiyse önce eski kaydı sil, yenisini yaz
+  try{
+    if(eskiKabin !== p.kabin){
+      // Eski kaydı sil
+      await sb.from('yolcular').delete()
+        .eq('kabin', eskiKabin)
+        .eq('sefer_id', p.sefer);
+      // Yeni kabin ile insert et
+      await dbInsert('yolcular', {
+        ad: p.name, kabin: p.kabin, telefon: p.tel,
+        sefer_id: p.sefer, yetiskin: p.adult,
+        cocuk: p.child, bebek: p.baby,
+        checkin: p.checkedIn, checkin_yapildi: p.checkinDone,
+        katildigi_turlar: p.joinedTours || [],
+        tur_katilim_detay: p.tur_katilim_detay || {}
+      });
+    } else {
+      await saveYolcuDB(p);
+    }
+  } catch(e){
+    console.error('Yolcu kayıt:', e);
+    showToast('⚠️ Kayıt sırasında hata: ' + (e.message||''));
+    return;
+  }
+
+  // Realtime broadcast — yolcunun açık uygulamasına haber ver
+  try{
+    const kanal = sb.channel('voyago-yolcu-guncelleme');
+    await kanal.subscribe();
+    await kanal.send({
+      type: 'broadcast',
+      event: 'yolcu-guncellendi',
+      payload: {
+        eski_kabin: eskiKabin,
+        yeni_kabin: p.kabin,
+        sefer: p.sefer,
+        yolcu: {
+          name: p.name, kabin: p.kabin, tel: p.tel,
+          adult: p.adult, child: p.child, baby: p.baby,
+          joinedTours: p.joinedTours || [],
+          tur_katilim_detay: p.tur_katilim_detay || {}
+        }
+      }
+    });
+    setTimeout(()=>{ try{ sb.removeChannel(kanal); }catch(e){} }, 1500);
+  } catch(e){ console.log('Realtime broadcast:', e); }
+
+  // Modal kapat ve listeyi yenile
+  document.getElementById('yd-modal').classList.remove('active');
+  if(typeof renderPS === 'function' && typeof CASF !== 'undefined') renderPS(CASF);
+  if(typeof renderTA === 'function' && typeof CTSF !== 'undefined') renderTA(CTSF);
+
+  showToast('✓ Yolcu bilgileri güncellendi');
+  YD_HEDEF = null;
+}
+
+function ydModalKapat(e){
+  if(e && e.target && e.target.id !== 'yd-modal' && !e.target.classList.contains('yd-iptal')) return;
+  document.getElementById('yd-modal').classList.remove('active');
+  YD_HEDEF = null;
+}
+
+// ══ REALTIME — Yolcu uygulamada açıkken anlık güncelleme ══
+function ydRealtimeBaslat(){
+  if(YD_KANAL){
+    try{ sb.removeChannel(YD_KANAL); }catch(e){}
+    YD_KANAL = null;
+  }
+  YD_KANAL = sb.channel('voyago-yolcu-guncelleme')
+    .on('broadcast', { event: 'yolcu-guncellendi' }, (msg)=>{
+      const p = msg?.payload;
+      if(!p || !CP) return;
+      // Bu güncelleme bizim yolcumuzu mu etkiliyor?
+      // Eski kabin VEYA yeni kabin bizim CP ile uyuşuyorsa
+      const benimKabin = CP.kabin;
+      const benimSefer = CP.sefer;
+      if(p.sefer !== benimSefer) return;
+      // Eski kabin VEYA yeni kabin bizim olabilir
+      if(p.eski_kabin !== benimKabin && p.yeni_kabin !== benimKabin) return;
+      // CP'yi güncelle
+      const y = p.yolcu;
+      if(y){
+        CP.name = y.name;
+        CP.kabin = y.kabin;
+        CP.tel = y.tel;
+        CP.adult = y.adult;
+        CP.child = y.child;
+        CP.baby = y.baby;
+        CP.joinedTours = y.joinedTours || [];
+        CP.tur_katilim_detay = y.tur_katilim_detay || {};
+        // localStorage güncelle
+        try {
+          localStorage.setItem('voyago_yolcu', JSON.stringify({
+            name: CP.name, kabin: CP.kabin, tel: CP.tel,
+            sefer: CP.sefer, sefer_etiket: CP.sefer_etiket || ''
+          }));
+        } catch(e){}
+        // UI'yi yenile
+        try { renderPassTours(CP.sefer); } catch(e){}
+        try {
+          const yolcuAdiEl = document.getElementById('app-yolcu-adi');
+          if(yolcuAdiEl) yolcuAdiEl.textContent = CP.name;
+        } catch(e){}
+        showToast('ℹ️ Bilgileriniz rehber tarafından güncellendi');
+      }
+    })
+    .subscribe();
+}
+
+function ydRealtimeKapat(){
+  if(YD_KANAL){
+    try{ sb.removeChannel(YD_KANAL); }catch(e){}
+    YD_KANAL = null;
+  }
 }
 </script>
 
