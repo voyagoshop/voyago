@@ -1083,6 +1083,10 @@ textarea.ai2{resize:none;}
         <button class="save-daily-btn" style="background:var(--red);margin-top:10px;" onclick="saveMeeting2()">Kaydet ve Misafire Göster</button>
       </div>
       <div class="sf" id="tsf"></div>
+      <div style="background:white;border-radius:10px;padding:8px 12px;margin-bottom:10px;display:flex;gap:8px;align-items:center;justify-content:space-between;box-shadow:var(--sh);">
+        <div style="font-size:11px;color:var(--t3);">Sıralama bozuksa, görünen sırayı sabitle:</div>
+        <button onclick="turSiralarSabitle()" style="padding:6px 12px;background:var(--bl);color:var(--blue);border:1.5px solid var(--blue);border-radius:8px;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">🔄 Sıraları Sabitle</button>
+      </div>
       <div id="tal"></div>
       <div class="fs2" style="margin-top:14px;">
         <div class="fst">Yeni Tur Ekle</div>
@@ -1830,8 +1834,7 @@ async function initDB() {
       aktif: t.aktif !== false,
       uyari_mesaji: t.uyari_mesaji || '',
       uyari_aktif: t.uyari_aktif || false,
-      sira: t.sira != null ? t.sira : 999,
-      sira: t.sira || 0
+      sira: t.sira != null ? t.sira : 999
     }));
 
     // Günlük içerikleri yükle
@@ -1948,8 +1951,7 @@ async function saveTurDB(tur) {
     aktif: tur.aktif !== false,
     uyari_mesaji: tur.uyari_mesaji || '',
     uyari_aktif: tur.uyari_aktif || false,
-    sira: tur.sira != null ? tur.sira : 999,
-    sira: tur.sira || 0
+    sira: tur.sira != null ? tur.sira : 999
   };
   if(mevcut.length > 0) {
     await dbUpdate('turlar', {id: tur.id}, veri);
@@ -2568,7 +2570,12 @@ function renderPassTours(sv){
     t.seferler.includes(sv) ||
     (gemiAdi && VOYAGES.filter(vv=>vv.ship===gemiAdi).some(vv=>t.seferler.includes(vv.id)))
   );
-  tours = tours.slice().sort((a,b)=>(a.sira!=null?a.sira:999)-(b.sira!=null?b.sira:999));
+  tours = tours.slice().sort((a,b)=>{
+    const sa = a.sira!=null?a.sira:999;
+    const sb = b.sira!=null?b.sira:999;
+    if(sa !== sb) return sa - sb;
+    return String(a.id).localeCompare(String(b.id));
+  });
   if(!tours.length){el.innerHTML='<div class="no-data" style="margin-top:10px;">Henüz tur eklenmemis.</div>';return;}
   el.innerHTML=tours.map(t=>{
     const j=p.joinedTours.includes(t.id);
@@ -3522,8 +3529,14 @@ function renderTA(s){
     const seferTours=tours.filter(t=>t.seferler.includes(s));
     if(seferTours.length>0) tours=seferTours;
   }
-  // Sıralama alanına göre sırala
-  tours=tours.slice().sort((a,b)=>(a.sira||0)-(b.sira||0));
+  // Sıralama alanına göre sırala (yolcu tarafıyla TUTARLI olsun)
+  tours=tours.slice().sort((a,b)=>{
+    const sa = a.sira!=null?a.sira:999;
+    const sb = b.sira!=null?b.sira:999;
+    if(sa !== sb) return sa - sb;
+    // Eşitlikte id'ye göre — deterministik
+    return String(a.id).localeCompare(String(b.id));
+  });
   const el=document.getElementById('tal');
   el.innerHTML=tours.map(t=>{
     const kat=passengers.filter(p=>p.joinedTours.includes(t.id));
@@ -3603,36 +3616,6 @@ function turUyariToggle(tid){
 // ══ TUR SIRA DEĞIŞTIRME ══
 let _dragTurId = null;
 
-function turSirayukari(tid){
-  const iS=CU?.role==='super';
-  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
-  let tours=TOURS.filter(t=>t.ship===activeShip||!t.ship).slice().sort((a,b)=>(a.sira||0)-(b.sira||0));
-  const idx=tours.findIndex(t=>t.id===tid);
-  if(idx<=0)return;
-  // Üstteki ile yer değiştir
-  const temp=tours[idx].sira||0;
-  tours[idx].sira=tours[idx-1].sira||0;
-  tours[idx-1].sira=temp;
-  // Sıralar aynıysa index ata
-  tours.forEach((t,i)=>{t.sira=i;});
-  tours.forEach(t=>saveTurDB(t));
-  renderTA(CTSF);
-}
-
-function turSiraAsagi(tid){
-  const iS=CU?.role==='super';
-  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
-  let tours=TOURS.filter(t=>t.ship===activeShip||!t.ship).slice().sort((a,b)=>(a.sira||0)-(b.sira||0));
-  const idx=tours.findIndex(t=>t.id===tid);
-  if(idx<0||idx>=tours.length-1)return;
-  tours.forEach((t,i)=>{t.sira=i;});
-  const temp=tours[idx].sira;
-  tours[idx].sira=tours[idx+1].sira;
-  tours[idx+1].sira=temp;
-  tours.forEach(t=>saveTurDB(t));
-  renderTA(CTSF);
-}
-
 function turDragStart(e, tid){
   _dragTurId = tid;
   e.currentTarget.style.opacity = '0.5';
@@ -3645,36 +3628,25 @@ function turDragOver(e){
   e.currentTarget.style.borderTop = '3px solid var(--blue)';
 }
 
-function turDrop(e, hedefId){
+async function turDrop(e, hedefId){
   e.preventDefault();
   e.currentTarget.style.borderTop = '';
   if(!_dragTurId || _dragTurId === hedefId) return;
-  
-  // Sıraları değiştir
-  const kaynak = TOURS.find(t=>t.id===_dragTurId);
-  const hedef = TOURS.find(t=>t.id===hedefId);
-  if(!kaynak||!hedef) return;
-  
-  const tempSira = kaynak.sira||0;
-  kaynak.sira = hedef.sira||0;
-  hedef.sira = tempSira;
-  
-  // Eğer sıralar aynıysa index'e göre ata
-  const iS=CU?.role==='super';
-  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
-  const tours=TOURS.filter(t=>t.ship===activeShip||!t.ship).slice().sort((a,b)=>(a.sira||0)-(b.sira||0));
-  const srcIdx=tours.findIndex(t=>t.id===_dragTurId);
-  const dstIdx=tours.findIndex(t=>t.id===hedefId);
-  
-  // Yeniden sırala
-  tours.splice(srcIdx,1);
-  tours.splice(dstIdx,0,kaynak);
-  tours.forEach((t,i)=>{t.sira=i;});
-  
-  // DB'ye kaydet
-  tours.forEach(t=>saveTurDB(t));
-  renderTA(CTSF);
-  showToast('Tur sirasi guncellendi!');
+
+  const tours = _siraliTurlar();
+  const srcIdx = tours.findIndex(t=>t.id===_dragTurId);
+  const dstIdx = tours.findIndex(t=>t.id===hedefId);
+  if(srcIdx < 0 || dstIdx < 0) return;
+
+  // Kaynağı çıkar, hedefin önüne ekle
+  const [kaynak] = tours.splice(srcIdx, 1);
+  tours.splice(dstIdx, 0, kaynak);
+
+  const ok = await _siraGuncelleVeKaydet(tours);
+  if(ok){
+    renderTA(CTSF);
+    showToast('Tur sirasi guncellendi!');
+  }
 }
 
 function turDragEnd(e){
@@ -3683,33 +3655,65 @@ function turDragEnd(e){
   _dragTurId = null;
 }
 
-function turSirayukari(tid){
+// ── Yardımcı: sıralı tur listesi al ──
+function _siraliTurlar(){
   const iS=CU?.role==='super';
   const activeShip=iS?ACTIVE_SHIP:CU?.ship;
-  let tours=TOURS.filter(t=>t.ship===activeShip||!t.ship)
-    .slice().sort((a,b)=>(a.sira!=null?a.sira:999)-(b.sira!=null?b.sira:999));
-  const idx=tours.findIndex(t=>t.id===tid);
-  if(idx<=0)return;
-  // Sıraları yeniden düzenle
-  tours.forEach((t,i)=>{t.sira=i;});
-  tours[idx].sira=idx-1;
-  tours[idx-1].sira=idx;
-  tours.forEach(t=>saveTurDB(t));
-  renderTA(CTSF);
+  return TOURS.filter(t=>t.ship===activeShip||!t.ship)
+    .slice().sort((a,b)=>{
+      const sa = a.sira!=null?a.sira:999;
+      const sb = b.sira!=null?b.sira:999;
+      if(sa !== sb) return sa - sb;
+      return String(a.id).localeCompare(String(b.id));
+    });
 }
 
-function turSiraasagi(tid){
-  const iS=CU?.role==='super';
-  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
-  let tours=TOURS.filter(t=>t.ship===activeShip||!t.ship)
-    .slice().sort((a,b)=>(a.sira!=null?a.sira:999)-(b.sira!=null?b.sira:999));
-  const idx=tours.findIndex(t=>t.id===tid);
-  if(idx<0||idx>=tours.length-1)return;
-  tours.forEach((t,i)=>{t.sira=i;});
-  tours[idx].sira=idx+1;
-  tours[idx+1].sira=idx;
-  tours.forEach(t=>saveTurDB(t));
-  renderTA(CTSF);
+// ── Yardımcı: yeni sıraları DB'ye sırayla ve güvenli kaydet ──
+async function _siraGuncelleVeKaydet(tours){
+  // Önce hepsine bellek içi index ata
+  tours.forEach((t,i)=>{ t.sira = i; });
+  // DB'ye paralel kaydet ama tümünü bekle
+  try {
+    await Promise.all(tours.map(t => saveTurDB(t)));
+    return true;
+  } catch(e){
+    console.error('Sıra kaydetme hatası:', e);
+    showToast('⚠️ Sıralama kaydedilemedi: ' + (e.message||''));
+    return false;
+  }
+}
+
+async function turSirayukari(tid){
+  const tours = _siraliTurlar();
+  const idx = tours.findIndex(t=>t.id===tid);
+  if(idx <= 0) return;
+  // Yer değiştir
+  [tours[idx-1], tours[idx]] = [tours[idx], tours[idx-1]];
+  const ok = await _siraGuncelleVeKaydet(tours);
+  if(ok) renderTA(CTSF);
+}
+
+async function turSiraasagi(tid){
+  const tours = _siraliTurlar();
+  const idx = tours.findIndex(t=>t.id===tid);
+  if(idx < 0 || idx >= tours.length-1) return;
+  // Yer değiştir
+  [tours[idx], tours[idx+1]] = [tours[idx+1], tours[idx]];
+  const ok = await _siraGuncelleVeKaydet(tours);
+  if(ok) renderTA(CTSF);
+}
+
+// ── Mevcut görünen sırayı DB'ye sabitle (tek seferlik tamir) ──
+async function turSiralarSabitle(){
+  const tours = _siraliTurlar();
+  if(!tours.length){ showToast('Tur yok'); return; }
+  if(!confirm('Mevcut görünen sırayı sabitlemek istiyor musunuz?\n\nBu işlem ' + tours.length + ' turun sıra numarasını yeniden ayarlar.')) return;
+  showToast('⏳ Sıralar kaydediliyor...');
+  const ok = await _siraGuncelleVeKaydet(tours);
+  if(ok){
+    renderTA(CTSF);
+    showToast('✓ Sıralar sabitlendi (' + tours.length + ' tur)');
+  }
 }
 
 function turAktifToggle(tid){
@@ -3840,10 +3844,15 @@ function addTour(){
   if(!name||!liman){showToast('Ad ve liman gereklidir.');return;}
   const iS=CU?.role==='super';
   const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  // Mevcut maks sıra + 1 (yeni eklenen turlar listenin sonuna gelir)
+  const mevcutTurlar = TOURS.filter(t=>t.ship===activeShip||!t.ship);
+  const maksSira = mevcutTurlar.reduce((m,t)=>Math.max(m, (t.sira!=null?t.sira:-1)), -1);
+  const yeniSira = maksSira + 1;
   TOURS.push({id:'t'+Date.now(),name,liman,saat,gun,ap,cp,bp,
     apN,cpN,bpN,
     ship:activeShip,seferler:sefer?[sefer]:[],img:newTurImg,
-    max_kisi:maxKisi,uyari_esigi:uyariEsigi,aktif:true});
+    max_kisi:maxKisi,uyari_esigi:uyariEsigi,aktif:true,
+    sira: yeniSira});
   newTurImg=null;
   ['ntn','ntl','nta','ntc','ntb'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const mkEl=document.getElementById('nt-max-kisi');if(mkEl)mkEl.value='';
