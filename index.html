@@ -404,6 +404,61 @@ textarea.ai2{resize:none;}
 .yd-kaydet{flex:1;padding:12px;background:var(--blue);color:white;border:none;border-radius:12px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;}
 .yd-iptal{flex:1;padding:12px;background:transparent;color:var(--t2);border:1.5px solid var(--border);border-radius:12px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;}
 .yd-edit-btn{padding:3px 8px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--blue);color:var(--blue);background:transparent;font-family:'DM Sans',sans-serif;}
+
+/* ══ BROŞÜR ══ */
+/* Yolcu broşür butonu (tur kartında) */
+.br-buton{padding:8px 12px;background:white;color:var(--blue);border:1.5px solid var(--blue);border-radius:10px;font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:5px;width:100%;margin-bottom:6px;}
+.br-buton:hover{background:var(--bl);}
+
+/* Yolcu broşür modal (tam ekran) */
+.br-modal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+.br-modal.active{display:flex;animation:sesFadeIn .25s ease;}
+.br-modal-i{background:white;border-radius:24px 24px 0 0;max-width:500px;width:100%;max-height:92vh;overflow-y:auto;animation:pushSlideUp .35s ease;-webkit-overflow-scrolling:touch;}
+.br-modal-banner{position:relative;width:100%;aspect-ratio:16/9;background:#e8e8e6;overflow:hidden;}
+.br-modal-banner img{width:100%;height:100%;object-fit:cover;display:block;}
+.br-modal-kapat{position:absolute;top:14px;right:14px;width:36px;height:36px;background:rgba(0,0,0,.5);color:white;border:none;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
+.br-modal-icerik{padding:18px 20px 30px;}
+.br-modal-baslik{font-family:'DM Serif Display',serif;font-size:24px;color:var(--t);margin-bottom:6px;line-height:1.2;}
+.br-modal-meta{font-size:12px;color:var(--t2);margin-bottom:14px;display:flex;flex-wrap:wrap;gap:14px;}
+.br-modal-meta span{display:inline-flex;align-items:center;gap:4px;}
+.br-modal-ozet{background:var(--bl);border-radius:14px;padding:14px;font-size:13px;color:var(--t);line-height:1.55;margin-bottom:18px;font-style:italic;}
+.br-modal-bolum{margin-bottom:18px;}
+.br-modal-bolum-baslik{font-size:11px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.br-modal-bolum-icerik{font-size:13px;color:var(--t);line-height:1.6;white-space:pre-line;}
+.br-modal-bolum-icerik ul{padding-left:18px;margin:0;}
+.br-modal-galeri{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px;}
+.br-modal-galeri img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;cursor:pointer;}
+.br-modal-zorluk{display:inline-block;padding:4px 10px;border-radius:14px;font-size:11px;font-weight:500;}
+.br-modal-zorluk.kolay{background:#e8f5e8;color:#2e7d32;}
+.br-modal-zorluk.orta{background:#fff8e6;color:#92400e;}
+.br-modal-zorluk.zorlu{background:#ffe8e8;color:#a32d2d;}
+.br-modal-cta{position:sticky;bottom:0;background:white;padding:12px 20px;border-top:1px solid var(--border);}
+.br-modal-cta-btn{width:100%;padding:14px;background:var(--blue);color:white;border:none;border-radius:14px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.br-modal-cta-btn.joined{background:var(--green);}
+
+/* Admin broşür düzenleme modal */
+.brad-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998;display:none;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
+.brad-modal.active{display:flex;animation:sesFadeIn .25s ease;}
+.brad-modal-i{background:white;border-radius:20px;padding:22px 18px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.4);animation:sesPopIn .3s ease;}
+.brad-resim-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:6px;}
+.brad-ana-resim{aspect-ratio:16/9;border:2px dashed rgba(26,95,168,.35);border-radius:12px;background:var(--bl);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative;margin-bottom:8px;}
+.brad-ana-resim:hover{border-color:var(--blue);}
+.brad-ana-resim img{width:100%;height:100%;object-fit:cover;}
+.brad-ana-resim .brad-yer{font-size:13px;color:var(--blue);font-weight:500;text-align:center;padding:14px;}
+.brad-galeri-resim{aspect-ratio:1;border:2px dashed rgba(26,95,168,.35);border-radius:10px;background:var(--bl);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative;}
+.brad-galeri-resim:hover{border-color:var(--blue);}
+.brad-galeri-resim img{width:100%;height:100%;object-fit:cover;}
+.brad-galeri-resim .brad-yer{font-size:11px;color:var(--blue);text-align:center;padding:5px;}
+.brad-resim-sil{position:absolute;top:4px;right:4px;width:22px;height:22px;background:rgba(0,0,0,.65);color:white;border:none;border-radius:50%;font-size:14px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;}
+.brad-yukleniyor{position:absolute;inset:0;background:rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--blue);font-weight:600;}
+.brad-input{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif;background:white;color:var(--t);box-sizing:border-box;}
+.brad-textarea{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif;background:white;color:var(--t);box-sizing:border-box;resize:vertical;min-height:60px;line-height:1.5;}
+.brad-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.brad-grup{margin-bottom:14px;}
+.brad-grup-baslik{font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;margin-bottom:6px;letter-spacing:0.5px;}
+.brad-actions{display:flex;gap:10px;margin-top:14px;position:sticky;bottom:0;background:white;padding-top:8px;}
+.brad-buton-admin{padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--purple);color:var(--purple);background:transparent;font-family:'DM Sans',sans-serif;}
+.brad-buton-admin.dolu{background:var(--purple);color:white;}
 </style>
 </head>
 <body onload="baslat()">
@@ -2538,6 +2593,7 @@ function renderPassTours(sv){
         <div class="th2"><div><div class="tn">${t.name}</div><span class="badge ${j?'bg':'bb'}" style="margin-top:4px;">${j?'Katiliyorum':'Katilmiyorum'}</span></div><div class="tpr">E${t.ap}</div></div>
         <div class="td">&#128205; ${t.liman} &nbsp;·&nbsp; Toplanti: ${t.saat} &nbsp;·&nbsp; ${t.gun}. gün</div>
         <div class="tpc">Toplam: <span>E${total}</span><br><span style="font-size:10px;color:var(--t3);">${det.join(' + ')}</span></div>
+        ${(typeof BROSURLER !== 'undefined' && BROSURLER && BROSURLER[t.id]) ? `<button class="br-buton" onclick="event.stopPropagation();brAc('${t.id}')">📖 Tur Broşürünü Görüntüle</button>` : ''}
         ${j
           ? `<div style="display:flex;flex-direction:column;gap:6px;width:100%;">
                <button class="bj joined" style="cursor:default;opacity:.9;">${tr('katiliyorum')}</button>
@@ -3508,6 +3564,7 @@ function renderTA(s){
               <button onclick="turSiraasagi('${t.id}')" style="width:28px;height:28px;border-radius:8px;border:1.5px solid var(--border);background:white;color:var(--t2);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;">▼</button>
             </div>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--blue);color:var(--blue);background:transparent;" onclick="turDuzenle('${t.id}')">Düzenle</button>
+            <button class="brad-buton-admin ${BROSURLER && BROSURLER[t.id] ? 'dolu' : ''}" onclick="bradAc('${t.id}')">📖 Broşür</button>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid ${aktif?'var(--amber)':'var(--green)'};color:${aktif?'var(--amber)':'var(--green)'};background:transparent;" onclick="turAktifToggle('${t.id}')">${aktif?'Kapat':'Aç'}</button>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid ${t.uyari_aktif?'var(--red)':'var(--purple)'};color:${t.uyari_aktif?'var(--red)':'var(--purple)'};background:${t.uyari_aktif?'var(--rl)':'transparent'};" onclick="turUyariToggle('${t.id}')">${t.uyari_aktif?'⚠️ Uyarı Açık':'⚠️ Uyarı'}</button>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--red);color:var(--red);background:transparent;" onclick="deleteTour('${t.id}')">Sil</button>
@@ -7628,6 +7685,89 @@ document.head.appendChild(gcStyle);
   </div>
 </div>
 
+<!-- ══ YOLCU BROŞÜR MODAL (tam ekran) ══ -->
+<div id="br-modal" class="br-modal" onclick="brModalKapat(event)">
+  <div class="br-modal-i" onclick="event.stopPropagation()">
+    <div class="br-modal-banner" id="br-banner">
+      <button class="br-modal-kapat" onclick="brModalKapat()">×</button>
+    </div>
+    <div class="br-modal-icerik" id="br-icerik"></div>
+    <div class="br-modal-cta" id="br-cta"></div>
+  </div>
+</div>
+
+<!-- ══ ADMIN BROŞÜR DÜZENLEME MODAL ══ -->
+<div id="brad-modal" class="brad-modal" onclick="bradModalKapat(event)">
+  <div class="brad-modal-i" onclick="event.stopPropagation()">
+    <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--t);margin-bottom:4px;text-align:center;">📖 Broşür Düzenle</div>
+    <div id="brad-tur-adi" style="font-size:12px;color:var(--blue);text-align:center;margin-bottom:14px;font-weight:500;">Tur Adı</div>
+
+    <div class="brad-grup">
+      <div class="brad-grup-baslik">Görseller (otomatik küçültülüp WebP'ye çevrilir)</div>
+
+      <label class="brad-ana-resim" id="brad-ana">
+        <input type="file" accept="image/*" style="display:none;" onchange="bradResimYukle(this,'ana')">
+        <div class="brad-yer">📷 Ana Görsel<br><span style="font-size:10px;opacity:.7;">(banner, 16:9)</span></div>
+      </label>
+
+      <div class="brad-resim-grid">
+        <label class="brad-galeri-resim" id="brad-g1">
+          <input type="file" accept="image/*" style="display:none;" onchange="bradResimYukle(this,'1')">
+          <div class="brad-yer">+ Galeri 1</div>
+        </label>
+        <label class="brad-galeri-resim" id="brad-g2">
+          <input type="file" accept="image/*" style="display:none;" onchange="bradResimYukle(this,'2')">
+          <div class="brad-yer">+ Galeri 2</div>
+        </label>
+        <label class="brad-galeri-resim" id="brad-g3">
+          <input type="file" accept="image/*" style="display:none;" onchange="bradResimYukle(this,'3')">
+          <div class="brad-yer">+ Galeri 3</div>
+        </label>
+      </div>
+    </div>
+
+    <div class="brad-grup">
+      <div class="brad-grup-baslik">Tanıtım</div>
+      <textarea class="brad-textarea" id="brad-ozet" placeholder="Tur özeti — 1-2 cümle, etkileyici. Örn: Antik dünyanın kalbi Atina'da Akropolis'in ihtişamına tanık olun..." rows="3"></textarea>
+    </div>
+
+    <div class="brad-grup">
+      <div class="brad-grup-baslik">Detaylar</div>
+      <div class="brad-row">
+        <input type="text" class="brad-input" id="brad-sure" placeholder="Süre — örn: 5-6 saat">
+        <select class="brad-input" id="brad-zorluk">
+          <option value="">Zorluk seçin...</option>
+          <option value="kolay">🟢 Kolay (yürüyüş az)</option>
+          <option value="orta">🟡 Orta (bir miktar yürüyüş)</option>
+          <option value="zorlu">🔴 Zorlu (uzun yürüyüş, merdivenler)</option>
+        </select>
+      </div>
+      <input type="text" class="brad-input" id="brad-ulasim" placeholder="Ulaşım — örn: Klimalı otobüs ile" style="margin-bottom:10px;">
+    </div>
+
+    <div class="brad-grup">
+      <div class="brad-grup-baslik">Görülecek Yerler</div>
+      <textarea class="brad-textarea" id="brad-goruleceler" placeholder="Her satıra 1 yer yazın:&#10;Akropolis&#10;Parthenon Tapınağı&#10;Plaka tarihi mahallesi" rows="4"></textarea>
+    </div>
+
+    <div class="brad-grup">
+      <div class="brad-grup-baslik">Dahil Olanlar / Olmayanlar</div>
+      <textarea class="brad-textarea" id="brad-dahil" placeholder="Dahil olanlar (her satıra 1):&#10;Klimalı otobüs ulaşımı&#10;Profesyonel rehber&#10;Akropolis giriş ücreti" rows="3" style="margin-bottom:8px;"></textarea>
+      <textarea class="brad-textarea" id="brad-dahildegil" placeholder="Dahil olmayanlar:&#10;Öğle yemeği&#10;Kişisel harcamalar&#10;İçecekler" rows="3"></textarea>
+    </div>
+
+    <div class="brad-grup">
+      <div class="brad-grup-baslik">Tavsiyeler</div>
+      <textarea class="brad-textarea" id="brad-onerilenler" placeholder="Yolcuya öneriler:&#10;Rahat yürüyüş ayakkabısı&#10;Şapka ve güneş gözlüğü&#10;Su şişesi" rows="3"></textarea>
+    </div>
+
+    <div class="brad-actions">
+      <button class="yd-iptal" onclick="bradModalKapat()" style="flex:1;">Vazgeç</button>
+      <button class="yd-kaydet" onclick="bradKaydet()" style="flex:2;">💾 Broşürü Kaydet</button>
+    </div>
+  </div>
+</div>
+
 <!-- YOLCU DÜZENLEME MODAL -->
 <div id="yd-modal" class="yd-modal" onclick="ydModalKapat(event)">
   <div class="yd-modal-i" onclick="event.stopPropagation()">
@@ -8420,6 +8560,351 @@ function ydRealtimeKapat(){
     YD_KANAL = null;
   }
 }
+
+// ══ BROŞÜR SİSTEMİ ══
+let BROSURLER = {}; // {tur_id: {ana_resim, galeri_1...3, ozet, sure, ...}}
+let BRAD_TUR_ID = null;
+let BRAD_RESIM_PATHS = { ana: null, '1': null, '2': null, '3': null };
+
+// ── DB'den broşürleri yükle ──
+async function brYukle(){
+  try{
+    const { data, error } = await sb.from('tur_brosur').select('*');
+    if(error) throw error;
+    BROSURLER = {};
+    (data||[]).forEach(b=>{ BROSURLER[b.tur_id] = b; });
+  }catch(e){ console.log('Broşür yükleme:', e); }
+}
+
+// ── Tarayıcıda görsel sıkıştır → 800px WebP ──
+async function brResimSikistir(file, maxBoyut=800){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        let w = img.width, h = img.height;
+        if(w > h && w > maxBoyut){ h = (h * maxBoyut) / w; w = maxBoyut; }
+        else if(h >= w && h > maxBoyut){ w = (w * maxBoyut) / h; h = maxBoyut; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = 'white'; // şeffaf arka planı beyaz yap
+        ctx.fillRect(0,0,w,h);
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob((blob)=>{
+          if(blob) resolve(blob);
+          else reject(new Error('Sıkıştırma başarısız'));
+        }, 'image/webp', 0.82);
+      };
+      img.onerror = ()=>reject(new Error('Görsel yüklenemedi'));
+      img.src = e.target.result;
+    };
+    reader.onerror = ()=>reject(new Error('Dosya okunamadı'));
+    reader.readAsDataURL(file);
+  });
+}
+
+// ── Admin: Broşür modal aç ──
+async function bradAc(tid){
+  const t = TOURS.find(x=>x.id===tid);
+  if(!t){ showToast('Tur bulunamadı'); return; }
+  BRAD_TUR_ID = tid;
+  document.getElementById('brad-tur-adi').textContent = t.name;
+
+  // Mevcut veriyi yükle (varsa)
+  const mevcut = BROSURLER[tid] || {};
+  BRAD_RESIM_PATHS = {
+    ana: mevcut.ana_resim_path || null,
+    '1': mevcut.galeri_1_path || null,
+    '2': mevcut.galeri_2_path || null,
+    '3': mevcut.galeri_3_path || null
+  };
+
+  // Resim önizlemelerini ayarla
+  bradResimGoster('ana', mevcut.ana_resim);
+  bradResimGoster('1', mevcut.galeri_1);
+  bradResimGoster('2', mevcut.galeri_2);
+  bradResimGoster('3', mevcut.galeri_3);
+
+  // Metin alanlarını doldur
+  document.getElementById('brad-ozet').value = mevcut.ozet || '';
+  document.getElementById('brad-sure').value = mevcut.sure || '';
+  document.getElementById('brad-zorluk').value = mevcut.zorluk || '';
+  document.getElementById('brad-ulasim').value = mevcut.ulasim || '';
+  document.getElementById('brad-goruleceler').value = mevcut.goruleceler || '';
+  document.getElementById('brad-dahil').value = mevcut.dahil_olan || '';
+  document.getElementById('brad-dahildegil').value = mevcut.dahil_olmayan || '';
+  document.getElementById('brad-onerilenler').value = mevcut.onerilenler || '';
+
+  document.getElementById('brad-modal').classList.add('active');
+}
+
+// ── Önizleme göster (resim url'i veya boş) ──
+function bradResimGoster(slot, url){
+  const elId = (slot === 'ana') ? 'brad-ana' : 'brad-g' + slot;
+  const el = document.getElementById(elId);
+  if(!el) return;
+  // Eski içeriği temizle (input ve yer hariç)
+  Array.from(el.children).forEach(c=>{
+    if(!c.matches('input') && !c.matches('.brad-yer')) c.remove();
+  });
+  const yer = el.querySelector('.brad-yer');
+  if(url){
+    if(yer) yer.style.display = 'none';
+    const img = document.createElement('img');
+    img.src = url;
+    el.appendChild(img);
+    const sil = document.createElement('button');
+    sil.className = 'brad-resim-sil';
+    sil.textContent = '×';
+    sil.type = 'button';
+    sil.onclick = (e)=>{ e.preventDefault(); e.stopPropagation(); bradResimSil(slot); };
+    el.appendChild(sil);
+  } else {
+    if(yer) yer.style.display = '';
+  }
+}
+
+// ── Resim yükle: sıkıştır + Storage'a at ──
+async function bradResimYukle(input, slot){
+  const file = input.files[0];
+  if(!file) return;
+  if(!file.type.startsWith('image/')){ showToast('Lütfen görsel seçin'); return; }
+
+  const elId = (slot === 'ana') ? 'brad-ana' : 'brad-g' + slot;
+  const el = document.getElementById(elId);
+
+  // Yükleniyor göstergesi
+  const yuk = document.createElement('div');
+  yuk.className = 'brad-yukleniyor';
+  yuk.textContent = '⏳ Sıkıştırılıyor...';
+  el.appendChild(yuk);
+
+  try{
+    // Boyuta göre maks genişlik
+    const maxBoyut = (slot === 'ana') ? 1200 : 600;
+    const blob = await brResimSikistir(file, maxBoyut);
+    yuk.textContent = '⏳ Yükleniyor...';
+
+    // Eski path varsa sil
+    const eskiPath = BRAD_RESIM_PATHS[slot];
+    if(eskiPath){
+      try{ await sb.storage.from('brosur-resimleri').remove([eskiPath]); }catch(e){}
+    }
+
+    // Yeni dosya yolu
+    const path = 'brosur_' + (BRAD_TUR_ID||'tur') + '_' + slot + '_' + Date.now() + '.webp';
+
+    const { error: upErr } = await sb.storage.from('brosur-resimleri').upload(path, blob, {
+      cacheControl: '3600', upsert: false, contentType: 'image/webp'
+    });
+    if(upErr) throw upErr;
+
+    const { data: urlData } = sb.storage.from('brosur-resimleri').getPublicUrl(path);
+    BRAD_RESIM_PATHS[slot] = path;
+    bradResimGoster(slot, urlData.publicUrl);
+    // Geçici cache: input'un parent'ında bilgiyi sakla
+    el.dataset.url = urlData.publicUrl;
+
+    showToast('✓ Görsel yüklendi (' + Math.round(blob.size/1024) + ' KB)');
+  }catch(e){
+    console.error('Resim yükleme:', e);
+    showToast('⚠️ Yükleme başarısız: ' + (e.message||''));
+    yuk.remove();
+  }
+  input.value = '';
+}
+
+// ── Resim sil ──
+async function bradResimSil(slot){
+  const path = BRAD_RESIM_PATHS[slot];
+  if(path){
+    try{ await sb.storage.from('brosur-resimleri').remove([path]); }catch(e){}
+  }
+  BRAD_RESIM_PATHS[slot] = null;
+  const elId = (slot === 'ana') ? 'brad-ana' : 'brad-g' + slot;
+  const el = document.getElementById(elId);
+  if(el) delete el.dataset.url;
+  bradResimGoster(slot, null);
+}
+
+// ── Slot için URL al (yeni yüklenen veya mevcut) ──
+function bradResimUrl(slot){
+  const elId = (slot === 'ana') ? 'brad-ana' : 'brad-g' + slot;
+  const el = document.getElementById(elId);
+  // Önce dataset.url (yeni yüklenen)
+  if(el && el.dataset.url) return el.dataset.url;
+  // Sonra DB'den (mevcut)
+  const mevcut = BROSURLER[BRAD_TUR_ID] || {};
+  if(slot === 'ana') return mevcut.ana_resim || null;
+  return mevcut['galeri_' + slot] || null;
+}
+
+// ── Kaydet ──
+async function bradKaydet(){
+  if(!BRAD_TUR_ID) return;
+  const veri = {
+    tur_id: BRAD_TUR_ID,
+    ana_resim: bradResimUrl('ana'),
+    galeri_1: bradResimUrl('1'),
+    galeri_2: bradResimUrl('2'),
+    galeri_3: bradResimUrl('3'),
+    ana_resim_path: BRAD_RESIM_PATHS.ana,
+    galeri_1_path: BRAD_RESIM_PATHS['1'],
+    galeri_2_path: BRAD_RESIM_PATHS['2'],
+    galeri_3_path: BRAD_RESIM_PATHS['3'],
+    ozet: document.getElementById('brad-ozet').value.trim(),
+    sure: document.getElementById('brad-sure').value.trim(),
+    zorluk: document.getElementById('brad-zorluk').value,
+    ulasim: document.getElementById('brad-ulasim').value.trim(),
+    goruleceler: document.getElementById('brad-goruleceler').value.trim(),
+    dahil_olan: document.getElementById('brad-dahil').value.trim(),
+    dahil_olmayan: document.getElementById('brad-dahildegil').value.trim(),
+    onerilenler: document.getElementById('brad-onerilenler').value.trim(),
+    updated_at: new Date().toISOString()
+  };
+
+  try{
+    const { error } = await sb.from('tur_brosur').upsert(veri, { onConflict: 'tur_id' });
+    if(error) throw error;
+    BROSURLER[BRAD_TUR_ID] = veri;
+    document.getElementById('brad-modal').classList.remove('active');
+    BRAD_TUR_ID = null;
+    if(typeof renderTA === 'function' && typeof CTSF !== 'undefined') renderTA(CTSF);
+    showToast('✓ Broşür kaydedildi');
+  }catch(e){
+    console.error('Broşür kayıt:', e);
+    showToast('⚠️ Kayıt hatası: ' + (e.message||''));
+  }
+}
+
+function bradModalKapat(e){
+  if(e && e.target && e.target.id !== 'brad-modal' && !e.target.classList.contains('yd-iptal')) return;
+  document.getElementById('brad-modal').classList.remove('active');
+  BRAD_TUR_ID = null;
+}
+
+// ══ YOLCU BROŞÜR GÖRÜNTÜLEME ══
+function brAc(tid){
+  const t = TOURS.find(x=>x.id===tid);
+  const b = BROSURLER[tid];
+  if(!t || !b){ showToast('Broşür bulunamadı'); return; }
+
+  // Banner
+  const banner = document.getElementById('br-banner');
+  banner.innerHTML = '<button class="br-modal-kapat" onclick="brModalKapat()">×</button>';
+  if(b.ana_resim){
+    const img = document.createElement('img');
+    img.src = b.ana_resim;
+    img.loading = 'lazy';
+    banner.insertBefore(img, banner.firstChild);
+  } else {
+    banner.style.display = 'flex';
+    banner.style.alignItems = 'center';
+    banner.style.justifyContent = 'center';
+    banner.innerHTML += '<span style="font-size:48px;">🗺️</span>';
+  }
+
+  // İçerik
+  const ic = document.getElementById('br-icerik');
+  let html = `<div class="br-modal-baslik">${t.name}</div>`;
+
+  // Meta satırı
+  const meta = [];
+  if(t.liman) meta.push(`<span>📍 ${t.liman}</span>`);
+  if(t.saat) meta.push(`<span>⏰ ${t.saat}</span>`);
+  if(b.sure) meta.push(`<span>⏳ ${b.sure}</span>`);
+  if(b.zorluk){
+    const zorlukLabel = {kolay:'🟢 Kolay', orta:'🟡 Orta', zorlu:'🔴 Zorlu'}[b.zorluk]||b.zorluk;
+    meta.push(`<span class="br-modal-zorluk ${b.zorluk}">${zorlukLabel}</span>`);
+  }
+  if(meta.length) html += `<div class="br-modal-meta">${meta.join('')}</div>`;
+
+  // Özet
+  if(b.ozet) html += `<div class="br-modal-ozet">${escapeHTML(b.ozet)}</div>`;
+
+  // Görülecek yerler
+  if(b.goruleceler) html += brBolum('🏛️ Görülecek Yerler', b.goruleceler, true);
+
+  // Ulaşım
+  if(b.ulasim) html += brBolum('🚌 Ulaşım', b.ulasim, false);
+
+  // Dahil olanlar
+  if(b.dahil_olan) html += brBolum('✅ Dahil Olanlar', b.dahil_olan, true);
+
+  // Dahil olmayanlar
+  if(b.dahil_olmayan) html += brBolum('❌ Dahil Olmayanlar', b.dahil_olmayan, true);
+
+  // Önerilenler
+  if(b.onerilenler) html += brBolum('💡 Tavsiyeler', b.onerilenler, true);
+
+  // Galeri
+  const galeriler = [b.galeri_1, b.galeri_2, b.galeri_3].filter(Boolean);
+  if(galeriler.length){
+    html += '<div class="br-modal-galeri">';
+    galeriler.forEach(g=>{
+      html += `<img src="${g}" loading="lazy" onclick="lightboxAc('${g}')">`;
+    });
+    html += '</div>';
+  }
+  ic.innerHTML = html;
+
+  // CTA buton
+  const cta = document.getElementById('br-cta');
+  if(!CP){ cta.innerHTML = ''; }
+  else {
+    const j = CP.joinedTours.includes(tid);
+    if(j){
+      cta.innerHTML = `<button class="br-modal-cta-btn joined" disabled style="cursor:default;">✓ Bu tura katılıyorsunuz</button>`;
+    } else {
+      cta.innerHTML = `<button class="br-modal-cta-btn" onclick="brModalKapat();setTimeout(()=>toggleTour('${tid}'),350);">${tr('tura_katil')}</button>`;
+    }
+  }
+
+  document.getElementById('br-modal').classList.add('active');
+}
+
+function brBolum(baslik, icerik, listMi){
+  let body;
+  if(listMi){
+    const satirlar = icerik.split('\n').map(s=>s.trim()).filter(Boolean);
+    if(satirlar.length > 1){
+      body = '<ul>' + satirlar.map(s=>`<li>${escapeHTML(s)}</li>`).join('') + '</ul>';
+    } else {
+      body = `<div>${escapeHTML(icerik)}</div>`;
+    }
+  } else {
+    body = `<div>${escapeHTML(icerik)}</div>`;
+  }
+  return `<div class="br-modal-bolum">
+    <div class="br-modal-bolum-baslik">${baslik}</div>
+    <div class="br-modal-bolum-icerik">${body}</div>
+  </div>`;
+}
+
+function brModalKapat(e){
+  if(e && e.target && !e.target.classList.contains('br-modal') && !e.target.classList.contains('br-modal-kapat')) return;
+  document.getElementById('br-modal').classList.remove('active');
+  document.getElementById('br-banner').innerHTML = '<button class="br-modal-kapat" onclick="brModalKapat()">×</button>';
+  document.getElementById('br-banner').style.display = '';
+}
+
+// HTML escape (XSS koruması)
+function escapeHTML(s){
+  if(!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// Sayfa yüklendiğinde broşürleri DB'den çek
+(function(){
+  const baslat = ()=>{ try{ if(typeof sb !== 'undefined') brYukle(); }catch(e){} };
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', ()=>setTimeout(baslat, 1500));
+  } else {
+    setTimeout(baslat, 1500);
+  }
+})();
 </script>
 
 <!-- ══ SESLİ ANONS SİSTEMİ ══ -->
