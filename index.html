@@ -459,6 +459,60 @@ textarea.ai2{resize:none;}
 .brad-actions{display:flex;gap:10px;margin-top:14px;position:sticky;bottom:0;background:white;padding-top:8px;}
 .brad-buton-admin{padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--purple);color:var(--purple);background:transparent;font-family:'DM Sans',sans-serif;}
 .brad-buton-admin.dolu{background:var(--purple);color:white;}
+
+/* WHATSAPP GRUP BUTONU (yolcu üst bar ortası) */
+.wa-grup-btn{
+  position:absolute;
+  left:50%;
+  top:14px;
+  transform:translateX(-50%);
+  background:#25d366;
+  border:3px solid white;
+  border-radius:50%;
+  width:60px;height:60px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
+  box-shadow:0 4px 14px rgba(37,211,102,.5);
+  transition:transform .15s, box-shadow .15s;
+  z-index:5;
+  padding:0;
+  animation:waPulse 2.5s ease-in-out infinite;
+}
+.wa-grup-btn:hover,.wa-grup-btn:active{transform:translateX(-50%) scale(1.08);box-shadow:0 6px 18px rgba(37,211,102,.7);}
+.wa-grup-btn svg{width:34px;height:34px;}
+.wa-grup-btn.devre-disi{background:#9e9e9e;box-shadow:0 4px 14px rgba(0,0,0,.2);animation:none;}
+.wa-grup-btn-label{
+  position:absolute;
+  bottom:-18px;
+  left:50%;
+  transform:translateX(-50%);
+  background:rgba(0,0,0,.6);
+  color:white;
+  font-size:9px;
+  font-weight:600;
+  padding:2px 7px;
+  border-radius:10px;
+  white-space:nowrap;
+  letter-spacing:.3px;
+}
+@keyframes waPulse{
+  0%,100%{box-shadow:0 4px 14px rgba(37,211,102,.5);}
+  50%{box-shadow:0 4px 14px rgba(37,211,102,.5),0 0 0 10px rgba(37,211,102,0);}
+}
+
+/* WhatsApp grup modal */
+.wa-modal{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9998;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
+.wa-modal.active{display:flex;animation:sesFadeIn .25s ease;}
+.wa-modal-i{background:white;border-radius:24px;padding:30px 24px 26px;max-width:380px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4);animation:sesPopIn .3s ease;}
+.wa-modal-icon{width:80px;height:80px;background:#25d366;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:white;}
+.wa-modal-baslik{font-family:'DM Serif Display',serif;font-size:22px;color:var(--t);margin-bottom:8px;line-height:1.25;}
+.wa-modal-aciklama{font-size:13px;color:var(--t2);line-height:1.55;margin-bottom:14px;}
+.wa-modal-feats{text-align:left;background:#e8f5ee;border-radius:12px;padding:12px 14px;margin-bottom:18px;font-size:12px;color:#0d4d2a;line-height:1.6;}
+.wa-modal-feat{display:flex;align-items:flex-start;gap:7px;margin-bottom:4px;}
+.wa-modal-feat:last-child{margin-bottom:0;}
+.wa-modal-katil{width:100%;padding:14px;background:#25d366;color:white;border:none;border-radius:14px;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;}
+.wa-modal-katil:active{opacity:.85;}
+.wa-modal-iptal{width:100%;padding:11px;background:transparent;color:var(--t2);border:none;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:6px;}
 </style>
 </head>
 <body onload="baslat()">
@@ -688,8 +742,13 @@ textarea.ai2{resize:none;}
 <!-- YOLCU UYGULAMASI -->
 <div id="sa" class="screen">
   <div class="topbar" style="padding-bottom:8px;">
-    <div class="tbi">
-      <div class="tbr">
+    <div class="tbi" style="position:relative;">
+      <!-- WhatsApp Bildirim Grubu Butonu (ortada) -->
+      <button id="wa-grup-btn" class="wa-grup-btn" onclick="waGrupModalAc()" style="display:none;" title="WhatsApp Bildirim Grubu">
+        <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="white"><path d="M19.11 17.205c-.372 0-1.088 1.39-1.518 1.39a.63.63 0 0 1-.315-.1c-.802-.402-1.504-.817-2.163-1.447-.545-.516-1.146-1.29-1.46-1.963a.426.426 0 0 1-.073-.215c0-.33.99-.945.99-1.49 0-.143-.73-2.09-.832-2.335-.143-.372-.214-.487-.6-.487-.187 0-.36-.043-.53-.043-.302 0-.53.115-.746.315-.688.645-1.032 1.318-1.06 2.264v.114c-.015.99.472 1.977 1.017 2.78 1.23 1.82 2.506 3.41 4.554 4.34.616.287 2.035.888 2.722.888.817 0 2.15-.515 2.464-1.318.13-.328.302-.872.302-1.245-.002-.7-1.418-1.448-2.165-1.448zM16.215 6.05c-5.013 0-9.094 4.08-9.094 9.092 0 1.59.428 3.155 1.243 4.5L7 24.62l5.146-1.358c1.288.7 2.74 1.073 4.07 1.073 5.013 0 9.094-4.08 9.094-9.092s-4.082-9.193-9.095-9.193zm0 16.74a7.62 7.62 0 0 1-3.71-.97l-2.65.788.762-2.585a7.45 7.45 0 0 1-1.13-3.96 7.62 7.62 0 0 1 7.62-7.617c2.04 0 3.95.79 5.39 2.235a7.58 7.58 0 0 1 2.232 5.39 7.62 7.62 0 0 1-7.616 7.62zm6.484-14.105A8.886 8.886 0 0 0 16.215 6c-5.21 0-9.45 4.24-9.452 9.448 0 1.664.435 3.29 1.26 4.726L7 25l4.94-1.293a9.456 9.456 0 0 0 4.517 1.15h.003c5.207 0 9.448-4.24 9.45-9.448a9.4 9.4 0 0 0-2.768-6.683z"/></svg>
+        <div class="wa-grup-btn-label">Bildirim Grubu</div>
+      </button>
+    <div class="tbr">
         <!-- Sol: Yolcu bilgisi -->
         <div style="flex:1;min-width:0;">
           <div class="app-logo">VOYAGO</div>
@@ -1340,6 +1399,24 @@ textarea.ai2{resize:none;}
             ✕ Anketi Kapat
           </button>
         </div>
+      </div>
+
+      <!-- WhatsApp Bildirim Grubu Linki -->
+      <div class="fs2" style="margin-top:14px;background:#e8f5ee;border:1px solid #c8e6d3;">
+        <div class="fst" style="color:#0d4d2a;display:flex;align-items:center;gap:6px;">
+          <svg viewBox="0 0 32 32" fill="#25d366" width="18" height="18"><path d="M19.11 17.205c-.372 0-1.088 1.39-1.518 1.39a.63.63 0 0 1-.315-.1c-.802-.402-1.504-.817-2.163-1.447-.545-.516-1.146-1.29-1.46-1.963a.426.426 0 0 1-.073-.215c0-.33.99-.945.99-1.49 0-.143-.73-2.09-.832-2.335-.143-.372-.214-.487-.6-.487-.187 0-.36-.043-.53-.043-.302 0-.53.115-.746.315-.688.645-1.032 1.318-1.06 2.264v.114c-.015.99.472 1.977 1.017 2.78 1.23 1.82 2.506 3.41 4.554 4.34.616.287 2.035.888 2.722.888.817 0 2.15-.515 2.464-1.318.13-.328.302-.872.302-1.245-.002-.7-1.418-1.448-2.165-1.448zM16.215 6.05c-5.013 0-9.094 4.08-9.094 9.092 0 1.59.428 3.155 1.243 4.5L7 24.62l5.146-1.358c1.288.7 2.74 1.073 4.07 1.073 5.013 0 9.094-4.08 9.094-9.092s-4.082-9.193-9.095-9.193zm0 16.74a7.62 7.62 0 0 1-3.71-.97l-2.65.788.762-2.585a7.45 7.45 0 0 1-1.13-3.96 7.62 7.62 0 0 1 7.62-7.617c2.04 0 3.95.79 5.39 2.235a7.58 7.58 0 0 1 2.232 5.39 7.62 7.62 0 0 1-7.616 7.62zm6.484-14.105A8.886 8.886 0 0 0 16.215 6c-5.21 0-9.45 4.24-9.452 9.448 0 1.664.435 3.29 1.26 4.726L7 25l4.94-1.293a9.456 9.456 0 0 0 4.517 1.15h.003c5.207 0 9.448-4.24 9.45-9.448a9.4 9.4 0 0 0-2.768-6.683z"/></svg>
+          WhatsApp Bildirim Grubu Linki
+        </div>
+        <div style="font-size:12px;color:#0d4d2a;margin-bottom:10px;line-height:1.5;">
+          Bu sefer için açtığınız WhatsApp grup davet linkini buraya yapıştırın. Yolcular topbar'daki yeşil butona tıkladığında bu gruba yönlendirilirler.
+        </div>
+        <div id="wa-link-sefer-chips" class="sc3" style="margin-bottom:8px;"></div>
+        <input class="ai2" type="text" id="wa-link-input" placeholder="https://chat.whatsapp.com/...">
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button onclick="waLinkKaydet()" style="flex:2;padding:11px;background:#25d366;color:white;border:none;border-radius:12px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">💾 Linki Kaydet</button>
+          <button onclick="waLinkSil()" style="flex:1;padding:11px;background:transparent;color:#a32d2d;border:1.5px solid #a32d2d;border-radius:12px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">Sil</button>
+        </div>
+        <div id="wa-link-durum" style="font-size:11px;margin-top:8px;color:#0d4d2a;"></div>
       </div>
     </div>
 
@@ -2458,6 +2535,8 @@ function doPL(){
   try{ if(typeof pushYolcuBaslat==='function') pushYolcuBaslat(); }catch(e){console.log('push:', e);}
   // Yolcu güncelleme realtime kanalı
   try{ if(typeof ydRealtimeBaslat==='function') ydRealtimeBaslat(); }catch(e){console.log('yd realtime:', e);}
+  // WhatsApp grup butonunu güncelle
+  try{ if(typeof waLinkleriYukle==='function') waLinkleriYukle(); }catch(e){console.log('wa:', e);}
   // Veritabanına kaydet
   saveYolcuDB(p);
   // Tarayıcıya kaydet — bir sonraki ziyarette otomatik giriş
@@ -5506,6 +5585,7 @@ function doLogout() {
   try{ localStorage.removeItem('voyago_admin'); }catch(e){}
   try{ if(typeof sesAnonsKanaliKapat==='function') sesAnonsKanaliKapat(); }catch(e){}
   try{ if(typeof ydRealtimeKapat==='function') ydRealtimeKapat(); }catch(e){}
+  try{ const wb = document.getElementById('wa-grup-btn'); if(wb) wb.style.display = 'none'; }catch(e){}
   showScreen('sl');
   setTimeout(()=>{ checkHosgeldin(); }, 100);
 }
@@ -5584,6 +5664,8 @@ async function devamEt() {
     try{ sesAnonsKanaliBaslat(); }catch(e){console.log('ses kanal:', e);}
     // Yolcu güncelleme realtime kanalı
     try{ if(typeof ydRealtimeBaslat==='function') ydRealtimeBaslat(); }catch(e){console.log('yd realtime:', e);}
+    // WhatsApp grup butonunu güncelle
+    try{ if(typeof waLinkleriYukle==='function') waLinkleriYukle(); }catch(e){console.log('wa:', e);}
     havaDurumBaslat(p.sefer);
     showToast('Hoş geldiniz, ' + (p.name?p.name.split(' ')[0]:'') + '! 👋');
     // Anket DB'den direkt kontrol et
@@ -7694,6 +7776,27 @@ document.head.appendChild(gcStyle);
   </div>
 </div>
 
+<!-- ══ WHATSAPP BİLDİRİM GRUBU MODAL ══ -->
+<div id="wa-modal" class="wa-modal" onclick="waGrupModalKapat(event)">
+  <div class="wa-modal-i" onclick="event.stopPropagation()">
+    <div class="wa-modal-icon">
+      <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="white" width="46" height="46"><path d="M19.11 17.205c-.372 0-1.088 1.39-1.518 1.39a.63.63 0 0 1-.315-.1c-.802-.402-1.504-.817-2.163-1.447-.545-.516-1.146-1.29-1.46-1.963a.426.426 0 0 1-.073-.215c0-.33.99-.945.99-1.49 0-.143-.73-2.09-.832-2.335-.143-.372-.214-.487-.6-.487-.187 0-.36-.043-.53-.043-.302 0-.53.115-.746.315-.688.645-1.032 1.318-1.06 2.264v.114c-.015.99.472 1.977 1.017 2.78 1.23 1.82 2.506 3.41 4.554 4.34.616.287 2.035.888 2.722.888.817 0 2.15-.515 2.464-1.318.13-.328.302-.872.302-1.245-.002-.7-1.418-1.448-2.165-1.448zM16.215 6.05c-5.013 0-9.094 4.08-9.094 9.092 0 1.59.428 3.155 1.243 4.5L7 24.62l5.146-1.358c1.288.7 2.74 1.073 4.07 1.073 5.013 0 9.094-4.08 9.094-9.092s-4.082-9.193-9.095-9.193zm0 16.74a7.62 7.62 0 0 1-3.71-.97l-2.65.788.762-2.585a7.45 7.45 0 0 1-1.13-3.96 7.62 7.62 0 0 1 7.62-7.617c2.04 0 3.95.79 5.39 2.235a7.58 7.58 0 0 1 2.232 5.39 7.62 7.62 0 0 1-7.616 7.62zm6.484-14.105A8.886 8.886 0 0 0 16.215 6c-5.21 0-9.45 4.24-9.452 9.448 0 1.664.435 3.29 1.26 4.726L7 25l4.94-1.293a9.456 9.456 0 0 0 4.517 1.15h.003c5.207 0 9.448-4.24 9.45-9.448a9.4 9.4 0 0 0-2.768-6.683z"/></svg>
+    </div>
+    <div class="wa-modal-baslik">📢 WhatsApp Bildirim Grubu</div>
+    <div class="wa-modal-aciklama">Rehberinizden gelen önemli duyuruları, programı ve tur bilgilerini anında almak için bildirim grubuna katılın.</div>
+    <div class="wa-modal-feats">
+      <div class="wa-modal-feat"><span>📣</span><span>Sadece rehberiniz mesaj gönderir — gereksiz konuşma yok</span></div>
+      <div class="wa-modal-feat"><span>🔔</span><span>Acil duyurular ve program değişiklikleri anında size ulaşır</span></div>
+      <div class="wa-modal-feat"><span>👥</span><span>Diğer yolcuları görebilir, isteyenler de mesaj atabilir</span></div>
+    </div>
+    <button class="wa-modal-katil" onclick="waGrubaKatil()">
+      <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="white" width="20" height="20"><path d="M19.11 17.205c-.372 0-1.088 1.39-1.518 1.39a.63.63 0 0 1-.315-.1c-.802-.402-1.504-.817-2.163-1.447-.545-.516-1.146-1.29-1.46-1.963a.426.426 0 0 1-.073-.215c0-.33.99-.945.99-1.49 0-.143-.73-2.09-.832-2.335-.143-.372-.214-.487-.6-.487-.187 0-.36-.043-.53-.043-.302 0-.53.115-.746.315-.688.645-1.032 1.318-1.06 2.264v.114c-.015.99.472 1.977 1.017 2.78 1.23 1.82 2.506 3.41 4.554 4.34.616.287 2.035.888 2.722.888.817 0 2.15-.515 2.464-1.318.13-.328.302-.872.302-1.245-.002-.7-1.418-1.448-2.165-1.448zM16.215 6.05c-5.013 0-9.094 4.08-9.094 9.092 0 1.59.428 3.155 1.243 4.5L7 24.62l5.146-1.358c1.288.7 2.74 1.073 4.07 1.073 5.013 0 9.094-4.08 9.094-9.092s-4.082-9.193-9.095-9.193zm0 16.74a7.62 7.62 0 0 1-3.71-.97l-2.65.788.762-2.585a7.45 7.45 0 0 1-1.13-3.96 7.62 7.62 0 0 1 7.62-7.617c2.04 0 3.95.79 5.39 2.235a7.58 7.58 0 0 1 2.232 5.39 7.62 7.62 0 0 1-7.616 7.62zm6.484-14.105A8.886 8.886 0 0 0 16.215 6c-5.21 0-9.45 4.24-9.452 9.448 0 1.664.435 3.29 1.26 4.726L7 25l4.94-1.293a9.456 9.456 0 0 0 4.517 1.15h.003c5.207 0 9.448-4.24 9.45-9.448a9.4 9.4 0 0 0-2.768-6.683z"/></svg>
+      Gruba Katıl
+    </button>
+    <button class="wa-modal-iptal" onclick="waGrupModalKapat()">Şimdi değil</button>
+  </div>
+</div>
+
 <!-- ══ YOLCU BROŞÜR MODAL (tam ekran) ══ -->
 <div id="br-modal" class="br-modal" onclick="brModalKapat(event)">
   <div class="br-modal-i" onclick="event.stopPropagation()">
@@ -8912,6 +9015,174 @@ function escapeHTML(s){
     document.addEventListener('DOMContentLoaded', ()=>setTimeout(baslat, 1500));
   } else {
     setTimeout(baslat, 1500);
+  }
+})();
+
+// ══ WHATSAPP BİLDİRİM GRUBU ══
+// Sefer bazlı linkler bellek içinde tutulur
+let WA_LINKS = {}; // {sefer_id: 'https://chat.whatsapp.com/...'}
+let WA_ADMIN_AKTIF_SEFER = null;
+
+// ── Yolcu: Topbar butonunu güncelle ──
+function waGrupButonGuncelle(){
+  const btn = document.getElementById('wa-grup-btn');
+  if(!btn || !CP) return;
+  const link = WA_LINKS[CP.sefer];
+  if(link){
+    btn.style.display = 'flex';
+    btn.classList.remove('devre-disi');
+    btn.dataset.link = link;
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+// ── Yolcu: Modal aç ──
+function waGrupModalAc(){
+  if(!CP){ showToast('Lütfen önce giriş yapın'); return; }
+  const link = WA_LINKS[CP.sefer];
+  if(!link){
+    showToast('Bu sefer için henüz grup linki tanımlanmamış');
+    return;
+  }
+  document.getElementById('wa-modal').classList.add('active');
+}
+
+// ── Yolcu: Gruba katıl ──
+function waGrubaKatil(){
+  if(!CP) return;
+  const link = WA_LINKS[CP.sefer];
+  if(!link){ showToast('Grup linki bulunamadı'); return; }
+  window.open(link, '_blank');
+  document.getElementById('wa-modal').classList.remove('active');
+  showToast('📱 WhatsApp açılıyor...');
+}
+
+function waGrupModalKapat(e){
+  if(e && e.target && e.target.id !== 'wa-modal' && !e.target.classList.contains('wa-modal-iptal')) return;
+  document.getElementById('wa-modal').classList.remove('active');
+}
+
+// ── Linkleri DB'den yükle ──
+async function waLinkleriYukle(){
+  try{
+    const { data, error } = await sb.from('seferler').select('id, wa_grup_link');
+    if(error) throw error;
+    WA_LINKS = {};
+    (data||[]).forEach(s=>{
+      if(s.wa_grup_link) WA_LINKS[s.id] = s.wa_grup_link;
+    });
+    waGrupButonGuncelle();
+  }catch(e){
+    console.log('WA link yükleme:', e);
+  }
+}
+
+// ── Admin: sefer chip'lerini render et ──
+function waAdminChipRender(){
+  const el = document.getElementById('wa-link-sefer-chips');
+  if(!el) return;
+  const iS = CU?.role === 'super';
+  const activeShip = iS ? ACTIVE_SHIP : CU?.ship;
+  const seferler = VOYAGES.filter(v => !activeShip || v.ship === activeShip || !v.ship);
+  if(!seferler.length){
+    el.innerHTML = '<div style="font-size:11px;color:var(--t3);">Sefer yok</div>';
+    return;
+  }
+  // İlk sefer varsayılan seç
+  if(!WA_ADMIN_AKTIF_SEFER || !seferler.find(s=>s.id===WA_ADMIN_AKTIF_SEFER)){
+    WA_ADMIN_AKTIF_SEFER = seferler[0].id;
+  }
+  el.innerHTML = seferler.map(s=>{
+    const aktif = s.id === WA_ADMIN_AKTIF_SEFER;
+    const dolu = !!WA_LINKS[s.id];
+    return `<div class="ch ${aktif?'active':''}" onclick="waAdminSeferSec('${s.id}')" style="${aktif?'':''}">
+      ${dolu?'✓ ':''}${s.label||s.id}
+    </div>`;
+  }).join('');
+  waAdminInputDoldur();
+}
+
+function waAdminSeferSec(sid){
+  WA_ADMIN_AKTIF_SEFER = sid;
+  waAdminChipRender();
+}
+
+function waAdminInputDoldur(){
+  const inp = document.getElementById('wa-link-input');
+  const dur = document.getElementById('wa-link-durum');
+  if(!inp) return;
+  const link = WA_LINKS[WA_ADMIN_AKTIF_SEFER] || '';
+  inp.value = link;
+  if(dur){
+    if(link){
+      dur.innerHTML = '✓ Bu sefer için link tanımlı — yolcular topbar\'dan göreceği';
+      dur.style.color = '#0d4d2a';
+    } else {
+      dur.innerHTML = 'ℹ️ Bu sefer için link tanımlı değil — yolcuların topbar butonu görünmüyor';
+      dur.style.color = '#92400e';
+    }
+  }
+}
+
+// ── Admin: Linki kaydet ──
+async function waLinkKaydet(){
+  if(!WA_ADMIN_AKTIF_SEFER){ showToast('Önce bir sefer seçin'); return; }
+  const link = (document.getElementById('wa-link-input').value || '').trim();
+  if(link && !link.startsWith('https://chat.whatsapp.com/')){
+    if(!confirm('Bu link geçerli bir WhatsApp grup linki gibi görünmüyor.\nLinkler genelde "https://chat.whatsapp.com/..." ile başlar.\n\nYine de kaydetmek istiyor musunuz?')) return;
+  }
+  try{
+    const { error } = await sb.from('seferler').update({ wa_grup_link: link || null }).eq('id', WA_ADMIN_AKTIF_SEFER);
+    if(error) throw error;
+    if(link) WA_LINKS[WA_ADMIN_AKTIF_SEFER] = link;
+    else delete WA_LINKS[WA_ADMIN_AKTIF_SEFER];
+    waAdminChipRender();
+    showToast('✓ Link kaydedildi');
+  }catch(e){
+    console.error('Link kayıt:', e);
+    showToast('⚠️ Kayıt başarısız: ' + (e.message||''));
+  }
+}
+
+// ── Admin: Linki sil ──
+async function waLinkSil(){
+  if(!WA_ADMIN_AKTIF_SEFER){ showToast('Önce bir sefer seçin'); return; }
+  if(!confirm('Bu sefer için WhatsApp grup linkini silmek istediğinize emin misiniz?')) return;
+  try{
+    const { error } = await sb.from('seferler').update({ wa_grup_link: null }).eq('id', WA_ADMIN_AKTIF_SEFER);
+    if(error) throw error;
+    delete WA_LINKS[WA_ADMIN_AKTIF_SEFER];
+    document.getElementById('wa-link-input').value = '';
+    waAdminChipRender();
+    showToast('Link silindi');
+  }catch(e){
+    console.error('Link sil:', e);
+    showToast('⚠️ Silme başarısız');
+  }
+}
+
+// adminTab fonksiyonu çağrıldığında bil sekmesi açılırsa chip'leri render et
+(function(){
+  const orijinalAdminTab = window.adminTab;
+  if(typeof orijinalAdminTab === 'function'){
+    window.adminTab = function(tab){
+      const r = orijinalAdminTab.apply(this, arguments);
+      if(tab === 'bil'){
+        setTimeout(()=>{ try{ waAdminChipRender(); }catch(e){console.log(e);} }, 100);
+      }
+      return r;
+    };
+  }
+})();
+
+// Sayfa yüklenince linkleri çek
+(function(){
+  const baslat = ()=>{ try{ if(typeof sb !== 'undefined') waLinkleriYukle(); }catch(e){} };
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', ()=>setTimeout(baslat, 2000));
+  } else {
+    setTimeout(baslat, 2000);
   }
 })();
 </script>
