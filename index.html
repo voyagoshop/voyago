@@ -467,37 +467,39 @@ textarea.ai2{resize:none;}
   top:14px;
   transform:translateX(-50%);
   background:#25d366;
-  border:3px solid white;
+  border:2.5px solid white;
   border-radius:50%;
-  width:60px;height:60px;
+  width:46px;height:46px;
   display:flex;align-items:center;justify-content:center;
   cursor:pointer;
-  box-shadow:0 4px 14px rgba(37,211,102,.5);
+  box-shadow:0 3px 10px rgba(37,211,102,.5);
   transition:transform .15s, box-shadow .15s;
   z-index:5;
   padding:0;
   animation:waPulse 2.5s ease-in-out infinite;
 }
-.wa-grup-btn:hover,.wa-grup-btn:active{transform:translateX(-50%) scale(1.08);box-shadow:0 6px 18px rgba(37,211,102,.7);}
-.wa-grup-btn svg{width:34px;height:34px;}
-.wa-grup-btn.devre-disi{background:#9e9e9e;box-shadow:0 4px 14px rgba(0,0,0,.2);animation:none;}
+.wa-grup-btn:hover,.wa-grup-btn:active{transform:translateX(-50%) scale(1.08);box-shadow:0 5px 14px rgba(37,211,102,.7);}
+.wa-grup-btn svg{width:24px;height:24px;}
+.wa-grup-btn.devre-disi{background:#9e9e9e;box-shadow:0 3px 10px rgba(0,0,0,.2);animation:none;}
 .wa-grup-btn-label{
   position:absolute;
-  bottom:-18px;
+  bottom:-26px;
   left:50%;
   transform:translateX(-50%);
-  background:rgba(0,0,0,.6);
+  background:rgba(0,0,0,.55);
   color:white;
   font-size:9px;
   font-weight:600;
-  padding:2px 7px;
+  padding:2px 8px;
   border-radius:10px;
   white-space:nowrap;
-  letter-spacing:.3px;
+  letter-spacing:.2px;
+  line-height:1.3;
+  text-align:center;
 }
 @keyframes waPulse{
-  0%,100%{box-shadow:0 4px 14px rgba(37,211,102,.5);}
-  50%{box-shadow:0 4px 14px rgba(37,211,102,.5),0 0 0 10px rgba(37,211,102,0);}
+  0%,100%{box-shadow:0 3px 10px rgba(37,211,102,.5);}
+  50%{box-shadow:0 3px 10px rgba(37,211,102,.5),0 0 0 8px rgba(37,211,102,0);}
 }
 
 /* WhatsApp grup modal */
@@ -746,7 +748,7 @@ textarea.ai2{resize:none;}
       <!-- WhatsApp Bildirim Grubu Butonu (ortada) -->
       <button id="wa-grup-btn" class="wa-grup-btn" onclick="waGrupModalAc()" style="display:none;" title="WhatsApp Bildirim Grubu">
         <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="white"><path d="M19.11 17.205c-.372 0-1.088 1.39-1.518 1.39a.63.63 0 0 1-.315-.1c-.802-.402-1.504-.817-2.163-1.447-.545-.516-1.146-1.29-1.46-1.963a.426.426 0 0 1-.073-.215c0-.33.99-.945.99-1.49 0-.143-.73-2.09-.832-2.335-.143-.372-.214-.487-.6-.487-.187 0-.36-.043-.53-.043-.302 0-.53.115-.746.315-.688.645-1.032 1.318-1.06 2.264v.114c-.015.99.472 1.977 1.017 2.78 1.23 1.82 2.506 3.41 4.554 4.34.616.287 2.035.888 2.722.888.817 0 2.15-.515 2.464-1.318.13-.328.302-.872.302-1.245-.002-.7-1.418-1.448-2.165-1.448zM16.215 6.05c-5.013 0-9.094 4.08-9.094 9.092 0 1.59.428 3.155 1.243 4.5L7 24.62l5.146-1.358c1.288.7 2.74 1.073 4.07 1.073 5.013 0 9.094-4.08 9.094-9.092s-4.082-9.193-9.095-9.193zm0 16.74a7.62 7.62 0 0 1-3.71-.97l-2.65.788.762-2.585a7.45 7.45 0 0 1-1.13-3.96 7.62 7.62 0 0 1 7.62-7.617c2.04 0 3.95.79 5.39 2.235a7.58 7.58 0 0 1 2.232 5.39 7.62 7.62 0 0 1-7.616 7.62zm6.484-14.105A8.886 8.886 0 0 0 16.215 6c-5.21 0-9.45 4.24-9.452 9.448 0 1.664.435 3.29 1.26 4.726L7 25l4.94-1.293a9.456 9.456 0 0 0 4.517 1.15h.003c5.207 0 9.448-4.24 9.45-9.448a9.4 9.4 0 0 0-2.768-6.683z"/></svg>
-        <div class="wa-grup-btn-label">Bildirim Grubu</div>
+        <div class="wa-grup-btn-label">WhatsApp Duyuru Grubu<br>Katıl</div>
       </button>
     <div class="tbr">
         <!-- Sol: Yolcu bilgisi -->
