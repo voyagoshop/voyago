@@ -515,6 +515,35 @@ textarea.ai2{resize:none;}
 .wa-modal-katil{width:100%;padding:14px;background:#25d366;color:white;border:none;border-radius:14px;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;}
 .wa-modal-katil:active{opacity:.85;}
 .wa-modal-iptal{width:100%;padding:11px;background:transparent;color:var(--t2);border:none;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:6px;}
+
+/* ══ KVKK / AYDINLATMA METNİ ══ */
+.kvkk-row{display:flex;align-items:flex-start;gap:10px;background:rgba(255,255,255,.95);border:1.5px solid rgba(255,255,255,.4);border-radius:12px;padding:11px 12px;margin-bottom:12px;cursor:pointer;transition:border-color .15s;}
+.kvkk-row:hover{border-color:white;}
+.kvkk-checkbox{width:20px;height:20px;border:2px solid #1a5fa8;border-radius:5px;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:white;transition:all .15s;}
+.kvkk-checkbox.aktif{background:#1a5fa8;border-color:#1a5fa8;}
+.kvkk-checkbox.aktif::after{content:'✓';color:white;font-size:14px;font-weight:bold;line-height:1;}
+.kvkk-text{flex:1;font-size:11px;line-height:1.5;color:#1a1a1a;}
+.kvkk-text a{color:#1a5fa8;text-decoration:underline;font-weight:600;cursor:pointer;}
+
+.kvkk-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:none;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
+.kvkk-modal.active{display:flex;animation:sesFadeIn .25s ease;}
+.kvkk-modal-i{background:white;border-radius:18px;max-width:520px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.4);animation:sesPopIn .3s ease;overflow:hidden;}
+.kvkk-modal-h{background:linear-gradient(135deg,#0d3b6e,#1a5fa8);color:white;padding:18px 20px;}
+.kvkk-modal-h-baslik{font-family:'DM Serif Display',serif;font-size:18px;line-height:1.25;margin-bottom:3px;}
+.kvkk-modal-h-alt{font-size:11px;opacity:.85;}
+.kvkk-modal-body{padding:18px 20px;overflow-y:auto;flex:1;font-size:12px;line-height:1.6;color:#1a1a1a;-webkit-overflow-scrolling:touch;}
+.kvkk-modal-body h4{font-size:12px;font-weight:600;color:#1a5fa8;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.3px;}
+.kvkk-modal-body h4:first-child{margin-top:0;}
+.kvkk-modal-body ul{padding-left:18px;margin:5px 0;}
+.kvkk-modal-body li{margin-bottom:3px;}
+.kvkk-modal-body p{margin:0 0 8px 0;}
+.kvkk-modal-body .uyari{background:#fff8e6;border-left:3px solid #f59e0b;padding:9px 11px;border-radius:6px;margin:10px 0;font-size:11px;}
+.kvkk-modal-body .iletisim{background:#f0f6fb;border:1px solid #c8d8e8;border-radius:8px;padding:10px 12px;font-size:11px;}
+.kvkk-modal-f{padding:12px 20px 16px;border-top:1px solid #e5e5e5;background:#fafafa;display:flex;gap:10px;}
+.kvkk-modal-kabul{flex:2;padding:12px;background:#1a5fa8;color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.kvkk-modal-iptal{flex:1;padding:12px;background:transparent;color:#6b6b6b;border:1.5px solid #e0e0e0;border-radius:10px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+
+.bp.disabled{opacity:.45;cursor:not-allowed;pointer-events:none;}
 </style>
 </head>
 <body onload="baslat()">
@@ -679,6 +708,28 @@ textarea.ai2{resize:none;}
       </div>
       <div class="fg"><label class="fl" data-t="kabin_no">Kabin numaranız</label><input class="fi" type="text" id="lk" placeholder="Örn: 214"></div>
       <div class="fg"><label class="fl" data-t="sefer_tarihi">Sefer tarihiniz</label><select class="fs" id="lsf"></select></div>
+
+      <!-- E-posta (opsiyonel) -->
+      <div class="fg">
+        <label class="fl">
+          E-posta <span style="font-weight:400;color:#888;font-size:11px;">(isteğe bağlı)</span>
+        </label>
+        <input class="fi" type="email" id="lmail" placeholder="ornek@email.com" autocomplete="email" oninput="emailKontrol()">
+        <div style="font-size:10px;color:#888;margin-top:4px;line-height:1.45;">
+          ℹ️ Boş bırakabilirsiniz. İlerideki özel kampanya ve promosyonlardan haberdar olmak için doldurabilirsiniz.
+        </div>
+      </div>
+
+      <!-- Pazarlama izni (sadece e-posta yazılınca görünür) -->
+      <div class="fg" id="pi-row" style="display:none;">
+        <div class="kvkk-row" onclick="piToggle(event)" style="background:rgba(245,250,255,1);border-color:rgba(26,95,168,.3);">
+          <div class="kvkk-checkbox" id="pi-cb"></div>
+          <div class="kvkk-text">
+            <b>Tanıtım ve kampanya e-postaları almak istiyorum.</b><br>
+            <span style="color:#888;font-size:10px;">Bu izni dilediğiniz zaman geri çekebilirsiniz.</span>
+          </div>
+        </div>
+      </div>
       <div class="fg">
         <label class="fl" data-t="kac_kisi">Kaç kişisiniz?</label>
         <div class="kisi-row">
@@ -689,7 +740,16 @@ textarea.ai2{resize:none;}
       </div>
       <div class="ib">📱 Kabin numaranızla check-in yapılır. WhatsApp numaranıza bildirimler gönderilir.</div>
       <div class="em" id="le">Lütfen tüm alanları doldurun.</div>
-      <button class="bp" onclick="doPL()" data-t="giris_btn">Uygulamaya Gir</button>
+
+      <!-- KVKK Onay Kutusu -->
+      <div class="kvkk-row" onclick="kvkkToggle(event)">
+        <div class="kvkk-checkbox" id="kvkk-cb"></div>
+        <div class="kvkk-text">
+          <a onclick="event.stopPropagation();kvkkAc()">Kişisel Verilerin Korunması Aydınlatma Metni</a>'ni okudum ve kişisel verilerimin belirtilen amaçlarla işlenmesini onaylıyorum.
+        </div>
+      </div>
+
+      <button class="bp disabled" id="giris-btn" onclick="doPL()" data-t="giris_btn">Uygulamaya Gir</button>
     </div>
 
     <!-- Sağ alta ok — rehber/yönetici girişi -->
@@ -2048,7 +2108,9 @@ async function saveYolcuDB(p) {
       yetiskin: p.adult, cocuk: p.child, bebek: p.baby,
       checkin: p.checkedIn, checkin_yapildi: p.checkinDone,
       katildigi_turlar: p.joinedTours,
-      tur_katilim_detay: p.tur_katilim_detay || {}
+      tur_katilim_detay: p.tur_katilim_detay || {},
+      email: p.email || null,
+      pazarlama_izni: p.pazarlama_izni || false
     });
   } else {
     await dbInsert('yolcular', {
@@ -2057,7 +2119,9 @@ async function saveYolcuDB(p) {
       cocuk: p.child, bebek: p.baby,
       checkin: p.checkedIn, checkin_yapildi: p.checkinDone,
       katildigi_turlar: p.joinedTours,
-      tur_katilim_detay: p.tur_katilim_detay || {}
+      tur_katilim_detay: p.tur_katilim_detay || {},
+      email: p.email || null,
+      pazarlama_izni: p.pazarlama_izni || false
     });
   }
 }
@@ -2489,20 +2553,43 @@ populateSeferler();
 
 // ── YOLCU GİRİŞİ ──
 function doPL(){
+  // KVKK Onayı kontrolü
+  if(!_kvkkOnayli){
+    showToast('⚠️ Devam etmek için Aydınlatma Metnini onaylamanız gerekir');
+    // Checkbox'ı vurgula (yanıp sönsün)
+    const cb = document.getElementById('kvkk-cb');
+    if(cb){
+      const row = cb.closest('.kvkk-row');
+      if(row){
+        row.style.boxShadow = '0 0 0 3px rgba(220,38,38,.4)';
+        row.style.transition = 'box-shadow .3s';
+        setTimeout(()=>{ row.style.boxShadow = ''; }, 1500);
+      }
+    }
+    return;
+  }
   const name=document.getElementById('ln').value.trim();
   const phone=document.getElementById('lp').value.trim();
   const kabin=document.getElementById('lk').value.trim();
+  const email=(document.getElementById('lmail')?.value||'').trim();
+  const pazarlamaIzni = !!_pazarlamaIzni && !!email;
   const sel=document.getElementById('lsf');
   const err=document.getElementById('le');
   if(!name||!phone||!kabin){err.style.display='block';return;}
+
+  // E-mail format kontrolü (eğer girildiyse)
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    showToast('⚠️ Geçerli bir e-posta adresi giriniz veya boş bırakın');
+    return;
+  }
   err.style.display='none';
   const code=document.getElementById('cc').value;
   const sv=sel.value;
   const sl2=sel.options[sel.selectedIndex]?.text.split('—')[0].trim()||'';
   let p=passengers.find(p=>p.kabin===kabin&&p.sefer===sv);
   const isFirst=!p||!p.checkinDone;
-  if(p){p.checkedIn=true;p.checkinDone=true;p.tel=code+' '+phone;p.name=name;p.adult=loginKisi.adult;p.child=loginKisi.child;p.baby=loginKisi.baby;}
-  else{p={name,kabin,tel:code+' '+phone,sefer:sv,adult:loginKisi.adult,child:loginKisi.child,baby:loginKisi.baby,checkedIn:true,checkinDone:true,joinedTours:[]};passengers.push(p);}
+  if(p){p.checkedIn=true;p.checkinDone=true;p.tel=code+' '+phone;p.name=name;p.adult=loginKisi.adult;p.child=loginKisi.child;p.baby=loginKisi.baby;p.email=email||null;p.pazarlama_izni=pazarlamaIzni;}
+  else{p={name,kabin,tel:code+' '+phone,sefer:sv,adult:loginKisi.adult,child:loginKisi.child,baby:loginKisi.baby,email:email||null,pazarlama_izni:pazarlamaIzni,checkedIn:true,checkinDone:true,joinedTours:[]};passengers.push(p);}
   CP=p;
   document.getElementById('akl').textContent='Kabin '+kabin;
   const v=VOYAGES.find(v=>v.id===sv);
@@ -4072,6 +4159,7 @@ function renderSeferPanel(){
           </div>
           <button onclick="toggleVoyageVisible('${v.id}')" style="padding:4px 10px;border-radius:20px;font-size:11px;border:1.5px solid ${v.visible?'var(--green)':'var(--border)'};color:${v.visible?'var(--green)':'var(--t3)'};background:transparent;cursor:pointer;">${v.visible?'Görünür':'Gizli'}</button>
           <button onclick="seferDuzenle('${v.id}')" style="padding:4px 10px;border-radius:20px;font-size:11px;border:1.5px solid var(--blue);color:var(--blue);background:transparent;cursor:pointer;">Düzenle</button>
+          <button onclick="seferKapatBaslat('${v.id}')" style="padding:4px 10px;border-radius:20px;font-size:11px;border:1.5px solid #d97706;color:#d97706;background:transparent;cursor:pointer;font-weight:500;">🏁 Seferi Kapat</button>
           <button onclick="archiveVoyage('${v.id}')" style="padding:4px 10px;border-radius:20px;font-size:11px;border:1.5px solid var(--amber);color:var(--amber);background:transparent;cursor:pointer;">Arşivle</button>
           <button onclick="deleteVoyageDB('${v.id}')" style="padding:4px 10px;border-radius:20px;font-size:11px;border:1.5px solid var(--red);color:var(--red);background:transparent;cursor:pointer;">Sil</button>
         </div>`).join('');
@@ -4112,6 +4200,339 @@ async function deleteVoyageDB(id){
   renderSeferPanel();
   populateSeferler();
   showToast('Sefer silindi.');
+}
+
+// ══ SEFER KAPATMA ══
+let _SEFER_KAPAT_ID = null;
+
+// Adım 1: Onay + rapor önizleme
+function seferKapatBaslat(seferId){
+  const v = VOYAGES.find(x=>x.id===seferId);
+  if(!v) return;
+  const yolcular = passengers.filter(p=>p.sefer===seferId);
+  const ciSayisi = yolcular.filter(p=>p.checkedIn).length;
+  const turluYolcu = yolcular.filter(p=>(p.joinedTours||[]).length>0).length;
+  const turKayitToplam = yolcular.reduce((sum,p)=>sum+(p.joinedTours||[]).length, 0);
+
+  // Toplam gelir hesabı
+  let toplamGelir = 0;
+  yolcular.forEach(p=>{
+    Object.values(p.tur_katilim_detay||{}).forEach(d=>{ toplamGelir += (d.ucret||0); });
+  });
+
+  _SEFER_KAPAT_ID = seferId;
+
+  const onay = `🏁 SEFERİ KAPATMA
+
+📋 ${v.label}
+${v.ship||''} · ${v.startDate||''} → ${v.endDate||''}
+
+📊 Özet:
+• Toplam yolcu: ${yolcular.length}
+• Check-in yapan: ${ciSayisi}
+• Tura katılan yolcu: ${turluYolcu}
+• Toplam tur kaydı: ${turKayitToplam}
+• Toplam tur geliri: €${toplamGelir}
+
+🔄 Sıradaki adımlar:
+1️⃣ Detaylı rapor oluşturulacak (PDF/yazdır)
+2️⃣ Onayladıktan sonra yolcular ve tur kayıtları silinecek
+3️⃣ Sefer arşive taşınacak
+
+✓ Turlar, broşürler, sesli anonslar SAKLI KALACAK (sonraki sefer için)
+⚠️ Yolcu silme işlemi GERİ ALINAMAZ
+
+Devam etmek istiyor musunuz?`;
+
+  if(!confirm(onay)) return;
+
+  // Adım 1: Raporu oluştur ve yeni sekmede aç
+  seferKapatRaporOlustur(seferId);
+}
+
+// Adım 2: Detaylı raporu yeni sekmede aç (yazdır/PDF için)
+function seferKapatRaporOlustur(seferId){
+  const v = VOYAGES.find(x=>x.id===seferId);
+  if(!v) return;
+  const yolcular = passengers.filter(p=>p.sefer===seferId);
+  const TOURS_MAP = {};
+  TOURS.forEach(t=>{ TOURS_MAP[t.id]=t; });
+
+  // İstatistikler
+  const ciYapan = yolcular.filter(p=>p.checkedIn);
+  const ciYapmayan = yolcular.filter(p=>!p.checkedIn);
+  const turluYolcu = yolcular.filter(p=>(p.joinedTours||[]).length>0);
+  const tursuzYolcu = yolcular.filter(p=>(p.joinedTours||[]).length===0);
+
+  // Tur bazlı katılım
+  const turBazli = {};
+  TOURS.filter(t=>t.seferler && t.seferler.includes(seferId)).forEach(t=>{
+    turBazli[t.id] = { tur: t, katilanlar: [], toplamKisi:0, toplamGelir:0 };
+  });
+  yolcular.forEach(p=>{
+    (p.joinedTours||[]).forEach(tid=>{
+      if(!turBazli[tid]){
+        const t = TOURS_MAP[tid];
+        if(!t) return;
+        turBazli[tid] = { tur: t, katilanlar: [], toplamKisi:0, toplamGelir:0 };
+      }
+      const det = (p.tur_katilim_detay||{})[tid];
+      const yet = det?det.yetiskin:p.adult;
+      const coc = det?det.cocuk:p.child;
+      const beb = det?det.bebek:p.baby;
+      const kisi = det?det.kisi:(yet+coc+beb);
+      const ucret = det?det.ucret:((yet*turBazli[tid].tur.ap)+(coc*turBazli[tid].tur.cp)+(beb*turBazli[tid].tur.bp));
+      turBazli[tid].katilanlar.push({yolcu:p, kisi, ucret, yet, coc, beb});
+      turBazli[tid].toplamKisi += kisi;
+      turBazli[tid].toplamGelir += ucret;
+    });
+  });
+
+  let toplamGelir = 0;
+  Object.values(turBazli).forEach(tb=>{ toplamGelir += tb.toplamGelir; });
+
+  // Tarih bilgileri
+  const simdi = new Date().toLocaleString('tr-TR');
+  const seferAdi = v.label || '';
+  const gemi = v.ship || '';
+  const guzergah = v.route || '';
+  const baslangic = v.startDate || '';
+  const bitis = v.endDate || '';
+
+  // Tur listesi HTML
+  const turlarHTML = Object.values(turBazli).sort((a,b)=>(b.toplamKisi||0)-(a.toplamKisi||0)).map(tb=>{
+    const katilHTML = tb.katilanlar.length ?
+      tb.katilanlar.map(k=>`
+        <tr>
+          <td>${escapeHTML(k.yolcu.name)}</td>
+          <td style="text-align:center;">${k.yolcu.kabin}</td>
+          <td style="text-align:center;">${k.kisi} (${k.yet>0?k.yet+'Y':''}${k.coc>0?' '+k.coc+'Ç':''}${k.beb>0?' '+k.beb+'B':''})</td>
+          <td style="text-align:right;">€${k.ucret}</td>
+        </tr>
+      `).join('') :
+      `<tr><td colspan="4" style="text-align:center;color:#888;font-style:italic;padding:10px;">Bu tura katılan yok</td></tr>`;
+    return `
+      <div class="tur-bolum">
+        <h3>${escapeHTML(tb.tur.name)} ${tb.tur.liman?'· '+escapeHTML(tb.tur.liman):''}</h3>
+        <div class="tur-meta">
+          ${tb.tur.saat?'⏰ '+tb.tur.saat+' · ':''}
+          ${tb.tur.gun?tb.tur.gun+'. Gün · ':''}
+          👥 ${tb.toplamKisi} kişi · 💰 €${tb.toplamGelir}
+        </div>
+        <table>
+          <thead><tr><th>Yolcu</th><th>Kabin</th><th>Kişi</th><th>Ücret</th></tr></thead>
+          <tbody>${katilHTML}</tbody>
+        </table>
+      </div>`;
+  }).join('');
+
+  // Tüm yolcular tablosu
+  const yolcularHTML = yolcular.length ? yolcular.sort((a,b)=>String(a.kabin).localeCompare(String(b.kabin),undefined,{numeric:true})).map(p=>{
+    const turlar = (p.joinedTours||[]).map(tid=>TOURS_MAP[tid]?.name||tid).join(', ') || '<i style="color:#888;">—</i>';
+    const ucretToplam = Object.values(p.tur_katilim_detay||{}).reduce((s,d)=>s+(d.ucret||0),0);
+    return `<tr>
+      <td style="text-align:center;">${p.kabin}</td>
+      <td>${escapeHTML(p.name||'')}</td>
+      <td style="text-align:center;">${p.tel||'—'}</td>
+      <td style="text-align:center;">${p.adult||0}/${p.child||0}/${p.baby||0}</td>
+      <td style="text-align:center;">${p.checkedIn?'<span class="ok">✓</span>':'<span class="no">✗</span>'}</td>
+      <td style="font-size:9px;">${turlar}</td>
+      <td style="text-align:right;">${ucretToplam>0?'€'+ucretToplam:'—'}</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="7" style="text-align:center;padding:20px;color:#888;">Bu seferde yolcu yok</td></tr>';
+
+  // Tursuz yolcular
+  const tursuzHTML = tursuzYolcu.length ? tursuzYolcu.map(p=>`
+    <tr>
+      <td style="text-align:center;">${p.kabin}</td>
+      <td>${escapeHTML(p.name||'')}</td>
+      <td style="text-align:center;">${p.tel||'—'}</td>
+      <td style="text-align:center;">${p.checkedIn?'✓ Check-in':'✗ Check-in yok'}</td>
+    </tr>
+  `).join('') : '<tr><td colspan="4" style="text-align:center;padding:15px;color:#888;font-style:italic;">Tüm yolcular en az bir tura katılmış 🎉</td></tr>';
+
+  const html = `<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Sefer Raporu — ${escapeHTML(seferAdi)}</title>
+<style>
+  @page { size: A4 portrait; margin: 14mm 12mm; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 0; }
+  h1, h2, h3 { margin: 0 0 8px 0; }
+  .wrap { max-width: 100%; }
+  .head { background: linear-gradient(135deg,#0d3b6e,#1a5fa8); color: white; padding: 18px 22px; border-radius: 10px; margin-bottom: 18px; }
+  .head .title { font-family: 'Times New Roman', serif; font-size: 22px; letter-spacing: 1px; opacity: .9; }
+  .head h1 { font-size: 26px; margin: 4px 0 6px 0; }
+  .head .meta { font-size: 12px; opacity: .85; }
+  .head .rapor-bilgi { font-size: 10px; opacity: .7; margin-top: 8px; border-top: 1px solid rgba(255,255,255,.2); padding-top: 8px; }
+  .ozet-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 22px; }
+  .ozet-kart { background: #f5f5f3; border-radius: 8px; padding: 12px; text-align: center; border-left: 3px solid #1a5fa8; }
+  .ozet-kart.gelir { border-left-color: #16a34a; background: #f0fdf4; }
+  .ozet-kart.eksik { border-left-color: #d97706; background: #fff8e6; }
+  .ozet-deger { font-size: 22px; font-weight: 700; color: #0d3b6e; }
+  .ozet-deger.gelir { color: #16a34a; }
+  .ozet-etiket { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: .5px; margin-top: 3px; }
+  .bolum-baslik { font-size: 14px; font-weight: 700; color: #0d3b6e; border-bottom: 2px solid #1a5fa8; padding-bottom: 4px; margin: 22px 0 10px 0; text-transform: uppercase; letter-spacing: .5px; }
+  .bolum-baslik .sayi { float: right; font-size: 11px; color: #666; font-weight: 400; }
+  table { width: 100%; border-collapse: collapse; font-size: 10px; }
+  th { background: #0d3b6e; color: white; padding: 7px 6px; text-align: left; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
+  td { padding: 6px; border-bottom: 1px solid #e5e5e5; }
+  tr:nth-child(even) td { background: #fafafa; }
+  .ok { color: #16a34a; font-weight: 700; }
+  .no { color: #dc2626; font-weight: 700; }
+  .tur-bolum { margin-bottom: 16px; page-break-inside: avoid; }
+  .tur-bolum h3 { font-size: 13px; color: #0d3b6e; margin-bottom: 4px; }
+  .tur-meta { font-size: 11px; color: #666; margin-bottom: 6px; }
+  .ozet-mali { background: #f0fdf4; border: 2px solid #16a34a; border-radius: 10px; padding: 14px 18px; margin-top: 14px; display: flex; justify-content: space-between; align-items: center; }
+  .ozet-mali-label { font-size: 13px; font-weight: 600; color: #15803d; }
+  .ozet-mali-tutar { font-size: 22px; font-weight: 700; color: #15803d; }
+  .imza-alani { margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+  .imza { border-top: 1px solid #1a1a1a; padding-top: 6px; text-align: center; font-size: 11px; }
+  .imza .lbl { color: #666; }
+  .footer { margin-top: 22px; padding-top: 10px; border-top: 1px solid #ddd; font-size: 9px; color: #888; text-align: center; }
+  @media print {
+    body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    .no-print { display: none; }
+  }
+  .no-print { position: fixed; top: 12px; right: 12px; z-index: 999; }
+  .no-print button { background: #1a5fa8; color: white; padding: 10px 18px; border-radius: 8px; border: none; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.2); margin-left: 6px; }
+  .no-print button.kaydet { background: #16a34a; }
+</style>
+</head>
+<body>
+<div class="no-print">
+  <button onclick="window.print()">🖨️ Yazdır / PDF Kaydet</button>
+</div>
+<div class="wrap">
+  <div class="head">
+    <div class="title">VOYAGO</div>
+    <h1>🏁 SEFER RAPORU</h1>
+    <div class="meta"><b>${escapeHTML(seferAdi)}</b><br>${escapeHTML(gemi)} · ${escapeHTML(guzergah)}<br>${baslangic} → ${bitis}</div>
+    <div class="rapor-bilgi">Rapor tarihi: ${simdi} · Hazırlayan: ${escapeHTML(CU?.name||'—')}</div>
+  </div>
+
+  <div class="ozet-grid">
+    <div class="ozet-kart">
+      <div class="ozet-deger">${yolcular.length}</div>
+      <div class="ozet-etiket">Toplam Yolcu</div>
+    </div>
+    <div class="ozet-kart">
+      <div class="ozet-deger">${ciYapan.length}/${yolcular.length}</div>
+      <div class="ozet-etiket">Check-in Yapan</div>
+    </div>
+    <div class="ozet-kart">
+      <div class="ozet-deger">${turluYolcu.length}</div>
+      <div class="ozet-etiket">Tura Katılan</div>
+    </div>
+    <div class="ozet-kart gelir">
+      <div class="ozet-deger gelir">€${toplamGelir}</div>
+      <div class="ozet-etiket">Toplam Gelir</div>
+    </div>
+  </div>
+
+  <div class="bolum-baslik">📊 Tur Bazlı Detaylı Katılım<span class="sayi">${Object.keys(turBazli).length} tur</span></div>
+  ${turlarHTML || '<div style="text-align:center;color:#888;padding:20px;">Bu seferde tur bulunmuyor</div>'}
+
+  <div class="ozet-mali">
+    <div class="ozet-mali-label">💰 TOPLAM TUR GELİRİ (TÜM TURLAR)</div>
+    <div class="ozet-mali-tutar">€${toplamGelir}</div>
+  </div>
+
+  <div class="bolum-baslik" style="page-break-before: always;">⚠️ Hiçbir Tura Katılmayan Yolcular<span class="sayi">${tursuzYolcu.length} kişi</span></div>
+  <table>
+    <thead><tr><th>Kabin</th><th>Yolcu</th><th>Telefon</th><th>Durum</th></tr></thead>
+    <tbody>${tursuzHTML}</tbody>
+  </table>
+
+  <div class="bolum-baslik" style="margin-top: 22px;">👥 Tüm Yolcu Listesi (Kabin Sırası)<span class="sayi">${yolcular.length} kişi</span></div>
+  <table>
+    <thead><tr><th>Kabin</th><th>Ad Soyad</th><th>Telefon</th><th>Y/Ç/B</th><th>CI</th><th>Katıldığı Turlar</th><th>Toplam</th></tr></thead>
+    <tbody>${yolcularHTML}</tbody>
+  </table>
+
+  <div class="imza-alani">
+    <div class="imza"><span class="lbl">Rehber İmza</span></div>
+    <div class="imza"><span class="lbl">Acente Onay</span></div>
+  </div>
+
+  <div class="footer">
+    Bu rapor VOYAGO sistemi tarafından otomatik olarak oluşturulmuştur · ${simdi}<br>
+    Yolcu sayısı, tur katılımları ve mali bilgiler raporlama anındaki sistem verisinden alınmıştır.
+  </div>
+</div>
+</body>
+</html>`;
+
+  // Yeni sekmede aç
+  const w = window.open('', '_blank');
+  if(!w){ showToast('Pop-up engellendi — izin verin'); return; }
+  w.document.write(html);
+  w.document.close();
+
+  // 1 saniye sonra kullanıcıya 2. adımı sor
+  setTimeout(()=>{
+    const v2 = VOYAGES.find(x=>x.id===_SEFER_KAPAT_ID);
+    if(!v2) return;
+    const son = confirm(`📄 Rapor yeni sekmede açıldı.
+
+Lütfen önce raporu yazdırın veya PDF olarak kaydedin.
+
+Hazır olduğunuzda "Tamam"a basın → yolcular ve tur kayıtları silinecek, sefer arşivlenecek.
+
+⚠️ Bu işlem GERİ ALINAMAZ!
+
+Yolcular silinmesin diyorsanız "İptal" seçin (sefer açık kalır, başka zaman tekrar deneyebilirsiniz).`);
+    if(son){
+      seferKapatTemizle(_SEFER_KAPAT_ID);
+    } else {
+      showToast('Sefer kapatma iptal edildi — sefer hâlâ açık');
+      _SEFER_KAPAT_ID = null;
+    }
+  }, 1000);
+}
+
+// Adım 3: Yolcuları ve tur kayıtlarını sil, seferi arşivle
+async function seferKapatTemizle(seferId){
+  const v = VOYAGES.find(x=>x.id===seferId);
+  if(!v) return;
+  showToast('⏳ Yolcu kayıtları siliniyor...');
+
+  try{
+    const yolcular = passengers.filter(p=>p.sefer===seferId);
+
+    // 1. Push subscription'ları sil
+    try{
+      await sb.from('push_subscriptions').delete().eq('yolcu_sefer', seferId);
+    }catch(e){console.log('Push sil:', e);}
+
+    // 2. Yolcuları DB'den sil (toplu)
+    try{
+      await sb.from('yolcular').delete().eq('sefer_id', seferId);
+    }catch(e){console.error('Yolcu sil:', e);}
+
+    // 3. Bellekten kaldır
+    for(let i=passengers.length-1; i>=0; i--){
+      if(passengers[i].sefer === seferId) passengers.splice(i,1);
+    }
+
+    // 4. Seferi arşivle
+    v.status = 'archived';
+    v.visible = false;
+    await saveSeferDB(v);
+
+    // UI yenile
+    if(typeof renderSeferPanel === 'function') renderSeferPanel();
+    if(typeof setupAdmin === 'function') setupAdmin();
+    if(typeof populateSeferler === 'function') populateSeferler();
+
+    showToast('✓ Sefer kapatıldı: ' + yolcular.length + ' yolcu silindi, sefer arşivlendi');
+    _SEFER_KAPAT_ID = null;
+  }catch(e){
+    console.error('Sefer kapat hatası:', e);
+    showToast('⚠️ Hata: ' + (e.message||'bilinmeyen'));
+  }
 }
 
 function addVoyage(){
@@ -7835,6 +8256,89 @@ document.head.appendChild(gcStyle);
   </div>
 </div>
 
+<!-- ══ KVKK / AYDINLATMA METNİ MODAL ══ -->
+<div id="kvkk-modal" class="kvkk-modal" onclick="kvkkKapat(event)">
+  <div class="kvkk-modal-i" onclick="event.stopPropagation()">
+    <div class="kvkk-modal-h">
+      <div class="kvkk-modal-h-baslik">🔒 Kişisel Verilerin Korunması</div>
+      <div class="kvkk-modal-h-alt">Aydınlatma Metni — KVKK md. 10 kapsamında</div>
+    </div>
+
+    <div class="kvkk-modal-body">
+      <h4>📋 Veri Sorumlusu</h4>
+      <p>
+        <b>VOYAGO Gemi Seyahat Uygulaması</b><br>
+        General Asım Gündüz Cad. No: 62/4, Kadıköy / İstanbul<br>
+        E-posta: <b>voyagoshop@gmail.com</b>
+      </p>
+
+      <h4>📦 İşlenen Kişisel Verileriniz</h4>
+      <ul>
+        <li><b>Kimlik bilgileri:</b> Ad, soyad</li>
+        <li><b>İletişim bilgileri:</b> Telefon numarası (WhatsApp), e-posta adresi (isteğe bağlı)</li>
+        <li><b>Müşteri bilgileri:</b> Kabin numarası, yolcu sayısı (yetişkin / çocuk / bebek)</li>
+        <li><b>İşlem bilgileri:</b> Sefer tercihi, tur kayıtları, ücret bilgileri</li>
+        <li><b>Cihaz bilgileri:</b> Bildirim aboneliği, cihaz türü, IP adresi (otomatik)</li>
+        <li><b>Pazarlama tercihi:</b> Ticari ileti onayı (verilmesi isteğe bağlı)</li>
+      </ul>
+
+      <h4>🎯 İşleme Amaçları</h4>
+      <ul>
+        <li>Seyahat operasyonunun yönetimi ve check-in</li>
+        <li>Anlık duyurular (sesli anonslar, programlar, mesajlar)</li>
+        <li>Tur kayıtları, ücretlendirme ve katılım takibi</li>
+        <li>WhatsApp bildirimleri ve grup yönetimi</li>
+        <li>Mevzuat gereği zorunlu kayıtların tutulması</li>
+      </ul>
+
+      <h4>⚖️ Hukuki Sebep</h4>
+      <p>
+        Kişisel verileriniz <b>KVKK md. 5/2-c</b> (sözleşmenin kurulması ve ifası), <b>md. 5/2-ç</b> (hukuki yükümlülük) ve <b>md. 5/1</b> (açık rıza) hukuki sebeplerine dayanılarak işlenmektedir.
+      </p>
+
+      <h4>🤝 Paylaşılan Taraflar</h4>
+      <p>
+        Verileriniz yalnızca <b>seyahatinizi düzenleyen acente</b> ve <b>rehberinizle</b> paylaşılır. Üçüncü taraflara satılmaz, pazarlama amacıyla kullanılmaz, yurt dışına aktarılmaz.
+      </p>
+
+      <h4>⏰ Saklama Süresi</h4>
+      <p>
+        Verileriniz <b>seferiniz tamamlandıktan sonra sistemden silinir</b>. Yalnızca acentenin yasal mevzuat gereği saklamak zorunda olduğu mali kayıtlar (fatura, ödeme bilgileri vb.) ilgili süre boyunca tutulur.
+      </p>
+
+      <h4>📜 Haklarınız (KVKK md. 11)</h4>
+      <ul>
+        <li>Kişisel verilerinizin işlenip işlenmediğini öğrenme</li>
+        <li>Verilerinize erişim talep etme</li>
+        <li>Düzeltme veya silinmesini isteme</li>
+        <li>İşlemeye itiraz etme</li>
+        <li>Zarara uğramanız hâlinde tazminat talep etme</li>
+      </ul>
+
+      <h4>📧 Ticari Elektronik İleti (Pazarlama İzni)</h4>
+      <p>
+        Eğer giriş ekranında <b>"Tanıtım ve kampanya e-postaları almak istiyorum"</b> kutusunu işaretlerseniz, e-posta adresinize ileride özel sefer kampanyaları, indirimler ve promosyonlar gönderebiliriz. Bu <b>tamamen isteğe bağlıdır</b> ve <b>6563 sayılı Elektronik Ticaretin Düzenlenmesi Hakkında Kanun</b> kapsamındadır.
+      </p>
+      <p>
+        ✋ <b>İzni geri çekmek için:</b> Her tanıtım e-postasının altında bulunan "Listeden çık" linkini kullanabilir veya <b>voyagoshop@gmail.com</b> adresine yazabilirsiniz. Talebiniz alınır almaz ileti gönderimi durdurulur.
+      </p>
+
+      <div class="iletisim">
+        <b>📮 Başvuru:</b> Yukarıdaki haklarınızı kullanmak için <b>voyagoshop@gmail.com</b> adresine yazılı başvuruda bulunabilirsiniz. Başvurunuz en geç <b>30 gün içinde</b> yanıtlanır.
+      </div>
+
+      <div class="uyari">
+        ⚠️ <b>Onay vermeniz neyi ifade eder:</b> Bu metni okuduğunuzu, kişisel verilerinizin yukarıda belirtilen amaçlarla işlenmesine açık rıza gösterdiğinizi beyan etmiş olursunuz.
+      </div>
+    </div>
+
+    <div class="kvkk-modal-f">
+      <button class="kvkk-modal-iptal" onclick="kvkkKapat()">Kapat</button>
+      <button class="kvkk-modal-kabul" onclick="kvkkOnayla()">✓ Okudum, Onaylıyorum</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ WHATSAPP BİLDİRİM GRUBU MODAL ══ -->
 <div id="wa-modal" class="wa-modal" onclick="waGrupModalKapat(event)">
   <div class="wa-modal-i" onclick="event.stopPropagation()">
@@ -9306,6 +9810,72 @@ document.addEventListener('visibilitychange', ()=>{
 window.addEventListener('focus', ()=>{
   yolcuOdakYenile();
 });
+
+// ══ KVKK / AYDINLATMA METNİ ══
+let _kvkkOnayli = false;
+
+function kvkkAc(){
+  document.getElementById('kvkk-modal').classList.add('active');
+}
+
+function kvkkKapat(e){
+  if(e && e.target && e.target.id !== 'kvkk-modal' && !e.target.classList.contains('kvkk-modal-iptal')) return;
+  document.getElementById('kvkk-modal').classList.remove('active');
+}
+
+function kvkkOnayla(){
+  _kvkkOnayli = true;
+  const cb = document.getElementById('kvkk-cb');
+  if(cb) cb.classList.add('aktif');
+  const btn = document.getElementById('giris-btn');
+  if(btn) btn.classList.remove('disabled');
+  document.getElementById('kvkk-modal').classList.remove('active');
+  showToast('✓ Onayınız alındı');
+}
+
+function kvkkToggle(e){
+  if(e) e.stopPropagation();
+  // Eğer henüz okumadıysa, modal'ı aç (zorla okutmak için)
+  if(!_kvkkOnayli){
+    kvkkAc();
+    return;
+  }
+  // Onaylandıysa: tıklanırsa onay geri çekilebilir
+  _kvkkOnayli = false;
+  const cb = document.getElementById('kvkk-cb');
+  if(cb) cb.classList.remove('aktif');
+  const btn = document.getElementById('giris-btn');
+  if(btn) btn.classList.add('disabled');
+}
+
+// ══ PAZARLAMA İZNİ (E-POSTA) ══
+let _pazarlamaIzni = false;
+
+function emailKontrol(){
+  // E-posta yazıldıysa pazarlama izni satırını göster, yoksa gizle
+  const email = (document.getElementById('lmail')?.value || '').trim();
+  const row = document.getElementById('pi-row');
+  if(!row) return;
+  if(email.length > 0){
+    row.style.display = 'block';
+  } else {
+    row.style.display = 'none';
+    // E-mail silindiyse izni de geri al
+    _pazarlamaIzni = false;
+    const cb = document.getElementById('pi-cb');
+    if(cb) cb.classList.remove('aktif');
+  }
+}
+
+function piToggle(e){
+  if(e) e.stopPropagation();
+  _pazarlamaIzni = !_pazarlamaIzni;
+  const cb = document.getElementById('pi-cb');
+  if(cb){
+    if(_pazarlamaIzni) cb.classList.add('aktif');
+    else cb.classList.remove('aktif');
+  }
+}
 </script>
 
 <!-- ══ SESLİ ANONS SİSTEMİ ══ -->
