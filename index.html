@@ -9185,6 +9185,68 @@ async function waLinkSil(){
     setTimeout(baslat, 2000);
   }
 })();
+
+// ══ ODAKLAMA YENİLEMESİ ══
+// Yolcu sekmeyi arka plandan öne getirdiğinde DB'yi sessizce yeniler
+let _sonYenileme = 0;
+const YENILEME_BEKLEME_MS = 2000; // 2 saniyeden sık yenileme yapma
+
+async function yolcuOdakYenile(){
+  // Sadece yolcu giriş yapmışsa yap
+  if(!CP) return;
+  // Çok sık çağırılırsa atla
+  const simdi = Date.now();
+  if(simdi - _sonYenileme < YENILEME_BEKLEME_MS) return;
+  _sonYenileme = simdi;
+
+  try{
+    // DB'yi yeniden yükle
+    if(typeof initDB === 'function'){
+      await initDB();
+    }
+    // Yolcu kaydını DB'den taze al (CP'yi güncelle)
+    const benim = passengers.find(p=>p.kabin===CP.kabin && p.sefer===CP.sefer);
+    if(benim){
+      // CP'yi güncelle ama referansı koru
+      Object.assign(CP, benim);
+    }
+    // UI'yi yenile — aktif olan ne ise
+    const sv = CP.sefer;
+    try{ if(typeof renderPassTours === 'function') renderPassTours(sv); }catch(e){}
+    try{ if(typeof renderGazete === 'function') renderGazete(); }catch(e){}
+    try{ if(typeof renderTurAnonsPano === 'function') renderTurAnonsPano(sv); }catch(e){}
+    try{ if(typeof renderMesajlar === 'function') renderMesajlar(sv); }catch(e){}
+    try{ if(typeof renderGsSerit === 'function') renderGsSerit(sv); }catch(e){}
+    try{ if(typeof renderHosgeldinKart === 'function') renderHosgeldinKart(); }catch(e){}
+    try{ if(typeof brYukle === 'function') await brYukle(); }catch(e){}
+    try{ if(typeof waLinkleriYukle === 'function') await waLinkleriYukle(); }catch(e){}
+    // Sayfanın aktif sekmesine göre o sekmeyi yenile
+    try{
+      const aktifTab = document.querySelector('#sa .tp.active');
+      if(aktifTab){
+        const id = aktifTab.id;
+        if(id==='tab-program' && typeof renderProgram === 'function') renderProgram(sv);
+        if(id==='tab-yemek' && typeof renderYemek === 'function') renderYemek(sv);
+        if(id==='tab-bildirim' && typeof renderBildirimler === 'function') renderBildirimler(sv);
+        if(id==='tab-gelecek' && typeof renderGelecekTurlar === 'function') renderGelecekTurlar();
+      }
+    }catch(e){}
+  }catch(e){
+    console.log('Odak yenileme:', e);
+  }
+}
+
+// Sekme görünür olduğunda yenile (mobile + desktop)
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible'){
+    yolcuOdakYenile();
+  }
+});
+
+// Pencere odak aldığında da yenile (ek güvence)
+window.addEventListener('focus', ()=>{
+  yolcuOdakYenile();
+});
 </script>
 
 <!-- ══ SESLİ ANONS SİSTEMİ ══ -->
