@@ -2587,7 +2587,13 @@ function renderProgramPage(sv){
         <div class="pt"><div class="ptl">Ayrilis</div><div class="ptv">${d.port.depart||'--:--'}</div><div class="pts2">Bugün</div></div>
       </div>
     </div>`;
-  } else pa.innerHTML='<div class="no-data">Liman bilgisi henüz girilmemis.</div>';
+  } else {
+    if(!DB_READY){
+      pa.innerHTML='<div class="no-data" style="text-align:center;padding:20px;"><div style="font-size:24px;opacity:.5;margin-bottom:6px;">⏳</div><div>Liman bilgisi yükleniyor...</div></div>';
+    } else {
+      pa.innerHTML='<div class="no-data">Liman bilgisi henüz girilmemis.</div>';
+    }
+  }
 
   // Program
   const pra=document.getElementById('program-area');
@@ -2607,7 +2613,17 @@ function renderProgramPage(sv){
         </div>`:''}
       </div>`).join('');
     pra.innerHTML=`<div class="sl2">${tr('gunun_programi')}</div><div class="card">${items}</div>`;
-  } else pra.innerHTML=`<div class="sl2">${tr('gunun_programi')}</div><div class="no-data">${tr('program_yok')}</div>`;
+  } else {
+    // DB hazır değilse "yükleniyor", hazırsa "program girilmemiş"
+    if(!DB_READY){
+      pra.innerHTML=`<div class="sl2">${tr('gunun_programi')}</div><div class="no-data" style="text-align:center;padding:30px 20px;">
+        <div style="font-size:24px;margin-bottom:8px;opacity:.5;">⏳</div>
+        <div>Program yükleniyor...</div>
+      </div>`;
+    } else {
+      pra.innerHTML=`<div class="sl2">${tr('gunun_programi')}</div><div class="no-data">${tr('program_yok')}</div>`;
+    }
+  }
 
   // Promosyonlar — resimli
   const proa=document.getElementById('promo-area');
@@ -5539,16 +5555,26 @@ function baslat() {
     }
   }, 750);
 
-  // DB: max 5 saniyede timeout
-  const dbTimeout = setTimeout(()=>{ dbDone=true; tryAutoLogin(); }, 5000);
+  // DB: max 10 saniyede timeout (yavaş bağlantılar için)
+  const dbTimeout = setTimeout(()=>{ dbDone=true; tryAutoLogin(); }, 10000);
   initDB().then(() => {
     clearTimeout(dbTimeout);
     dbDone = true;
     tryAutoLogin();
-  }).catch(() => {
+  }).catch((err) => {
+    console.warn('initDB hata, yedek deniyor:', err);
     clearTimeout(dbTimeout);
     dbDone = true;
     tryAutoLogin();
+    // Hata olduysa 3 sn sonra yeniden dene (sessiz)
+    setTimeout(()=>{
+      if(!DB_READY){
+        initDB().then(()=>{
+          // DB hazır olunca aktif yolcu ekranını yenile
+          if(typeof yolcuOdakYenile === 'function') yolcuOdakYenile();
+        }).catch(()=>{});
+      }
+    }, 3000);
   });
 }
 
@@ -5620,6 +5646,16 @@ async function devamEt() {
   try {
     const kayit = localStorage.getItem('voyago_yolcu');
     if (!kayit) { yeniGiris(); return; }
+
+    // DB hazır değilse bekle (max 8 saniye, sonra yedekle devam)
+    if(!DB_READY){
+      const baslangic = Date.now();
+      while(!DB_READY && (Date.now() - baslangic) < 8000){
+        await new Promise(r=>setTimeout(r, 100));
+      }
+      // Hâlâ hazır değilse arka planda devam, kullanıcıyı bekletme
+    }
+
     const p = JSON.parse(kayit);
     const v = VOYAGES.find(v => v.id === p.sefer && v.visible && v.status !== 'archived');
     if (!v) { yeniGiris(); return; }
@@ -5670,6 +5706,27 @@ async function devamEt() {
     showToast('Hoş geldiniz, ' + (p.name?p.name.split(' ')[0]:'') + '! 👋');
     // Anket DB'den direkt kontrol et
     await checkAnketGoster(p.sefer);
+
+    // Eğer DB henüz hazır değilse, hazır olunca otomatik yenile
+    if(!DB_READY){
+      const yenilemeKontrol = setInterval(()=>{
+        if(DB_READY){
+          clearInterval(yenilemeKontrol);
+          // Sessizce tekrar render et — program ve diğerleri tazelensin
+          try{
+            renderPassTours(p.sefer);
+            renderProgramPage(p.sefer);
+            renderYemekPage(p.sefer);
+            renderGazete();
+            renderMesajlar(p.sefer);
+            renderTurAnonsPano(p.sefer);
+            renderGsSerit(p.sefer);
+          }catch(e){console.log('Geç render:', e);}
+        }
+      }, 500);
+      // Max 15 sn sonra durdur
+      setTimeout(()=>clearInterval(yenilemeKontrol), 15000);
+    }
   } catch(e) {
     yeniGiris();
   }
