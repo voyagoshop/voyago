@@ -9024,61 +9024,52 @@ function tkFormYazdir(kabin, sefer, tid){
 <meta charset="UTF-8">
 <title>Tur Katılım Formu — ${escapeHTML(p.name)} — ${escapeHTML(t.name)}</title>
 <style>
-  /* 80mm termal kâğıt */
+  /* 80mm termal kâğıt — tek sayfa, sayfa arası YOK */
   @page {
     size: 80mm auto;
     margin: 0;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0;
+    page-break-inside: avoid;
+    page-break-before: avoid;
+    page-break-after: avoid;
+    break-inside: avoid;
+    break-before: avoid;
+    break-after: avoid;
+  }
   html, body {
     width: 80mm;
     font-family: 'Courier New', 'Consolas', monospace;
-    font-size: 11pt;
-    line-height: 1.35;
+    font-size: 10pt;
+    line-height: 1.25;
     color: #000;
     background: white;
   }
-  body { padding: 4mm 6mm 4mm 10mm; }
+  body { padding: 2mm 5mm 3mm 9mm; }
   .merkez { text-align: center; }
   .kalin { font-weight: 700; }
-  .buyuk { font-size: 14pt; font-weight: 700; }
-  .dev { font-size: 18pt; font-weight: 700; letter-spacing: 1px; }
-  .kucuk { font-size: 9pt; }
-  .ufak { font-size: 8pt; }
-  hr.cizgi { border: 0; border-top: 1px dashed #000; margin: 4mm 0; }
-  hr.kalın { border: 0; border-top: 2px solid #000; margin: 3mm 0; }
-  .satir { display: flex; justify-content: space-between; align-items: baseline; margin: 1mm 0; }
-  .satir .lbl { font-size: 9pt; }
-  .satir .val { font-size: 11pt; font-weight: 700; }
+  .buyuk { font-size: 13pt; font-weight: 700; }
+  .dev { font-size: 16pt; font-weight: 700; letter-spacing: 1px; }
+  .kucuk { font-size: 8pt; }
+  .ufak { font-size: 7pt; }
+  hr.cizgi { border: 0; border-top: 1px dashed #000; margin: 1.5mm 0; }
+  hr.kalın { border: 0; border-top: 2px solid #000; margin: 1.2mm 0; }
+  .satir { display: flex; justify-content: space-between; align-items: baseline; margin: 0.4mm 0; }
+  .satir .lbl { font-size: 8pt; }
+  .satir .val { font-size: 10pt; font-weight: 700; }
   .vurgu {
     background: #000;
     color: #fff;
-    padding: 2mm;
+    padding: 1.2mm;
     text-align: center;
-    margin: 2mm 0;
+    margin: 1.2mm 0;
   }
-  .vurgu .ust { font-size: 9pt; opacity: .85; }
-  .vurgu .alt { font-size: 14pt; font-weight: 700; }
+  .vurgu .ust { font-size: 8pt; opacity: .85; }
+  .vurgu .alt { font-size: 13pt; font-weight: 700; }
   .kutu {
     border: 2px solid #000;
-    padding: 2mm 3mm;
-    margin: 2mm 0;
-  }
-  .bolum-baslik {
-    background: #000;
-    color: #fff;
-    padding: 1mm 2mm;
-    font-size: 9pt;
-    font-weight: 700;
-    letter-spacing: 1px;
-    margin: 3mm 0 2mm 0;
-  }
-  .imza-alani {
-    border-top: 1px solid #000;
-    padding-top: 2mm;
-    margin-top: 4mm;
-    text-align: center;
-    font-size: 9pt;
+    padding: 1.2mm 2mm;
+    margin: 1.2mm 0;
   }
   .yazdir-btn {
     position: fixed;
@@ -9096,7 +9087,9 @@ function tkFormYazdir(kabin, sefer, tid){
   }
   @media print {
     .yazdir-btn { display: none; }
-    body { padding: 3mm 5mm 3mm 9mm; }
+    body { padding: 2mm 5mm 2mm 9mm; }
+    /* Termal yazıcıda sayfa arası kâğıt yedirmesin */
+    html, body { height: auto !important; }
   }
 </style>
 </head>
@@ -9107,7 +9100,7 @@ function tkFormYazdir(kabin, sefer, tid){
 <div class="merkez kucuk kalin">VOYAGO</div>
 <div class="merkez ufak">Gemi Rehber Uygulaması</div>
 <div class="merkez ufak">TUR KATILIM FORMU</div>
-<div class="merkez ufak" style="margin-top:1mm;">${formNo}</div>
+<div class="merkez ufak">${formNo}</div>
 
 <hr class="kalın">
 
@@ -9124,13 +9117,13 @@ function tkFormYazdir(kabin, sefer, tid){
 <hr class="cizgi">
 
 <!-- Tur adı (büyük ortada) -->
-<div class="kalin merkez" style="font-size: 13pt; margin: 1mm 0;">${escapeHTML(t.name)}</div>
-<div class="merkez ufak" style="margin-bottom: 2mm;">📍 ${escapeHTML(t.liman || '—')} · ${escapeHTML(turGun || '')}</div>
+<div class="kalin merkez" style="font-size: 12pt;">${escapeHTML(t.name)}</div>
+<div class="merkez ufak">📍 ${escapeHTML(t.liman || '—')} · ${escapeHTML(turGun || '')}</div>
 
 <hr class="cizgi">
 
 <!-- Yolcu -->
-<div class="kalin" style="font-size: 12pt; margin-bottom:1mm;">${escapeHTML(p.name)}</div>
+<div class="kalin" style="font-size: 11pt;">${escapeHTML(p.name)}</div>
 <div class="satir">
   <span class="lbl">Kabin:</span>
   <span class="val">${escapeHTML(p.kabin)}</span>
@@ -9142,20 +9135,11 @@ ${p.tel ? `<div class="satir">
 
 <!-- Katılımcı + Ücret birleşik -->
 <div class="kutu">
-  <div class="merkez kalin" style="font-size: 14pt;">${kisi} KİŞİ</div>
-  <div class="merkez ufak" style="margin-bottom:1mm;">${kisiDet.join(' · ') || '—'}</div>
-  ${yet>0 ? `<div class="satir ufak">
-    <span>Yetişkin (${yet} × €${t.ap}):</span>
-    <span>€${yet*t.ap}</span>
-  </div>` : ''}
-  ${coc>0 ? `<div class="satir ufak">
-    <span>Çocuk (${coc} × €${t.cp}):</span>
-    <span>€${coc*t.cp}</span>
-  </div>` : ''}
-  ${beb>0 ? `<div class="satir ufak">
-    <span>Bebek (${beb} × €${t.bp}):</span>
-    <span>€${beb*t.bp}</span>
-  </div>` : ''}
+  <div class="merkez kalin" style="font-size: 13pt;">${kisi} KİŞİ</div>
+  <div class="merkez ufak">${kisiDet.join(' · ') || '—'}</div>
+  ${yet>0 ? `<div class="satir ufak"><span>Yetişkin (${yet} × €${t.ap}):</span><span>€${yet*t.ap}</span></div>` : ''}
+  ${coc>0 ? `<div class="satir ufak"><span>Çocuk (${coc} × €${t.cp}):</span><span>€${coc*t.cp}</span></div>` : ''}
+  ${beb>0 ? `<div class="satir ufak"><span>Bebek (${beb} × €${t.bp}):</span><span>€${beb*t.bp}</span></div>` : ''}
 </div>
 
 <!-- Toplam Ücret - Vurgu -->
@@ -9165,13 +9149,13 @@ ${p.tel ? `<div class="satir">
 </div>
 
 <!-- Ödeme Bildirimi -->
-<div style="border:2px solid #000;padding:2mm 3mm;margin:2mm 0;text-align:center;">
-  <div class="kalin kucuk">💳 Lütfen ödemeyi</div>
-  <div class="kalin" style="font-size:13pt;margin:1mm 0;">RESEPSİYONA</div>
-  <div class="kalin kucuk">yapınız</div>
+<div class="kutu" style="text-align:center;">
+  <div class="kalin ufak">💳 Lütfen ödemeyi</div>
+  <div class="kalin" style="font-size:11pt;">RESEPSİYONA</div>
+  <div class="kalin ufak">yapınız</div>
 </div>
 
-<!-- Elektronik Onay (kısa) -->
+<!-- Elektronik Onay -->
 <hr class="cizgi">
 <div class="ufak merkez">
   <span class="kalin">✓ Elektronik Onay:</span> ${escapeHTML(eimza)}<br>
@@ -9180,8 +9164,8 @@ ${p.tel ? `<div class="satir">
 
 <!-- KOŞULLAR -->
 <hr class="cizgi">
-<div class="ufak" style="line-height: 1.4;">
-  <div class="kalin merkez" style="margin-bottom: 1mm;">⚠️ KOŞULLAR</div>
+<div class="ufak" style="line-height: 1.3;">
+  <div class="kalin merkez">⚠️ KOŞULLAR</div>
   • Bu form ile tura katılımınızı onaylamış olursunuz.<br>
   • İptal için rehberinizle görüşünüz.<br>
   • Buluşma saatinden 10 dk önce ana toplanma noktasında olun.<br>
@@ -9232,25 +9216,32 @@ function tkBiletYazdir(kabin, sefer, tid){
     size: 80mm auto;
     margin: 0;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0;
+    page-break-inside: avoid;
+    page-break-before: avoid;
+    page-break-after: avoid;
+    break-inside: avoid;
+    break-before: avoid;
+    break-after: avoid;
+  }
   html, body {
     width: 80mm;
     font-family: 'Courier New', 'Consolas', monospace;
     font-size: 11pt;
-    line-height: 1.35;
+    line-height: 1.3;
     color: #000;
     background: white;
   }
-  body { padding: 4mm 6mm 4mm 10mm; }
+  body { padding: 3mm 5mm 3mm 9mm; }
   .merkez { text-align: center; }
   .kalin { font-weight: 700; }
   .kucuk { font-size: 9pt; }
   .ufak { font-size: 8pt; }
-  hr.cizgi { border: 0; border-top: 1px dashed #000; margin: 3mm 0; }
-  hr.kalın { border: 0; border-top: 2px solid #000; margin: 2mm 0; }
+  hr.cizgi { border: 0; border-top: 1px dashed #000; margin: 2mm 0; }
+  hr.kalın { border: 0; border-top: 2px solid #000; margin: 1.5mm 0; }
   .qr-container {
     text-align: center;
-    margin: 3mm 0;
+    margin: 2mm 0;
   }
   .qr-container canvas, .qr-container img {
     margin: 0 auto;
@@ -9271,7 +9262,8 @@ function tkBiletYazdir(kabin, sefer, tid){
   }
   @media print {
     .yazdir-btn { display: none; }
-    body { padding: 3mm 5mm 4mm 9mm; }
+    body { padding: 2mm 5mm 2mm 9mm; }
+    html, body { height: auto !important; }
   }
 </style>
 </head>
