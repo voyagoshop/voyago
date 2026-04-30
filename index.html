@@ -6,7 +6,6 @@
 <title>VOYAGO</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
@@ -1554,7 +1553,7 @@ textarea.ai2{resize:none;}
       </div>
 
       <!-- HIZLI KABİN ARAMA -->
-      <div style="background:var(--gl);border-radius:14px;padding:12px 14px;margin-bottom:12px;">
+      <div style="background:var(--gl);border-radius:14px;padding:12px 14px;margin-bottom:10px;">
         <div style="font-size:11px;font-weight:600;color:var(--green);margin-bottom:6px;">⚡ Hızlı Kabin Arama</div>
         <div style="display:flex;gap:8px;align-items:center;">
           <input class="ai2" type="text" id="kontrol-kabin-ara" placeholder="Kabin no yaz..." 
@@ -1563,6 +1562,29 @@ textarea.ai2{resize:none;}
           <button onclick="kabinHizliGeldi()" style="padding:10px 16px;background:var(--green);color:white;border:none;border-radius:10px;font-size:20px;cursor:pointer;">✓</button>
         </div>
         <div id="kontrol-kabin-sonuc" style="margin-top:8px;font-size:13px;min-height:20px;"></div>
+      </div>
+
+      <!-- QR TARAMA -->
+      <div style="background:#f5f0ff;border-radius:14px;padding:12px 14px;margin-bottom:12px;border:1.5px solid #d8c8f0;">
+        <div style="font-size:11px;font-weight:600;color:#7c3aed;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
+          <span>📷 QR Bilet Tarama</span>
+          <span id="qr-tara-sayac" style="font-size:10px;font-weight:500;color:#7c3aed;opacity:.7;"></span>
+        </div>
+        <button onclick="qrTaraBaslat()" id="qr-tara-btn" style="width:100%;padding:12px;background:#7c3aed;color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;">
+          <svg viewBox="0 0 24 24" fill="white" width="18" height="18"><path d="M3,11h2v2h-2zM5,5h-2v2h2v2h2V7h2V5H7V3H5v2zM5,17h-2v2h2v2h2v-2h2v-2H7v-2H5v2zM17,5h-2v2h2v-2zM21,3h-6v2h2v2h2V5h2V3zM21,17h-2v2h-2v2h6v-2h-2v-2zM13,3h-2v2h2V3zM17,11v-2h-2v2h-2V9h-2v4h2v2h2v-2h2v2h2v-2h-2v-2h2v-2h-2zM11,15h-2v-2H7v2h2v2h2v-2h2v-2h-2v2zM13,9h-2V7h2v2zM7,9h2V7H7v2zM17,17h2v-2h-2v2zM3,3v6h6V3H3zM7,7H5V5h2v2zM15,9V3h6v6h-6zM19,5v2h-2V5h2zM3,21h6v-6H3v6zM5,17h2v2H5v-2z"/></svg>
+          QR Kodu Tara
+        </button>
+      </div>
+
+      <!-- QR KAMERA MODAL -->
+      <div id="qr-kamera-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:99999;flex-direction:column;align-items:center;justify-content:center;padding:16px;">
+        <div style="color:white;font-size:14px;margin-bottom:14px;text-align:center;">
+          📷 Bilet QR'ini kameraya gösterin<br>
+          <span style="font-size:11px;opacity:.7;">Otomatik okunacak</span>
+        </div>
+        <div id="qr-okuyucu" style="width:100%;max-width:340px;aspect-ratio:1;background:#111;border-radius:12px;overflow:hidden;border:2px solid #7c3aed;"></div>
+        <div id="qr-kamera-durum" style="color:white;font-size:12px;margin-top:10px;min-height:18px;text-align:center;"></div>
+        <button onclick="qrTaraKapat()" style="margin-top:14px;padding:11px 22px;background:transparent;color:white;border:1.5px solid white;border-radius:10px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">Kapat</button>
       </div>
 
       <!-- Sayaç -->
@@ -1859,19 +1881,27 @@ async function dbGetSelect(tablo, kolonlar) {
 // Tur görsellerini ayrıca yükle
 async function loadTurGorselleri(){
   try{
+    const t0 = Date.now();
     const {data, error} = await sb.from('turlar').select('id,gorsel');
     if(error||!data) return;
+    let yuklenen = 0;
     data.forEach(row=>{
       if(!row.gorsel) return;
       const tur = TOURS.find(t=>t.id===row.id);
-      if(tur) tur.img = row.gorsel;
+      if(tur){ tur.img = row.gorsel; yuklenen++; }
     });
-    // Yüklendikten sonra görsel elementlerini güncelle
-    document.querySelectorAll('[data-tur-img]').forEach(el=>{
-      const tid = el.getAttribute('data-tur-img');
-      const tur = TOURS.find(t=>t.id===tid);
-      if(tur?.img) el.src = tur.img;
-    });
+    console.log('Tur görselleri yüklendi:', yuklenen, 'tur,', (Date.now()-t0)+'ms');
+    // Aktif sekme tur sekmesi ise re-render — görseller görünür
+    try {
+      // Yolcu turlar sekmesi açıksa
+      if(typeof CP !== 'undefined' && CP && typeof renderPassTours === 'function'){
+        renderPassTours(CP.sefer);
+      }
+      // Rehber turlar sekmesi açıksa
+      if(typeof renderTA === 'function' && typeof CTSF !== 'undefined'){
+        renderTA(CTSF);
+      }
+    } catch(e) { console.log('Görsel render hatası:', e); }
   }catch(e){ console.log('Gorsel yükleme hatası:', e); }
 }
 
@@ -1963,15 +1993,15 @@ async function initDB() {
       tur_katilim_detay: y.tur_katilim_detay || {}
     }));
 
-    // Turları yükle
+    // Turları yükle (görsel hariç — sonra ayrı çekilir, performans için)
     let turlarDB = [];
-    try { turlarDB = await dbGetSelect('turlar', 'id,ad,liman,saat,gun,tarih,fiyat_yetiskin,fiyat_cocuk,fiyat_bebek,gemi,sefer_listesi,gorsel'); } catch(e) { console.log('turlar hatası:', e); }
+    try { turlarDB = await dbGetSelect('turlar', 'id,ad,liman,saat,gun,tarih,fiyat_yetiskin,fiyat_cocuk,fiyat_bebek,fiyat_normal_yetiskin,fiyat_normal_cocuk,fiyat_normal_bebek,gemi,sefer_listesi,max_kisi,uyari_esigi,aktif,uyari_mesaji,uyari_aktif,sira'); } catch(e) { console.log('turlar hatası:', e); }
     TOURS = turlarDB.map(t => ({
       id: t.id, name: t.ad, liman: t.liman || '',
       saat: t.saat || '', gun: t.gun || 1, tarih: t.tarih || '',
       ap: t.fiyat_yetiskin || 0, cp: t.fiyat_cocuk || 0, bp: t.fiyat_bebek || 0,
       apN: t.fiyat_normal_yetiskin || 0, cpN: t.fiyat_normal_cocuk || 0, bpN: t.fiyat_normal_bebek || 0,
-      ship: t.gemi || '', seferler: t.sefer_listesi || [], img: t.gorsel || null,
+      ship: t.gemi || '', seferler: t.sefer_listesi || [], img: null,
       max_kisi: t.max_kisi || 0, uyari_esigi: t.uyari_esigi || 5,
       aktif: t.aktif !== false,
       uyari_mesaji: t.uyari_mesaji || '',
@@ -2042,8 +2072,9 @@ async function initDB() {
 
     DB_READY = true;
     console.log('Veritabani hazir!');
-    // Görsel yükleme geçici kapalı — tablo optimize edilecek
-    // setTimeout(loadTurGorselleri, 1000);
+    // Tur görsellerini arka planda yükle (lazy load)
+    // Ana veriler hazır → kullanıcı turları görüyor → görseller arkadan gelir
+    setTimeout(loadTurGorselleri, 800);
     populateSeferler();
   } catch(e) {
     console.error('DB init hatasi:', e);
@@ -5047,6 +5078,186 @@ function kabinHizliGeldi(){
     const el=document.getElementById('kontrol-kabin-sonuc');
     if(el)el.innerHTML='';
   }, 2000);
+}
+
+// ══ QR KOD TARAMA — REHBER TARAFI ══
+let _qrTarayici = null;
+let _qrTaramaSayisi = 0;
+let _qrSonOkunan = ''; // Çift okumayı engellemek için
+let _qrSonOkunanZaman = 0;
+
+function qrTaraBaslat(){
+  const tid = document.getElementById('kontrol-tur-sel')?.value;
+  const sid = document.getElementById('kontrol-sefer-sel')?.value;
+  if(!tid||!sid){showToast('Önce tur ve sefer seçin.');return;}
+
+  // html5-qrcode kütüphanesini yükle (sadece bir kez)
+  if(typeof Html5Qrcode === 'undefined'){
+    qrYukleVeBaslat();
+  } else {
+    qrKameraAc();
+  }
+}
+
+function qrYukleVeBaslat(){
+  showToast('⏳ Kamera kütüphanesi yükleniyor...');
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
+  script.onload = () => qrKameraAc();
+  script.onerror = () => showToast('⚠️ Kamera kütüphanesi yüklenemedi (internet?)');
+  document.head.appendChild(script);
+}
+
+function qrKameraAc(){
+  const modal = document.getElementById('qr-kamera-modal');
+  if(!modal) return;
+  modal.style.display = 'flex';
+  const durum = document.getElementById('qr-kamera-durum');
+  if(durum) durum.textContent = 'Kamera başlatılıyor...';
+
+  try {
+    _qrTarayici = new Html5Qrcode('qr-okuyucu');
+    // Önce arka kamerayı dene
+    _qrTarayici.start(
+      { facingMode: 'environment' },
+      {
+        fps: 10,
+        qrbox: { width: 240, height: 240 },
+        aspectRatio: 1.0
+      },
+      qrSonucIsle,
+      () => {} // Hata callback'i sessiz (her frame'de hata gelir, normaldir)
+    ).then(()=>{
+      if(durum) durum.textContent = '🎯 QR kodu çerçeve içine alın';
+    }).catch(e=>{
+      console.error('QR kamera hata:', e);
+      if(durum) durum.textContent = '⚠️ Kamera açılamadı: ' + (e.message || 'Bilinmeyen hata');
+      // Eğer arka kamera olmazsa ön kamerayı dene
+      _qrTarayici.start(
+        true, // herhangi bir kamera
+        { fps: 10, qrbox: { width: 240, height: 240 } },
+        qrSonucIsle,
+        () => {}
+      ).catch(()=>{
+        if(durum) durum.innerHTML = '⚠️ Kameraya erişilemedi.<br><span style="font-size:10px;opacity:.7;">Tarayıcı izni gerekebilir</span>';
+      });
+    });
+  } catch(e) {
+    console.error('QR başlatma hatası:', e);
+    if(durum) durum.textContent = '⚠️ Hata: ' + (e.message || '');
+  }
+}
+
+function qrSonucIsle(decodedText, decodedResult){
+  // Çift okumayı engelle (aynı QR 3 saniye içinde tekrar okunmasın)
+  const simdi = Date.now();
+  if(decodedText === _qrSonOkunan && (simdi - _qrSonOkunanZaman) < 3000) return;
+  _qrSonOkunan = decodedText;
+  _qrSonOkunanZaman = simdi;
+
+  // Kısa titreşim (telefonda)
+  try{ if(navigator.vibrate) navigator.vibrate(100); }catch(e){}
+
+  // QR içindeki URL'den parametreleri al
+  let kabin, sefer, tid;
+  try {
+    const url = new URL(decodedText);
+    kabin = url.searchParams.get('k');
+    sefer = url.searchParams.get('s');
+    tid = url.searchParams.get('t');
+  } catch(e){
+    qrSonucGoster('hata', 'Geçersiz QR kod', 'Bu bir VOYAGO bileti değil.');
+    return;
+  }
+
+  if(!kabin || !sefer || !tid){
+    qrSonucGoster('hata', 'Eksik bilgi', 'QR kodda gerekli bilgiler bulunamadı.');
+    return;
+  }
+
+  // Şu anda seçili tur/sefer ile eşleşiyor mu?
+  const seciliTid = document.getElementById('kontrol-tur-sel')?.value;
+  const seciliSid = document.getElementById('kontrol-sefer-sel')?.value;
+
+  // Yolcuyu bul
+  const p = passengers.find(x=>x.kabin===kabin && x.sefer===sefer);
+  if(!p){
+    qrSonucGoster('hata', 'Yolcu bulunamadı', 'Kabin: '+kabin);
+    return;
+  }
+
+  const t = TOURS.find(x=>x.id===tid);
+  if(!t){
+    qrSonucGoster('hata', 'Tur bulunamadı', '');
+    return;
+  }
+
+  // Bu turda kayıtlı mı?
+  if(!p.joinedTours.includes(tid)){
+    qrSonucGoster('hata', 'Bu Turda Yok!', p.name + ' (Kabin '+kabin+') bu tura kayıtlı değil.\nTur: ' + t.name);
+    return;
+  }
+
+  // Farklı turun bileti mi?
+  const farkliTur = (tid !== seciliTid);
+
+  // Kayıt et
+  const key = kabin+'_'+sefer+'_'+tid;
+  const oncedenGeldi = kontrolDurum[key] === 1;
+  kontrolDurum[key] = 1;
+  _qrTaramaSayisi++;
+
+  // Ekrandaki sayacı güncelle
+  const sayac = document.getElementById('qr-tara-sayac');
+  if(sayac) sayac.textContent = '✓ ' + _qrTaramaSayisi + ' bilet okundu';
+
+  // Sonuç ekranı
+  const det = (p.tur_katilim_detay && p.tur_katilim_detay[tid]) || null;
+  const kisi = det ? det.kisi : ((p.adult||0)+(p.child||0)+(p.baby||0));
+
+  if(oncedenGeldi){
+    qrSonucGoster('uyari', '⚠️ Zaten Geldi', p.name + '\nKabin '+kabin+' · '+kisi+' kişi\n'+t.name + (farkliTur ? '\n\n(Farklı turun bileti — bu tura ait değil)' : ''));
+  } else {
+    qrSonucGoster('basari', '✅ '+p.name, 'Kabin '+kabin+' · '+kisi+' kişi\n'+t.name + (farkliTur ? '\n\n⚠️ Farklı turun bileti! Yine de işaretlendi.' : ''));
+  }
+
+  // Render güncelle
+  renderKontrolListesi();
+}
+
+function qrSonucGoster(tip, baslik, icerik){
+  const durum = document.getElementById('qr-kamera-durum');
+  if(!durum) return;
+  let renk, bg;
+  if(tip === 'basari'){ renk = '#10b981'; bg = 'rgba(16,185,129,.15)'; }
+  else if(tip === 'uyari'){ renk = '#f59e0b'; bg = 'rgba(245,158,11,.15)'; }
+  else { renk = '#ef4444'; bg = 'rgba(239,68,68,.15)'; }
+
+  durum.innerHTML = `
+    <div style="background:${bg};border:1.5px solid ${renk};border-radius:10px;padding:10px 14px;color:white;text-align:left;">
+      <div style="font-weight:700;font-size:14px;color:${renk};margin-bottom:3px;">${baslik}</div>
+      <div style="font-size:11px;line-height:1.5;white-space:pre-line;">${icerik}</div>
+    </div>
+  `;
+
+  // 2.5 saniye sonra geri normale dön (sıradaki bilete hazır)
+  setTimeout(()=>{
+    if(durum && document.getElementById('qr-kamera-modal')?.style.display === 'flex'){
+      durum.textContent = '🎯 Sıradaki QR\'ı gösterin';
+    }
+  }, 2500);
+}
+
+function qrTaraKapat(){
+  const modal = document.getElementById('qr-kamera-modal');
+  if(modal) modal.style.display = 'none';
+  // Kamerayı durdur
+  if(_qrTarayici){
+    _qrTarayici.stop().then(()=>{
+      _qrTarayici.clear();
+      _qrTarayici = null;
+    }).catch(()=>{ _qrTarayici = null; });
+  }
 }
 
 function turListesiKopyala(tip){
