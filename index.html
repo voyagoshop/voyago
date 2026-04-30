@@ -9096,22 +9096,22 @@ function tkFormYazdir(kabin, sefer, tid){
   }
   @media print {
     .yazdir-btn { display: none; }
-    body { padding: 3mm 5mm 4mm 9mm; }
+    body { padding: 3mm 5mm 3mm 9mm; }
   }
 </style>
 </head>
 <body>
 <button class="yazdir-btn" onclick="window.print()">🖨️ Yazdır</button>
 
-<!-- Logo -->
-<div class="merkez dev">VOYAGO</div>
-<div class="merkez kucuk kalin">TUR KATILIM FORMU</div>
-<div class="merkez ufak">${formNo}</div>
+<!-- Header -->
+<div class="merkez kucuk kalin">VOYAGO</div>
+<div class="merkez ufak">Gemi Rehber Uygulaması</div>
+<div class="merkez ufak">TUR KATILIM FORMU</div>
+<div class="merkez ufak" style="margin-top:1mm;">${formNo}</div>
 
 <hr class="kalın">
 
-<!-- SEFER BİLGİLERİ -->
-<div class="bolum-baslik">SEFER BİLGİLERİ</div>
+<!-- Sefer / Gemi -->
 <div class="satir">
   <span class="lbl">Gemi:</span>
   <span class="val">${escapeHTML(gemi || '—')}</span>
@@ -9120,93 +9120,73 @@ function tkFormYazdir(kabin, sefer, tid){
   <span class="lbl">Sefer:</span>
   <span class="val ufak">${escapeHTML(seferAdi)}</span>
 </div>
-${seferTarih ? `<div class="satir">
-  <span class="lbl">Tarih:</span>
-  <span class="val">${escapeHTML(seferTarih)}</span>
-</div>` : ''}
 
-<!-- TUR BİLGİLERİ -->
-<div class="bolum-baslik">TUR BİLGİLERİ</div>
-<div class="kalin buyuk merkez" style="margin-bottom: 2mm;">${escapeHTML(t.name)}</div>
-<div class="satir">
-  <span class="lbl">Liman:</span>
-  <span class="val">${escapeHTML(t.liman || '—')}</span>
-</div>
-<div class="satir">
-  <span class="lbl">Tarih:</span>
-  <span class="val">${escapeHTML(turGun || '—')}</span>
-</div>
+<hr class="cizgi">
 
-<!-- Toplanma Saati - Vurgu -->
-<div class="vurgu">
-  <div class="ust">⏰ TOPLANMA SAATİ</div>
-  <div class="alt">${escapeHTML(t.saat || '—')}</div>
-</div>
+<!-- Tur adı (büyük ortada) -->
+<div class="kalin merkez" style="font-size: 13pt; margin: 1mm 0;">${escapeHTML(t.name)}</div>
+<div class="merkez ufak" style="margin-bottom: 2mm;">📍 ${escapeHTML(t.liman || '—')} · ${escapeHTML(turGun || '')}</div>
 
-<!-- YOLCU BİLGİLERİ -->
-<div class="bolum-baslik">YOLCU BİLGİLERİ</div>
-<div class="kalin buyuk">${escapeHTML(p.name)}</div>
+<hr class="cizgi">
+
+<!-- Yolcu -->
+<div class="kalin" style="font-size: 12pt; margin-bottom:1mm;">${escapeHTML(p.name)}</div>
 <div class="satir">
-  <span class="lbl">Kabin No:</span>
+  <span class="lbl">Kabin:</span>
   <span class="val">${escapeHTML(p.kabin)}</span>
 </div>
 ${p.tel ? `<div class="satir">
-  <span class="lbl">Telefon:</span>
+  <span class="lbl">Tel:</span>
   <span class="val ufak">${escapeHTML(p.tel)}</span>
 </div>` : ''}
 
-<!-- Katılımcı Sayısı -->
+<!-- Katılımcı + Ücret birleşik -->
 <div class="kutu">
-  <div class="merkez kucuk">KATILIMCI SAYISI</div>
-  <div class="merkez kalin" style="font-size: 16pt; margin: 1mm 0;">${kisi} KİŞİ</div>
-  <div class="merkez ufak">${kisiDet.join(' · ') || '—'}</div>
+  <div class="merkez kalin" style="font-size: 14pt;">${kisi} KİŞİ</div>
+  <div class="merkez ufak" style="margin-bottom:1mm;">${kisiDet.join(' · ') || '—'}</div>
+  ${yet>0 ? `<div class="satir ufak">
+    <span>Yetişkin (${yet} × €${t.ap}):</span>
+    <span>€${yet*t.ap}</span>
+  </div>` : ''}
+  ${coc>0 ? `<div class="satir ufak">
+    <span>Çocuk (${coc} × €${t.cp}):</span>
+    <span>€${coc*t.cp}</span>
+  </div>` : ''}
+  ${beb>0 ? `<div class="satir ufak">
+    <span>Bebek (${beb} × €${t.bp}):</span>
+    <span>€${beb*t.bp}</span>
+  </div>` : ''}
 </div>
-
-<!-- Ücret Detayı -->
-<div class="bolum-baslik">ÜCRET DETAYI</div>
-${yet>0 ? `<div class="satir">
-  <span class="lbl">Yetişkin (${yet} × €${t.ap}):</span>
-  <span class="val">€${yet*t.ap}</span>
-</div>` : ''}
-${coc>0 ? `<div class="satir">
-  <span class="lbl">Çocuk (${coc} × €${t.cp}):</span>
-  <span class="val">€${coc*t.cp}</span>
-</div>` : ''}
-${beb>0 ? `<div class="satir">
-  <span class="lbl">Bebek (${beb} × €${t.bp}):</span>
-  <span class="val">€${beb*t.bp}</span>
-</div>` : ''}
 
 <!-- Toplam Ücret - Vurgu -->
 <div class="vurgu">
-  <div class="ust">TOPLAM ÜCRET</div>
+  <div class="ust">TOPLAM</div>
   <div class="alt">€ ${ucret}</div>
 </div>
 
-<!-- ELEKTRONİK ONAY -->
-<div class="bolum-baslik">ELEKTRONİK ONAY</div>
-<div class="kucuk">İmza:</div>
-<div class="kalin" style="font-size: 10pt; margin: 1mm 0;">${escapeHTML(eimza)}</div>
-<div class="ufak">Onay: ${escapeHTML(onay)}</div>
+<!-- Ödeme Bildirimi -->
+<div style="border:2px solid #000;padding:2mm 3mm;margin:2mm 0;text-align:center;">
+  <div class="kalin kucuk">💳 Lütfen ödemeyi</div>
+  <div class="kalin" style="font-size:13pt;margin:1mm 0;">RESEPSİYONA</div>
+  <div class="kalin kucuk">yapınız</div>
+</div>
+
+<!-- Elektronik Onay (kısa) -->
+<hr class="cizgi">
+<div class="ufak merkez">
+  <span class="kalin">✓ Elektronik Onay:</span> ${escapeHTML(eimza)}<br>
+  <span style="opacity:.75;">${escapeHTML(onay)}</span>
+</div>
 
 <!-- KOŞULLAR -->
 <hr class="cizgi">
 <div class="ufak" style="line-height: 1.4;">
-  <div class="kalin merkez" style="margin-bottom: 2mm;">⚠️ KOŞULLAR</div>
+  <div class="kalin merkez" style="margin-bottom: 1mm;">⚠️ KOŞULLAR</div>
   • Bu form ile tura katılımınızı onaylamış olursunuz.<br>
   • İptal için rehberinizle görüşünüz.<br>
   • Buluşma saatinden 10 dk önce ana toplanma noktasında olun.<br>
   • Tur sürecinde rehberinizden ayrılmayın.<br>
   • Tura katılmama durumunda ücret iadesi yapılmaz.
-</div>
-
-<hr class="cizgi">
-
-<!-- Footer -->
-<div class="merkez ufak">
-  ${escapeHTML(new Date().toLocaleString('tr-TR'))}<br>
-  voyagoshop@gmail.com<br><br>
-  <span class="kalin">VOYAGO 🚢</span>
 </div>
 
 <sc${''}ript>
