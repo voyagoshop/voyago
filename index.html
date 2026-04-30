@@ -6,6 +6,7 @@
 <title>VOYAGO</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
@@ -1214,7 +1215,7 @@ textarea.ai2{resize:none;}
       <div class="fs2" style="margin-top:14px;">
         <div class="fst">Yeni Tur Ekle</div>
         <input class="ai2" type="text" id="ntn" placeholder="Tur adı">
-        <div class="two"><div><label class="fl" style="margin-bottom:3px;">Liman</label><input class="ai2" type="text" id="ntl" placeholder="Pire / Atina" style="margin:0;"></div><div><label class="fl" style="margin-bottom:3px;">Gün</label><select class="fs" id="ntgun" style="height:40px;"><option value="1">1. Gün</option><option value="2">2. Gün</option><option value="3">3. Gün</option><option value="4">4. Gün</option><option value="5">5. Gün</option><option value="6">6. Gün</option><option value="7">7. Gün</option></select></div></div>
+        <div class="two"><div><label class="fl" style="margin-bottom:3px;">Liman</label><input class="ai2" type="text" id="ntl" placeholder="Pire / Atina" style="margin:0;"></div><div><label class="fl" style="margin-bottom:3px;">Tarih</label><input class="ai2" type="date" id="nttarih" style="margin:0;height:40px;"></div></div>
         <div class="two" style="margin-top:8px;"><div><label class="fl" style="margin-bottom:3px;">Toplanma</label><input class="ai2" type="time" id="nts" value="09:00" style="margin:0;"></div><div><label class="fl" style="margin-bottom:3px;">Sefer</label><select class="fs" id="ntse" style="height:40px;"></select></div></div>
         <div class="pic" style="margin-top:10px;">
           <div style="grid-column:1/-1;font-size:11px;font-weight:600;color:var(--blue);margin-bottom:2px;">İNDİRİMLİ FİYAT (Yolcuya Gösterilen)</div>
@@ -1964,10 +1965,10 @@ async function initDB() {
 
     // Turları yükle
     let turlarDB = [];
-    try { turlarDB = await dbGetSelect('turlar', 'id,ad,liman,saat,gun,fiyat_yetiskin,fiyat_cocuk,fiyat_bebek,gemi,sefer_listesi,gorsel'); } catch(e) { console.log('turlar hatası:', e); }
+    try { turlarDB = await dbGetSelect('turlar', 'id,ad,liman,saat,gun,tarih,fiyat_yetiskin,fiyat_cocuk,fiyat_bebek,gemi,sefer_listesi,gorsel'); } catch(e) { console.log('turlar hatası:', e); }
     TOURS = turlarDB.map(t => ({
       id: t.id, name: t.ad, liman: t.liman || '',
-      saat: t.saat || '', gun: t.gun || 1,
+      saat: t.saat || '', gun: t.gun || 1, tarih: t.tarih || '',
       ap: t.fiyat_yetiskin || 0, cp: t.fiyat_cocuk || 0, bp: t.fiyat_bebek || 0,
       apN: t.fiyat_normal_yetiskin || 0, cpN: t.fiyat_normal_cocuk || 0, bpN: t.fiyat_normal_bebek || 0,
       ship: t.gemi || '', seferler: t.sefer_listesi || [], img: t.gorsel || null,
@@ -2082,7 +2083,7 @@ async function saveTurDB(tur) {
   const mevcut = await dbGet('turlar', {id: tur.id});
   const veri = {
     id: tur.id, ad: tur.name, liman: tur.liman,
-    saat: tur.saat, gun: tur.gun,
+    saat: tur.saat, gun: tur.gun, tarih: tur.tarih || null,
     fiyat_yetiskin: tur.ap, fiyat_cocuk: tur.cp, fiyat_bebek: tur.bp,
     fiyat_normal_yetiskin: tur.apN||0, fiyat_normal_cocuk: tur.cpN||0, fiyat_normal_bebek: tur.bpN||0,
     gemi: tur.ship, sefer_listesi: tur.seferler,
@@ -2784,7 +2785,7 @@ function renderPassTours(sv){
       </div>
       <div class="ti-body">
         <div class="th2"><div><div class="tn">${t.name}</div><span class="badge ${j?'bg':'bb'}" style="margin-top:4px;">${j?'Katiliyorum':'Katilmiyorum'}</span></div><div class="tpr">E${t.ap}</div></div>
-        <div class="td">&#128205; ${t.liman} &nbsp;·&nbsp; Toplanti: ${t.saat} &nbsp;·&nbsp; ${t.gun}. gün</div>
+        <div class="td">&#128205; ${t.liman} &nbsp;·&nbsp; Toplanti: ${t.saat} &nbsp;·&nbsp; ${t.tarih ? new Date(t.tarih).toLocaleDateString('tr-TR') : (t.gun?t.gun+'. gün':'')}</div>
         <div class="tpc">Toplam: <span>E${total}</span><br><span style="font-size:10px;color:var(--t3);">${det.join(' + ')}</span></div>
         ${(typeof BROSURLER !== 'undefined' && BROSURLER && BROSURLER[t.id]) ? `<button class="br-buton" onclick="event.stopPropagation();brAc('${t.id}')">📖 Tur Broşürünü Görüntüle</button>` : ''}
         ${j
@@ -2852,7 +2853,7 @@ function turDetayAc(tid){
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
       <span style="background:var(--bl);color:#0c447c;padding:4px 12px;border-radius:20px;font-size:12px;">📍 ${t.liman}</span>
       <span style="background:var(--bl);color:#0c447c;padding:4px 12px;border-radius:20px;font-size:12px;">⏰ ${t.saat}</span>
-      <span style="background:var(--bl);color:#0c447c;padding:4px 12px;border-radius:20px;font-size:12px;">${t.gun}. Gün</span>
+      <span style="background:var(--bl);color:#0c447c;padding:4px 12px;border-radius:20px;font-size:12px;">${t.tarih ? '📅 '+new Date(t.tarih).toLocaleDateString('tr-TR') : (t.gun?t.gun+'. Gün':'')}</span>
     </div>
     ${kapasiteHtml}
     <div style="background:var(--gray);border-radius:12px;padding:14px;margin-bottom:16px;">
@@ -3748,7 +3749,7 @@ function renderTA(s){
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
           <div style="flex:1;">
             <div style="font-size:14px;font-weight:500;color:var(--t);">${t.name}</div>
-            <div style="font-size:11px;color:var(--t2);margin-top:2px;">📍 ${t.liman} · ${t.saat} · ${t.gun}. gün</div>
+            <div style="font-size:11px;color:var(--t2);margin-top:2px;">📍 ${t.liman} · ${t.saat} · ${t.tarih ? new Date(t.tarih).toLocaleDateString('tr-TR') : (t.gun?t.gun+'. gün':'')}</div>
             ${maxK>0?`<div style="font-size:11px;margin-top:3px;color:${turDolu?'var(--red)':sonYerUyari?'var(--amber)':'var(--green)'};">
               ${turDolu?'🔴 Tur dolu':''}
               ${sonYerUyari&&!turDolu?`⚠️ Son ${kalanYer} yer kaldı!`:''}
@@ -3918,7 +3919,8 @@ function turDuzenle(tid){
   document.getElementById('ntn').value=t.name;
   document.getElementById('ntl').value=t.liman||'';
   document.getElementById('nts').value=t.saat||'';
-  document.getElementById('ntgun').value=t.gun||1;
+  const tarihEl=document.getElementById('nttarih');
+  if(tarihEl) tarihEl.value=t.tarih||'';
   document.getElementById('nta').value=t.ap||'';
   document.getElementById('ntc').value=t.cp||'';
   document.getElementById('ntb').value=t.bp||'';
@@ -3945,7 +3947,8 @@ function addTourGuncelle(){
   t.name=document.getElementById('ntn').value.trim()||t.name;
   t.liman=document.getElementById('ntl').value.trim()||t.liman;
   t.saat=document.getElementById('nts').value||t.saat;
-  t.gun=parseInt(document.getElementById('ntgun').value)||t.gun;
+  const yeniTarih=document.getElementById('nttarih')?.value;
+  if(yeniTarih) t.tarih=yeniTarih;
   t.ap=parseFloat(document.getElementById('nta').value)||t.ap;
   t.cp=parseFloat(document.getElementById('ntc').value)||t.cp;
   const apNv=parseFloat(document.getElementById('nta-normal')?.value);
@@ -4017,7 +4020,7 @@ function addTour(){
   const name=document.getElementById('ntn').value.trim();
   const liman=document.getElementById('ntl').value.trim();
   const saat=document.getElementById('nts').value;
-  const gun=parseInt(document.getElementById('ntgun').value)||1;
+  const tarih=document.getElementById('nttarih')?.value||'';
   const ap=parseFloat(document.getElementById('nta').value)||0;
   const cp=parseFloat(document.getElementById('ntc').value)||0;
   const bp=parseFloat(document.getElementById('ntb').value)||0;
@@ -4034,13 +4037,14 @@ function addTour(){
   const mevcutTurlar = TOURS.filter(t=>t.ship===activeShip||!t.ship);
   const maksSira = mevcutTurlar.reduce((m,t)=>Math.max(m, (t.sira!=null?t.sira:-1)), -1);
   const yeniSira = maksSira + 1;
-  TOURS.push({id:'t'+Date.now(),name,liman,saat,gun,ap,cp,bp,
+  TOURS.push({id:'t'+Date.now(),name,liman,saat,tarih,ap,cp,bp,
     apN,cpN,bpN,
     ship:activeShip,seferler:sefer?[sefer]:[],img:newTurImg,
     max_kisi:maxKisi,uyari_esigi:uyariEsigi,aktif:true,
     sira: yeniSira});
   newTurImg=null;
   ['ntn','ntl','nta','ntc','ntb'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const tarihRst=document.getElementById('nttarih');if(tarihRst)tarihRst.value='';
   const mkEl=document.getElementById('nt-max-kisi');if(mkEl)mkEl.value='';
   document.getElementById('tur-img-preview').innerHTML='📷 Görsel ekle';
   const yeniTur=TOURS[TOURS.length-1];
@@ -8787,7 +8791,7 @@ function tkFormYazdir(kabin, sefer, tid){
   const onay = det ? new Date(det.onay_zamani).toLocaleString('tr-TR') : '—';
   const eimza = det ? det.e_imza : p.name+' (Kabin '+p.kabin+')';
 
-  const turGun = t.gun ? t.gun + '. Gün' : '';
+  const turGun = t.tarih ? new Date(t.tarih).toLocaleDateString('tr-TR') : (t.gun ? t.gun + '. Gün' : '');
   const seferAdi = v ? (v.label || '') : '';
   const gemi = v ? (v.ship || '') : '';
   const seferTarih = v ? ((v.start_date||'') + (v.end_date?(' — '+v.end_date):'')) : '';
@@ -8918,7 +8922,7 @@ ${seferTarih ? `<div class="satir">
   <span class="val">${escapeHTML(t.liman || '—')}</span>
 </div>
 <div class="satir">
-  <span class="lbl">Gün:</span>
+  <span class="lbl">Tarih:</span>
   <span class="val">${escapeHTML(turGun || '—')}</span>
 </div>
 
@@ -9009,45 +9013,30 @@ ${beb>0 ? `<div class="satir">
   showToast('📄 Form açılıyor...');
 }
 
-// ── TERMAL BİLET (80mm rolik kâğıt) ──
+// ── TERMAL BİLET (80mm × ~14cm — kompakt, QR kod ile katılım onayı) ──
 function tkBiletYazdir(kabin, sefer, tid){
   const p = passengers.find(x=>x.kabin===kabin && x.sefer===sefer);
   const t = TOURS.find(x=>x.id===tid);
   const v = VOYAGES.find(x=>x.id===sefer);
   if(!p || !t){ showToast('Yolcu/tur bulunamadı'); return; }
 
-  const det = (p.tur_katilim_detay && p.tur_katilim_detay[tid]) || null;
-  const yet = det ? det.yetiskin : (p.adult||0);
-  const coc = det ? det.cocuk : (p.child||0);
-  const beb = det ? det.bebek : (p.baby||0);
-  const kisi = yet + coc + beb;
-  const ucret = det ? det.ucret : ((yet*t.ap)+(coc*t.cp)+(beb*t.bp));
-
-  // Kişi sayısı detayı
-  const kisiDet = [];
-  if(yet>0) kisiDet.push(yet+' Yetişkin');
-  if(coc>0) kisiDet.push(coc+' Çocuk');
-  if(beb>0) kisiDet.push(beb+' Bebek');
-
-  // Bilet numarası — tarih + kabin + tur ID son 4 hane
+  // Bilet numarası
   const tarihStr = new Date().toLocaleDateString('tr-TR').replace(/\./g,'');
   const tidSon4 = String(tid).slice(-4);
   const biletNo = tarihStr + '-' + kabin + '-' + tidSon4;
 
-  const seferAdi = v ? (v.label || '') : '';
+  // QR kod URL — yolcu fiili katılım onayı sayfasına yönlendirir
+  const qrUrl = window.location.origin + window.location.pathname + '?qr=' + encodeURIComponent(biletNo) + '&k=' + encodeURIComponent(kabin) + '&s=' + encodeURIComponent(sefer) + '&t=' + encodeURIComponent(tid);
+
   const gemi = v ? (v.ship || '') : '';
-  const turGun = t.gun ? t.gun + '. Gün' : '';
-  const turSaat = t.saat || '—';
-  const turLiman = t.liman || '';
-  const simdiTarih = new Date().toLocaleString('tr-TR');
 
   const html = `<!DOCTYPE html>
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
 <title>Bilet — ${escapeHTML(p.name)}</title>
+<sc${''}ript src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></sc${''}ript>
 <style>
-  /* 80mm termal kâğıt — yazılabilir alan ~72mm */
   @page {
     size: 80mm auto;
     margin: 0;
@@ -9063,34 +9052,18 @@ function tkBiletYazdir(kabin, sefer, tid){
   }
   body { padding: 4mm 6mm 4mm 10mm; }
   .merkez { text-align: center; }
-  .sag { text-align: right; }
   .kalin { font-weight: 700; }
-  .buyuk { font-size: 14pt; font-weight: 700; }
-  .dev { font-size: 18pt; font-weight: 700; letter-spacing: 1px; }
   .kucuk { font-size: 9pt; }
   .ufak { font-size: 8pt; }
-  hr.cizgi { border: 0; border-top: 1px dashed #000; margin: 4mm 0; }
-  hr.kalın { border: 0; border-top: 2px solid #000; margin: 3mm 0; }
-  .satir { display: flex; justify-content: space-between; align-items: baseline; margin: 1mm 0; }
-  .satir .lbl { font-size: 9pt; }
-  .satir .val { font-size: 11pt; font-weight: 700; }
-  .kutu {
-    border: 2px solid #000;
-    padding: 2mm 3mm;
-    margin: 2mm 0;
+  hr.cizgi { border: 0; border-top: 1px dashed #000; margin: 3mm 0; }
+  hr.kalın { border: 0; border-top: 2px solid #000; margin: 2mm 0; }
+  .qr-container {
     text-align: center;
+    margin: 3mm 0;
   }
-  .kutu .ust { font-size: 9pt; }
-  .kutu .alt { font-size: 16pt; font-weight: 700; letter-spacing: 1px; margin-top: 1mm; }
-  .vurgu {
-    background: #000;
-    color: #fff;
-    padding: 2mm;
-    text-align: center;
-    margin: 2mm 0;
+  .qr-container canvas, .qr-container img {
+    margin: 0 auto;
   }
-  .vurgu .ust { font-size: 9pt; opacity: .85; }
-  .vurgu .alt { font-size: 16pt; font-weight: 700; }
   .yazdir-btn {
     position: fixed;
     top: 8px;
@@ -9114,87 +9087,55 @@ function tkBiletYazdir(kabin, sefer, tid){
 <body>
 <button class="yazdir-btn" onclick="window.print()">🖨️ Yazdır</button>
 
-<!-- Logo -->
-<div class="merkez dev">VOYAGO</div>
-<div class="merkez kucuk">Tur Bileti</div>
+<!-- Header -->
+<div class="merkez kucuk kalin">VOYAGO</div>
+<div class="merkez ufak">Gemi Rehber Uygulaması</div>
+${gemi ? `<div class="merkez ufak">${escapeHTML(gemi)}</div>` : ''}
 
 <hr class="kalın">
 
-<!-- Tur Adı -->
-<div class="merkez kalin buyuk" style="margin: 2mm 0;">${escapeHTML(t.name)}</div>
-${turLiman ? `<div class="merkez kucuk">📍 ${escapeHTML(turLiman)}</div>` : ''}
+<!-- Tur adı -->
+<div class="merkez kalin" style="font-size: 12pt; margin: 2mm 0;">${escapeHTML(t.name)}</div>
 
 <hr class="cizgi">
 
-<!-- Tarih ve Saat -->
-<div class="vurgu">
-  <div class="ust">📅 ${turGun || 'Tur Tarihi'}</div>
-  <div class="alt">⏰ ${escapeHTML(turSaat)}</div>
+<!-- Yolcu -->
+<div class="kalin" style="font-size: 11pt; margin: 1mm 0;">${escapeHTML(p.name)}</div>
+<div style="display: flex; justify-content: space-between; margin: 1mm 0;">
+  <span class="kucuk">Kabin No:</span>
+  <span class="kalin" style="font-size: 11pt;">${escapeHTML(p.kabin)}</span>
 </div>
 
 <hr class="cizgi">
 
-<!-- Yolcu Bilgileri -->
-<div class="kucuk">YOLCU</div>
-<div class="kalin buyuk">${escapeHTML(p.name)}</div>
-<div class="satir">
-  <span class="lbl">Kabin:</span>
-  <span class="val">${escapeHTML(p.kabin)}</span>
-</div>
-<div class="satir">
-  <span class="lbl">Sefer:</span>
-  <span class="val ufak">${escapeHTML(seferAdi)}</span>
-</div>
-${gemi ? `<div class="satir">
-  <span class="lbl">Gemi:</span>
-  <span class="val">${escapeHTML(gemi)}</span>
-</div>` : ''}
-
-<hr class="cizgi">
-
-<!-- Kişi Detayı -->
-<div class="kutu">
-  <div class="ust">KATILIMCILAR</div>
-  <div class="alt">${kisi} KİŞİ</div>
-  <div class="kucuk" style="margin-top: 1mm;">${kisiDet.join(' · ') || '—'}</div>
-</div>
-
-<!-- Ücret -->
-<div class="vurgu">
-  <div class="ust">TOPLAM ÜCRET</div>
-  <div class="alt">€ ${ucret}</div>
+<!-- QR Kod -->
+<div class="qr-container">
+  <div id="qrcode"></div>
+  <div class="ufak" style="margin-top: 2mm;">Rehbere okutunuz</div>
 </div>
 
 <hr class="cizgi">
 
 <!-- Bilet No -->
-<div class="merkez kucuk" style="margin: 3mm 0;">
-  Bilet No: <span class="kalin">${biletNo}</span>
-</div>
-
-<!-- Önemli Notlar -->
-<hr class="cizgi">
-<div class="ufak" style="line-height: 1.4;">
-  <div class="kalin merkez" style="margin-bottom: 2mm;">⚠️ ÖNEMLİ</div>
-  • Buluşma saatinden 10 dk önce ana toplanma noktasında olun.<br>
-  • Bu bileti rehberinize göstermeniz gerekir.<br>
-  • Tur sürecinde rehberinizden ayrılmayın.
-</div>
-
-<hr class="cizgi">
-
-<!-- Footer -->
 <div class="merkez ufak">
-  ${simdiTarih}<br>
-  voyagoshop@gmail.com<br>
-  <br>
-  <span class="kalin">İYİ TURLAR DİLERİZ! 🚢</span>
+  ${biletNo}
 </div>
 
 <sc${''}ript>
-  // Otomatik yazdırma diyaloğu aç
+  // QR kod oluştur
   window.addEventListener('load', () => {
-    setTimeout(() => window.print(), 500);
+    try {
+      new QRCode(document.getElementById('qrcode'), {
+        text: ${JSON.stringify(qrUrl)},
+        width: 130,
+        height: 130,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    } catch(e) { console.error('QR kod oluşturulamadı:', e); }
+    // Yazdırma diyaloğunu QR oluştuktan sonra aç
+    setTimeout(() => window.print(), 800);
   });
 </sc${''}ript>
 </body>
@@ -10158,6 +10099,190 @@ function piToggle(e){
     else cb.classList.remove('aktif');
   }
 }
+
+// ══ QR KOD KATILIM ONAYI ══
+// Rehber QR'i okutunca buraya yönlendirilir → onay modal'ı açılır
+async function qrKatilimKontrol(){
+  const url = new URL(window.location.href);
+  const qr = url.searchParams.get('qr');
+  const k = url.searchParams.get('k');
+  const s = url.searchParams.get('s');
+  const t = url.searchParams.get('t');
+  if(!qr || !k || !s || !t) return;
+
+  // DB hazır olmasını bekle (max 8 sn)
+  if(!DB_READY){
+    const start = Date.now();
+    while(!DB_READY && (Date.now() - start) < 8000){
+      await new Promise(r=>setTimeout(r, 100));
+    }
+  }
+
+  // Yolcu, tur ve sefer bilgisini çek
+  const p = passengers.find(x=>x.kabin===k && x.sefer===s);
+  const tur = TOURS.find(x=>x.id===t);
+  const v = VOYAGES.find(x=>x.id===s);
+
+  if(!p || !tur){
+    qrModalGoster({
+      hata: true,
+      baslik: '❌ Bilet Bulunamadı',
+      icerik: 'Bu bilete ait yolcu veya tur sistemde bulunamadı.<br><br>Bilet kodu: <b>' + qr + '</b>'
+    });
+    return;
+  }
+
+  const det = (p.tur_katilim_detay && p.tur_katilim_detay[t]) || null;
+  const kisi = det ? det.kisi : ((p.adult||0)+(p.child||0)+(p.baby||0));
+  const fiili = det && det.fiili_katilim ? true : false;
+  const fiiliZaman = det && det.fiili_katilim_zamani ? new Date(det.fiili_katilim_zamani).toLocaleString('tr-TR') : '';
+
+  qrModalGoster({
+    yolcu: p, tur: tur, sefer: v, qr: qr, kisi: kisi, fiili: fiili, fiiliZaman: fiiliZaman
+  });
+}
+
+function qrModalGoster(data){
+  // Mevcut bir QR modal varsa kaldır
+  const eski = document.getElementById('qr-onay-modal');
+  if(eski) eski.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'qr-onay-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(8px);';
+
+  let icerik;
+  if(data.hata){
+    icerik = `
+      <div style="text-align:center;padding:30px 20px;">
+        <div style="font-size:60px;margin-bottom:12px;">❌</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:22px;color:#dc2626;margin-bottom:10px;">${data.baslik}</div>
+        <div style="font-size:13px;color:#666;line-height:1.6;margin-bottom:20px;">${data.icerik}</div>
+        <button onclick="qrModalKapat()" style="width:100%;padding:14px;background:#dc2626;color:white;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">Kapat</button>
+      </div>
+    `;
+  } else if(data.fiili){
+    // Zaten katıldı işaretlenmiş
+    icerik = `
+      <div style="text-align:center;padding:24px 18px;">
+        <div style="font-size:60px;margin-bottom:8px;">✅</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:22px;color:#16a34a;margin-bottom:6px;">Zaten Katıldı</div>
+        <div style="font-size:11px;color:#888;margin-bottom:16px;">Bu yolcu daha önce katılım onayı aldı</div>
+
+        <div style="background:#f0fdf4;border:2px solid #16a34a;border-radius:12px;padding:14px;margin-bottom:14px;text-align:left;">
+          <div style="font-size:11px;color:#15803d;text-transform:uppercase;font-weight:600;margin-bottom:4px;">Yolcu</div>
+          <div style="font-size:16px;font-weight:700;color:#1a1a1a;">${escapeHTML(data.yolcu.name)}</div>
+          <div style="font-size:12px;color:#666;margin-top:2px;">Kabin ${data.yolcu.kabin} · ${data.kisi} kişi</div>
+
+          <div style="font-size:11px;color:#15803d;text-transform:uppercase;font-weight:600;margin:10px 0 4px;">Tur</div>
+          <div style="font-size:14px;font-weight:600;color:#1a1a1a;">${escapeHTML(data.tur.name)}</div>
+
+          <div style="font-size:11px;color:#15803d;text-transform:uppercase;font-weight:600;margin:10px 0 4px;">Onay Zamanı</div>
+          <div style="font-size:13px;color:#1a1a1a;">${escapeHTML(data.fiiliZaman)}</div>
+        </div>
+
+        <button onclick="qrModalKapat()" style="width:100%;padding:14px;background:#16a34a;color:white;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">Tamam</button>
+      </div>
+    `;
+  } else {
+    // Onay bekliyor
+    icerik = `
+      <div style="padding:24px 18px;">
+        <div style="text-align:center;margin-bottom:14px;">
+          <div style="font-size:50px;margin-bottom:6px;">🎫</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:20px;color:#1a1a1a;">Tur Katılım Onayı</div>
+          <div style="font-size:11px;color:#888;margin-top:2px;">Bu bilet doğru mu?</div>
+        </div>
+
+        <div style="background:#f5f5f3;border-radius:12px;padding:14px;margin-bottom:14px;">
+          <div style="font-size:11px;color:#888;text-transform:uppercase;font-weight:600;margin-bottom:4px;">Yolcu</div>
+          <div style="font-size:18px;font-weight:700;color:#1a1a1a;">${escapeHTML(data.yolcu.name)}</div>
+          <div style="font-size:13px;color:#1a5fa8;font-weight:600;margin-top:2px;">Kabin ${data.yolcu.kabin}</div>
+
+          <div style="font-size:11px;color:#888;text-transform:uppercase;font-weight:600;margin:12px 0 4px;">Tur</div>
+          <div style="font-size:15px;font-weight:600;color:#1a1a1a;">${escapeHTML(data.tur.name)}</div>
+          ${data.tur.saat ? `<div style="font-size:12px;color:#666;margin-top:2px;">⏰ Toplanma: ${data.tur.saat}</div>` : ''}
+
+          <div style="background:#1a5fa8;color:white;border-radius:8px;padding:8px 12px;text-align:center;margin-top:12px;">
+            <div style="font-size:10px;opacity:.85;text-transform:uppercase;">Katılımcı</div>
+            <div style="font-size:18px;font-weight:700;margin-top:1px;">${data.kisi} KİŞİ</div>
+          </div>
+        </div>
+
+        <button onclick="qrKatilimOnayla()" style="width:100%;padding:15px;background:#16a34a;color:white;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:8px;">
+          ✓ Tura Katıldı Olarak İşaretle
+        </button>
+        <button onclick="qrModalKapat()" style="width:100%;padding:11px;background:transparent;color:#888;border:1.5px solid #e0e0e0;border-radius:12px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">İptal</button>
+      </div>
+    `;
+    // Onay verisini sakla
+    window._qrOnayData = data;
+  }
+
+  modal.innerHTML = `<div style="background:white;border-radius:18px;max-width:380px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.4);font-family:'DM Sans',sans-serif;">${icerik}</div>`;
+  document.body.appendChild(modal);
+}
+
+function qrModalKapat(){
+  const m = document.getElementById('qr-onay-modal');
+  if(m) m.remove();
+  // URL'den qr parametresini temizle
+  const url = new URL(window.location.href);
+  url.searchParams.delete('qr');
+  url.searchParams.delete('k');
+  url.searchParams.delete('s');
+  url.searchParams.delete('t');
+  window.history.replaceState({}, '', url.toString());
+  window._qrOnayData = null;
+}
+
+async function qrKatilimOnayla(){
+  const data = window._qrOnayData;
+  if(!data) return;
+  const p = data.yolcu;
+  const t = data.tur;
+  const tid = t.id;
+
+  try {
+    // tur_katilim_detay'a fiili katılım ekle
+    if(!p.tur_katilim_detay) p.tur_katilim_detay = {};
+    if(!p.tur_katilim_detay[tid]) p.tur_katilim_detay[tid] = {};
+    p.tur_katilim_detay[tid].fiili_katilim = true;
+    p.tur_katilim_detay[tid].fiili_katilim_zamani = new Date().toISOString();
+
+    // DB'ye kaydet
+    if(typeof saveYolcuDB === 'function') await saveYolcuDB(p);
+
+    // Başarı modal'ı
+    qrModalKapat();
+    setTimeout(()=>{
+      const modal = document.createElement('div');
+      modal.id = 'qr-onay-modal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(8px);';
+      modal.innerHTML = `
+        <div style="background:white;border-radius:18px;max-width:380px;width:100%;padding:30px 20px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4);font-family:'DM Sans',sans-serif;">
+          <div style="font-size:80px;margin-bottom:12px;">✅</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:24px;color:#16a34a;margin-bottom:8px;">Katılım Onaylandı!</div>
+          <div style="font-size:14px;color:#1a1a1a;margin-bottom:4px;font-weight:600;">${escapeHTML(p.name)}</div>
+          <div style="font-size:12px;color:#666;margin-bottom:20px;">${escapeHTML(t.name)}</div>
+          <button onclick="qrModalKapat()" style="width:100%;padding:14px;background:#16a34a;color:white;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">Tamam</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }, 100);
+  } catch(e) {
+    console.error('QR onay hatası:', e);
+    showToast('⚠️ Kayıt başarısız: ' + (e.message||''));
+  }
+}
+
+// Sayfa yüklendiğinde QR parametresini kontrol et
+window.addEventListener('load', ()=>{
+  const url = new URL(window.location.href);
+  if(url.searchParams.get('qr')){
+    setTimeout(()=>qrKatilimKontrol(), 1500);
+  }
+});
 </script>
 
 <!-- ══ SESLİ ANONS SİSTEMİ ══ -->
