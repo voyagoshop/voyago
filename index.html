@@ -8823,7 +8823,7 @@ function tkFormYazdir(kabin, sefer, tid){
     color: #000;
     background: white;
   }
-  body { padding: 4mm 4mm 4mm 6mm; }
+  body { padding: 4mm 6mm 4mm 10mm; }
   .merkez { text-align: center; }
   .kalin { font-weight: 700; }
   .buyuk { font-size: 14pt; font-weight: 700; }
@@ -8881,7 +8881,7 @@ function tkFormYazdir(kabin, sefer, tid){
   }
   @media print {
     .yazdir-btn { display: none; }
-    body { padding: 2mm 3mm 4mm 5mm; }
+    body { padding: 3mm 5mm 4mm 9mm; }
   }
 </style>
 </head>
@@ -8987,19 +8987,6 @@ ${beb>0 ? `<div class="satir">
 
 <hr class="cizgi">
 
-<!-- İmza Alanları -->
-<div class="imza-alani">
-  Yolcu İmzası
-</div>
-
-<div style="margin-top: 4mm;"></div>
-
-<div class="imza-alani">
-  Rehber İmzası
-</div>
-
-<hr class="cizgi">
-
 <!-- Footer -->
 <div class="merkez ufak">
   ${escapeHTML(new Date().toLocaleString('tr-TR'))}<br>
@@ -9074,7 +9061,7 @@ function tkBiletYazdir(kabin, sefer, tid){
     color: #000;
     background: white;
   }
-  body { padding: 4mm 4mm 4mm 6mm; }
+  body { padding: 4mm 6mm 4mm 10mm; }
   .merkez { text-align: center; }
   .sag { text-align: right; }
   .kalin { font-weight: 700; }
@@ -9120,7 +9107,7 @@ function tkBiletYazdir(kabin, sefer, tid){
   }
   @media print {
     .yazdir-btn { display: none; }
-    body { padding: 2mm 3mm 4mm 5mm; }
+    body { padding: 3mm 5mm 4mm 9mm; }
   }
 </style>
 </head>
