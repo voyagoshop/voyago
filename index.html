@@ -8770,7 +8770,7 @@ function tkModalKapat(e){
   TK_SECIM = { yet: 0, coc: 0, beb: 0 };
 }
 
-// ── A5 FORM ÜRETİCİ (rehber tarafı) ──
+// ── TUR KATILIM FORMU (termal 80mm uyumlu — acente için detaylı) ──
 function tkFormYazdir(kabin, sefer, tid){
   const p = passengers.find(x=>x.kabin===kabin && x.sefer===sefer);
   const t = TOURS.find(x=>x.id===tid);
@@ -8789,142 +8789,237 @@ function tkFormYazdir(kabin, sefer, tid){
 
   const turGun = t.gun ? t.gun + '. Gün' : '';
   const seferAdi = v ? (v.label || '') : '';
-  const seferRota = v ? (v.route || '') : '';
   const gemi = v ? (v.ship || '') : '';
   const seferTarih = v ? ((v.start_date||'') + (v.end_date?(' — '+v.end_date):'')) : '';
 
-  // Tek formun HTML'i (A5 yatay'ın yarısı için ölçüler)
-  const formHTML = (numara) => `
-    <div class="form-card">
-      <div class="form-head">
-        <div class="form-logo">VOYAGO</div>
-        <div class="form-title">TUR KATILIM FORMU</div>
-        <div class="form-no">No: ${numara}</div>
-      </div>
+  // Form numarası (benzersiz)
+  const tarihStr = new Date().toLocaleDateString('tr-TR').replace(/\./g,'');
+  const tidSon4 = String(tid).slice(-4);
+  const formNo = 'F' + tarihStr + '-' + kabin + '-' + tidSon4;
 
-      <div class="form-row">
-        <div class="form-col">
-          <div class="form-lbl">Gemi / Sefer</div>
-          <div class="form-val"><b>${gemi || '—'}</b><br><span style="font-size:9px;">${seferAdi}</span></div>
-        </div>
-        <div class="form-col">
-          <div class="form-lbl">Tarih</div>
-          <div class="form-val">${seferTarih || '—'}</div>
-        </div>
-      </div>
-
-      <div class="form-section">
-        <div class="form-section-title">TUR BİLGİLERİ</div>
-        <div class="form-row">
-          <div class="form-col"><div class="form-lbl">Tur Adı</div><div class="form-val"><b>${t.name}</b></div></div>
-          <div class="form-col"><div class="form-lbl">Liman</div><div class="form-val">${t.liman||'—'}</div></div>
-        </div>
-        <div class="form-row">
-          <div class="form-col"><div class="form-lbl">Toplanma Saati</div><div class="form-val">${t.saat||'—'}</div></div>
-          <div class="form-col"><div class="form-lbl">Gün</div><div class="form-val">${turGun}</div></div>
-        </div>
-      </div>
-
-      <div class="form-section">
-        <div class="form-section-title">YOLCU BİLGİLERİ</div>
-        <div class="form-row">
-          <div class="form-col"><div class="form-lbl">Yolcu Adı</div><div class="form-val"><b>${p.name}</b></div></div>
-          <div class="form-col"><div class="form-lbl">Kabin No</div><div class="form-val"><b>${p.kabin}</b></div></div>
-        </div>
-        <div class="form-row">
-          <div class="form-col"><div class="form-lbl">Katılımcı Sayısı</div><div class="form-val"><b>${kisi} kişi</b> ${yet>0?yet+'Y ':''}${coc>0?coc+'C ':''}${beb>0?beb+'B':''}</div></div>
-          <div class="form-col"><div class="form-lbl">Toplam Ücret</div><div class="form-val" style="color:#0d3b6e;font-weight:700;font-size:13px;">€${ucret}</div></div>
-        </div>
-      </div>
-
-      <div class="form-onay">
-        <div class="form-lbl">Elektronik Onay</div>
-        <div class="form-val" style="font-size:9px;">${eimza}</div>
-        <div style="font-size:8px;color:#888;">Onay zamanı: ${onay}</div>
-      </div>
-
-      <div class="form-kosul">
-        <b>KOŞULLAR:</b> Bu tur katılım formu ile tura katılımınızı onaylamış olursunuz.
-        Sağlık ve özel durumlar dışında iptal için rehberinizle görüşünüz.
-        Tura katılmama durumunda ücret iadesi yapılmaz.
-      </div>
-    </div>
-  `;
+  // Kişi detayı
+  const kisiDet = [];
+  if(yet>0) kisiDet.push(yet+' Yetişkin');
+  if(coc>0) kisiDet.push(coc+' Çocuk');
+  if(beb>0) kisiDet.push(beb+' Bebek');
 
   const html = `<!DOCTYPE html>
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<title>Tur Katılım Formu — ${p.name} — ${t.name}</title>
+<title>Tur Katılım Formu — ${escapeHTML(p.name)} — ${escapeHTML(t.name)}</title>
 <style>
-  @page { size: A4 portrait; margin: 0; }
+  /* 80mm termal kâğıt */
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html,body { width: 210mm; height: 297mm; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; color: #1a1a1a; }
-  body { display: flex; flex-direction: column; padding: 0; background: white; }
-  .form-card {
-    width: 210mm; height: 148mm; padding: 8mm 12mm;
-    border-bottom: 1px dashed #aaa;
-    display: flex; flex-direction: column;
+  html, body {
+    width: 80mm;
+    font-family: 'Courier New', 'Consolas', monospace;
+    font-size: 11pt;
+    line-height: 1.35;
+    color: #000;
+    background: white;
   }
-  .form-card:last-child { border-bottom: none; }
-
-  .form-head {
-    display: flex; justify-content: space-between; align-items: center;
-    padding-bottom: 4mm; border-bottom: 2px solid #1a5fa8; margin-bottom: 5mm;
+  body { padding: 4mm 4mm 4mm 6mm; }
+  .merkez { text-align: center; }
+  .kalin { font-weight: 700; }
+  .buyuk { font-size: 14pt; font-weight: 700; }
+  .dev { font-size: 18pt; font-weight: 700; letter-spacing: 1px; }
+  .kucuk { font-size: 9pt; }
+  .ufak { font-size: 8pt; }
+  hr.cizgi { border: 0; border-top: 1px dashed #000; margin: 4mm 0; }
+  hr.kalın { border: 0; border-top: 2px solid #000; margin: 3mm 0; }
+  .satir { display: flex; justify-content: space-between; align-items: baseline; margin: 1mm 0; }
+  .satir .lbl { font-size: 9pt; }
+  .satir .val { font-size: 11pt; font-weight: 700; }
+  .vurgu {
+    background: #000;
+    color: #fff;
+    padding: 2mm;
+    text-align: center;
+    margin: 2mm 0;
   }
-  .form-logo {
-    font-family: 'Times New Roman', serif; font-size: 22px; font-weight: 700;
-    color: #1a5fa8; letter-spacing: 1px;
+  .vurgu .ust { font-size: 9pt; opacity: .85; }
+  .vurgu .alt { font-size: 14pt; font-weight: 700; }
+  .kutu {
+    border: 2px solid #000;
+    padding: 2mm 3mm;
+    margin: 2mm 0;
   }
-  .form-title { font-size: 11px; font-weight: 600; letter-spacing: 1px; color: #555; }
-  .form-no { font-size: 9px; color: #888; font-family: 'Courier New', monospace; }
-
-  .form-section { margin-bottom: 4mm; }
-  .form-section-title {
-    font-size: 10px; font-weight: 600; color: #1a5fa8;
-    border-bottom: 1px solid #ddd; padding-bottom: 1.5mm; margin-bottom: 3mm;
-    text-transform: uppercase; letter-spacing: 0.5px;
+  .bolum-baslik {
+    background: #000;
+    color: #fff;
+    padding: 1mm 2mm;
+    font-size: 9pt;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin: 3mm 0 2mm 0;
   }
-  .form-row { display: flex; gap: 6mm; margin-bottom: 3mm; }
-  .form-col { flex: 1; }
-  .form-lbl { font-size: 8px; color: #888; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 1mm; }
-  .form-val { font-size: 11px; color: #222; line-height: 1.3; }
-
-  .form-onay {
-    background: #f0f6fb; border: 1px solid #c8d8e8; border-radius: 4px;
-    padding: 3mm 4mm; margin: 3mm 0;
+  .imza-alani {
+    border-top: 1px solid #000;
+    padding-top: 2mm;
+    margin-top: 4mm;
+    text-align: center;
+    font-size: 9pt;
   }
-
-  .form-kosul {
-    margin-top: auto; font-size: 8.5px; color: #555; line-height: 1.45;
-    padding: 3mm 4mm; background: #fff8e6;
-    border-left: 3px solid #f59e0b; border-radius: 2px;
+  .yazdir-btn {
+    position: fixed;
+    top: 8px;
+    right: 8px;
+    padding: 8px 14px;
+    background: #1a5fa8;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    box-shadow: 0 3px 10px rgba(0,0,0,.2);
+    font-family: -apple-system, sans-serif;
   }
-
   @media print {
-    body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-    .no-print { display: none; }
-  }
-  .no-print {
-    position: fixed; top: 10px; right: 10px;
-    background: #1a5fa8; color: white; padding: 8px 16px; border-radius: 8px;
-    border: none; font-size: 13px; cursor: pointer; z-index: 999;
-    box-shadow: 0 4px 12px rgba(0,0,0,.2);
+    .yazdir-btn { display: none; }
+    body { padding: 2mm 3mm 4mm 5mm; }
   }
 </style>
 </head>
 <body>
-  ${formHTML(1)}
-  ${formHTML(2)}
-  <button class="no-print" onclick="window.print()">🖨️ Yazdır</button>
+<button class="yazdir-btn" onclick="window.print()">🖨️ Yazdır</button>
+
+<!-- Logo -->
+<div class="merkez dev">VOYAGO</div>
+<div class="merkez kucuk kalin">TUR KATILIM FORMU</div>
+<div class="merkez ufak">${formNo}</div>
+
+<hr class="kalın">
+
+<!-- SEFER BİLGİLERİ -->
+<div class="bolum-baslik">SEFER BİLGİLERİ</div>
+<div class="satir">
+  <span class="lbl">Gemi:</span>
+  <span class="val">${escapeHTML(gemi || '—')}</span>
+</div>
+<div class="satir">
+  <span class="lbl">Sefer:</span>
+  <span class="val ufak">${escapeHTML(seferAdi)}</span>
+</div>
+${seferTarih ? `<div class="satir">
+  <span class="lbl">Tarih:</span>
+  <span class="val">${escapeHTML(seferTarih)}</span>
+</div>` : ''}
+
+<!-- TUR BİLGİLERİ -->
+<div class="bolum-baslik">TUR BİLGİLERİ</div>
+<div class="kalin buyuk merkez" style="margin-bottom: 2mm;">${escapeHTML(t.name)}</div>
+<div class="satir">
+  <span class="lbl">Liman:</span>
+  <span class="val">${escapeHTML(t.liman || '—')}</span>
+</div>
+<div class="satir">
+  <span class="lbl">Gün:</span>
+  <span class="val">${escapeHTML(turGun || '—')}</span>
+</div>
+
+<!-- Toplanma Saati - Vurgu -->
+<div class="vurgu">
+  <div class="ust">⏰ TOPLANMA SAATİ</div>
+  <div class="alt">${escapeHTML(t.saat || '—')}</div>
+</div>
+
+<!-- YOLCU BİLGİLERİ -->
+<div class="bolum-baslik">YOLCU BİLGİLERİ</div>
+<div class="kalin buyuk">${escapeHTML(p.name)}</div>
+<div class="satir">
+  <span class="lbl">Kabin No:</span>
+  <span class="val">${escapeHTML(p.kabin)}</span>
+</div>
+${p.tel ? `<div class="satir">
+  <span class="lbl">Telefon:</span>
+  <span class="val ufak">${escapeHTML(p.tel)}</span>
+</div>` : ''}
+
+<!-- Katılımcı Sayısı -->
+<div class="kutu">
+  <div class="merkez kucuk">KATILIMCI SAYISI</div>
+  <div class="merkez kalin" style="font-size: 16pt; margin: 1mm 0;">${kisi} KİŞİ</div>
+  <div class="merkez ufak">${kisiDet.join(' · ') || '—'}</div>
+</div>
+
+<!-- Ücret Detayı -->
+<div class="bolum-baslik">ÜCRET DETAYI</div>
+${yet>0 ? `<div class="satir">
+  <span class="lbl">Yetişkin (${yet} × €${t.ap}):</span>
+  <span class="val">€${yet*t.ap}</span>
+</div>` : ''}
+${coc>0 ? `<div class="satir">
+  <span class="lbl">Çocuk (${coc} × €${t.cp}):</span>
+  <span class="val">€${coc*t.cp}</span>
+</div>` : ''}
+${beb>0 ? `<div class="satir">
+  <span class="lbl">Bebek (${beb} × €${t.bp}):</span>
+  <span class="val">€${beb*t.bp}</span>
+</div>` : ''}
+
+<!-- Toplam Ücret - Vurgu -->
+<div class="vurgu">
+  <div class="ust">TOPLAM ÜCRET</div>
+  <div class="alt">€ ${ucret}</div>
+</div>
+
+<!-- ELEKTRONİK ONAY -->
+<div class="bolum-baslik">ELEKTRONİK ONAY</div>
+<div class="kucuk">İmza:</div>
+<div class="kalin" style="font-size: 10pt; margin: 1mm 0;">${escapeHTML(eimza)}</div>
+<div class="ufak">Onay: ${escapeHTML(onay)}</div>
+
+<!-- KOŞULLAR -->
+<hr class="cizgi">
+<div class="ufak" style="line-height: 1.4;">
+  <div class="kalin merkez" style="margin-bottom: 2mm;">⚠️ KOŞULLAR</div>
+  • Bu form ile tura katılımınızı onaylamış olursunuz.<br>
+  • İptal için rehberinizle görüşünüz.<br>
+  • Buluşma saatinden 10 dk önce ana toplanma noktasında olun.<br>
+  • Tur sürecinde rehberinizden ayrılmayın.<br>
+  • Tura katılmama durumunda ücret iadesi yapılmaz.
+</div>
+
+<hr class="cizgi">
+
+<!-- İmza Alanları -->
+<div class="imza-alani">
+  Yolcu İmzası
+</div>
+
+<div style="margin-top: 4mm;"></div>
+
+<div class="imza-alani">
+  Rehber İmzası
+</div>
+
+<hr class="cizgi">
+
+<!-- Footer -->
+<div class="merkez ufak">
+  ${escapeHTML(new Date().toLocaleString('tr-TR'))}<br>
+  voyagoshop@gmail.com<br><br>
+  <span class="kalin">VOYAGO 🚢</span>
+</div>
+
+<sc${''}ript>
+  window.addEventListener('load', () => {
+    setTimeout(() => window.print(), 500);
+  });
+</sc${''}ript>
 </body>
 </html>`;
 
-  // Yeni sekmede aç
-  const w = window.open('', '_blank');
+  const w = window.open('', '_blank', 'width=400,height=700');
   if(!w){ showToast('Pop-up engellendi — izin verin'); return; }
   w.document.write(html);
   w.document.close();
+  showToast('📄 Form açılıyor...');
 }
 
 // ── TERMAL BİLET (80mm rolik kâğıt) ──
@@ -8979,7 +9074,7 @@ function tkBiletYazdir(kabin, sefer, tid){
     color: #000;
     background: white;
   }
-  body { padding: 4mm 4mm 8mm 4mm; }
+  body { padding: 4mm 4mm 4mm 6mm; }
   .merkez { text-align: center; }
   .sag { text-align: right; }
   .kalin { font-weight: 700; }
@@ -9025,7 +9120,7 @@ function tkBiletYazdir(kabin, sefer, tid){
   }
   @media print {
     .yazdir-btn { display: none; }
-    body { padding: 2mm 3mm 6mm 3mm; }
+    body { padding: 2mm 3mm 4mm 5mm; }
   }
 </style>
 </head>
@@ -9094,10 +9189,9 @@ ${gemi ? `<div class="satir">
 <hr class="cizgi">
 <div class="ufak" style="line-height: 1.4;">
   <div class="kalin merkez" style="margin-bottom: 2mm;">⚠️ ÖNEMLİ</div>
-  • Buluşma saatinden 10 dk önce ana güvertede olun.<br>
+  • Buluşma saatinden 10 dk önce ana toplanma noktasında olun.<br>
   • Bu bileti rehberinize göstermeniz gerekir.<br>
-  • Tur sürecinde rehberinizden ayrılmayın.<br>
-  • Pasaportunuzu yanınızda bulundurun.
+  • Tur sürecinde rehberinizden ayrılmayın.
 </div>
 
 <hr class="cizgi">
