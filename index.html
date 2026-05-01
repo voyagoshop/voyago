@@ -2620,11 +2620,47 @@ function doPL(){
   const code=document.getElementById('cc').value;
   const sv=sel.value;
   const sl2=sel.options[sel.selectedIndex]?.text.split('—')[0].trim()||'';
+
+  // ── AKILLI EŞLEŞTİRME ──
+  // 1. ÖNCE: Aynı kabin + sefer ile arama (mevcut, normal akış)
   let p=passengers.find(p=>p.kabin===kabin&&p.sefer===sv);
+  let eslestirmeMesaji = '';
+
+  // 2. Bulunamazsa: aynı seferdeki KABİNSİZ yolcular arasında isim eşleşmesi dene
+  if(!p && typeof isimNormalize === 'function'){
+    const isimNorm = isimNormalize(name);
+    if(isimNorm){
+      const isimEslesenler = passengers.filter(x=>
+        x.sefer===sv && !x.kabin && isimNormalize(x.name)===isimNorm
+      );
+      if(isimEslesenler.length === 1){
+        // Tek eşleşme — mükemmel, yolcunun bilgilerini tamamla
+        p = isimEslesenler[0];
+        eslestirmeMesaji = '🎯 ' + name + ', listemizde varsınız! Bilgileriniz tamamlandı.';
+      } else if(isimEslesenler.length > 1){
+        // Birden fazla aynı isimli — hangisi belli değil, yeni kayıt yap
+        console.log('Birden fazla aynı isim:', isimEslesenler.length);
+      }
+    }
+  }
+
   const isFirst=!p||!p.checkinDone;
-  if(p){p.checkedIn=true;p.checkinDone=true;p.tel=code+' '+phone;p.name=name;p.adult=loginKisi.adult;p.child=loginKisi.child;p.baby=loginKisi.baby;p.email=email||null;p.pazarlama_izni=pazarlamaIzni;}
-  else{p={name,kabin,tel:code+' '+phone,sefer:sv,adult:loginKisi.adult,child:loginKisi.child,baby:loginKisi.baby,email:email||null,pazarlama_izni:pazarlamaIzni,checkedIn:true,checkinDone:true,joinedTours:[]};passengers.push(p);}
+  if(p){
+    // Mevcut yolcu güncelleniyor (ya kabin eşleşti ya isim eşleşti)
+    p.checkedIn=true;p.checkinDone=true;
+    p.tel=code+' '+phone;
+    p.name=name;
+    p.kabin=kabin;  // Kabinsiz yolcular için kabin doldurulur
+    p.adult=loginKisi.adult;p.child=loginKisi.child;p.baby=loginKisi.baby;
+    p.email=email||null;p.pazarlama_izni=pazarlamaIzni;
+  }
+  else{
+    // Yeni yolcu (listede yoktu)
+    p={name,kabin,tel:code+' '+phone,sefer:sv,adult:loginKisi.adult,child:loginKisi.child,baby:loginKisi.baby,email:email||null,pazarlama_izni:pazarlamaIzni,checkedIn:true,checkinDone:true,joinedTours:[]};
+    passengers.push(p);
+  }
   CP=p;
+  if(eslestirmeMesaji) setTimeout(()=>showToast(eslestirmeMesaji), 1500);
   document.getElementById('akl').textContent='Kabin '+kabin;
   const v=VOYAGES.find(v=>v.id===sv);
   document.getElementById('app-ship-name').textContent=v?.ship||'Celestyal Journey';
@@ -3587,14 +3623,14 @@ function renderPS(s){
     const ts=myT.map(t=>`<span style="font-size:10px;color:${p.joinedTours.includes(t.id)?'var(--green)':'var(--t3)'};">${p.joinedTours.includes(t.id)?'✓':'✗'} ${t.name}</span>`).join(' · ');
     return `<div class="prow2">
       <div class="pav ${p.checkedIn?'ck':'wt'}">${ini}</div>
-      <div class="pi2"><div class="pn2">${p.name}</div><div class="pd">Kabin ${p.kabin} - ${v?.label||p.sefer} - ${p.tel||'—'}</div><div class="pk">${ks}</div>${myT.length?`<div class="ptr">${ts}</div>`:''}</div>
+      <div class="pi2"><div class="pn2">${p.name}${!p.kabin?' <span style="background:#fff8e6;color:#92400e;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;margin-left:4px;">⚠️ Eksik</span>':''}</div><div class="pd">${p.kabin?'Kabin '+p.kabin:'<span style="color:#92400e;">Kabin ?</span>'} - ${v?.label||p.sefer} - ${p.tel||'<span style="color:#92400e;">Tel ?</span>'}</div><div class="pk">${ks}</div>${myT.length?`<div class="ptr">${ts}</div>`:''}</div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
         <span class="cb ${p.checkedIn?'cby':'cbn'}">${p.checkedIn?'Check-in':'Bekleyen'}</span>
         <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">
-          ${p.tel?`<button onclick="yolcuWhatsapp('${p.tel}','${p.name}','${p.kabin}')" style="padding:3px 8px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid #25D366;color:#25D366;background:transparent;">💬</button>`:''}
-          <button class="yd-edit-btn" onclick="ydAc('${p.kabin}','${p.sefer}')">✏️</button>
-          <button style="padding:3px 8px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--blue);color:var(--blue);background:transparent;font-family:'DM Sans',sans-serif;" onclick="toggleCI('${p.kabin}','${p.sefer}')">${p.checkedIn?'Geri':'CI'}</button>
-          <button style="padding:3px 8px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--red);color:var(--red);background:transparent;font-family:'DM Sans',sans-serif;" onclick="deletePassenger('${p.kabin}','${p.sefer}')">Sil</button>
+          ${p.tel?`<button onclick="yolcuWhatsapp('${p.tel}','${p.name.replace(/'/g,"\\'")}','${p.kabin}')" style="padding:3px 8px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid #25D366;color:#25D366;background:transparent;">💬</button>`:''}
+          <button class="yd-edit-btn" onclick="ydAc('${p.kabin}','${p.sefer}','${p.name.replace(/'/g,"\\'")}')">✏️</button>
+          <button style="padding:3px 8px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--blue);color:var(--blue);background:transparent;font-family:'DM Sans',sans-serif;" onclick="toggleCI('${p.kabin}','${p.sefer}','${p.name.replace(/'/g,"\\'")}')">${p.checkedIn?'Geri':'CI'}</button>
+          <button style="padding:3px 8px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--red);color:var(--red);background:transparent;font-family:'DM Sans',sans-serif;" onclick="deletePassenger('${p.kabin}','${p.sefer}','${p.name.replace(/'/g,"\\'")}')">Sil</button>
         </div>
       </div>
     </div>`;
@@ -3694,8 +3730,23 @@ function yolcuListesiKopyala(tip){
   });
 }
 
-function toggleCI(kabin,sefer){const p=passengers.find(p=>p.kabin===kabin&&p.sefer===sefer);if(p){p.checkedIn=!p.checkedIn;renderPS(CASF);saveYolcuDB(p);showToast(p.checkedIn?'Check-in yapildi':'Geri alindi');}}
-function deletePassenger(kabin,sefer){if(!confirm('Silinsin mi?'))return;const i=passengers.findIndex(p=>p.kabin===kabin&&p.sefer===sefer);if(i>=0){passengers.splice(i,1);dbDelete('yolcular',{kabin,sefer_id:sefer});renderPS(CASF);showToast('Silindi.');}}
+function toggleCI(kabin,sefer,isim){
+  let p = kabin ? passengers.find(p=>p.kabin===kabin&&p.sefer===sefer) : null;
+  if(!p && isim) p = passengers.find(x=>x.sefer===sefer && x.name===isim);
+  if(p){p.checkedIn=!p.checkedIn;renderPS(CASF);saveYolcuDB(p);showToast(p.checkedIn?'Check-in yapildi':'Geri alindi');}
+}
+function deletePassenger(kabin,sefer,isim){
+  if(!confirm('Silinsin mi?'))return;
+  let i = kabin ? passengers.findIndex(p=>p.kabin===kabin&&p.sefer===sefer) : -1;
+  if(i<0 && isim) i = passengers.findIndex(x=>x.sefer===sefer && x.name===isim);
+  if(i>=0){
+    const silinen = passengers[i];
+    passengers.splice(i,1);
+    if(silinen.kabin) dbDelete('yolcular',{kabin:silinen.kabin,sefer_id:sefer});
+    else dbDelete('yolcular',{ad:silinen.name,sefer_id:sefer}); // Kabinsiz için isimle sil
+    renderPS(CASF);showToast('Silindi.');
+  }
+}
 function addPassenger(){
   const name=document.getElementById('ye-name').value.trim();
   const kabin=document.getElementById('ye-kabin').value.trim();
@@ -3719,19 +3770,30 @@ function loadExcel(input){
       const wb=XLSX.read(e.target.result,{type:'array'});
       const ws=wb.Sheets[wb.SheetNames[0]];
       const data=XLSX.utils.sheet_to_json(ws,{header:1});
-      let added=0,updated=0,hata=0;
+      let added=0,updated=0,hata=0,eksikBilgi=0;
       const kayitListesi = []; // DB'ye gönderilecek
       for(let i=1;i<data.length;i++){
         const r=data[i];if(!r||!r[0])continue;
         const name=String(r[0]||'').trim(),kabin=String(r[1]||'').trim(),tel=String(r[2]||'').trim();
         const adult=parseInt(r[3])||1,child=parseInt(r[4])||0,baby=parseInt(r[5])||0;
         const sl2=String(r[6]||'').trim();
-        if(!name||!kabin)continue;
+        // Sadece isim zorunlu — kabin/telefon olmadan da kaydedilir
+        if(!name)continue;
         const v=VOYAGES.find(vv=>vv.label.includes(sl2.split('-')[0].trim()))||VOYAGES[0];
         if(!v){ hata++; continue; }
-        const ex=passengers.find(p=>p.kabin===kabin&&p.sefer===v.id);
+        // Kabin yoksa eksik bilgili sayılır (yolcu sonradan tamamlayacak)
+        if(!kabin) eksikBilgi++;
+        // Eşleştirme: kabin varsa kabin+sefer ile, yoksa isim+sefer ile
+        let ex;
+        if(kabin){
+          ex = passengers.find(p=>p.kabin===kabin&&p.sefer===v.id);
+        } else {
+          // Kabin yoksa, aynı isimli kabinsiz yolcu var mı bak
+          const isimNorm = isimNormalize(name);
+          ex = passengers.find(p=>p.sefer===v.id && !p.kabin && isimNormalize(p.name)===isimNorm);
+        }
         if(ex){
-          Object.assign(ex,{name,tel,adult,child,baby});
+          Object.assign(ex,{name,tel:tel||ex.tel,kabin:kabin||ex.kabin,adult,child,baby});
           updated++;
           kayitListesi.push(ex);
         }
@@ -3744,10 +3806,12 @@ function loadExcel(input){
       }
       setupAdmin();
       showToast('⏳ ' + (added+updated) + ' yolcu DB\'ye kaydediliyor...');
-      // Hepsini DB'ye kaydet (paralel)
       try {
         await Promise.all(kayitListesi.map(p => saveYolcuDB(p)));
-        showToast('✓ ' + added + ' yeni · ' + updated + ' güncellendi · DB kaydedildi' + (hata?' · '+hata+' hata':''));
+        let msg = '✓ ' + added + ' yeni · ' + updated + ' güncellendi';
+        if(eksikBilgi > 0) msg += ' · ' + eksikBilgi + ' eksik bilgi (yolcu girişinde tamamlanır)';
+        if(hata > 0) msg += ' · ' + hata + ' hata';
+        showToast(msg);
       } catch(dbErr) {
         console.error('DB kayıt hatası:', dbErr);
         showToast('⚠️ DB kayıt başarısız: ' + (dbErr.message||''));
@@ -3755,6 +3819,21 @@ function loadExcel(input){
     }catch(err){showToast('Hata: '+err.message);}
   };
   reader.readAsArrayBuffer(file);
+}
+
+// İsim normalize (Türkçe karakterler + büyük/küçük + boşluklar)
+function isimNormalize(s){
+  if(!s) return '';
+  return String(s)
+    .toLocaleLowerCase('tr-TR')
+    .replace(/ı/g,'i').replace(/İ/gi,'i')
+    .replace(/ş/g,'s').replace(/Ş/gi,'s')
+    .replace(/ğ/g,'g').replace(/Ğ/gi,'g')
+    .replace(/ü/g,'u').replace(/Ü/gi,'u')
+    .replace(/ö/g,'o').replace(/Ö/gi,'o')
+    .replace(/ç/g,'c').replace(/Ç/gi,'c')
+    .replace(/\s+/g,' ')
+    .trim();
 }
 
 // ── TURLAR ──
@@ -9418,10 +9497,18 @@ let YD_HEDEF = null; // {kabin, sefer} — düzenlenmekte olan yolcu
 let YD_SECIM = { adult: 1, child: 0, baby: 0 };
 let YD_KANAL = null; // realtime kanal
 
-function ydAc(kabin, sefer){
-  const p = passengers.find(x=>x.kabin===kabin && x.sefer===sefer);
+function ydAc(kabin, sefer, isim){
+  // Kabin boş olabilir — isimle de eşleşmeyi dene
+  let p;
+  if(kabin){
+    p = passengers.find(x=>x.kabin===kabin && x.sefer===sefer);
+  }
+  if(!p && isim){
+    // Kabin boş veya bulunamadıysa isim ile dene
+    p = passengers.find(x=>x.sefer===sefer && x.name===isim);
+  }
   if(!p){ showToast('Yolcu bulunamadı'); return; }
-  YD_HEDEF = { kabin, sefer };
+  YD_HEDEF = { kabin: p.kabin, sefer, isim: p.name };
   YD_SECIM = {
     adult: p.adult || 1,
     child: p.child || 0,
