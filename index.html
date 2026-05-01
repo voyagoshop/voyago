@@ -546,6 +546,53 @@ textarea.ai2{resize:none;}
 .kvkk-modal-iptal{flex:1;padding:12px;background:transparent;color:#6b6b6b;border:1.5px solid #e0e0e0;border-radius:10px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;}
 
 .bp.disabled{opacity:.45;cursor:not-allowed;pointer-events:none;}
+
+/* ══ LİMAN HİKAYELERİ ══ */
+.hikaye-bos{text-align:center;padding:40px 20px;color:var(--t2);font-size:13px;}
+.hikaye-bos .em{font-size:48px;display:block;margin-bottom:10px;}
+.hikaye-grid{display:flex;flex-direction:column;gap:14px;}
+.hikaye-card{background:white;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);cursor:pointer;transition:transform .15s,box-shadow .15s;}
+.hikaye-card:active{transform:scale(.985);}
+.hikaye-card-banner{width:100%;height:140px;background:linear-gradient(135deg,#0d3b6e,#1a5fa8);background-size:cover;background-position:center;position:relative;}
+.hikaye-card-banner.placeholder::before{content:'🏛️';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:48px;}
+.hikaye-card-liman-pill{position:absolute;top:10px;left:10px;background:rgba(255,255,255,.95);color:#0d3b6e;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.hikaye-card-body{padding:14px 16px;}
+.hikaye-card-baslik{font-family:'DM Serif Display',serif;font-size:17px;color:#1a1a1a;line-height:1.25;margin-bottom:6px;}
+.hikaye-card-ozet{font-size:12px;color:var(--t2);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.hikaye-card-okumalink{margin-top:10px;font-size:12px;color:#1a5fa8;font-weight:600;display:flex;align-items:center;gap:4px;}
+
+/* Hikaye detay modal */
+.hikaye-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
+.hikaye-modal.active{display:flex;animation:sesFadeIn .25s ease;}
+.hikaye-modal-i{background:#fafaf8;border-radius:24px 24px 0 0;width:100%;max-width:560px;max-height:92vh;display:flex;flex-direction:column;animation:sesPopIn .3s ease;overflow:hidden;}
+.hikaye-modal-banner{width:100%;height:200px;background:linear-gradient(135deg,#0d3b6e,#1a5fa8);background-size:cover;background-position:center;position:relative;flex-shrink:0;}
+.hikaye-modal-kapat{position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.55);border:none;color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);}
+.hikaye-modal-liman{position:absolute;bottom:14px;left:18px;background:rgba(255,255,255,.95);color:#0d3b6e;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;}
+.hikaye-modal-body{padding:20px 22px 30px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;}
+.hikaye-modal-baslik{font-family:'DM Serif Display',serif;font-size:24px;color:#1a1a1a;line-height:1.2;margin-bottom:12px;}
+.hikaye-modal-ozet{background:#f0f6fb;border-left:3px solid #1a5fa8;padding:11px 14px;border-radius:6px;font-size:13px;line-height:1.55;color:#0d3b6e;font-style:italic;margin-bottom:18px;}
+.hikaye-modal-icerik{font-size:14px;line-height:1.7;color:#2a2a2a;white-space:pre-wrap;}
+.hikaye-modal-icerik p{margin-bottom:14px;}
+.hikaye-modal-galeri{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:18px;}
+.hikaye-modal-galeri img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;cursor:pointer;}
+
+/* Rehber tarafı admin */
+.h-admin-card{background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 6px rgba(0,0,0,.05);border:1px solid #f0f0f0;}
+.h-admin-thumb{width:100%;height:110px;background:linear-gradient(135deg,#0d3b6e,#1a5fa8);background-size:cover;background-position:center;border-radius:10px;margin-bottom:10px;position:relative;}
+.h-admin-thumb.placeholder::before{content:'🏛️';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:36px;color:rgba(255,255,255,.7);}
+.h-admin-baslik{font-weight:600;font-size:14px;color:#1a1a1a;margin-bottom:3px;}
+.h-admin-liman{font-size:11px;color:var(--t2);margin-bottom:8px;}
+.h-admin-toggle{display:flex;align-items:center;gap:8px;background:#f5f5f3;border-radius:10px;padding:8px 12px;margin-top:8px;}
+.h-toggle-switch{width:42px;height:24px;background:#ccc;border-radius:14px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;}
+.h-toggle-switch::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;background:white;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+.h-toggle-switch.aktif{background:#16a34a;}
+.h-toggle-switch.aktif::after{transform:translateX(18px);}
+.h-toggle-label{font-size:12px;font-weight:500;color:var(--t);flex:1;}
+.h-admin-aksiyonlar{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
+.h-admin-btn{flex:1;padding:7px 10px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;min-width:60px;}
+.h-btn-duzenle{background:#1a5fa8;color:white;}
+.h-btn-push{background:#7c3aed;color:white;}
+.h-btn-sil{background:transparent;color:var(--red);border:1.5px solid var(--red);}
 </style>
 </head>
 <body onload="baslat()">
@@ -866,6 +913,13 @@ textarea.ai2{resize:none;}
       <div class="gazete-grid" id="gazete-display"></div>
       <div class="no-data" id="gazete-empty-msg" style="display:none;">Bugün için günlük gazete henüz eklenmemiş.</div>
     </div>
+    <div id="tab-hikayeler" class="tp">
+      <div style="padding:6px 0 14px;">
+        <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--t);margin-bottom:4px;">📚 Liman Hikayeleri</div>
+        <div style="font-size:13px;color:var(--t2);">Uğradığınız limanların öyküleri ve kültürü</div>
+      </div>
+      <div id="hikayeler-yolcu-liste"></div>
+    </div>
     <div id="tab-yemek" class="tp">
       <div id="yemek-area"></div>
     </div>
@@ -928,6 +982,7 @@ textarea.ai2{resize:none;}
       <button class="nb active" id="nb-program" onclick="switchTab('program')"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="17" rx="2"/><path d="M16 2.5v4M8 2.5v4M3 10h18"/></svg></span><span data-t="program">Program</span></button>
       <button class="nb" id="nb-turlar" onclick="switchTab('turlar')"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span><span data-t="turlar">Turlar</span></button>
       <button class="nb" id="nb-gazete" onclick="switchTab('gazete')"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8z"/></svg></span><span data-t="gazete">Gazete</span></button>
+      <button class="nb" id="nb-hikayeler" onclick="switchTab('hikayeler')"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span><span style="font-size:9px;">Hikayeler</span></button>
       <button class="nb" id="nb-yemek" onclick="switchTab('yemek')"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2V2M5 11v11M19 2v20M19 15a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4"/></svg></span><span data-t="yemek">Yemek</span></button>
       <button class="nb" id="nb-gemiplan" onclick="switchTab('gemiplan')" style="position:relative;">
         <span class="ni" style="font-size:22px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg></span>
@@ -967,6 +1022,7 @@ textarea.ai2{resize:none;}
       <button class="att" id="ratab-gunluk" onclick="adminTab('gunluk')"><span class="aico">📅</span><span>Günlük</span></button>
       <button class="att" id="ratab-tur" onclick="adminTab('tur')"><span class="aico">🗺️</span><span>Turlar</span></button>
       <button class="att" id="ratab-gz" onclick="adminTab('gz')"><span class="aico">📰</span><span>Gazete</span></button>
+      <button class="att" id="ratab-hikaye" onclick="adminTab('hikaye')"><span class="aico">📚</span><span>Hikayeler</span></button>
       <button class="att" id="ratab-mesaj" onclick="adminTab('mesaj')"><span class="aico">💬</span><span>Mesajlar</span></button>
       <button class="att" id="ratab-turanons" onclick="adminTab('turanons')"><span class="aico">📢</span><span>Tur Anonsu</span></button>
       <button class="att" id="ratab-sesanons" onclick="adminTab('sesanons')"><span class="aico">🔊</span><span>Sesli Anons</span></button>
@@ -1482,6 +1538,18 @@ textarea.ai2{resize:none;}
         </div>
         <div id="wa-link-durum" style="font-size:11px;margin-top:8px;color:#0d4d2a;"></div>
       </div>
+    </div>
+
+    <!-- LİMAN HİKAYELERİ ADMIN -->
+    <div id="admin-hikaye" class="apg">
+      <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);border-radius:16px;padding:16px;margin-bottom:14px;color:white;">
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:4px;">📚 Liman Hikayeleri</div>
+        <div style="font-size:12px;opacity:.9;line-height:1.5;">Her liman için hikaye yazın. Yolcular sefer boyunca okur. Aç/kapat ile görünürlüğü siz yönetirsiniz.</div>
+      </div>
+
+      <button class="bp" onclick="hikayeFormAc()" style="margin-bottom:14px;">+ Yeni Hikaye Ekle</button>
+
+      <div id="hikaye-admin-liste"></div>
     </div>
 
     <!-- SEFERLER -->
@@ -10611,6 +10679,416 @@ window.addEventListener('load', ()=>{
   if(url.searchParams.get('qr')){
     setTimeout(()=>qrKatilimKontrol(), 1500);
   }
+});
+</script>
+
+<!-- ══ LİMAN HİKAYELERİ SİSTEMİ ══ -->
+<script>
+let HIKAYELER = [];
+let _hikayeDuzenlenen = null;
+
+// Hikayeleri DB'den yükle
+async function hikayeleriYukle(){
+  try {
+    const { data, error } = await sb.from('liman_hikayeleri').select('*').order('liman').order('sira');
+    if(error) { console.error('Hikaye yükleme hatası:', error); return; }
+    HIKAYELER = data || [];
+    // Aktif sekmeleri yenile
+    if(typeof renderHikayelerYolcu === 'function') renderHikayelerYolcu();
+    if(typeof renderHikayelerAdmin === 'function') renderHikayelerAdmin();
+  } catch(e) { console.error('Hikaye yükleme:', e); }
+}
+
+// ── YOLCU TARAFI: hikaye listesi ──
+function renderHikayelerYolcu(){
+  const el = document.getElementById('hikayeler-yolcu-liste');
+  if(!el) return;
+  // Sadece AKTİF hikayeler ve aktif geminin hikayeleri
+  const gemiAd = (CP && VOYAGES) ? (VOYAGES.find(v=>v.id===CP.sefer)?.ship || '') : '';
+  const aktif = HIKAYELER.filter(h => h.aktif && (!h.gemi || h.gemi === gemiAd || gemiAd === ''));
+  if(!aktif.length){
+    el.innerHTML = '<div class="hikaye-bos"><span class="em">📚</span>Henüz hikaye paylaşılmadı.<br><span style="font-size:11px;opacity:.7;">Rehberiniz yakında ekleyecek.</span></div>';
+    return;
+  }
+  el.innerHTML = '<div class="hikaye-grid">' + aktif.map(h => {
+    const banner = h.banner_url
+      ? `style="background-image:url('${escapeHTML(h.banner_url)}');"`
+      : '';
+    const placeholder = h.banner_url ? '' : 'placeholder';
+    return `<div class="hikaye-card" onclick="hikayeAc('${h.id}')">
+      <div class="hikaye-card-banner ${placeholder}" ${banner}>
+        <div class="hikaye-card-liman-pill">📍 ${escapeHTML(h.liman)}</div>
+      </div>
+      <div class="hikaye-card-body">
+        <div class="hikaye-card-baslik">${escapeHTML(h.baslik)}</div>
+        ${h.ozet ? `<div class="hikaye-card-ozet">${escapeHTML(h.ozet)}</div>` : ''}
+        <div class="hikaye-card-okumalink">Devamını oku <span>→</span></div>
+      </div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+// Hikaye detay modalı aç
+function hikayeAc(id){
+  const h = HIKAYELER.find(x=>x.id===id);
+  if(!h) return;
+  // Eski varsa kaldır
+  document.getElementById('hikaye-detay-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'hikaye-detay-modal';
+  modal.className = 'hikaye-modal active';
+  modal.onclick = (e) => { if(e.target === modal) hikayeKapat(); };
+
+  const banner = h.banner_url
+    ? `style="background-image:url('${escapeHTML(h.banner_url)}');"`
+    : `style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);"`;
+
+  const galeriHTML = (h.galeri_urlleri && h.galeri_urlleri.length)
+    ? '<div class="hikaye-modal-galeri">' + h.galeri_urlleri.map(u => `<img src="${escapeHTML(u)}" alt="" onclick="window.open('${escapeHTML(u)}','_blank')">`).join('') + '</div>'
+    : '';
+
+  // İçeriği paragraflara ayır
+  const icerikHTML = (h.icerik || '').split(/\n\n+/).map(p =>
+    `<p>${escapeHTML(p).replace(/\n/g,'<br>')}</p>`
+  ).join('');
+
+  modal.innerHTML = `
+    <div class="hikaye-modal-i">
+      <div class="hikaye-modal-banner" ${banner}>
+        <button class="hikaye-modal-kapat" onclick="hikayeKapat()">✕</button>
+        <div class="hikaye-modal-liman">📍 ${escapeHTML(h.liman)}</div>
+      </div>
+      <div class="hikaye-modal-body">
+        <div class="hikaye-modal-baslik">${escapeHTML(h.baslik)}</div>
+        ${h.ozet ? `<div class="hikaye-modal-ozet">${escapeHTML(h.ozet)}</div>` : ''}
+        <div class="hikaye-modal-icerik">${icerikHTML}</div>
+        ${galeriHTML}
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function hikayeKapat(){
+  document.getElementById('hikaye-detay-modal')?.remove();
+}
+
+// ── REHBER TARAFI: admin liste ──
+function renderHikayelerAdmin(){
+  const el = document.getElementById('hikaye-admin-liste');
+  if(!el) return;
+  if(!HIKAYELER.length){
+    el.innerHTML = '<div class="hikaye-bos"><span class="em">📚</span>Henüz hikaye eklenmedi.<br><span style="font-size:11px;opacity:.7;">"+ Yeni Hikaye Ekle" butonuna basın.</span></div>';
+    return;
+  }
+  el.innerHTML = HIKAYELER.map(h => {
+    const banner = h.banner_url
+      ? `style="background-image:url('${escapeHTML(h.banner_url)}');"`
+      : '';
+    const placeholder = h.banner_url ? '' : 'placeholder';
+    return `<div class="h-admin-card">
+      <div class="h-admin-thumb ${placeholder}" ${banner}></div>
+      <div class="h-admin-baslik">${escapeHTML(h.baslik)}</div>
+      <div class="h-admin-liman">📍 ${escapeHTML(h.liman)}${h.gemi?' · '+escapeHTML(h.gemi):''}</div>
+      <div class="h-admin-toggle" onclick="hikayeAktifToggle('${h.id}')">
+        <div class="h-toggle-switch ${h.aktif?'aktif':''}"></div>
+        <div class="h-toggle-label">${h.aktif?'✓ Yolculara görünür':'⚠️ Henüz yayında değil'}</div>
+      </div>
+      <div class="h-admin-aksiyonlar">
+        <button class="h-admin-btn h-btn-duzenle" onclick="hikayeFormAc('${h.id}')">✏️ Düzenle</button>
+        ${h.aktif?`<button class="h-admin-btn h-btn-push" onclick="hikayePushGonder('${h.id}')">📍 Bugün ${escapeHTML(h.liman)}!</button>`:''}
+        <button class="h-admin-btn h-btn-sil" onclick="hikayeSil('${h.id}')">Sil</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Hikaye aktif/pasif toggle
+async function hikayeAktifToggle(id){
+  const h = HIKAYELER.find(x=>x.id===id);
+  if(!h) return;
+  const yeniDurum = !h.aktif;
+  try {
+    const { error } = await sb.from('liman_hikayeleri').update({ aktif: yeniDurum, guncelleme_tarihi: new Date().toISOString() }).eq('id', id);
+    if(error) throw error;
+    h.aktif = yeniDurum;
+    renderHikayelerAdmin();
+    showToast(yeniDurum ? '✓ Yolculara açıldı' : 'Kapatıldı');
+  } catch(e) {
+    console.error('Toggle hatası:', e);
+    showToast('⚠️ Güncelleme başarısız');
+  }
+}
+
+// Hikaye silme
+async function hikayeSil(id){
+  const h = HIKAYELER.find(x=>x.id===id);
+  if(!h) return;
+  if(!confirm('"' + h.baslik + '" hikayesi silinsin mi? Bu işlem geri alınamaz.')) return;
+  try {
+    const { error } = await sb.from('liman_hikayeleri').delete().eq('id', id);
+    if(error) throw error;
+    HIKAYELER = HIKAYELER.filter(x=>x.id!==id);
+    renderHikayelerAdmin();
+    showToast('✓ Silindi');
+  } catch(e) {
+    console.error('Silme hatası:', e);
+    showToast('⚠️ Silinemedi');
+  }
+}
+
+// Hikaye form modalı (yeni veya düzenle)
+function hikayeFormAc(id){
+  _hikayeDuzenlenen = id ? HIKAYELER.find(x=>x.id===id) : null;
+  const h = _hikayeDuzenlenen;
+
+  document.getElementById('hikaye-form-modal')?.remove();
+
+  const aktifGemi = (typeof ACTIVE_SHIP !== 'undefined' && ACTIVE_SHIP)
+    ? ACTIVE_SHIP
+    : (CU?.ship || '');
+
+  const modal = document.createElement('div');
+  modal.id = 'hikaye-form-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:24px 24px 0 0;width:100%;max-width:560px;max-height:92vh;display:flex;flex-direction:column;font-family:'DM Sans',sans-serif;">
+      <div style="padding:18px 22px 12px;border-bottom:1px solid #f0f0f0;flex-shrink:0;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;color:#1a1a1a;">${h?'✏️ Hikaye Düzenle':'+ Yeni Hikaye'}</div>
+        <button onclick="document.getElementById('hikaye-form-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:#888;width:30px;height:30px;display:flex;align-items:center;justify-content:center;">✕</button>
+      </div>
+      <div style="padding:18px 22px;overflow-y:auto;flex:1;">
+
+        <label class="fl" style="margin-bottom:4px;">Liman / Şehir Adı *</label>
+        <input class="ai2" type="text" id="hf-liman" placeholder="Atina, Mikonos, Santorini..." value="${escapeHTML(h?.liman||'')}">
+
+        <label class="fl" style="margin-bottom:4px;margin-top:12px;">Başlık *</label>
+        <input class="ai2" type="text" id="hf-baslik" placeholder="Atina'nın 3000 Yıllık Hikayesi..." value="${escapeHTML(h?.baslik||'')}">
+
+        <label class="fl" style="margin-bottom:4px;margin-top:12px;">Özet (kısa giriş — kart üstünde gözükür)</label>
+        <textarea class="ai2" id="hf-ozet" rows="2" style="resize:vertical;" placeholder="Yolcunun ilgisini çekecek 1-2 cümlelik özet...">${escapeHTML(h?.ozet||'')}</textarea>
+
+        <label class="fl" style="margin-bottom:4px;margin-top:12px;">Tam İçerik *</label>
+        <textarea class="ai2" id="hf-icerik" rows="10" style="resize:vertical;font-family:inherit;line-height:1.6;" placeholder="Liman/şehir hakkında detaylı bilgi, hikaye, kültür, gezilecek yerler...&#10;&#10;Paragrafları çift Enter ile ayırın.">${escapeHTML(h?.icerik||'')}</textarea>
+
+        <label class="fl" style="margin-bottom:6px;margin-top:14px;">📷 Banner görseli (kart kapağı)</label>
+        <div id="hf-banner-preview" style="width:100%;height:130px;border-radius:10px;border:1.5px dashed #d0d0d0;background:#fafafa;display:flex;align-items:center;justify-content:center;color:#999;font-size:12px;cursor:pointer;background-size:cover;background-position:center;${h?.banner_url?`background-image:url('${escapeHTML(h.banner_url)}');border-color:transparent;`:''}" onclick="document.getElementById('hf-banner-input').click()">
+          ${h?.banner_url ? '' : '📷 Banner ekle (1200×600 önerilir)'}
+        </div>
+        <input type="file" id="hf-banner-input" accept="image/*" style="display:none;" onchange="hikayeBannerSec(this)">
+
+        <label class="fl" style="margin-bottom:6px;margin-top:14px;">🖼️ Galeri görselleri (en fazla 4)</label>
+        <div id="hf-galeri-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px;"></div>
+        <button type="button" onclick="document.getElementById('hf-galeri-input').click()" style="width:100%;padding:9px;background:transparent;color:#1a5fa8;border:1.5px dashed #1a5fa8;border-radius:10px;font-size:12px;cursor:pointer;font-family:inherit;">+ Galeri görseli ekle</button>
+        <input type="file" id="hf-galeri-input" accept="image/*" style="display:none;" onchange="hikayeGaleriSec(this)">
+
+        <div style="background:#f0f6fb;border-radius:10px;padding:10px 12px;margin-top:14px;font-size:11px;color:#0d3b6e;line-height:1.5;">
+          💡 <b>İpucu:</b> Hikayeyi kaydedince <b>kapalı</b> başlar — yolcular göremez. Liman gününde admin ekranından "✓ Yolculara aç" yapabilirsiniz.
+        </div>
+      </div>
+      <div style="padding:14px 22px 18px;border-top:1px solid #f0f0f0;display:flex;gap:10px;flex-shrink:0;background:white;">
+        <button onclick="document.getElementById('hikaye-form-modal').remove()" style="flex:1;padding:13px;background:transparent;color:#888;border:1.5px solid #e0e0e0;border-radius:12px;font-size:13px;cursor:pointer;font-family:inherit;">İptal</button>
+        <button onclick="hikayeKaydet()" style="flex:2;padding:13px;background:#1a5fa8;color:white;border:none;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">${h?'💾 Güncelle':'+ Kaydet'}</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  // Galeri preview yenile
+  _hikayeGaleriler = (h?.galeri_urlleri || []).slice();
+  _hikayeBanner = h?.banner_url || null;
+  hikayeGaleriPreviewYenile();
+}
+
+let _hikayeGaleriler = [];
+let _hikayeBanner = null;
+
+// Banner görseli seç
+async function hikayeBannerSec(input){
+  const f = input.files[0];
+  if(!f) return;
+  showToast('⏳ Banner yükleniyor...');
+  try {
+    const url = await hikayeGorselYukle(f, 'banner');
+    _hikayeBanner = url;
+    const prev = document.getElementById('hf-banner-preview');
+    if(prev){
+      prev.style.backgroundImage = `url('${url}')`;
+      prev.style.borderColor = 'transparent';
+      prev.innerHTML = '';
+    }
+    showToast('✓ Banner yüklendi');
+  } catch(e) {
+    console.error('Banner yükleme:', e);
+    showToast('⚠️ Yükleme başarısız');
+  }
+}
+
+// Galeri görseli seç
+async function hikayeGaleriSec(input){
+  const f = input.files[0];
+  if(!f) return;
+  if(_hikayeGaleriler.length >= 4){ showToast('En fazla 4 galeri görseli'); return; }
+  showToast('⏳ Görsel yükleniyor...');
+  try {
+    const url = await hikayeGorselYukle(f, 'galeri');
+    _hikayeGaleriler.push(url);
+    hikayeGaleriPreviewYenile();
+    showToast('✓ Eklendi');
+  } catch(e) {
+    console.error('Galeri yükleme:', e);
+    showToast('⚠️ Yükleme başarısız');
+  }
+  input.value = ''; // Aynı dosya tekrar seçilebilsin
+}
+
+function hikayeGaleriPreviewYenile(){
+  const grid = document.getElementById('hf-galeri-grid');
+  if(!grid) return;
+  grid.innerHTML = _hikayeGaleriler.map((url, i) => `
+    <div style="position:relative;aspect-ratio:1;border-radius:8px;background:url('${escapeHTML(url)}') center/cover;border:1px solid #e0e0e0;">
+      <button onclick="hikayeGaleriSil(${i})" style="position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(220,38,38,.9);border:none;color:white;font-size:11px;cursor:pointer;">✕</button>
+    </div>
+  `).join('');
+}
+
+function hikayeGaleriSil(i){
+  _hikayeGaleriler.splice(i, 1);
+  hikayeGaleriPreviewYenile();
+}
+
+// Görseli WebP'ye sıkıştır + upload
+async function hikayeGorselYukle(file, tip){
+  // Sıkıştır
+  const maxBoyut = tip === 'banner' ? 1200 : 600;
+  const compressed = await yeniGorselSikistir(file, maxBoyut, 0.82);
+  // Yükle
+  const dosyaAdi = 'hikaye-' + Date.now() + '-' + Math.random().toString(36).slice(2,8) + '.webp';
+  const { data, error } = await sb.storage.from('hikaye-resimleri').upload(dosyaAdi, compressed, { contentType: 'image/webp' });
+  if(error) throw error;
+  const { data: publicData } = sb.storage.from('hikaye-resimleri').getPublicUrl(dosyaAdi);
+  return publicData.publicUrl;
+}
+
+// Sıkıştırma helper (eğer yoksa)
+async function yeniGorselSikistir(file, maxBoyut, kalite){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, hh = img.height;
+        if(w > maxBoyut || hh > maxBoyut){
+          if(w > hh){ hh = Math.round(hh * maxBoyut / w); w = maxBoyut; }
+          else { w = Math.round(w * maxBoyut / hh); hh = maxBoyut; }
+        }
+        canvas.width = w; canvas.height = hh;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, hh);
+        canvas.toBlob(b => b ? resolve(b) : reject(new Error('Sıkıştırma başarısız')), 'image/webp', kalite);
+      };
+      img.onerror = () => reject(new Error('Görsel okunamadı'));
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject(new Error('Dosya okunamadı'));
+    reader.readAsDataURL(file);
+  });
+}
+
+// Hikaye kaydet
+async function hikayeKaydet(){
+  const liman = document.getElementById('hf-liman').value.trim();
+  const baslik = document.getElementById('hf-baslik').value.trim();
+  const ozet = document.getElementById('hf-ozet').value.trim();
+  const icerik = document.getElementById('hf-icerik').value.trim();
+  if(!liman || !baslik || !icerik){
+    showToast('⚠️ Liman, başlık ve içerik zorunlu');
+    return;
+  }
+  const aktifGemi = (typeof ACTIVE_SHIP !== 'undefined' && ACTIVE_SHIP) ? ACTIVE_SHIP : (CU?.ship || '');
+
+  const veri = {
+    liman, baslik, ozet: ozet || null, icerik,
+    banner_url: _hikayeBanner,
+    galeri_urlleri: _hikayeGaleriler,
+    gemi: aktifGemi || null,
+    guncelleme_tarihi: new Date().toISOString()
+  };
+
+  try {
+    if(_hikayeDuzenlenen){
+      // Update
+      const { error } = await sb.from('liman_hikayeleri').update(veri).eq('id', _hikayeDuzenlenen.id);
+      if(error) throw error;
+      Object.assign(_hikayeDuzenlenen, veri);
+      showToast('✓ Güncellendi');
+    } else {
+      // Insert
+      veri.aktif = false; // Yeni hikaye varsayılan KAPALI
+      const { data, error } = await sb.from('liman_hikayeleri').insert(veri).select();
+      if(error) throw error;
+      if(data && data[0]) HIKAYELER.push(data[0]);
+      showToast('✓ Hikaye kaydedildi (kapalı durumda)');
+    }
+    document.getElementById('hikaye-form-modal').remove();
+    renderHikayelerAdmin();
+  } catch(e) {
+    console.error('Kayıt hatası:', e);
+    showToast('⚠️ Kayıt başarısız: ' + (e.message||''));
+  }
+}
+
+// "Bugün bu liman!" push gönder
+async function hikayePushGonder(id){
+  const h = HIKAYELER.find(x=>x.id===id);
+  if(!h) return;
+  if(!confirm('Tüm yolculara "📍 Bugün ' + h.liman + '!" bildirimi gönderilsin mi?')) return;
+
+  // Aktif sefer
+  const aktifSeferler = VOYAGES.filter(v => v.status !== 'archived').map(v => v.id);
+  // Bu seferdeki yolcular
+  const aliciYolcular = passengers.filter(p => aktifSeferler.includes(p.sefer));
+  if(!aliciYolcular.length){
+    showToast('⚠️ Aktif seferde yolcu yok');
+    return;
+  }
+
+  // Push fonksiyonunu kullan (varsa)
+  if(typeof sendPushNotification === 'function'){
+    try {
+      await sendPushNotification({
+        baslik: '📍 Bugün ' + h.liman + '!',
+        mesaj: h.baslik + ' — Hikayesini okumak için dokunun',
+        url: '/?hikaye=' + h.id
+      });
+      showToast('✓ Bildirim gönderildi');
+    } catch(e){
+      console.error('Push hatası:', e);
+      showToast('⚠️ Bildirim gönderilemedi');
+    }
+  } else {
+    // Push yoksa basit toast
+    showToast('💡 Hikaye yayında — yolcular Hikayeler sekmesinde görür');
+  }
+}
+
+// Sayfa yüklendiğinde hikaye query parametresi var mı kontrol et
+window.addEventListener('load', () => {
+  setTimeout(async () => {
+    // Hikayeleri yükle
+    if(typeof sb !== 'undefined' && sb) await hikayeleriYukle();
+
+    // URL'de hikaye parametresi varsa direkt aç
+    const url = new URL(window.location.href);
+    const hid = url.searchParams.get('hikaye');
+    if(hid){
+      setTimeout(() => hikayeAc(hid), 1200);
+      // URL temizle
+      url.searchParams.delete('hikaye');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, 1500);
 });
 </script>
 
