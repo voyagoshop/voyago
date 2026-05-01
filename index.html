@@ -2626,12 +2626,11 @@ function doPL(){
   let p=passengers.find(p=>p.kabin===kabin&&p.sefer===sv);
   let eslestirmeMesaji = '';
 
-  // 2. Bulunamazsa: aynı seferdeki KABİNSİZ yolcular arasında isim eşleşmesi dene
-  if(!p && typeof isimNormalize === 'function'){
-    const isimNorm = isimNormalize(name);
-    if(isimNorm){
+  // 2. Bulunamazsa: aynı seferdeki KABİNSİZ yolcular arasında ESNEK isim eşleşmesi
+  if(!p && typeof isimEsnekEslesir === 'function'){
+    if(name){
       const isimEslesenler = passengers.filter(x=>
-        x.sefer===sv && !x.kabin && isimNormalize(x.name)===isimNorm
+        x.sefer===sv && !x.kabin && isimEsnekEslesir(name, x.name)
       );
       if(isimEslesenler.length === 1){
         // Tek eşleşme — mükemmel, yolcunun bilgilerini tamamla
@@ -2639,8 +2638,19 @@ function doPL(){
         eslestirmeMesaji = '🎯 ' + name + ', listemizde varsınız! Bilgileriniz tamamlandı.';
       } else if(isimEslesenler.length > 1){
         // Birden fazla aynı isimli — hangisi belli değil, yeni kayıt yap
-        console.log('Birden fazla aynı isim:', isimEslesenler.length);
+        console.log('Birden fazla aynı isim:', isimEslesenler.length, isimEslesenler.map(p=>p.name));
       }
+    }
+  }
+  // 3. Hâlâ bulunamadıysa: TÜM yolcular arasında esnek arama (kabinli olsa bile, ad+telefon eşleşirse)
+  if(!p && typeof isimEsnekEslesir === 'function' && name){
+    const tumIsimEslesenler = passengers.filter(x=>
+      x.sefer===sv && isimEsnekEslesir(name, x.name)
+    );
+    if(tumIsimEslesenler.length === 1 && !tumIsimEslesenler[0].checkinDone){
+      // Yolcu listede vardı, kabin numarasını yanlış girdi olabilir
+      p = tumIsimEslesenler[0];
+      eslestirmeMesaji = '🎯 ' + name + ', listemizde varsınız! Kabin numaranız güncellendi.';
     }
   }
 
@@ -3783,14 +3793,13 @@ function loadExcel(input){
         if(!v){ hata++; continue; }
         // Kabin yoksa eksik bilgili sayılır (yolcu sonradan tamamlayacak)
         if(!kabin) eksikBilgi++;
-        // Eşleştirme: kabin varsa kabin+sefer ile, yoksa isim+sefer ile
+        // Eşleştirme: kabin varsa kabin+sefer ile, yoksa esnek isim+sefer ile
         let ex;
         if(kabin){
           ex = passengers.find(p=>p.kabin===kabin&&p.sefer===v.id);
         } else {
-          // Kabin yoksa, aynı isimli kabinsiz yolcu var mı bak
-          const isimNorm = isimNormalize(name);
-          ex = passengers.find(p=>p.sefer===v.id && !p.kabin && isimNormalize(p.name)===isimNorm);
+          // Kabin yoksa, aynı isimli kabinsiz yolcu var mı bak (esnek eşleştirme)
+          ex = passengers.find(p=>p.sefer===v.id && !p.kabin && isimEsnekEslesir(name, p.name));
         }
         if(ex){
           Object.assign(ex,{name,tel:tel||ex.tel,kabin:kabin||ex.kabin,adult,child,baby});
@@ -3806,22 +3815,32 @@ function loadExcel(input){
       }
       setupAdmin();
       showToast('⏳ ' + (added+updated) + ' yolcu DB\'ye kaydediliyor...');
-      try {
-        await Promise.all(kayitListesi.map(p => saveYolcuDB(p)));
-        let msg = '✓ ' + added + ' yeni · ' + updated + ' güncellendi';
-        if(eksikBilgi > 0) msg += ' · ' + eksikBilgi + ' eksik bilgi (yolcu girişinde tamamlanır)';
-        if(hata > 0) msg += ' · ' + hata + ' hata';
-        showToast(msg);
-      } catch(dbErr) {
-        console.error('DB kayıt hatası:', dbErr);
-        showToast('⚠️ DB kayıt başarısız: ' + (dbErr.message||''));
+      // SIRAYLA kaydet (paralel rate limit'e takılabiliyor)
+      let basarili = 0, basarisiz = 0;
+      for(const p of kayitListesi){
+        try {
+          await saveYolcuDB(p);
+          basarili++;
+        } catch(e){
+          basarisiz++;
+          console.error('Kayıt hatası ('+p.name+'):', e);
+        }
+        // Her 10 kayıttan sonra UI'yi güncelle
+        if(basarili % 10 === 0){
+          showToast('⏳ ' + basarili + '/' + kayitListesi.length + ' kaydedildi...');
+        }
       }
+      let msg = '✓ ' + added + ' yeni · ' + updated + ' güncellendi';
+      if(eksikBilgi > 0) msg += ' · ' + eksikBilgi + ' eksik bilgi';
+      if(basarisiz > 0) msg += ' · ⚠️ ' + basarisiz + ' KAYIT BAŞARISIZ (Console\'a bak)';
+      if(hata > 0) msg += ' · ' + hata + ' satır hatalı';
+      showToast(msg);
     }catch(err){showToast('Hata: '+err.message);}
   };
   reader.readAsArrayBuffer(file);
 }
 
-// İsim normalize (Türkçe karakterler + büyük/küçük + boşluklar)
+// İsim normalize (Türkçe karakterler + büyük/küçük + boşluklar + noktalama)
 function isimNormalize(s){
   if(!s) return '';
   return String(s)
@@ -3832,8 +3851,28 @@ function isimNormalize(s){
     .replace(/ü/g,'u').replace(/Ü/gi,'u')
     .replace(/ö/g,'o').replace(/Ö/gi,'o')
     .replace(/ç/g,'c').replace(/Ç/gi,'c')
-    .replace(/\s+/g,' ')
+    .replace(/[.,;:'"!?()-]/g,'')  // Noktalama sil
+    .replace(/\s+/g,' ')              // Çoklu boşluğu tek boşluğa
     .trim();
+}
+
+// İsim ESNEK eşleştirme — sıra bağımsız, kelime bazlı
+// "Ahmet Yılmaz" = "Yılmaz Ahmet" = "AHMET MEHMET YILMAZ" (içeriyor)
+function isimEsnekEslesir(yolcuYazdigi, listedeki){
+  const a = isimNormalize(yolcuYazdigi);
+  const b = isimNormalize(listedeki);
+  if(!a || !b) return false;
+  // Tam eşleşme
+  if(a === b) return true;
+  // Kelime bazlı eşleşme — yolcunun yazdığı kelimeler listedeki içinde geçiyor mu?
+  const kelimelerA = a.split(' ').filter(k=>k.length>=2); // 2 harften kısa kelimeler atla (M., A. gibi)
+  const kelimelerB = b.split(' ').filter(k=>k.length>=2);
+  if(kelimelerA.length === 0 || kelimelerB.length === 0) return false;
+  // Yolcunun yazdığı tüm anlamlı kelimeler listedekinde mi?
+  const tumA_de_var = kelimelerA.every(ka => kelimelerB.some(kb => kb === ka));
+  // Veya tersi (yolcu daha az yazmış olabilir, listede tam isim var)
+  const tumB_de_var = kelimelerB.every(kb => kelimelerA.some(ka => ka === kb));
+  return tumA_de_var || tumB_de_var;
 }
 
 // ── TURLAR ──
