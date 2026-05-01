@@ -3714,12 +3714,13 @@ function addPassenger(){
 function loadExcel(input){
   const file=input.files[0];if(!file)return;
   const reader=new FileReader();
-  reader.onload=e=>{
+  reader.onload=async e=>{
     try{
       const wb=XLSX.read(e.target.result,{type:'array'});
       const ws=wb.Sheets[wb.SheetNames[0]];
       const data=XLSX.utils.sheet_to_json(ws,{header:1});
-      let added=0,updated=0;
+      let added=0,updated=0,hata=0;
+      const kayitListesi = []; // DB'ye gönderilecek
       for(let i=1;i<data.length;i++){
         const r=data[i];if(!r||!r[0])continue;
         const name=String(r[0]||'').trim(),kabin=String(r[1]||'').trim(),tel=String(r[2]||'').trim();
@@ -3727,11 +3728,30 @@ function loadExcel(input){
         const sl2=String(r[6]||'').trim();
         if(!name||!kabin)continue;
         const v=VOYAGES.find(vv=>vv.label.includes(sl2.split('-')[0].trim()))||VOYAGES[0];
+        if(!v){ hata++; continue; }
         const ex=passengers.find(p=>p.kabin===kabin&&p.sefer===v.id);
-        if(ex){Object.assign(ex,{name,tel,adult,child,baby});updated++;}
-        else{passengers.push({name,kabin,tel,sefer:v.id,adult,child,baby,checkedIn:false,checkinDone:false,joinedTours:[]});added++;}
+        if(ex){
+          Object.assign(ex,{name,tel,adult,child,baby});
+          updated++;
+          kayitListesi.push(ex);
+        }
+        else{
+          const yeniYolcu = {name,kabin,tel,sefer:v.id,adult,child,baby,checkedIn:false,checkinDone:false,joinedTours:[]};
+          passengers.push(yeniYolcu);
+          added++;
+          kayitListesi.push(yeniYolcu);
+        }
       }
-      setupAdmin();showToast(added+' yeni - '+updated+' güncellendi');
+      setupAdmin();
+      showToast('⏳ ' + (added+updated) + ' yolcu DB\'ye kaydediliyor...');
+      // Hepsini DB'ye kaydet (paralel)
+      try {
+        await Promise.all(kayitListesi.map(p => saveYolcuDB(p)));
+        showToast('✓ ' + added + ' yeni · ' + updated + ' güncellendi · DB kaydedildi' + (hata?' · '+hata+' hata':''));
+      } catch(dbErr) {
+        console.error('DB kayıt hatası:', dbErr);
+        showToast('⚠️ DB kayıt başarısız: ' + (dbErr.message||''));
+      }
     }catch(err){showToast('Hata: '+err.message);}
   };
   reader.readAsArrayBuffer(file);
