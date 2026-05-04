@@ -11294,6 +11294,7 @@ function pwaBannerGosterDeneme(){
 
   const banner = document.getElementById('pwa-banner');
   if(banner){
+    banner.style.display = 'flex'; // Önceden gizlenmişse aç
     banner.classList.add('show');
     _pwaBannerGosterilmis = true;
   }
@@ -11308,6 +11309,8 @@ function pwaBannerGizle(){
     banner.style.transform = '';
     banner.style.opacity = '';
     banner.style.transition = '';
+    // Kesin gizle - !important ile (CSS savaşına son)
+    banner.style.display = 'none';
   }
 }
 
