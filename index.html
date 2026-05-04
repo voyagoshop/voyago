@@ -790,7 +790,7 @@ textarea.ai2{resize:none;}
       <div style="font-family:'DM Serif Display',serif;font-size:22px;color:white;line-height:1.3;" data-t="slogan">Yolculuğunuz Başlamak Üzere</div>
       <div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:6px;" data-t="slogan_sub">Giriş yapın, her şey hazır sizi bekliyor.</div>
       <!-- Telefona yükle butonu -->
-      <button onclick="pwaKılavuzGoster()" style="margin-top:14px;padding:8px 20px;background:rgba(255,255,255,.15);color:white;border:1.5px solid rgba(255,255,255,.4);border-radius:20px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">
+      <button onclick="pwaYukle()" style="margin-top:14px;padding:8px 20px;background:rgba(255,255,255,.15);color:white;border:1.5px solid rgba(255,255,255,.4);border-radius:20px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">
         📱 Uygulamayı Telefona Yükle
       </button>
     </div>
@@ -9198,16 +9198,7 @@ document.head.appendChild(gcStyle);
   </div>
 </div>
 
-<!-- PWA Install Banner -->
-<div id="pwa-banner" style="display:none;position:fixed;bottom:80px;left:12px;right:12px;background:white;border-radius:16px;padding:14px 16px;box-shadow:0 8px 30px rgba(0,0,0,.15);z-index:8000;display:none;align-items:center;gap:12px;">
-  <div style="width:44px;height:44px;background:linear-gradient(135deg,#1a5fa8,#0d3b6e);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">⚓</div>
-  <div style="flex:1;">
-    <div style="font-size:14px;font-weight:600;color:#1a1a1a;">VOYAGO'yu Yükle</div>
-    <div style="font-size:12px;color:#6b6b6b;margin-top:1px;">Ana ekrana ekle, uygulama gibi kullan</div>
-  </div>
-  <button onclick="pwayukle()" style="padding:8px 14px;background:#1a5fa8;color:white;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0;">Yükle</button>
-  <button onclick="document.getElementById('pwa-banner').style.display='none'" style="padding:4px 8px;background:transparent;border:none;color:#888;cursor:pointer;font-size:18px;flex-shrink:0;">×</button>
-</div>
+<!-- (Eski PWA Banner kaldırıldı — yeni sürüm sayfa başında) -->
 
 <style>
 .voyago-footer{position:fixed;bottom:0;left:0;right:0;z-index:50;pointer-events:none;}
@@ -9220,58 +9211,13 @@ document.head.appendChild(gcStyle);
   <div class="voyago-slogan">© 2026 VOYAGO · All rights reserved by Climantacis · Unauthorized use is prohibited</div>
 </div>
 <script>
-function pwaKılavuzGoster(){
-  const m=document.getElementById('pwa-kilavuz-modal');
-  if(m){m.style.display='flex';}
-  // Eğer Chrome install event varsa direkt yükle
-  if(pwaInstallEvent){
-    pwaInstallEvent.prompt();
-    pwaInstallEvent.userChoice.then(result=>{
-      if(result.outcome==='accepted') showToast('VOYAGO ana ekrana eklendi! ⚓');
-      pwaInstallEvent=null;
-      if(m)m.style.display='none';
-    });
-  }
-}
+// (Eski PWA install kodu kaldırıldı — yeni sürüm dosya sonunda)
 
 function pwaMKapat(e){
   if(e && e.target!==document.getElementById('pwa-kilavuz-modal') && e.type==='click') return;
   const m=document.getElementById('pwa-kilavuz-modal');
   if(m)m.style.display='none';
 }
-
-// ══ PWA SERVICE WORKER ══
-let pwaInstallEvent = null;
-
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  pwaInstallEvent = e;
-  // Banner göster
-  const banner = document.getElementById('pwa-banner');
-  if(banner) {
-    banner.style.display = 'flex';
-    setTimeout(()=>{ banner.style.display='none'; }, 15000);
-  }
-});
-
-function pwayukle() {
-  if(pwaInstallEvent) {
-    pwaInstallEvent.prompt();
-    pwaInstallEvent.userChoice.then(result => {
-      if(result.outcome === 'accepted') {
-        showToast('VOYAGO ana ekrana eklendi! ⚓');
-      }
-      document.getElementById('pwa-banner').style.display = 'none';
-      pwaInstallEvent = null;
-    });
-  }
-}
-
-window.addEventListener('appinstalled', () => {
-  showToast('VOYAGO yüklendi! ⚓');
-});
-
-// Service Worker devre dışı
 </script>
 
 <!-- ══ TUR KATILIM SİSTEMİ ══ -->
