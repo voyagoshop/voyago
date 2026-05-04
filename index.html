@@ -596,22 +596,29 @@ textarea.ai2{resize:none;}
 
 /* ══ PWA INSTALL BANNER & MODAL ══ */
 .pwa-banner{
-  position:fixed;left:50%;transform:translateX(-50%) translateY(120%);
-  bottom:80px;width:calc(100% - 24px);max-width:420px;z-index:998;
+  position:fixed;left:50%;transform:translateX(-50%) translateY(150%);
+  bottom:88px;width:calc(100% - 24px);max-width:420px;z-index:998;
   background:linear-gradient(135deg,#0d3b6e,#1a5fa8);color:white;
-  border-radius:16px;padding:14px 16px;
+  border-radius:16px;padding:14px 16px 14px 14px;
   box-shadow:0 10px 30px rgba(13,59,110,.4);
-  display:flex;align-items:center;gap:12px;
+  display:flex;align-items:center;gap:10px;
   transition:transform .4s cubic-bezier(.34,1.5,.64,1);
 }
 .pwa-banner.show{transform:translateX(-50%) translateY(0);}
-.pwa-banner-icon{font-size:32px;flex-shrink:0;}
-.pwa-banner-content{flex:1;min-width:0;}
+.pwa-banner-x{
+  position:absolute;top:6px;right:6px;
+  width:24px;height:24px;border-radius:50%;
+  background:rgba(255,255,255,.15);
+  border:none;color:white;font-size:13px;font-weight:600;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  line-height:1;transition:background .15s;padding:0;
+}
+.pwa-banner-x:hover{background:rgba(255,255,255,.3);}
+.pwa-banner-icon{font-size:30px;flex-shrink:0;}
+.pwa-banner-content{flex:1;min-width:0;padding-right:8px;}
 .pwa-banner-baslik{font-size:13px;font-weight:600;margin-bottom:2px;}
 .pwa-banner-alt{font-size:11px;opacity:.9;line-height:1.4;}
-.pwa-banner-aksiyonlar{display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
-.pwa-banner-yukle{padding:8px 14px;background:white;color:#0d3b6e;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;}
-.pwa-banner-sonra{padding:6px 10px;background:transparent;color:rgba(255,255,255,.75);border:none;font-size:10px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.pwa-banner-yukle{padding:9px 16px;background:white;color:#0d3b6e;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0;}
 
 /* iOS yükleme rehber modal */
 .pwa-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:none;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(4px);}
@@ -8806,15 +8813,13 @@ document.head.appendChild(gcStyle);
 <!-- ══ KVKK / AYDINLATMA METNİ MODAL ══ -->
 <!-- ══ PWA INSTALL BANNER ══ -->
 <div class="pwa-banner" id="pwa-banner">
+  <button class="pwa-banner-x" onclick="pwaSonra()" aria-label="Kapat">✕</button>
   <div class="pwa-banner-icon">📱</div>
   <div class="pwa-banner-content">
     <div class="pwa-banner-baslik">Telefonuna Ekle</div>
-    <div class="pwa-banner-alt">VOYAGO'yu sefer boyunca tek dokunuşla aç</div>
+    <div class="pwa-banner-alt">Sefer boyunca tek dokunuşla aç</div>
   </div>
-  <div class="pwa-banner-aksiyonlar">
-    <button class="pwa-banner-yukle" onclick="pwaYukle()">Ekle</button>
-    <button class="pwa-banner-sonra" onclick="pwaSonra()">Sonra</button>
-  </div>
+  <button class="pwa-banner-yukle" onclick="pwaYukle()">Ekle</button>
 </div>
 
 <!-- iOS YÜKLEME REHBER MODAL -->
