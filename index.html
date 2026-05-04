@@ -599,26 +599,33 @@ textarea.ai2{resize:none;}
   position:fixed;left:50%;transform:translateX(-50%) translateY(150%);
   bottom:88px;width:calc(100% - 24px);max-width:420px;z-index:998;
   background:linear-gradient(135deg,#0d3b6e,#1a5fa8);color:white;
-  border-radius:16px;padding:14px 16px 14px 14px;
+  border-radius:16px;padding:18px 16px 14px 14px;
   box-shadow:0 10px 30px rgba(13,59,110,.4);
   display:flex;align-items:center;gap:10px;
-  transition:transform .4s cubic-bezier(.34,1.5,.64,1);
+  transition:transform .4s cubic-bezier(.34,1.5,.64,1), opacity .3s;
+  touch-action:pan-y;
+  user-select:none;-webkit-user-select:none;
 }
 .pwa-banner.show{transform:translateX(-50%) translateY(0);}
+.pwa-banner.swiping{transition:none;}
+.pwa-banner.swiped-out{transform:translateX(-50%) translateY(150%) !important;opacity:0;}
 .pwa-banner-x{
-  position:absolute;top:6px;right:6px;
-  width:24px;height:24px;border-radius:50%;
-  background:rgba(255,255,255,.15);
-  border:none;color:white;font-size:13px;font-weight:600;
+  position:absolute;top:0;right:0;
+  width:36px;height:36px;border-radius:0 16px 0 12px;
+  background:rgba(0,0,0,.2);
+  border:none;color:white;font-size:15px;font-weight:600;
   cursor:pointer;display:flex;align-items:center;justify-content:center;
   line-height:1;transition:background .15s;padding:0;
+  z-index:5;
+  -webkit-tap-highlight-color:rgba(255,255,255,.3);
 }
-.pwa-banner-x:hover{background:rgba(255,255,255,.3);}
-.pwa-banner-icon{font-size:30px;flex-shrink:0;}
-.pwa-banner-content{flex:1;min-width:0;padding-right:8px;}
+.pwa-banner-x:active{background:rgba(0,0,0,.4);transform:scale(.92);}
+.pwa-banner-icon{font-size:30px;flex-shrink:0;pointer-events:none;}
+.pwa-banner-content{flex:1;min-width:0;padding-right:8px;pointer-events:none;}
 .pwa-banner-baslik{font-size:13px;font-weight:600;margin-bottom:2px;}
 .pwa-banner-alt{font-size:11px;opacity:.9;line-height:1.4;}
-.pwa-banner-yukle{padding:9px 16px;background:white;color:#0d3b6e;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0;}
+.pwa-banner-yukle{padding:9px 16px;background:white;color:#0d3b6e;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0;-webkit-tap-highlight-color:transparent;}
+.pwa-banner-yukle:active{transform:scale(.95);}
 
 /* iOS yükleme rehber modal */
 .pwa-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:none;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(4px);}
@@ -11373,11 +11380,97 @@ function pwaYukle(){
   }
 }
 
-// "Sonra" butonu
+// "Sonra" butonu / X butonu
 function pwaSonra(){
   pwaBannerGizle();
   try { localStorage.setItem('pwa_ertele_tarih', String(Date.now())); } catch(e){}
 }
+
+// ── Swipe (sağa-sola kaydırma ile kapatma) ──
+let _pwaSwipeBaslangic = null;
+let _pwaSwipeOffset = 0;
+let _pwaSwipeBaslangicX = 0;
+let _pwaSwipeBaslangicY = 0;
+
+function pwaSwipeBaslat(e){
+  const banner = document.getElementById('pwa-banner');
+  if(!banner || !banner.classList.contains('show')) return;
+  // X butonu veya Ekle butonuna basıldıysa swipe başlatma
+  if(e.target.closest('.pwa-banner-x') || e.target.closest('.pwa-banner-yukle')) return;
+  const t = e.touches ? e.touches[0] : e;
+  _pwaSwipeBaslangicX = t.clientX;
+  _pwaSwipeBaslangicY = t.clientY;
+  _pwaSwipeBaslangic = Date.now();
+  _pwaSwipeOffset = 0;
+}
+
+function pwaSwipeHareket(e){
+  if(_pwaSwipeBaslangic === null) return;
+  const t = e.touches ? e.touches[0] : e;
+  const dx = t.clientX - _pwaSwipeBaslangicX;
+  const dy = t.clientY - _pwaSwipeBaslangicY;
+  // Eğer dikey hareket çok daha fazlaysa swipe iptal (yolcu kaydırıyor)
+  if(Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10){
+    pwaSwipeBitir();
+    return;
+  }
+  _pwaSwipeOffset = dx;
+  const banner = document.getElementById('pwa-banner');
+  if(!banner) return;
+  banner.classList.add('swiping');
+  // Swipe ile birlikte hafif fade
+  const opacity = Math.max(0, 1 - Math.abs(dx) / 200);
+  banner.style.transform = `translateX(calc(-50% + ${dx}px)) translateY(0)`;
+  banner.style.opacity = opacity;
+  // Yatay swipe varsa scroll'u engelle
+  if(Math.abs(dx) > 5) e.preventDefault?.();
+}
+
+function pwaSwipeBitir(e){
+  if(_pwaSwipeBaslangic === null) return;
+  const banner = document.getElementById('pwa-banner');
+  if(!banner) return;
+  banner.classList.remove('swiping');
+  const esik = 80; // 80px eşik - bu kadar kaydırılırsa kapansın
+  if(Math.abs(_pwaSwipeOffset) > esik){
+    // Tamamen sağa veya sola fırlat
+    const yon = _pwaSwipeOffset > 0 ? 1 : -1;
+    banner.style.transition = 'transform .25s, opacity .25s';
+    banner.style.transform = `translateX(calc(-50% + ${yon * 500}px)) translateY(0)`;
+    banner.style.opacity = '0';
+    setTimeout(() => {
+      banner.style.transform = '';
+      banner.style.opacity = '';
+      banner.style.transition = '';
+      pwaSonra();
+    }, 250);
+  } else {
+    // Geri yerine
+    banner.style.transition = 'transform .25s, opacity .25s';
+    banner.style.transform = '';
+    banner.style.opacity = '';
+    setTimeout(() => { if(banner) banner.style.transition = ''; }, 250);
+  }
+  _pwaSwipeBaslangic = null;
+  _pwaSwipeOffset = 0;
+}
+
+// Touch ve mouse eventlerini bağla
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    const banner = document.getElementById('pwa-banner');
+    if(!banner) return;
+    // Touch
+    banner.addEventListener('touchstart', pwaSwipeBaslat, {passive: true});
+    banner.addEventListener('touchmove', pwaSwipeHareket, {passive: false});
+    banner.addEventListener('touchend', pwaSwipeBitir, {passive: true});
+    banner.addEventListener('touchcancel', pwaSwipeBitir, {passive: true});
+    // Mouse (bilgisayar testleri için)
+    banner.addEventListener('mousedown', pwaSwipeBaslat);
+    document.addEventListener('mousemove', (e) => { if(_pwaSwipeBaslangic !== null) pwaSwipeHareket(e); });
+    document.addEventListener('mouseup', () => { if(_pwaSwipeBaslangic !== null) pwaSwipeBitir(); });
+  }, 1000);
+});
 
 // iOS rehber modal
 function pwaIOSAc(){
