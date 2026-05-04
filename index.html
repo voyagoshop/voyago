@@ -611,13 +611,15 @@ textarea.ai2{resize:none;}
 .pwa-banner.swiped-out{transform:translateX(-50%) translateY(150%) !important;opacity:0;}
 .pwa-banner-x{
   position:absolute;top:0;right:0;
-  width:36px;height:36px;border-radius:0 16px 0 12px;
-  background:rgba(0,0,0,.2);
-  border:none;color:white;font-size:15px;font-weight:600;
+  width:42px;height:42px;border-radius:0 16px 0 14px;
+  background:rgba(0,0,0,.25);
+  border:none;color:white;font-size:16px;font-weight:600;
   cursor:pointer;display:flex;align-items:center;justify-content:center;
   line-height:1;transition:background .15s;padding:0;
-  z-index:5;
-  -webkit-tap-highlight-color:rgba(255,255,255,.3);
+  z-index:10;
+  pointer-events:auto !important;
+  -webkit-tap-highlight-color:rgba(255,255,255,.4);
+  touch-action:manipulation;
 }
 .pwa-banner-x:active{background:rgba(0,0,0,.4);transform:scale(.92);}
 .pwa-banner-icon{font-size:30px;flex-shrink:0;pointer-events:none;}
@@ -11382,58 +11384,84 @@ function pwaYukle(){
 
 // "Sonra" butonu / X butonu
 function pwaSonra(){
+  console.log('pwaSonra çağrıldı');
   pwaBannerGizle();
   try { localStorage.setItem('pwa_ertele_tarih', String(Date.now())); } catch(e){}
 }
 
 // ── Swipe (sağa-sola kaydırma ile kapatma) ──
-let _pwaSwipeBaslangic = null;
-let _pwaSwipeOffset = 0;
+let _pwaSwipeAktif = false;
 let _pwaSwipeBaslangicX = 0;
 let _pwaSwipeBaslangicY = 0;
+let _pwaSwipeOffset = 0;
+let _pwaSwipeYonAlgilandi = false; // Yatay/dikey ayrımı
+let _pwaSwipeYatay = false;
 
 function pwaSwipeBaslat(e){
   const banner = document.getElementById('pwa-banner');
   if(!banner || !banner.classList.contains('show')) return;
-  // X butonu veya Ekle butonuna basıldıysa swipe başlatma
-  if(e.target.closest('.pwa-banner-x') || e.target.closest('.pwa-banner-yukle')) return;
+  // X butonu veya Ekle butonuna basıldıysa swipe başlatma — onlar normal tıklansın
+  if(e.target.closest('.pwa-banner-x')) return;
+  if(e.target.closest('.pwa-banner-yukle')) return;
   const t = e.touches ? e.touches[0] : e;
   _pwaSwipeBaslangicX = t.clientX;
   _pwaSwipeBaslangicY = t.clientY;
-  _pwaSwipeBaslangic = Date.now();
+  _pwaSwipeAktif = true;
   _pwaSwipeOffset = 0;
+  _pwaSwipeYonAlgilandi = false;
+  _pwaSwipeYatay = false;
 }
 
 function pwaSwipeHareket(e){
-  if(_pwaSwipeBaslangic === null) return;
+  if(!_pwaSwipeAktif) return;
   const t = e.touches ? e.touches[0] : e;
   const dx = t.clientX - _pwaSwipeBaslangicX;
   const dy = t.clientY - _pwaSwipeBaslangicY;
-  // Eğer dikey hareket çok daha fazlaysa swipe iptal (yolcu kaydırıyor)
-  if(Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10){
-    pwaSwipeBitir();
-    return;
+
+  // İlk hareketinde yön belirle
+  if(!_pwaSwipeYonAlgilandi){
+    if(Math.abs(dx) < 5 && Math.abs(dy) < 5) return; // Çok küçük, henüz belirleme
+    _pwaSwipeYatay = Math.abs(dx) > Math.abs(dy);
+    _pwaSwipeYonAlgilandi = true;
+    if(!_pwaSwipeYatay){
+      // Dikey hareket - swipe iptal
+      _pwaSwipeAktif = false;
+      return;
+    }
   }
+
+  if(!_pwaSwipeYatay) return;
+
   _pwaSwipeOffset = dx;
   const banner = document.getElementById('pwa-banner');
   if(!banner) return;
   banner.classList.add('swiping');
-  // Swipe ile birlikte hafif fade
-  const opacity = Math.max(0, 1 - Math.abs(dx) / 200);
+  const opacity = Math.max(.3, 1 - Math.abs(dx) / 200);
   banner.style.transform = `translateX(calc(-50% + ${dx}px)) translateY(0)`;
   banner.style.opacity = opacity;
-  // Yatay swipe varsa scroll'u engelle
-  if(Math.abs(dx) > 5) e.preventDefault?.();
+
+  // Yatay swipe esnasında scroll'u engelle
+  if(e.cancelable && Math.abs(dx) > 10){
+    try { e.preventDefault(); } catch(err){}
+  }
 }
 
-function pwaSwipeBitir(e){
-  if(_pwaSwipeBaslangic === null) return;
+function pwaSwipeBitir(){
+  if(!_pwaSwipeAktif) return;
+  _pwaSwipeAktif = false;
+
   const banner = document.getElementById('pwa-banner');
-  if(!banner) return;
+  if(!banner){ return; }
   banner.classList.remove('swiping');
-  const esik = 80; // 80px eşik - bu kadar kaydırılırsa kapansın
+
+  if(!_pwaSwipeYatay){
+    // Yatay swipe değildi
+    return;
+  }
+
+  const esik = 80;
   if(Math.abs(_pwaSwipeOffset) > esik){
-    // Tamamen sağa veya sola fırlat
+    // Yeterince kaydırıldı - kapat
     const yon = _pwaSwipeOffset > 0 ? 1 : -1;
     banner.style.transition = 'transform .25s, opacity .25s';
     banner.style.transform = `translateX(calc(-50% + ${yon * 500}px)) translateY(0)`;
@@ -11445,32 +11473,67 @@ function pwaSwipeBitir(e){
       pwaSonra();
     }, 250);
   } else {
-    // Geri yerine
+    // Yeterli değildi - geri yerine
     banner.style.transition = 'transform .25s, opacity .25s';
     banner.style.transform = '';
     banner.style.opacity = '';
     setTimeout(() => { if(banner) banner.style.transition = ''; }, 250);
   }
-  _pwaSwipeBaslangic = null;
   _pwaSwipeOffset = 0;
 }
 
-// Touch ve mouse eventlerini bağla
-window.addEventListener('load', () => {
-  setTimeout(() => {
-    const banner = document.getElementById('pwa-banner');
-    if(!banner) return;
-    // Touch
-    banner.addEventListener('touchstart', pwaSwipeBaslat, {passive: true});
-    banner.addEventListener('touchmove', pwaSwipeHareket, {passive: false});
-    banner.addEventListener('touchend', pwaSwipeBitir, {passive: true});
-    banner.addEventListener('touchcancel', pwaSwipeBitir, {passive: true});
-    // Mouse (bilgisayar testleri için)
-    banner.addEventListener('mousedown', pwaSwipeBaslat);
-    document.addEventListener('mousemove', (e) => { if(_pwaSwipeBaslangic !== null) pwaSwipeHareket(e); });
-    document.addEventListener('mouseup', () => { if(_pwaSwipeBaslangic !== null) pwaSwipeBitir(); });
-  }, 1000);
-});
+// Touch ve mouse eventlerini bağla — DOMContentLoaded'da
+function pwaSwipeBagla(){
+  const banner = document.getElementById('pwa-banner');
+  if(!banner) {
+    // Henüz yok, sonra dene
+    setTimeout(pwaSwipeBagla, 500);
+    return;
+  }
+  // Aynı banner'a tekrar bağlamayı engellemek için flag
+  if(banner.dataset.swipeBound === '1') return;
+  banner.dataset.swipeBound = '1';
+
+  banner.addEventListener('touchstart', pwaSwipeBaslat, {passive: true});
+  banner.addEventListener('touchmove', pwaSwipeHareket, {passive: false});
+  banner.addEventListener('touchend', pwaSwipeBitir, {passive: true});
+  banner.addEventListener('touchcancel', pwaSwipeBitir, {passive: true});
+
+  // X butonu için ekstra güvenlik - direkt onclick yerine event listener
+  const xBtn = banner.querySelector('.pwa-banner-x');
+  if(xBtn){
+    xBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      console.log('X butonu tıklandı');
+      pwaSonra();
+    });
+    // Touch için de
+    xBtn.addEventListener('touchend', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      console.log('X butonu touch');
+      pwaSonra();
+    }, {passive: false});
+  }
+
+  // Ekle butonu için de event yakalama
+  const ekleBtn = banner.querySelector('.pwa-banner-yukle');
+  if(ekleBtn){
+    ekleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+  }
+
+  console.log('PWA banner swipe + click bound');
+}
+
+// Sayfa yüklendikten sonra bağla
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', () => setTimeout(pwaSwipeBagla, 800));
+} else {
+  setTimeout(pwaSwipeBagla, 800);
+}
 
 // iOS rehber modal
 function pwaIOSAc(){
