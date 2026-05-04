@@ -11355,7 +11355,14 @@ function pwaBannerGosterDeneme(){
 
 function pwaBannerGizle(){
   const banner = document.getElementById('pwa-banner');
-  if(banner) banner.classList.remove('show');
+  if(banner){
+    banner.classList.remove('show');
+    banner.classList.remove('swiping');
+    // Inline style'ları temizle (swipe'tan kalmış olabilir)
+    banner.style.transform = '';
+    banner.style.opacity = '';
+    banner.style.transition = '';
+  }
 }
 
 // "Ekle" butonu
@@ -11508,13 +11515,6 @@ function pwaSwipeBagla(){
       console.log('X butonu tıklandı');
       pwaSonra();
     });
-    // Touch için de
-    xBtn.addEventListener('touchend', (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      console.log('X butonu touch');
-      pwaSonra();
-    }, {passive: false});
   }
 
   // Ekle butonu için de event yakalama
