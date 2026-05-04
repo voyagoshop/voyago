@@ -4935,11 +4935,29 @@ function adminTab(name){
     // Anket cevaplarını DB'den yükle
     const sv=getCurrentSeferId()||VOYAGES.find(v=>v.status!=='archived')?.id;
     if(sv){
-      dbGet('gunluk',{sefer_id:sv}).then(rows=>{
+      dbGet('gunluk',{sefer_id:sv}).then(async rows=>{
+        let buldu = false;
         if(rows&&rows.length){
           const g=rows[0];
-          if(g.anket_sorular) ANKET_SORULAR=g.anket_sorular;
+          if(g.anket_sorular && Array.isArray(g.anket_sorular) && g.anket_sorular.length>0){
+            ANKET_SORULAR=g.anket_sorular;
+            buldu = true;
+          }
           if(g.anket_aktif!==undefined) ANKET_AKTIF=g.anket_aktif;
+        }
+        // Eğer bu seferde anket sorusu yoksa, son anket sorularını başka seferden al
+        if(!buldu){
+          try {
+            const tum = await dbGet('gunluk');
+            if(tum && tum.length){
+              const son = tum.filter(g => g.anket_sorular && Array.isArray(g.anket_sorular) && g.anket_sorular.length>0)
+                .sort((a,b) => (b.guncelleme||'').localeCompare(a.guncelleme||''))[0];
+              if(son && son.anket_sorular){
+                ANKET_SORULAR = son.anket_sorular;
+                console.log('Rehber: Anket soruları başka seferden alındı:', son.sefer_id);
+              }
+            }
+          } catch(e) { console.log('Anket rehber fallback hatası:', e); }
         }
         // Cevapları yükle
         dbGet('anketler',{sefer_id:sv}).then(crows=>{
@@ -4977,12 +4995,31 @@ function switchTab(name){
   if(name==='gelecek')renderGelecekTurlar();
   if(name==='anket'){
     if(CP){
-      // Anket durumunu DB'den çek
-      dbGet('gunluk',{sefer_id:CP.sefer}).then(rows=>{
+      // Anket durumunu DB'den çek (önce kendi seferi, yoksa son aktif anketten)
+      dbGet('gunluk',{sefer_id:CP.sefer}).then(async rows=>{
+        let buldu = false;
         if(rows&&rows.length){
           const g=rows[0];
-          if(g.anket_sorular) ANKET_SORULAR=g.anket_sorular;
+          if(g.anket_sorular && Array.isArray(g.anket_sorular) && g.anket_sorular.length>0){
+            ANKET_SORULAR=g.anket_sorular;
+            buldu = true;
+          }
           if(g.anket_aktif!==undefined) ANKET_AKTIF=g.anket_aktif;
+        }
+        // Eğer bu seferde anket sorusu yoksa, başka seferlerden son anket sorularını al
+        if(!buldu){
+          try {
+            const tum = await dbGet('gunluk');
+            if(tum && tum.length){
+              // En son anket sorusu olan seferi bul
+              const son = tum.filter(g => g.anket_sorular && Array.isArray(g.anket_sorular) && g.anket_sorular.length>0)
+                .sort((a,b) => (b.guncelleme||'').localeCompare(a.guncelleme||''))[0];
+              if(son && son.anket_sorular){
+                ANKET_SORULAR = son.anket_sorular;
+                console.log('Anket soruları başka seferden alındı:', son.sefer_id);
+              }
+            }
+          } catch(e) { console.log('Anket fallback hatası:', e); }
         }
         renderAnketYolcu(CP.sefer);
       }).catch(()=>renderAnketYolcu(CP?.sefer||''));
