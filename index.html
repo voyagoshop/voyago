@@ -4935,45 +4935,59 @@ function adminTab(name){
     // Anket cevaplarını DB'den yükle
     const sv=getCurrentSeferId()||VOYAGES.find(v=>v.status!=='archived')?.id;
     if(sv){
-      dbGet('gunluk',{sefer_id:sv}).then(async rows=>{
+      (async () => {
+        // ÖNCE global anket sorularını çek
         let buldu = false;
-        if(rows&&rows.length){
-          const g=rows[0];
-          if(g.anket_sorular && Array.isArray(g.anket_sorular) && g.anket_sorular.length>0){
-            ANKET_SORULAR=g.anket_sorular;
+        try {
+          const { data: globalData } = await sb.from('anket_sorular_global').select('*').eq('id', 'main').single();
+          if(globalData && globalData.sorular && Array.isArray(globalData.sorular) && globalData.sorular.length > 0){
+            ANKET_SORULAR = globalData.sorular;
+            if(globalData.aktif !== undefined) ANKET_AKTIF = globalData.aktif;
             buldu = true;
           }
-          if(g.anket_aktif!==undefined) ANKET_AKTIF=g.anket_aktif;
-        }
-        // Eğer bu seferde anket sorusu yoksa, son anket sorularını başka seferden al
+        } catch(e) { console.log('Global anket okuma:', e); }
+
+        // Fallback: eski gunluk sisteminden
         if(!buldu){
           try {
-            const tum = await dbGet('gunluk');
-            if(tum && tum.length){
-              const son = tum.filter(g => g.anket_sorular && Array.isArray(g.anket_sorular) && g.anket_sorular.length>0)
-                .sort((a,b) => (b.guncelleme||'').localeCompare(a.guncelleme||''))[0];
-              if(son && son.anket_sorular){
-                ANKET_SORULAR = son.anket_sorular;
-                console.log('Rehber: Anket soruları başka seferden alındı:', son.sefer_id);
+            const rows = await dbGet('gunluk',{sefer_id:sv});
+            if(rows&&rows.length){
+              const g=rows[0];
+              if(g.anket_sorular && Array.isArray(g.anket_sorular) && g.anket_sorular.length>0){
+                ANKET_SORULAR=g.anket_sorular;
+                buldu = true;
+              }
+              if(g.anket_aktif!==undefined) ANKET_AKTIF=g.anket_aktif;
+            }
+            if(!buldu){
+              const tum = await dbGet('gunluk');
+              if(tum && tum.length){
+                const son = tum.filter(g => g.anket_sorular && Array.isArray(g.anket_sorular) && g.anket_sorular.length>0)
+                  .sort((a,b) => (b.guncelleme||'').localeCompare(a.guncelleme||''))[0];
+                if(son && son.anket_sorular){
+                  ANKET_SORULAR = son.anket_sorular;
+                }
               }
             }
-          } catch(e) { console.log('Anket rehber fallback hatası:', e); }
+          } catch(e) { console.log('Anket rehber fallback:', e); }
         }
-        // Cevapları yükle
-        dbGet('anketler',{sefer_id:sv}).then(crows=>{
+
+        // Cevapları yükle (bu sefere ait)
+        try {
+          const crows = await dbGet('anketler',{sefer_id:sv});
           ANKET_CEVAPLAR={};
           (crows||[]).forEach(r=>{
             try{
               const c=typeof r.cevaplar==='string'?JSON.parse(r.cevaplar):r.cevaplar;
-              Object.entries(c).forEach(([sid,cevap])=>{
+              Object.entries(c||{}).forEach(([sid,cevap])=>{
                 if(!ANKET_CEVAPLAR[sid])ANKET_CEVAPLAR[sid]=[];
                 ANKET_CEVAPLAR[sid].push(cevap);
               });
             }catch(e){}
           });
-          renderAnketSorular();
-        });
-      });
+        } catch(e){}
+        renderAnketSorular();
+      })();
     } else renderAnketSorular();
   }
   if(name==='gemiplan'){
@@ -4995,34 +5009,42 @@ function switchTab(name){
   if(name==='gelecek')renderGelecekTurlar();
   if(name==='anket'){
     if(CP){
-      // Anket durumunu DB'den çek (önce kendi seferi, yoksa son aktif anketten)
-      dbGet('gunluk',{sefer_id:CP.sefer}).then(async rows=>{
-        let buldu = false;
-        if(rows&&rows.length){
-          const g=rows[0];
-          if(g.anket_sorular && Array.isArray(g.anket_sorular) && g.anket_sorular.length>0){
-            ANKET_SORULAR=g.anket_sorular;
-            buldu = true;
+      // ÖNCE global anket sorularını çek (sefer bağımsız, kalıcı)
+      (async () => {
+        try {
+          const { data: globalData } = await sb.from('anket_sorular_global').select('*').eq('id', 'main').single();
+          if(globalData && globalData.sorular && Array.isArray(globalData.sorular) && globalData.sorular.length > 0){
+            ANKET_SORULAR = globalData.sorular;
+            if(globalData.aktif !== undefined) ANKET_AKTIF = globalData.aktif;
+            renderAnketYolcu(CP.sefer);
+            return;
           }
-          if(g.anket_aktif!==undefined) ANKET_AKTIF=g.anket_aktif;
-        }
-        // Eğer bu seferde anket sorusu yoksa, başka seferlerden son anket sorularını al
-        if(!buldu){
-          try {
+        } catch(e) { console.log('Global anket okuma:', e); }
+        // Fallback: eski gunluk sisteminden
+        try {
+          const rows = await dbGet('gunluk',{sefer_id:CP.sefer});
+          let buldu = false;
+          if(rows&&rows.length){
+            const g=rows[0];
+            if(g.anket_sorular && Array.isArray(g.anket_sorular) && g.anket_sorular.length>0){
+              ANKET_SORULAR=g.anket_sorular;
+              buldu = true;
+            }
+            if(g.anket_aktif!==undefined) ANKET_AKTIF=g.anket_aktif;
+          }
+          if(!buldu){
             const tum = await dbGet('gunluk');
             if(tum && tum.length){
-              // En son anket sorusu olan seferi bul
               const son = tum.filter(g => g.anket_sorular && Array.isArray(g.anket_sorular) && g.anket_sorular.length>0)
                 .sort((a,b) => (b.guncelleme||'').localeCompare(a.guncelleme||''))[0];
               if(son && son.anket_sorular){
                 ANKET_SORULAR = son.anket_sorular;
-                console.log('Anket soruları başka seferden alındı:', son.sefer_id);
               }
             }
-          } catch(e) { console.log('Anket fallback hatası:', e); }
-        }
+          }
+        } catch(e) { console.log('Anket fallback:', e); }
         renderAnketYolcu(CP.sefer);
-      }).catch(()=>renderAnketYolcu(CP?.sefer||''));
+      })();
     } else renderAnketYolcu('');
   }
   if(name==='rehber'&&CP){renderMesajlar(CP.sefer);}
@@ -8453,13 +8475,27 @@ async function anketGonder(sv){
 }
 
 async function anketDB_Kaydet(){
-  const sv = getCurrentSeferId()||VOYAGES.find(v=>v.status!=='archived')?.id||'genel';
-  const mevcut = await dbGet('gunluk',{sefer_id:sv});
-  const veri = {anket_sorular: ANKET_SORULAR, anket_aktif: ANKET_AKTIF};
-  if(mevcut&&mevcut.length>0){
-    await dbUpdate('gunluk',{sefer_id:sv},veri);
-  } else {
-    await dbInsert('gunluk',{sefer_id:sv,...veri});
+  // Sorular GLOBAL — sefer bağımsız, hiç silinmez
+  try {
+    const { error } = await sb.from('anket_sorular_global')
+      .upsert({
+        id: 'main',
+        sorular: ANKET_SORULAR,
+        aktif: ANKET_AKTIF,
+        guncelleme: new Date().toISOString()
+      });
+    if(error) console.error('Anket kayıt hatası:', error);
+  } catch(e) {
+    console.error('Anket kayıt:', e);
+    // Fallback: gunluk tablosuna eski sistemde kaydet (yedek)
+    const sv = getCurrentSeferId()||VOYAGES.find(v=>v.status!=='archived')?.id||'genel';
+    const mevcut = await dbGet('gunluk',{sefer_id:sv});
+    const veri = {anket_sorular: ANKET_SORULAR, anket_aktif: ANKET_AKTIF};
+    if(mevcut&&mevcut.length>0){
+      await dbUpdate('gunluk',{sefer_id:sv},veri);
+    } else {
+      await dbInsert('gunluk',{sefer_id:sv,...veri});
+    }
   }
 }
 
