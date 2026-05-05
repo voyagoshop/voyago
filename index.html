@@ -2806,6 +2806,15 @@ function doPL(){
   }
   CP=p;
   if(eslestirmeMesaji) setTimeout(()=>showToast(eslestirmeMesaji), 1500);
+  // WhatsApp grup butonunu kontrol et (sefere göre)
+  try {
+    if(typeof waLinkleriYukle === 'function') {
+      waLinkleriYukle().then(()=>{
+        if(typeof waGrupButonGuncelle === 'function') waGrupButonGuncelle();
+      }).catch(()=>{});
+    }
+    if(typeof waGrupButonGuncelle === 'function') waGrupButonGuncelle();
+  } catch(e){}
   document.getElementById('akl').textContent='Kabin '+kabin;
   const v=VOYAGES.find(v=>v.id===sv);
   document.getElementById('app-ship-name').textContent=v?.ship||'Celestyal Journey';
@@ -3145,13 +3154,37 @@ function renderGazeteAdmin(){
   }
   g.innerHTML=slots.join('');
 }
-function addGazeteImg(input){
-  [...input.files].forEach(f=>{
-    if(GAZETE_IMGS.length>=4){showToast('Max 4 sayfa.');return;}
-    const r=new FileReader();
-    r.onload=e=>{GAZETE_IMGS.push(e.target.result);saveGazeteDB();renderGazeteAdmin();renderGazete();};
-    r.readAsDataURL(f);
-  });
+async function addGazeteImg(input){
+  const dosyalar = [...input.files];
+  if(!dosyalar.length) return;
+  for(const f of dosyalar){
+    if(GAZETE_IMGS.length>=4){showToast('Max 4 sayfa.');break;}
+    try {
+      // Görseli sıkıştır (max 1400px, WebP, kalite 0.82)
+      showToast('⏳ Görsel sıkıştırılıyor...');
+      const compressed = await yeniGorselSikistir(f, 1400, 0.82);
+      // Blob → base64'e çevir
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Okuma hatası'));
+        reader.readAsDataURL(compressed);
+      });
+      GAZETE_IMGS.push(base64);
+      // Boyut log
+      const kb = Math.round(base64.length / 1024);
+      console.log('Gazete görseli sıkıştırıldı:', kb + 'KB');
+      // Hemen render et — kullanıcı sonucu görsün
+      renderGazeteAdmin();
+      renderGazete();
+      // DB'ye kaydet
+      await saveGazeteDB();
+      showToast('✓ Görsel eklendi (' + kb + 'KB)');
+    } catch(e){
+      console.error('Gazete yükleme hatası:', e);
+      showToast('⚠️ Yüklenemedi: ' + (e.message || 'Bilinmeyen hata'));
+    }
+  }
   input.value='';
 }
 function delGazete(i){GAZETE_IMGS.splice(i,1);saveGazeteDB();renderGazeteAdmin();renderGazete();}
@@ -3159,11 +3192,17 @@ function clearGazete(){GAZETE_IMGS=[];saveGazeteDB();renderGazeteAdmin();renderG
 
 async function saveGazeteDB(){
   const sv=getCurrentSeferId()||VOYAGES.find(v=>v.status!=='archived')?.id||'genel';
-  const mevcut=await dbGet('gazete',{sefer_id:sv});
-  if(mevcut.length>0){
-    await dbUpdate('gazete',{sefer_id:sv},{gorseller:GAZETE_IMGS,guncelleme:new Date().toISOString()});
-  } else {
-    await dbInsert('gazete',{sefer_id:sv,gorseller:GAZETE_IMGS});
+  try {
+    const mevcut=await dbGet('gazete',{sefer_id:sv});
+    if(mevcut.length>0){
+      await dbUpdate('gazete',{sefer_id:sv},{gorseller:GAZETE_IMGS,guncelleme:new Date().toISOString()});
+    } else {
+      await dbInsert('gazete',{sefer_id:sv,gorseller:GAZETE_IMGS});
+    }
+  } catch(e) {
+    console.error('Gazete DB hatası:', e);
+    showToast('⚠️ Kayıt başarısız: ' + (e.message || 'Bağlantı sorunu'));
+    throw e;
   }
 }
 
