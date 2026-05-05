@@ -1782,7 +1782,7 @@ textarea.ai2{resize:none;}
       </div>
 
       <!-- TUR ALMAYANLAR -->
-      <div style="background:white;border-radius:14px;box-shadow:var(--sh);margin-top:14px;overflow:hidden;">
+      <div id="tur-almayan-bolum" style="background:white;border-radius:14px;box-shadow:var(--sh);margin-top:14px;overflow:hidden;">
         <div style="background:linear-gradient(135deg,#854f0b,#c47a1e);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;">
           <div>
             <div style="font-size:14px;font-weight:600;color:white;">⚠️ Tur Almayan Yolcular</div>
@@ -5666,7 +5666,7 @@ function initKontrolSelects(){
   const sSel=document.getElementById('kontrol-sefer-sel');
   if(!tSel||!sSel)return;
 
-  tSel.innerHTML=tours.map(t=>`<option value="${t.id}">${t.name} (${t.gun}. gün)</option>`).join('');
+  tSel.innerHTML='<option value="hepsi">📋 Tüm Turlar (Hepsi)</option>'+tours.map(t=>`<option value="${t.id}">${t.name} (${t.gun}. gün)</option>`).join('');
   sSel.innerHTML=mv.map(v=>`<option value="${v.id}">${v.label}</option>`).join('');
   renderKontrolListesi();
 }
@@ -5681,53 +5681,126 @@ function renderKontrolListesi(){
   if(!tSel||!sSel)return;
   const tid=tSel.value;
   const sid=sSel.value;
-  if(!tid||!sid){
-    document.getElementById('kontrol-list').innerHTML='<div class="es">Tur ve sefer seçin.</div>';
+  if(!sid){
+    document.getElementById('kontrol-list').innerHTML='<div class="es">Sefer seçin.</div>';
     renderTurAlmayanlar();
     return;
   }
-  const tur=TOURS.find(t=>t.id===tid);
-  const kat=passengers.filter(p=>p.sefer===sid&&p.joinedTours.includes(tid));
+
+  const hepsiMod = (tid === 'hepsi');
+  const seferLabel = VOYAGES.find(v=>v.id===sid)?.label || sid;
 
   // Başlık
-  document.getElementById('kontrol-tur-baslik').textContent=(tur?.name||'Tur')+' — '+(VOYAGES.find(v=>v.id===sid)?.label||sid);
+  const baslikEl = document.getElementById('kontrol-tur-baslik');
+  if(hepsiMod){
+    if(baslikEl) baslikEl.textContent = '📋 Tüm Turlar — ' + seferLabel;
+  } else {
+    const tur = TOURS.find(t=>t.id===tid);
+    if(baslikEl) baslikEl.textContent = (tur?.name||'Tur') + ' — ' + seferLabel;
+  }
 
-  // Kişi özeti
-  const topKisi=kat.reduce((a,p)=>a+p.adult+p.child+p.baby,0);
-  document.getElementById('kontrol-kisi-ozet').textContent=kat.length+' kabin · '+topKisi+' kişi';
+  // Katılımcı listesi
+  let katilimSatirlar = []; // {p, tid, t, key} array
+  if(hepsiMod){
+    // Tüm turlardaki tüm katılımcıları topla
+    passengers.filter(p=>p.sefer===sid).forEach(p=>{
+      (p.joinedTours||[]).forEach(turId=>{
+        const t = TOURS.find(x=>x.id===turId);
+        if(t){
+          katilimSatirlar.push({
+            p, tid: turId, t,
+            key: p.kabin+'_'+sid+'_'+turId
+          });
+        }
+      });
+    });
+    // Tur adına ve sonra yolcu adına göre sırala
+    katilimSatirlar.sort((a,b)=>{
+      const turKarsi = (a.t.name||'').localeCompare(b.t.name||'','tr');
+      if(turKarsi !== 0) return turKarsi;
+      return (a.p.name||'').localeCompare(b.p.name||'','tr');
+    });
+  } else {
+    // Tek tur
+    if(!tid){
+      document.getElementById('kontrol-list').innerHTML='<div class="es">Tur seçin.</div>';
+      renderTurAlmayanlar();
+      return;
+    }
+    const tur = TOURS.find(t=>t.id===tid);
+    passengers.filter(p=>p.sefer===sid&&p.joinedTours.includes(tid)).forEach(p=>{
+      katilimSatirlar.push({
+        p, tid, t: tur,
+        key: p.kabin+'_'+sid+'_'+tid
+      });
+    });
+  }
 
   // Sayaçlar
-  let geldi=0,gelmedi=0;
-  kat.forEach(p=>{
-    const key=p.kabin+'_'+sid+'_'+tid;
-    const d=kontrolDurum[key]||0;
-    const kisi=p.adult+p.child+p.baby;
-    if(d===1)geldi+=kisi;
-    else if(d===2)gelmedi+=kisi;
+  let topKisi=0, geldi=0, gelmedi=0;
+  // Kabin sayısı (uniq) — Hepsi modunda kabini birden fazla turu varsa 1 sayar
+  const uniqKabinler = new Set();
+  katilimSatirlar.forEach(item=>{
+    const {p, key} = item;
+    const d = kontrolDurum[key]||0;
+    const kisi = (p.adult||0)+(p.child||0)+(p.baby||0);
+    topKisi += kisi;
+    if(d===1) geldi += kisi;
+    else if(d===2) gelmedi += kisi;
+    uniqKabinler.add(p.kabin);
   });
-  document.getElementById('ks-toplam').textContent=topKisi;
-  document.getElementById('ks-geldi').textContent=geldi;
-  document.getElementById('ks-gelmedi').textContent=gelmedi;
 
-  if(!kat.length){
-    document.getElementById('kontrol-list').innerHTML='<div class="es">Bu tura kayıtlı kimse yok.</div>';
+  const kisiOzetEl = document.getElementById('kontrol-kisi-ozet');
+  if(kisiOzetEl){
+    if(hepsiMod){
+      kisiOzetEl.textContent = katilimSatirlar.length+' kayıt · '+uniqKabinler.size+' kabin · '+topKisi+' kişi';
+    } else {
+      kisiOzetEl.textContent = katilimSatirlar.length+' kabin · '+topKisi+' kişi';
+    }
+  }
+  const ksTopEl = document.getElementById('ks-toplam'); if(ksTopEl) ksTopEl.textContent = topKisi;
+  const ksGelEl = document.getElementById('ks-geldi'); if(ksGelEl) ksGelEl.textContent = geldi;
+  const ksGelmedi = document.getElementById('ks-gelmedi'); if(ksGelmedi) ksGelmedi.textContent = gelmedi;
+
+  if(!katilimSatirlar.length){
+    document.getElementById('kontrol-list').innerHTML='<div class="es">Bu '+(hepsiMod?'seferde':'tura')+' kayıtlı kimse yok.</div>';
+    if(!hepsiMod) renderTurAlmayanlar();
+    else {
+      // Hepsi modunda tur almayanları gizle (anlamsız)
+      const ta = document.getElementById('tur-almayan-bolum');
+      if(ta) ta.style.display = 'none';
+    }
     return;
   }
 
-  renderTurAlmayanlar();
-  document.getElementById('kontrol-list').innerHTML=kat.map(p=>{
-    const key=p.kabin+'_'+sid+'_'+tid;
-    const d=kontrolDurum[key]||0;
-    const kisiStr=p.adult+'Y'+(p.child>0?' '+p.child+'Ç':'')+(p.baby>0?' '+p.baby+'B':'');
-    const topKisiP=p.adult+p.child+p.baby;
-    return `<div style="padding:12px 14px;border-bottom:1px solid var(--gray);display:flex;align-items:center;gap:10px;" id="krow-${key}">
-      <div style="flex:1;">
-        <div style="font-size:13px;font-weight:500;color:var(--t);">${p.name}</div>
-        <div style="font-size:11px;color:var(--t2);margin-top:2px;">Kabin ${p.kabin} · ${kisiStr} · ${topKisiP} kişi</div>
+  if(!hepsiMod) {
+    renderTurAlmayanlar();
+    const ta = document.getElementById('tur-almayan-bolum');
+    if(ta) ta.style.display = ''; // Tek tur modunda göster
+  } else {
+    const ta = document.getElementById('tur-almayan-bolum');
+    if(ta) ta.style.display = 'none'; // Hepsi modunda anlamsız
+  }
+
+  // Liste render
+  document.getElementById('kontrol-list').innerHTML = katilimSatirlar.map(item=>{
+    const {p, tid: rowTid, t, key} = item;
+    const d = kontrolDurum[key]||0;
+    const kisiStr = (p.adult||0)+'Y'+(p.child>0?' '+p.child+'Ç':'')+(p.baby>0?' '+p.baby+'B':'');
+    const topKisiP = (p.adult||0)+(p.child||0)+(p.baby||0);
+    // Hepsi modunda tur etiketi göster
+    const turEtiket = hepsiMod
+      ? `<div style="display:inline-block;background:${d===1?'#e8f5ee':d===2?'#fee2e2':'#f0f6fb'};color:${d===1?'#15803d':d===2?'#a32d2d':'#0d3b6e'};padding:1px 8px;border-radius:10px;font-size:10px;font-weight:600;margin-bottom:3px;">📍 ${escapeHTML(t.name||'-')}</div>`
+      : '';
+    return `<div style="padding:10px 14px;border-bottom:1px solid var(--gray);display:flex;align-items:center;gap:10px;" id="krow-${key}">
+      <div style="flex:1;min-width:0;">
+        ${turEtiket}
+        <div style="font-size:13px;font-weight:500;color:var(--t);">${escapeHTML(p.name||'')}</div>
+        <div style="font-size:11px;color:var(--t2);margin-top:2px;">Kabin ${escapeHTML(p.kabin||'?')} · ${kisiStr} · ${topKisiP} kişi</div>
       </div>
-      <div style="display:flex;gap:6px;align-items:center;">
-        <button onclick="setKontrol('${key}',1,'${tid}','${sid}')" style="width:36px;height:36px;border-radius:50%;border:2px solid ${d===1?'var(--green)':'var(--border)'};background:${d===1?'var(--green)':'white'};color:${d===1?'white':'var(--t3)'};font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;">✓</button>
-        <button onclick="setKontrol('${key}',2,'${tid}','${sid}')" style="width:36px;height:36px;border-radius:50%;border:2px solid ${d===2?'var(--red)':'var(--border)'};background:${d===2?'var(--red)':'white'};color:${d===2?'white':'var(--t3)'};font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;">✗</button>
+      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+        <button onclick="setKontrol('${key}',1,'${rowTid}','${sid}')" style="width:36px;height:36px;border-radius:50%;border:2px solid ${d===1?'var(--green)':'var(--border)'};background:${d===1?'var(--green)':'white'};color:${d===1?'white':'var(--t3)'};font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;">✓</button>
+        <button onclick="setKontrol('${key}',2,'${rowTid}','${sid}')" style="width:36px;height:36px;border-radius:50%;border:2px solid ${d===2?'var(--red)':'var(--border)'};background:${d===2?'var(--red)':'white'};color:${d===2?'white':'var(--t3)'};font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;">✗</button>
       </div>
     </div>`;
   }).join('');
