@@ -594,6 +594,35 @@ textarea.ai2{resize:none;}
 .h-btn-push{background:#7c3aed;color:white;}
 .h-btn-sil{background:transparent;color:var(--red);border:1.5px solid var(--red);}
 
+/* ══ HIZLI TUR KAYIT ══ */
+.htk-yolcu-card{background:white;border-radius:12px;padding:12px 14px;margin-bottom:10px;border:1.5px solid #16a34a;box-shadow:0 2px 8px rgba(22,163,74,.12);}
+.htk-yolcu-baslik{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;}
+.htk-yolcu-isim{font-size:15px;font-weight:600;color:#1a1a1a;}
+.htk-yolcu-kabin{background:#16a34a;color:white;padding:3px 10px;border-radius:14px;font-size:11px;font-weight:600;}
+.htk-yolcu-detay{font-size:11px;color:var(--t2);margin-bottom:8px;}
+.htk-yolcu-kapat{background:transparent;border:none;color:#888;font-size:18px;cursor:pointer;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:50%;}
+.htk-yolcu-kapat:hover{background:#f5f5f5;color:#1a1a1a;}
+.htk-tur-baslik{font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.4px;margin:10px 0 6px;}
+.htk-tur-card{background:#fafafa;border:1px solid #e5e5e5;border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:10px;transition:all .15s;}
+.htk-tur-card.kayitli-yolcu{background:#f0fdf4;border-color:#16a34a;}
+.htk-tur-card.kayitli-rehber{background:#eff6ff;border-color:#1a5fa8;}
+.htk-tur-info{flex:1;min-width:0;}
+.htk-tur-name{font-size:13px;font-weight:600;color:#1a1a1a;line-height:1.3;}
+.htk-tur-meta{font-size:10px;color:var(--t3);margin-top:2px;}
+.htk-tur-aksiyon{flex-shrink:0;}
+.htk-durum-pill{padding:5px 11px;border-radius:14px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px;}
+.htk-durum-yolcu{background:#16a34a;color:white;}
+.htk-durum-rehber{background:#1a5fa8;color:white;}
+.htk-btn-ekle{padding:7px 14px;background:#16a34a;color:white;border:none;border-radius:14px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.htk-btn-ekle:active{transform:scale(.95);}
+.htk-btn-cikar{padding:6px 11px;background:transparent;border:1.5px solid var(--red);color:var(--red);border-radius:14px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.htk-bos{padding:14px;text-align:center;color:var(--t2);font-size:12px;background:#fafafa;border-radius:10px;}
+.htk-coklu-list{background:white;border-radius:10px;padding:6px;}
+.htk-coklu-item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;transition:background .15s;}
+.htk-coklu-item:hover,.htk-coklu-item:active{background:#f0fdf4;}
+.htk-coklu-item .ad{font-weight:500;color:#1a1a1a;}
+.htk-coklu-item .kabin{background:#e5e7eb;color:#1a1a1a;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;}
+
 /* ══ PWA INSTALL BANNER & MODAL ══ */
 .pwa-banner{
   position:fixed;left:50%;transform:translateX(-50%) translateY(150%);
@@ -1328,6 +1357,20 @@ textarea.ai2{resize:none;}
         <div style="margin-top:8px;"><label class="fl" style="margin-bottom:3px;">Konu</label><input class="ai2" type="text" id="m-konu2" placeholder="Yarınki tur bilgilendirmesi" style="margin:0;"></div>
         <button class="save-daily-btn" style="background:var(--red);margin-top:10px;" onclick="saveMeeting2()">Kaydet ve Misafire Göster</button>
       </div>
+
+      <!-- ⚡ HIZLI TUR KAYIT -->
+      <div class="fs2" style="background:linear-gradient(135deg,#e8f5ee 0%,#d4ebe0 100%);border:1.5px solid #16a34a;margin-bottom:14px;">
+        <div class="fst" style="color:#15803d;display:flex;align-items:center;gap:6px;">
+          <span style="font-size:18px;">⚡</span> Hızlı Tur Kayıt
+        </div>
+        <div style="font-size:12px;color:#15803d;margin-bottom:10px;line-height:1.5;">
+          Yolcunun kabin no veya ismini yazın → tüm turlar açılır → tek tıkla ekleyin.
+        </div>
+        <input class="ai2" type="text" id="htk-arama" placeholder="Kabin no veya isim yaz..." 
+          style="font-size:15px;font-weight:500;" oninput="htkAra()" autocomplete="off">
+        <div id="htk-sonuc" style="margin-top:10px;"></div>
+      </div>
+
       <div class="sf" id="tsf"></div>
       <div style="background:white;border-radius:10px;padding:8px 12px;margin-bottom:10px;display:flex;gap:8px;align-items:center;justify-content:space-between;box-shadow:var(--sh);">
         <div style="font-size:11px;color:var(--t3);">Sıralama bozuksa, görünen sırayı sabitle:</div>
@@ -2270,17 +2313,46 @@ async function saveTurDB(tur) {
 
 // ── DB KAYIT FONKSİYONLARI ──
 async function saveYolcuDB(p) {
-  const mevcut = await dbGet('yolcular', { kabin: p.kabin, sefer_id: p.sefer });
+  // Kabini varsa kabin+sefer ile, yoksa isim+sefer ile eşleştir
+  let mevcut;
+  if(p.kabin){
+    mevcut = await dbGet('yolcular', { kabin: p.kabin, sefer_id: p.sefer });
+  } else {
+    // Kabinsiz yolcu — isim ile bul
+    mevcut = await dbGet('yolcular', { ad: p.name, sefer_id: p.sefer });
+    // Birden fazla varsa, tam eşleşeni filtrele (telefon eşleşse daha güvenli)
+    if(mevcut.length > 1 && p.tel){
+      const filtreli = mevcut.filter(m => m.telefon === p.tel);
+      if(filtreli.length === 1) mevcut = filtreli;
+    }
+  }
   if (mevcut.length > 0) {
-    await dbUpdate('yolcular', { kabin: p.kabin, sefer_id: p.sefer }, {
-      ad: p.name, telefon: p.tel,
-      yetiskin: p.adult, cocuk: p.child, bebek: p.baby,
-      checkin: p.checkedIn, checkin_yapildi: p.checkinDone,
-      katildigi_turlar: p.joinedTours,
-      tur_katilim_detay: p.tur_katilim_detay || {},
-      email: p.email || null,
-      pazarlama_izni: p.pazarlama_izni || false
-    });
+    // Update — eşleştirme kabini varsa kabin ile, yoksa id ile
+    if(p.kabin){
+      await dbUpdate('yolcular', { kabin: p.kabin, sefer_id: p.sefer }, {
+        ad: p.name, telefon: p.tel,
+        yetiskin: p.adult, cocuk: p.child, bebek: p.baby,
+        checkin: p.checkedIn, checkin_yapildi: p.checkinDone,
+        katildigi_turlar: p.joinedTours,
+        tur_katilim_detay: p.tur_katilim_detay || {},
+        email: p.email || null,
+        pazarlama_izni: p.pazarlama_izni || false
+      });
+    } else {
+      // Kabinsiz — id ile güncelle (ilk eşleşeni)
+      const ilkId = mevcut[0].id;
+      if(ilkId){
+        await dbUpdate('yolcular', { id: ilkId }, {
+          ad: p.name, telefon: p.tel,
+          yetiskin: p.adult, cocuk: p.child, bebek: p.baby,
+          checkin: p.checkedIn, checkin_yapildi: p.checkinDone,
+          katildigi_turlar: p.joinedTours,
+          tur_katilim_detay: p.tur_katilim_detay || {},
+          email: p.email || null,
+          pazarlama_izni: p.pazarlama_izni || false
+        });
+      }
+    }
   } else {
     await dbInsert('yolcular', {
       ad: p.name, kabin: p.kabin, telefon: p.tel,
@@ -4458,8 +4530,274 @@ function showKatilimcilar(tid){
   (notJoined.length?`<div style="font-size:11px;font-weight:600;color:var(--t3);margin:12px 0 6px;text-transform:uppercase;">Katilmayan (${notJoined.length})</div>`+notJoined.map(p=>`<div class="katilimci-card" style="opacity:.6;"><div><div class="katilimci-name">${p.name}</div><div class="katilimci-detail">Kabin ${p.kabin}</div></div><button style="padding:3px 9px;border-radius:20px;font-size:11px;border:1.5px solid var(--green);color:var(--green);background:transparent;cursor:pointer;" onclick="addToTour('${p.kabin}','${p.sefer}','${tid}')">Ekle</button></div>`).join(''):'');
   document.getElementById('kat-modal').classList.add('show');
 }
-function addToTour(kabin,sefer,tid){const p=passengers.find(p=>p.kabin===kabin&&p.sefer===sefer);if(p&&!p.joinedTours.includes(tid)){p.joinedTours.push(tid);showKatilimcilar(tid);renderTA(CTSF);}}
-function removeFromTour(kabin,sefer,tid){const p=passengers.find(p=>p.kabin===kabin&&p.sefer===sefer);if(p){const i=p.joinedTours.indexOf(tid);if(i>=0){p.joinedTours.splice(i,1);showKatilimcilar(tid);renderTA(CTSF);}}}
+async function addToTour(kabin,sefer,tid){
+  const p=passengers.find(p=>p.kabin===kabin&&p.sefer===sefer);
+  if(p&&!p.joinedTours.includes(tid)){
+    p.joinedTours.push(tid);
+    showKatilimcilar(tid);
+    renderTA(CTSF);
+    // DB'ye kaydet — yoksa yolcular silinince kaybolur
+    try {
+      await saveYolcuDB(p);
+    } catch(e){
+      console.error('addToTour DB kayıt hatası:', e);
+      showToast('⚠️ Kayıt başarısız: ' + (e.message||''));
+    }
+  }
+}
+
+// ══ HIZLI TUR KAYIT SİSTEMİ ══
+let _htkSeciliYolcu = null;
+
+function htkAra(){
+  const arama = (document.getElementById('htk-arama')?.value || '').trim();
+  const sonuc = document.getElementById('htk-sonuc');
+  if(!sonuc) return;
+  if(!arama){
+    sonuc.innerHTML = '';
+    _htkSeciliYolcu = null;
+    return;
+  }
+
+  // Aktif sefer (rehber filtresi varsa onu kullan)
+  const aktifSefer = (typeof CTSF !== 'undefined' && CTSF !== 'hepsi' && CTSF) 
+    ? CTSF 
+    : (VOYAGES.find(v => v.status !== 'archived')?.id);
+
+  if(!aktifSefer){
+    sonuc.innerHTML = '<div class="htk-bos">⚠️ Aktif sefer bulunamadı</div>';
+    return;
+  }
+
+  // Kabin numarası mı, isim mi anlamaya çalış
+  const sayisalMi = /^\d+$/.test(arama);
+  const aramaNorm = (typeof isimNormalize === 'function') ? isimNormalize(arama) : arama.toLowerCase();
+
+  // Yolcu eşleştirme
+  let eslesenler;
+  if(sayisalMi){
+    // Kabin başlangıcı eşleşmesi
+    eslesenler = passengers.filter(p => 
+      p.sefer === aktifSefer && p.kabin && String(p.kabin).startsWith(arama)
+    );
+  } else {
+    // İsim eşleştirme (esnek)
+    eslesenler = passengers.filter(p => {
+      if(p.sefer !== aktifSefer || !p.name) return false;
+      const adNorm = isimNormalize(p.name);
+      // Tam içerik veya kelime başlangıcı
+      return adNorm.includes(aramaNorm);
+    });
+  }
+
+  if(eslesenler.length === 0){
+    sonuc.innerHTML = '<div class="htk-bos">😶 Bu seferde bu kabin/isimle yolcu bulunamadı</div>';
+    return;
+  }
+
+  if(eslesenler.length === 1){
+    // Tek eşleşme — direkt göster
+    htkYolcuSec(eslesenler[0]);
+    return;
+  }
+
+  // Birden fazla eşleşme — liste göster
+  sonuc.innerHTML = `
+    <div class="htk-bos" style="text-align:left;background:white;padding:8px;">
+      <div style="font-size:11px;color:var(--t2);margin:4px 0 6px 4px;">${eslesenler.length} yolcu bulundu, birini seçin:</div>
+      <div class="htk-coklu-list">
+        ${eslesenler.slice(0, 8).map(p => `
+          <div class="htk-coklu-item" onclick="htkYolcuSecKabin('${p.kabin||''}','${p.sefer}','${(p.name||'').replace(/'/g,"\\'")}')">
+            <span class="ad">${escapeHTML(p.name||'(İsimsiz)')}</span>
+            <span class="kabin">${p.kabin || 'Kabin ?'}</span>
+          </div>
+        `).join('')}
+      </div>
+      ${eslesenler.length > 8 ? `<div style="font-size:11px;color:var(--t3);margin-top:6px;text-align:center;">+ ${eslesenler.length-8} daha — daha spesifik yazın</div>` : ''}
+    </div>
+  `;
+}
+
+function htkYolcuSecKabin(kabin, sefer, isim){
+  let p = null;
+  if(kabin){
+    p = passengers.find(x => x.kabin === kabin && x.sefer === sefer);
+  }
+  if(!p && isim){
+    p = passengers.find(x => x.sefer === sefer && x.name === isim);
+  }
+  if(p) htkYolcuSec(p);
+}
+
+function htkYolcuSec(p){
+  _htkSeciliYolcu = p;
+  htkRender();
+}
+
+function htkTemizle(){
+  _htkSeciliYolcu = null;
+  const arama = document.getElementById('htk-arama');
+  if(arama){ arama.value = ''; arama.focus(); }
+  document.getElementById('htk-sonuc').innerHTML = '';
+}
+
+function htkRender(){
+  const sonuc = document.getElementById('htk-sonuc');
+  if(!sonuc || !_htkSeciliYolcu) return;
+  const p = _htkSeciliYolcu;
+
+  // Bu seferdeki tüm turları al
+  const turlar = TOURS.filter(t => 
+    t.aktif !== false && (
+      !t.seferler || t.seferler.length === 0 || t.seferler.includes(p.sefer)
+    )
+  ).sort((a,b) => (a.sira != null ? a.sira : 999) - (b.sira != null ? b.sira : 999));
+
+  // Yolcunun katılım detayı (varsa, kim tarafından eklendiği)
+  const detay = p.tur_katilim_detay || {};
+  const katildigi = p.joinedTours || [];
+
+  const kisiDetay = [];
+  if(p.adult > 0) kisiDetay.push(p.adult + ' Yetişkin');
+  if(p.child > 0) kisiDetay.push(p.child + ' Çocuk');
+  if(p.baby > 0) kisiDetay.push(p.baby + ' Bebek');
+
+  sonuc.innerHTML = `
+    <div class="htk-yolcu-card">
+      <div class="htk-yolcu-baslik">
+        <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
+          <span class="htk-yolcu-isim">${escapeHTML(p.name || '(İsimsiz)')}</span>
+          ${p.kabin ? `<span class="htk-yolcu-kabin">Kabin ${escapeHTML(p.kabin)}</span>` : '<span class="htk-yolcu-kabin" style="background:#f59e0b;">Kabinsiz</span>'}
+        </div>
+        <button class="htk-yolcu-kapat" onclick="htkTemizle()" title="Yeni yolcu">✕</button>
+      </div>
+      <div class="htk-yolcu-detay">${kisiDetay.join(' · ') || '0 kişi'} ${p.tel?'· 📞 '+escapeHTML(p.tel):''}</div>
+
+      <div class="htk-tur-baslik">📍 Turlar (${turlar.length})</div>
+
+      ${turlar.length === 0 ? '<div class="htk-bos">Bu seferde aktif tur yok</div>' :
+        turlar.map(t => {
+          const kayitli = katildigi.includes(t.id);
+          const detayTur = detay[t.id] || null;
+          // Yolcu kendisi mi eklemiş yoksa rehber mi (e_imza içeriği farklıdır)
+          // Yolcu kendi katıldığında e_imza: "Joanne Melcher (Kabin 6040)"
+          // Rehber eklediğinde detay olmaz veya farklı olur
+          const kendi = detayTur && detayTur.e_imza && detayTur.e_imza.includes(p.name);
+          const kisi = detayTur ? detayTur.kisi : ((p.adult||0)+(p.child||0)+(p.baby||0));
+          const ucret = detayTur ? detayTur.ucret : ((p.adult||0)*t.ap + (p.child||0)*t.cp + (p.baby||0)*t.bp);
+
+          let cardClass = 'htk-tur-card';
+          if(kayitli && kendi) cardClass += ' kayitli-yolcu';
+          else if(kayitli) cardClass += ' kayitli-rehber';
+
+          return `
+            <div class="${cardClass}">
+              <div class="htk-tur-info">
+                <div class="htk-tur-name">${escapeHTML(t.name)}</div>
+                <div class="htk-tur-meta">📍 ${escapeHTML(t.liman||'-')} ${t.saat?'· ⏰ '+escapeHTML(t.saat):''} ${kayitli?'· €'+ucret+' · '+kisi+' kişi':'· €'+t.ap+'/Y'}</div>
+              </div>
+              <div class="htk-tur-aksiyon">
+                ${kayitli && kendi
+                  ? `<span class="htk-durum-pill htk-durum-yolcu">✓ Yolcu kayıtlı</span>`
+                  : kayitli
+                  ? `<button class="htk-btn-cikar" onclick="htkTurCikar('${t.id}')">✕ Çıkar</button>`
+                  : `<button class="htk-btn-ekle" onclick="htkTurEkle('${t.id}')">+ Ekle</button>`
+                }
+              </div>
+            </div>
+          `;
+        }).join('')
+      }
+    </div>
+  `;
+}
+
+async function htkTurEkle(tid){
+  const p = _htkSeciliYolcu;
+  if(!p) return;
+  const t = TOURS.find(x => x.id === tid);
+  if(!t) return;
+
+  // Eklemeden önce: bu yolcu zaten kayıtlı mı?
+  if(p.joinedTours.includes(tid)){
+    showToast('Zaten kayıtlı');
+    return;
+  }
+
+  // joinedTours güncelle
+  p.joinedTours.push(tid);
+
+  // tur_katilim_detay'a rehber ekleme bilgisi koy
+  if(!p.tur_katilim_detay) p.tur_katilim_detay = {};
+  const yet = p.adult || 0, coc = p.child || 0, beb = p.baby || 0;
+  const kisi = yet + coc + beb;
+  const ucret = yet*t.ap + coc*t.cp + beb*t.bp;
+  p.tur_katilim_detay[tid] = {
+    kisi, yetiskin: yet, cocuk: coc, bebek: beb,
+    ucret,
+    onay_zamani: new Date().toISOString(),
+    e_imza: 'Rehber tarafından eklendi'
+  };
+
+  try {
+    await saveYolcuDB(p);
+    htkRender();
+    if(typeof bildirimSesi === 'function') bildirimSesi('mesaj');
+    showToast('✓ ' + t.name + ' eklendi (€' + ucret + ')');
+    // İlgili admin/rehber listesini de yenile
+    if(typeof renderTA === 'function') renderTA(CTSF);
+  } catch(e){
+    // Hata olursa geri al
+    const idx = p.joinedTours.indexOf(tid);
+    if(idx >= 0) p.joinedTours.splice(idx, 1);
+    delete p.tur_katilim_detay[tid];
+    htkRender();
+    showToast('⚠️ Kayıt başarısız: ' + (e.message||''));
+  }
+}
+
+async function htkTurCikar(tid){
+  const p = _htkSeciliYolcu;
+  if(!p) return;
+  if(!confirm('Bu turdan çıkarılsın mı?')) return;
+
+  const idx = p.joinedTours.indexOf(tid);
+  if(idx < 0) return;
+  p.joinedTours.splice(idx, 1);
+  if(p.tur_katilim_detay && p.tur_katilim_detay[tid]){
+    delete p.tur_katilim_detay[tid];
+  }
+
+  try {
+    await saveYolcuDB(p);
+    htkRender();
+    showToast('✓ Turdan çıkarıldı');
+    if(typeof renderTA === 'function') renderTA(CTSF);
+  } catch(e){
+    showToast('⚠️ Kayıt başarısız: ' + (e.message||''));
+  }
+}
+async function removeFromTour(kabin,sefer,tid){
+  const p=passengers.find(p=>p.kabin===kabin&&p.sefer===sefer);
+  if(p){
+    const i=p.joinedTours.indexOf(tid);
+    if(i>=0){
+      p.joinedTours.splice(i,1);
+      // tur_katilim_detay'da da varsa temizle
+      if(p.tur_katilim_detay && p.tur_katilim_detay[tid]){
+        delete p.tur_katilim_detay[tid];
+      }
+      showKatilimcilar(tid);
+      renderTA(CTSF);
+      try {
+        await saveYolcuDB(p);
+      } catch(e){
+        console.error('removeFromTour DB kayıt hatası:', e);
+        showToast('⚠️ Kayıt başarısız: ' + (e.message||''));
+      }
+    }
+  }
+}
 
 // ── BİLDİRİM ──
 function togS(el){el.classList.toggle('active');updWA();}
