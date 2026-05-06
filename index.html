@@ -2038,7 +2038,7 @@ textarea.ai2{resize:none;}
   </div>
 </div>
 <div class="mo2" id="kat-modal">
-  <div class="md"><div class="mdt" id="kat-modal-title">Katilimcilar</div><div id="kat-modal-body"></div><div class="mdb"><button class="mc" onclick="closeModal('kat-modal')" style="flex:none;padding:10px 20px;">Kapat</button></div></div>
+  <div class="md"><div class="mdt" id="kat-modal-title">Katilimcilar</div><div id="kat-modal-body"></div><div class="mdb" id="kat-modal-bottom"><div id="kat-modal-actions" style="display:flex;gap:6px;flex:1;flex-wrap:wrap;"></div><button class="mc" onclick="closeModal('kat-modal')" style="flex:none;padding:10px 20px;">Kapat</button></div></div>
 </div>
 
 <script>
@@ -4524,6 +4524,20 @@ function showKatilimcilar(tid){
   const t=TOURS.find(t=>t.id===tid);if(!t)return;
   const kat=passengers.filter(p=>p.joinedTours.includes(tid));
   document.getElementById('kat-modal-title').textContent=t.name+' ('+kat.length+' kabin)';
+
+  // Modal alt kısmına aksiyon butonları
+  const aksiyonEl = document.getElementById('kat-modal-actions');
+  if(aksiyonEl){
+    if(kat.length > 0){
+      aksiyonEl.innerHTML = `
+        <button onclick="topluBiletYazdir('${tid}')" style="padding:9px 14px;background:#1a5fa8;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">🎫 Tüm Biletleri Yazdır (${kat.length})</button>
+        <button onclick="topluFormYazdir('${tid}')" style="padding:9px 14px;background:#7c3aed;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">📄 Tüm Formlar (${kat.length})</button>
+      `;
+    } else {
+      aksiyonEl.innerHTML = '';
+    }
+  }
+
   const body=document.getElementById('kat-modal-body');
   const iS=CU?.role==='super';const activeShip=iS?ACTIVE_SHIP:CU?.ship;
   const mvi=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived').map(v=>v.id);
@@ -10237,6 +10251,278 @@ ${gemi ? `<div class="merkez ufak">${escapeHTML(gemi)}</div>` : ''}
   w.document.write(html);
   w.document.close();
   showToast('🎫 Termal bilet açılıyor...');
+}
+
+// ── TOPLU BİLET YAZDIR ──
+async function topluBiletYazdir(tid){
+  const t = TOURS.find(x=>x.id===tid);
+  if(!t){ showToast('Tur bulunamadı'); return; }
+  const kat = passengers.filter(p=>p.joinedTours.includes(tid));
+  if(!kat.length){ showToast('Bu tura katılan yok'); return; }
+
+  if(!confirm(kat.length + ' bilet tek seferde yazdırılacak. Devam edelim mi?')) return;
+
+  showToast('⏳ ' + kat.length + ' bilet hazırlanıyor...');
+
+  // Her yolcu için bilet HTML'i hazırla
+  const biletler = [];
+  for(const p of kat){
+    const v = VOYAGES.find(x=>x.id===p.sefer);
+    const tarihStr = new Date().toLocaleDateString('tr-TR').replace(/\./g,'');
+    const tidSon4 = String(tid).slice(-4);
+    const biletNo = tarihStr + '-' + (p.kabin || 'NoKabin') + '-' + tidSon4;
+    const qrUrl = window.location.origin + window.location.pathname + '?qr=' + encodeURIComponent(biletNo) + '&k=' + encodeURIComponent(p.kabin || '') + '&s=' + encodeURIComponent(p.sefer) + '&t=' + encodeURIComponent(tid);
+    const gemi = v ? (v.ship || '') : '';
+    biletler.push({
+      name: p.name || '(İsimsiz)',
+      kabin: p.kabin || '?',
+      biletNo, qrUrl, gemi
+    });
+  }
+
+  // Tüm biletleri tek HTML'de birleştir, her biri ayrı sayfada (page-break)
+  const biletHTML = biletler.map((b, idx) => `
+    <div class="bilet-tek" style="${idx > 0 ? 'page-break-before:always;' : ''}">
+      <!-- Header -->
+      <div class="merkez kucuk kalin">VOYAGO</div>
+      <div class="merkez ufak">Gemi Rehber Uygulaması</div>
+      ${b.gemi ? `<div class="merkez ufak">${escapeHTML(b.gemi)}</div>` : ''}
+      <hr class="kalın">
+      <!-- Tur adı -->
+      <div class="merkez kalin" style="font-size: 12pt; margin: 2mm 0;">${escapeHTML(t.name)}</div>
+      <hr class="cizgi">
+      <!-- Yolcu -->
+      <div class="kalin" style="font-size: 11pt; margin: 1mm 0;">${escapeHTML(b.name)}</div>
+      <div style="display: flex; justify-content: space-between; margin: 1mm 0;">
+        <span class="kucuk">Kabin No:</span>
+        <span class="kalin" style="font-size: 11pt;">${escapeHTML(b.kabin)}</span>
+      </div>
+      <hr class="cizgi">
+      <!-- QR Kod -->
+      <div class="qr-container">
+        <div class="qrcode-${idx}" data-qr-url="${escapeHTML(b.qrUrl)}"></div>
+        <div class="ufak" style="margin-top: 2mm;">Rehbere okutunuz</div>
+      </div>
+      <hr class="cizgi">
+      <!-- Bilet No -->
+      <div class="merkez ufak">${escapeHTML(b.biletNo)}</div>
+    </div>
+  `).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Toplu Biletler — ${escapeHTML(t.name)} (${biletler.length})</title>
+<sc${''}ript src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></sc${''}ript>
+<style>
+  @page { size: 80mm auto; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 80mm;
+    font-family: 'Courier New', 'Consolas', monospace;
+    font-size: 11pt;
+    line-height: 1.3;
+    color: #000;
+    background: white;
+  }
+  body { padding: 0; }
+  .bilet-tek {
+    padding: 3mm 5mm 3mm 9mm;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .merkez { text-align: center; }
+  .kalin { font-weight: 700; }
+  .kucuk { font-size: 9pt; }
+  .ufak { font-size: 8pt; }
+  hr.cizgi { border: 0; border-top: 1px dashed #000; margin: 2mm 0; }
+  hr.kalın { border: 0; border-top: 2px solid #000; margin: 1.5mm 0; }
+  .qr-container { text-align: center; margin: 2mm 0; }
+  .qr-container canvas, .qr-container img { margin: 0 auto; }
+  .yazdir-btn {
+    position: fixed; top: 8px; right: 8px;
+    padding: 8px 14px; background: #1a5fa8; color: white;
+    border: none; border-radius: 6px; font-size: 12px; cursor: pointer;
+    box-shadow: 0 3px 10px rgba(0,0,0,.2);
+    font-family: -apple-system, sans-serif;
+    z-index: 9999;
+  }
+  .info-bar {
+    background: #e8f5ee; border-bottom: 2px solid #16a34a;
+    padding: 10px 14px; font-family: -apple-system, sans-serif;
+    font-size: 13px; color: #15803d;
+  }
+  @media print {
+    .yazdir-btn, .info-bar { display: none; }
+    html, body { height: auto !important; }
+  }
+</style>
+</head>
+<body>
+<div class="info-bar">📋 ${biletler.length} bilet hazır — yazdırılırken her bilet kendi sayfasında çıkar</div>
+<button class="yazdir-btn" onclick="window.print()">🖨️ Hepsini Yazdır</button>
+
+${biletHTML}
+
+<sc${''}ript>
+  window.addEventListener('load', () => {
+    // Her QR kod elementi için QR oluştur
+    document.querySelectorAll('[class^="qrcode-"]').forEach(el => {
+      try {
+        const url = el.getAttribute('data-qr-url');
+        new QRCode(el, {
+          text: url, width: 130, height: 130,
+          colorDark: '#000000', colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      } catch(e) { console.error('QR kod oluşturulamadı:', e); }
+    });
+    // QR'lar yüklensin diye biraz bekle, sonra yazdır
+    setTimeout(() => window.print(), 1500);
+  });
+</sc${''}ript>
+</body>
+</html>`;
+
+  const w = window.open('', '_blank', 'width=400,height=700');
+  if(!w){ showToast('Pop-up engellendi — izin verin'); return; }
+  w.document.write(html);
+  w.document.close();
+  showToast('🎫 ' + biletler.length + ' bilet açılıyor...');
+}
+
+// ── TOPLU FORM YAZDIR ──
+async function topluFormYazdir(tid){
+  const t = TOURS.find(x=>x.id===tid);
+  if(!t){ showToast('Tur bulunamadı'); return; }
+  const kat = passengers.filter(p=>p.joinedTours.includes(tid));
+  if(!kat.length){ showToast('Bu tura katılan yok'); return; }
+
+  if(!confirm(kat.length + ' form tek seferde yazdırılacak. Devam edelim mi?')) return;
+
+  showToast('⏳ ' + kat.length + ' form hazırlanıyor...');
+
+  const formlar = kat.map((p, idx) => {
+    const v = VOYAGES.find(x=>x.id===p.sefer);
+    const det = (p.tur_katilim_detay && p.tur_katilim_detay[tid]) || null;
+    const yet = det ? (det.yetiskin||0) : (p.adult||0);
+    const coc = det ? (det.cocuk||0) : (p.child||0);
+    const beb = det ? (det.bebek||0) : (p.baby||0);
+    const kisi = yet + coc + beb;
+    const ucret = det ? det.ucret : (yet*t.ap + coc*t.cp + beb*t.bp);
+    const gemi = v ? (v.ship || '') : '';
+    const seferLabel = v ? (v.label || '') : '';
+    const onayZaman = det && det.onay_zamani ? new Date(det.onay_zamani).toLocaleString('tr-TR') : '—';
+    const eImza = det ? (det.e_imza || '—') : '—';
+
+    return `
+      <div class="form-tek" style="${idx > 0 ? 'page-break-before:always;' : ''}">
+        <div class="merkez kalin" style="font-size: 13pt;">VOYAGO</div>
+        <div class="merkez ufak">Tur Katılım Formu — Acente Kopyası</div>
+        ${gemi ? `<div class="merkez ufak">${escapeHTML(gemi)} · ${escapeHTML(seferLabel)}</div>` : ''}
+        <hr class="kalın">
+
+        <div class="merkez kalin" style="font-size: 12pt; margin: 2mm 0;">${escapeHTML(t.name)}</div>
+        ${t.liman ? `<div class="merkez kucuk">📍 ${escapeHTML(t.liman)}</div>` : ''}
+        ${t.saat ? `<div class="merkez kucuk">⏰ ${escapeHTML(t.saat)}</div>` : ''}
+        <hr class="cizgi">
+
+        <div class="kalin" style="font-size: 11pt; margin: 1mm 0;">${escapeHTML(p.name||'')}</div>
+        <div class="satir"><span class="kucuk">Kabin:</span> <span class="kalin">${escapeHTML(p.kabin||'?')}</span></div>
+        ${p.tel ? `<div class="satir"><span class="kucuk">Tel:</span> <span>${escapeHTML(p.tel)}</span></div>` : ''}
+        <hr class="cizgi">
+
+        <div style="font-size: 9pt; margin: 1mm 0;">KATILIM DETAYI:</div>
+        ${yet>0 ? `<div class="satir"><span class="kucuk">Yetişkin (€${t.ap}):</span> <span class="kalin">${yet} × €${t.ap} = €${yet*t.ap}</span></div>` : ''}
+        ${coc>0 ? `<div class="satir"><span class="kucuk">Çocuk (€${t.cp}):</span> <span class="kalin">${coc} × €${t.cp} = €${coc*t.cp}</span></div>` : ''}
+        ${beb>0 ? `<div class="satir"><span class="kucuk">Bebek (€${t.bp}):</span> <span class="kalin">${beb} × €${t.bp} = €${beb*t.bp}</span></div>` : ''}
+        <hr class="cizgi">
+
+        <div class="satir"><span class="kalin">TOPLAM KİŞİ:</span> <span class="kalin">${kisi}</span></div>
+        <div class="satir"><span class="kalin">TOPLAM TUTAR:</span> <span class="kalin" style="font-size: 12pt;">€${ucret}</span></div>
+        <hr class="kalın">
+
+        <div style="font-size: 8pt;">
+          <div>Onay zamanı: ${onayZaman}</div>
+          <div>e-İmza: ${escapeHTML(eImza)}</div>
+        </div>
+        <hr class="cizgi">
+
+        <div style="margin-top: 4mm;">
+          <div class="kucuk">İmza:</div>
+          <div style="border-bottom: 1px solid #000; margin-top: 8mm;"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Toplu Formlar — ${escapeHTML(t.name)} (${kat.length})</title>
+<style>
+  @page { size: 80mm auto; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 80mm;
+    font-family: 'Courier New', 'Consolas', monospace;
+    font-size: 10pt;
+    line-height: 1.3;
+    color: #000;
+    background: white;
+  }
+  body { padding: 0; }
+  .form-tek {
+    padding: 3mm 5mm 3mm 9mm;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .merkez { text-align: center; }
+  .kalin { font-weight: 700; }
+  .kucuk { font-size: 8pt; }
+  .ufak { font-size: 7pt; }
+  .satir { display: flex; justify-content: space-between; margin: 0.5mm 0; }
+  hr.cizgi { border: 0; border-top: 1px dashed #000; margin: 1.5mm 0; }
+  hr.kalın { border: 0; border-top: 2px solid #000; margin: 1.5mm 0; }
+  .yazdir-btn {
+    position: fixed; top: 8px; right: 8px;
+    padding: 8px 14px; background: #7c3aed; color: white;
+    border: none; border-radius: 6px; font-size: 12px; cursor: pointer;
+    box-shadow: 0 3px 10px rgba(0,0,0,.2);
+    font-family: -apple-system, sans-serif; z-index: 9999;
+  }
+  .info-bar {
+    background: #ede9fe; border-bottom: 2px solid #7c3aed;
+    padding: 10px 14px; font-family: -apple-system, sans-serif;
+    font-size: 13px; color: #5b21b6;
+  }
+  @media print {
+    .yazdir-btn, .info-bar { display: none; }
+    html, body { height: auto !important; }
+  }
+</style>
+</head>
+<body>
+<div class="info-bar">📄 ${kat.length} form hazır — yazdırılırken her form kendi sayfasında çıkar</div>
+<button class="yazdir-btn" onclick="window.print()">🖨️ Hepsini Yazdır</button>
+
+${formlar}
+
+<sc${''}ript>
+  window.addEventListener('load', () => {
+    setTimeout(() => window.print(), 600);
+  });
+</sc${''}ript>
+</body>
+</html>`;
+
+  const w = window.open('', '_blank', 'width=400,height=700');
+  if(!w){ showToast('Pop-up engellendi — izin verin'); return; }
+  w.document.write(html);
+  w.document.close();
+  showToast('📄 ' + kat.length + ' form açılıyor...');
 }
 
 // ── WHATSAPP GÖNDER ──
