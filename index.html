@@ -2253,6 +2253,8 @@ async function initDB() {
     // Tur görsellerini arka planda yükle (lazy load)
     // Ana veriler hazır → kullanıcı turları görüyor → görseller arkadan gelir
     setTimeout(loadTurGorselleri, 800);
+    // Gelecek turları DB'den yükle
+    setTimeout(()=>{ if(typeof gelecekTurlariYukle==='function') gelecekTurlariYukle(); }, 900);
     populateSeferler();
   } catch(e) {
     console.error('DB init hatasi:', e);
@@ -5566,12 +5568,23 @@ function sendMsg(){
   setTimeout(()=>{const r=document.createElement('div');r.className='msg mi';const rp=['Mesajinizi aldim!','Tabii, yardimci olacagim.','Anliyorum.'];r.innerHTML=rp[Math.floor(Math.random()*rp.length)]+'<div class="mtime">'+time+'</div>';area.appendChild(r);},1200);
 }
 function doLogout2_eski(){CU=null;CP=null;showScreen('sl');}
-// ── GELECEK TURLAR ──
-let GELECEK_TURLAR = [
-  {id:'g1',baslik:'Dubai Kis Turu 2027',aciklama:'Burj Khalifa, Palm Jumeirah, çöl safari ve daha fazlası. Lüks gemi konforuyla Körfezi kesfedın.',tarih:'Ara 2026 / Oca 2027',fiyat:'€ 1.200den itibaren',promo:'Erken kayit %15 indirim',iletisim:'Kayit icin rehberinize basvurun',img:null},
-  {id:'g2',baslik:'Yunanistan Bahar Turu 2027',aciklama:'Santorini, Mikonos, Rodos ve Atina. Egenin en güzel adalarini kesfedin.',tarih:'Nis - May 2027',fiyat:'€ 950den itibaren',promo:'Simdi kayit olun, kabin secimi öncelikli',iletisim:'Kayit icin rehberinize basvurun',img:null},
-];
+// ── GELECEK TURLAR (FIRSATLAR) ──
+let GELECEK_TURLAR = []; // DB'den yüklenir
 let newGtImg = null;
+
+// DB'den yükle
+async function gelecekTurlariYukle(){
+  try {
+    const { data, error } = await sb.from('gelecek_turlar').select('*').order('sira').order('olusturma', { ascending: false });
+    if(error) {
+      console.error('Gelecek turlar yükleme hatası:', error);
+      return;
+    }
+    GELECEK_TURLAR = data || [];
+    if(typeof renderGelecekTurlar === 'function') renderGelecekTurlar();
+    if(typeof renderGelecekAdmin === 'function') renderGelecekAdmin();
+  } catch(e){ console.error('Gelecek turlar:', e); }
+}
 
 function renderGelecekTurlar(){
   const el=document.getElementById('gelecek-tur-list');
@@ -5628,7 +5641,7 @@ function previewGtImg(input){
   r.readAsDataURL(f);
 }
 
-function addGelecekTur(){
+async function addGelecekTur(){
   const baslik=document.getElementById('gt-baslik').value.trim();
   const aciklama=document.getElementById('gt-aciklama').value.trim();
   const tarih=document.getElementById('gt-tarih').value.trim();
@@ -5636,20 +5649,49 @@ function addGelecekTur(){
   const promo=document.getElementById('gt-promo').value.trim();
   const iletisim=document.getElementById('gt-iletisim').value.trim();
   if(!baslik){showToast('Tur adi gereklidir.');return;}
-  GELECEK_TURLAR.push({id:'g'+Date.now(),baslik,aciklama,tarih,fiyat,promo,iletisim,img:newGtImg});
-  newGtImg=null;
-  document.getElementById('gt-baslik').value='';document.getElementById('gt-aciklama').value='';
-  document.getElementById('gt-tarih').value='';document.getElementById('gt-fiyat').value='';
-  document.getElementById('gt-promo').value='';document.getElementById('gt-iletisim').value='';
-  document.getElementById('gt-img-preview').innerHTML='🖼️ Afiş ekle';
-  renderGelecekAdmin();renderGelecekTurlar();
-  showToast('Tur yayınlandi! Misafirler gorebilir.');
+
+  const yeniTur = {
+    id: 'g'+Date.now(),
+    baslik, aciklama, tarih, fiyat, promo, iletisim,
+    img: newGtImg
+  };
+
+  try {
+    const { error } = await sb.from('gelecek_turlar').insert(yeniTur);
+    if(error) throw error;
+    GELECEK_TURLAR.unshift(yeniTur);
+    newGtImg=null;
+    document.getElementById('gt-baslik').value='';
+    document.getElementById('gt-aciklama').value='';
+    document.getElementById('gt-tarih').value='';
+    document.getElementById('gt-fiyat').value='';
+    document.getElementById('gt-promo').value='';
+    document.getElementById('gt-iletisim').value='';
+    const prev = document.getElementById('gt-img-preview');
+    if(prev) prev.innerHTML='🖼️ Afiş ekle';
+    renderGelecekAdmin();
+    renderGelecekTurlar();
+    showToast('✓ Tur yayınlandı! Misafirler görebilir.');
+  } catch(e){
+    console.error('Gelecek tur ekleme hatası:', e);
+    showToast('⚠️ Kayıt başarısız: ' + (e.message||''));
+  }
 }
 
-function deleteGelecekTur(id){
+async function deleteGelecekTur(id){
   if(!confirm('Silinsin mi?'))return;
-  const i=GELECEK_TURLAR.findIndex(t=>t.id===id);
-  if(i>=0){GELECEK_TURLAR.splice(i,1);renderGelecekAdmin();renderGelecekTurlar();showToast('Silindi.');}
+  try {
+    const { error } = await sb.from('gelecek_turlar').delete().eq('id', id);
+    if(error) throw error;
+    const i=GELECEK_TURLAR.findIndex(t=>t.id===id);
+    if(i>=0) GELECEK_TURLAR.splice(i,1);
+    renderGelecekAdmin();
+    renderGelecekTurlar();
+    showToast('✓ Silindi.');
+  } catch(e){
+    console.error('Gelecek tur silme hatası:', e);
+    showToast('⚠️ Silinemedi: ' + (e.message||''));
+  }
 }
 
 // ── KARA TURU KONTROL LİSTESİ ──
