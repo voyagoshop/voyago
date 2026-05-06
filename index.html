@@ -10547,37 +10547,41 @@ function tkWhatsappGonder(kabin, sefer, tid){
   const toplam = det ? det.kisi : (yet+coc+beb);
   const ucret = det ? det.ucret : ((yet*t.ap)+(coc*t.cp)+(beb*t.bp));
 
-  const seferTarih = v ? ((v.start_date||'') + (v.end_date?(' — '+v.end_date):'')) : '';
-  const gemi = v ? (v.ship || '') : '';
+  // Rehber adı (giriş yapan rehber)
+  const rehberAdi = (CU && CU.name) ? CU.name : 
+                    (v && v.guide && USERS[v.guide]) ? USERS[v.guide].name : 
+                    'Rehberiniz';
+  
+  // Yolcunun ilk adı (samimi hitap için)
+  const ilkAd = (p.name || '').split(' ')[0] || p.name || '';
+  // Tur adının kısa hali (parantez varsa kaldır)
+  const turKisa = (t.name || '').replace(/\s*[\(\-–].+$/, '').trim() || t.name;
 
-  // Mesaj oluştur
+  // Mesaj oluştur — daha sıcak, kişisel, rehber adı ile
   const satirlar = [];
-  satirlar.push('🚢 *VOYAGO Tur Katılım Onayı*');
+  satirlar.push('🚢 *Rehber ' + rehberAdi + ' - Tur Katılım Hatırlatması*');
   satirlar.push('');
-  satirlar.push('Sayın *' + p.name + '*,');
+  satirlar.push('Sayın ' + ilkAd + ',');
   satirlar.push('');
-  satirlar.push('Aşağıdaki tura katılımınız onaylanmıştır:');
+  satirlar.push(turKisa + ' için bilgilendirme:');
   satirlar.push('');
   satirlar.push('🎫 *Tur Bilgileri*');
   satirlar.push('• Tur: ' + t.name);
-  if(t.liman) satirlar.push('• Liman: ' + t.liman);
-  if(t.saat) satirlar.push('• Toplanma Saati: ' + t.saat);
-  if(t.gun) satirlar.push('• Gün: ' + t.gun + '. Gün');
+  if(t.liman) satirlar.push('• 📍 Liman / Toplanma Noktası: ' + t.liman);
+  if(t.saat) satirlar.push('• ⏰ Toplanma Saati: ' + t.saat);
+  if(t.gun) satirlar.push('• 📅 Gün: ' + t.gun + '. Gün');
   satirlar.push('');
-  satirlar.push('👥 *Katılımcılar*');
-  if(yet>0) satirlar.push('• ' + yet + ' Yetişkin × €' + t.ap + ' = €' + (yet*t.ap));
-  if(coc>0) satirlar.push('• ' + coc + ' Çocuk × €' + t.cp + ' = €' + (coc*t.cp));
-  if(beb>0) satirlar.push('• ' + beb + ' Bebek × €' + t.bp + ' = €' + (beb*t.bp));
-  satirlar.push('• *Toplam (' + toplam + ' kişi): €' + ucret + '*');
+  satirlar.push('🛏️ *Kabin No:* ' + (p.kabin || '—'));
   satirlar.push('');
-  satirlar.push('📍 *Kabin:* ' + p.kabin);
-  if(gemi) satirlar.push('🚢 *Gemi:* ' + gemi);
-  if(seferTarih) satirlar.push('📅 *Sefer:* ' + seferTarih);
+  satirlar.push('━━━━━━━━━━━━━━━━━━');
   satirlar.push('');
   satirlar.push('⚠️ Tura katılmama durumunda ücret iadesi yapılmaz.');
-  satirlar.push('Sağlık ve özel durumlar için rehberinizle görüşünüz.');
+  satirlar.push('💊 Sağlık ve özel durumlarınız varsa lütfen önceden bana bildiriniz.');
   satirlar.push('');
-  satirlar.push('İyi yolculuklar dileriz! ⚓');
+  satirlar.push('Sorularınız için bana yazabilirsiniz. ');
+  satirlar.push('Keyifli bir tur diliyorum! ⚓');
+  satirlar.push('');
+  satirlar.push('_— Rehber ' + rehberAdi + '_');
 
   const mesaj = encodeURIComponent(satirlar.join('\n'));
 
