@@ -1358,6 +1358,26 @@ textarea.ai2{resize:none;}
         <button class="save-daily-btn" style="background:var(--red);margin-top:10px;" onclick="saveMeeting2()">Kaydet ve Misafire Göster</button>
       </div>
 
+      <!-- 📊 TUR RAPORLARI (Tour Reports) -->
+      <div class="fs2" style="background:linear-gradient(135deg,#dbeafe 0%,#bfdbfe 100%);border:1.5px solid #1a5fa8;margin-bottom:14px;">
+        <div class="fst" style="color:#0d3b6e;display:flex;align-items:center;gap:6px;">
+          <span style="font-size:18px;">📊</span> Tour Reports / Tur Raporları
+        </div>
+        <div style="font-size:12px;color:#0d3b6e;margin-bottom:10px;line-height:1.5;">
+          Tur masası için yolcu listesi/sayıları (İngilizce). PDF veya WhatsApp metni olarak paylaşın.
+        </div>
+        <div style="margin-bottom:10px;">
+          <label class="fl" style="margin-bottom:4px;color:#0d3b6e;">Sefer / Voyage</label>
+          <select class="fs" id="rapor-sefer-sel" style="height:40px;width:100%;background:white;"></select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <button onclick="raporOzetPDF()" style="padding:11px;background:#1a5fa8;color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">📊 Summary PDF</button>
+          <button onclick="raporDetayPDF()" style="padding:11px;background:#0d3b6e;color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 Detail PDF</button>
+          <button onclick="raporOzetWA()" style="padding:11px;background:#16a34a;color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">💬 Summary Text</button>
+          <button onclick="raporDetayWA()" style="padding:11px;background:#15803d;color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">💬 Detail Text</button>
+        </div>
+      </div>
+
       <!-- ⚡ HIZLI TUR KAYIT -->
       <div class="fs2" style="background:linear-gradient(135deg,#e8f5ee 0%,#d4ebe0 100%);border:1.5px solid #16a34a;margin-bottom:14px;">
         <div class="fst" style="color:#15803d;display:flex;align-items:center;gap:6px;">
@@ -5397,6 +5417,10 @@ function adminTab(name){
   if(btn)btn.classList.add('active');
   if(name==='gz')renderGazeteAdmin();
   if(name==='gunluk'){initDailyForms();setTimeout(renderGsAdmin,200);}
+  if(name==='tur'){
+    // Rapor sefer dropdown'unu güncelle
+    setTimeout(()=>{ if(typeof raporSeferDropdownGuncelle === 'function') raporSeferDropdownGuncelle(); }, 100);
+  }
   if(name==='gelecek'){
     renderGelecekAdmin();
     // Fırsat tur görsel butonu sıfırla
@@ -10589,6 +10613,489 @@ function tkWhatsappGonder(kabin, sefer, tid){
   const url = 'https://wa.me/' + ham + '?text=' + mesaj;
   window.open(url, '_blank');
   showToast('📱 WhatsApp açılıyor...');
+}
+
+// ══ TUR RAPORLARI (TOUR REPORTS - English) ══
+
+// Sefer dropdown'unu doldur
+function raporSeferDropdownGuncelle(){
+  const sel = document.getElementById('rapor-sefer-sel');
+  if(!sel) return;
+  const iS = CU?.role === 'super';
+  const activeShip = iS ? ACTIVE_SHIP : CU?.ship;
+  const seferler = VOYAGES.filter(v => v.ship === activeShip && v.status !== 'archived');
+  if(!seferler.length){
+    sel.innerHTML = '<option value="">No active voyage</option>';
+    return;
+  }
+  sel.innerHTML = seferler.map(v => `<option value="${v.id}">${escapeHTML(v.label||'')} ${v.startDate?'· '+v.startDate:''}</option>`).join('');
+  // Aktif sefer seçili olsun
+  const aktif = getCurrentSeferId() || seferler[0].id;
+  sel.value = aktif;
+}
+
+// Rapor verilerini hesapla
+function raporVeriHazirla(seferId){
+  const v = VOYAGES.find(x => x.id === seferId);
+  if(!v) return null;
+
+  const seferYolculari = passengers.filter(p => p.sefer === seferId);
+  const turlar = TOURS.filter(t =>
+    t.aktif !== false && (
+      !t.seferler || t.seferler.length === 0 || t.seferler.includes(seferId)
+    )
+  ).sort((a,b) => (a.gun||0)-(b.gun||0));
+
+  // Her tur için yolcu listesi ve toplamlar
+  const turRaporlari = turlar.map(t => {
+    const katilanlar = seferYolculari.filter(p => (p.joinedTours||[]).includes(t.id));
+    let topYet = 0, topCoc = 0, topBeb = 0, topUcret = 0;
+    const yolcuListesi = katilanlar.map(p => {
+      const det = (p.tur_katilim_detay && p.tur_katilim_detay[t.id]) || null;
+      const yet = det ? (det.yetiskin||0) : (p.adult||0);
+      const coc = det ? (det.cocuk||0) : (p.child||0);
+      const beb = det ? (det.bebek||0) : (p.baby||0);
+      const ucret = det ? (det.ucret||0) : (yet*t.ap + coc*t.cp + beb*t.bp);
+      topYet += yet; topCoc += coc; topBeb += beb; topUcret += ucret;
+      return {
+        name: p.name || '(No name)',
+        kabin: p.kabin || '?',
+        yet, coc, beb,
+        kisi: yet+coc+beb,
+        ucret
+      };
+    });
+    return {
+      tur: t,
+      yolcular: yolcuListesi,
+      kabinSayisi: katilanlar.length,
+      topYet, topCoc, topBeb,
+      topKisi: topYet+topCoc+topBeb,
+      topUcret
+    };
+  }).filter(r => r.kabinSayisi > 0); // Sadece katılımı olan turları göster
+
+  // Genel toplam
+  const genelKabin = turRaporlari.reduce((a,r) => a + r.kabinSayisi, 0);
+  const genelYet = turRaporlari.reduce((a,r) => a + r.topYet, 0);
+  const genelCoc = turRaporlari.reduce((a,r) => a + r.topCoc, 0);
+  const genelBeb = turRaporlari.reduce((a,r) => a + r.topBeb, 0);
+  const genelKisi = turRaporlari.reduce((a,r) => a + r.topKisi, 0);
+  const genelUcret = turRaporlari.reduce((a,r) => a + r.topUcret, 0);
+
+  return {
+    sefer: v,
+    turRaporlari,
+    genel: { kabin: genelKabin, yet: genelYet, coc: genelCoc, beb: genelBeb, kisi: genelKisi, ucret: genelUcret }
+  };
+}
+
+// İngilizce ay/tarih formatı
+function raporTarih(){
+  const d = new Date();
+  return d.toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+// 📊 ÖZET PDF
+function raporOzetPDF(){
+  const sid = document.getElementById('rapor-sefer-sel')?.value;
+  if(!sid){ showToast('Please select a voyage'); return; }
+  const data = raporVeriHazirla(sid);
+  if(!data){ showToast('Voyage not found'); return; }
+  if(!data.turRaporlari.length){ showToast('No tour participations yet'); return; }
+
+  const v = data.sefer;
+  const rehberAdi = (CU && CU.name) ? CU.name : 'Guide';
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tour Summary Report — ${escapeHTML(v.label||'')}</title>
+<style>
+  @page { size: A4; margin: 14mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1a1a; font-size: 11pt; line-height: 1.4; }
+  .baslik { background: linear-gradient(135deg, #0d3b6e, #1a5fa8); color: white; padding: 16px 18px; border-radius: 10px; margin-bottom: 16px; }
+  .baslik h1 { font-size: 20pt; margin-bottom: 4px; font-weight: 700; }
+  .baslik .alt { font-size: 10pt; opacity: .9; }
+  .info { display: flex; gap: 20px; padding: 10px 14px; background: #f0f6fb; border-radius: 8px; margin-bottom: 16px; font-size: 10pt; }
+  .info b { color: #0d3b6e; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 10pt; }
+  th { background: #0d3b6e; color: white; padding: 8px 10px; text-align: left; font-weight: 600; }
+  th:not(:first-child), td:not(:first-child) { text-align: center; }
+  td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; }
+  tr:nth-child(even) td { background: #f9fafb; }
+  tfoot td { background: #1a5fa8 !important; color: white; font-weight: 700; font-size: 11pt; }
+  .ucret { color: #0f6e56; font-weight: 600; }
+  .footer { margin-top: 20px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 9pt; color: #888; text-align: center; }
+  .yazdir-btn { position: fixed; top: 8px; right: 8px; padding: 8px 14px; background: #1a5fa8; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; box-shadow: 0 3px 10px rgba(0,0,0,.2); z-index: 9999; }
+  @media print { .yazdir-btn { display: none; } }
+</style>
+</head>
+<body>
+<button class="yazdir-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+
+<div class="baslik">
+  <h1>🚢 VOYAGO — Tour Summary Report</h1>
+  <div class="alt">Tour Operations Department · Bus & Ticket Planning</div>
+</div>
+
+<div class="info">
+  <div><b>Ship:</b> ${escapeHTML(v.ship||'-')}</div>
+  <div><b>Voyage:</b> ${escapeHTML(v.label||'-')}</div>
+  <div><b>Route:</b> ${escapeHTML(v.route||'-')}</div>
+  <div style="margin-left:auto;"><b>Generated:</b> ${raporTarih()}</div>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Tour Name</th>
+      <th>Day</th>
+      <th>Time</th>
+      <th>Cabins</th>
+      <th>Adult</th>
+      <th>Child</th>
+      <th>Infant</th>
+      <th>Total Pax</th>
+      <th>Revenue</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${data.turRaporlari.map(r => `
+      <tr>
+        <td><b>${escapeHTML(r.tur.name||'')}</b><br><span style="font-size:9pt;color:#888;">📍 ${escapeHTML(r.tur.liman||'-')}</span></td>
+        <td>${r.tur.gun||'-'}</td>
+        <td>${escapeHTML(r.tur.saat||'-')}</td>
+        <td><b>${r.kabinSayisi}</b></td>
+        <td>${r.topYet}</td>
+        <td>${r.topCoc}</td>
+        <td>${r.topBeb}</td>
+        <td><b>${r.topKisi}</b></td>
+        <td class="ucret">€${r.topUcret}</td>
+      </tr>
+    `).join('')}
+  </tbody>
+  <tfoot>
+    <tr>
+      <td>GRAND TOTAL</td>
+      <td colspan="2">${data.turRaporlari.length} tour(s)</td>
+      <td>${data.genel.kabin}</td>
+      <td>${data.genel.yet}</td>
+      <td>${data.genel.coc}</td>
+      <td>${data.genel.beb}</td>
+      <td>${data.genel.kisi}</td>
+      <td>€${data.genel.ucret}</td>
+    </tr>
+  </tfoot>
+</table>
+
+<div class="footer">
+  Generated by VOYAGO · Guide: ${escapeHTML(rehberAdi)} · ${raporTarih()}<br>
+  <i>This report is for internal operational use only.</i>
+</div>
+
+<sc${''}ript>
+  window.addEventListener('load', () => setTimeout(() => window.print(), 600));
+</sc${''}ript>
+</body>
+</html>`;
+
+  const w = window.open('', '_blank', 'width=900,height=700');
+  if(!w){ showToast('Pop-up blocked — please allow'); return; }
+  w.document.write(html);
+  w.document.close();
+  showToast('📊 Summary report opening...');
+}
+
+// 📋 DETAY PDF
+function raporDetayPDF(){
+  const sid = document.getElementById('rapor-sefer-sel')?.value;
+  if(!sid){ showToast('Please select a voyage'); return; }
+  const data = raporVeriHazirla(sid);
+  if(!data){ showToast('Voyage not found'); return; }
+  if(!data.turRaporlari.length){ showToast('No tour participations yet'); return; }
+
+  const v = data.sefer;
+  const rehberAdi = (CU && CU.name) ? CU.name : 'Guide';
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tour Detail Report — ${escapeHTML(v.label||'')}</title>
+<style>
+  @page { size: A4; margin: 14mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1a1a; font-size: 10pt; line-height: 1.4; }
+  .baslik { background: linear-gradient(135deg, #0d3b6e, #1a5fa8); color: white; padding: 14px 16px; border-radius: 10px; margin-bottom: 14px; }
+  .baslik h1 { font-size: 18pt; margin-bottom: 3px; }
+  .baslik .alt { font-size: 9pt; opacity: .9; }
+  .info { display: flex; flex-wrap: wrap; gap: 16px; padding: 9px 12px; background: #f0f6fb; border-radius: 6px; margin-bottom: 14px; font-size: 9pt; }
+  .info b { color: #0d3b6e; }
+  .tur-bolum { margin-bottom: 18px; page-break-inside: avoid; }
+  .tur-h { background: #1a5fa8; color: white; padding: 8px 12px; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center; }
+  .tur-h .ad { font-size: 12pt; font-weight: 700; }
+  .tur-h .meta { font-size: 9pt; opacity: .9; }
+  .tur-stats { background: #f0f6fb; padding: 8px 12px; font-size: 9pt; display: flex; flex-wrap: wrap; gap: 14px; border-bottom: 1px solid #1a5fa8; }
+  .tur-stats b { color: #0d3b6e; }
+  table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+  th { background: #f9fafb; padding: 6px 10px; text-align: left; font-weight: 600; border-bottom: 2px solid #e5e7eb; color: #0d3b6e; }
+  th:nth-child(2), th:nth-child(3), th:nth-child(4), th:nth-child(5), th:nth-child(6), th:nth-child(7) { text-align: center; }
+  td { padding: 6px 10px; border-bottom: 1px solid #f3f4f6; }
+  td:nth-child(2), td:nth-child(3), td:nth-child(4), td:nth-child(5), td:nth-child(6) { text-align: center; }
+  td:last-child { text-align: right; color: #0f6e56; font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  .footer { margin-top: 20px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 9pt; color: #888; text-align: center; }
+  .yazdir-btn { position: fixed; top: 8px; right: 8px; padding: 8px 14px; background: #0d3b6e; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; box-shadow: 0 3px 10px rgba(0,0,0,.2); z-index: 9999; }
+  @media print { .yazdir-btn { display: none; } }
+</style>
+</head>
+<body>
+<button class="yazdir-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+
+<div class="baslik">
+  <h1>📋 VOYAGO — Tour Detail Report</h1>
+  <div class="alt">Passenger List per Tour · For Operations Team</div>
+</div>
+
+<div class="info">
+  <div><b>Ship:</b> ${escapeHTML(v.ship||'-')}</div>
+  <div><b>Voyage:</b> ${escapeHTML(v.label||'-')}</div>
+  <div><b>Route:</b> ${escapeHTML(v.route||'-')}</div>
+  <div><b>Total:</b> ${data.genel.kisi} pax / ${data.genel.kabin} cabins / ${data.turRaporlari.length} tours</div>
+  <div style="margin-left:auto;"><b>Generated:</b> ${raporTarih()}</div>
+</div>
+
+${data.turRaporlari.map(r => `
+  <div class="tur-bolum">
+    <div class="tur-h">
+      <div>
+        <div class="ad">${escapeHTML(r.tur.name||'')}</div>
+        <div class="meta">📍 ${escapeHTML(r.tur.liman||'-')} ${r.tur.gun?'· Day '+r.tur.gun:''} ${r.tur.saat?'· '+escapeHTML(r.tur.saat):''}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:14pt;font-weight:700;">${r.kabinSayisi} cabins</div>
+        <div style="font-size:10pt;">${r.topKisi} pax</div>
+      </div>
+    </div>
+    <div class="tur-stats">
+      <span><b>Adults:</b> ${r.topYet}</span>
+      <span><b>Children:</b> ${r.topCoc}</span>
+      <span><b>Infants:</b> ${r.topBeb}</span>
+      <span style="margin-left:auto;"><b>Revenue:</b> €${r.topUcret}</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Cabin</th>
+          <th>Passenger Name</th>
+          <th>A</th>
+          <th>C</th>
+          <th>I</th>
+          <th>Pax</th>
+          <th>€</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${r.yolcular.map((y, i) => `
+          <tr>
+            <td>${i+1}</td>
+            <td><b>${escapeHTML(y.kabin)}</b></td>
+            <td>${escapeHTML(y.name)}</td>
+            <td>${y.yet||'-'}</td>
+            <td>${y.coc||'-'}</td>
+            <td>${y.beb||'-'}</td>
+            <td><b>${y.kisi}</b></td>
+            <td>€${y.ucret}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  </div>
+`).join('')}
+
+<div class="footer">
+  Generated by VOYAGO · Guide: ${escapeHTML(rehberAdi)} · ${raporTarih()}<br>
+  <i>A=Adult · C=Child · I=Infant · This report is for internal operational use only.</i>
+</div>
+
+<sc${''}ript>
+  window.addEventListener('load', () => setTimeout(() => window.print(), 600));
+</sc${''}ript>
+</body>
+</html>`;
+
+  const w = window.open('', '_blank', 'width=900,height=700');
+  if(!w){ showToast('Pop-up blocked — please allow'); return; }
+  w.document.write(html);
+  w.document.close();
+  showToast('📋 Detail report opening...');
+}
+
+// 💬 ÖZET WhatsApp Metni
+async function raporOzetWA(){
+  const sid = document.getElementById('rapor-sefer-sel')?.value;
+  if(!sid){ showToast('Please select a voyage'); return; }
+  const data = raporVeriHazirla(sid);
+  if(!data){ showToast('Voyage not found'); return; }
+  if(!data.turRaporlari.length){ showToast('No tour participations yet'); return; }
+
+  const v = data.sefer;
+  const rehberAdi = (CU && CU.name) ? CU.name : 'Guide';
+
+  const lines = [];
+  lines.push('📊 *VOYAGO — Tour Summary Report*');
+  lines.push('🚢 ' + (v.ship||'-'));
+  lines.push('📅 ' + (v.label||'-'));
+  if(v.route) lines.push('🗺️ ' + v.route);
+  lines.push('');
+  lines.push('━━━━━━━━━━━━━━━━━━');
+  lines.push('');
+
+  data.turRaporlari.forEach(r => {
+    lines.push('*' + (r.tur.name||'') + '*');
+    if(r.tur.liman) lines.push('📍 ' + r.tur.liman);
+    if(r.tur.saat) lines.push('⏰ ' + r.tur.saat + (r.tur.gun?' (Day '+r.tur.gun+')':''));
+    lines.push('• ' + r.kabinSayisi + ' cabins · ' + r.topKisi + ' pax');
+    const detayParts = [];
+    if(r.topYet>0) detayParts.push(r.topYet + ' Adult');
+    if(r.topCoc>0) detayParts.push(r.topCoc + ' Child');
+    if(r.topBeb>0) detayParts.push(r.topBeb + ' Infant');
+    lines.push('• ' + detayParts.join(', '));
+    lines.push('• Revenue: €' + r.topUcret);
+    lines.push('');
+  });
+
+  lines.push('━━━━━━━━━━━━━━━━━━');
+  lines.push('*GRAND TOTAL*');
+  lines.push('• ' + data.genel.kabin + ' cabins');
+  lines.push('• ' + data.genel.kisi + ' total pax');
+  const genelDetay = [];
+  if(data.genel.yet>0) genelDetay.push(data.genel.yet + ' Adult');
+  if(data.genel.coc>0) genelDetay.push(data.genel.coc + ' Child');
+  if(data.genel.beb>0) genelDetay.push(data.genel.beb + ' Infant');
+  lines.push('• ' + genelDetay.join(' / '));
+  lines.push('• €' + data.genel.ucret + ' total revenue');
+  lines.push('');
+  lines.push('_— ' + rehberAdi + ', Tour Guide_');
+  lines.push('_Generated: ' + raporTarih() + '_');
+
+  const text = lines.join('\n');
+
+  // Panoya kopyala + WhatsApp aç
+  try {
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(text);
+      showToast('✓ Copied to clipboard! Now paste in WhatsApp');
+    } else {
+      // Fallback
+      raporKopyalaModal(text);
+      return;
+    }
+  } catch(e) {
+    raporKopyalaModal(text);
+    return;
+  }
+
+  // 1 saniye sonra WhatsApp Web'i aç (kullanıcı isterse oraya yapıştırsın)
+  setTimeout(() => {
+    if(confirm('Open WhatsApp Web to send the report?')){
+      window.open('https://web.whatsapp.com', '_blank');
+    }
+  }, 800);
+}
+
+// 💬 DETAY WhatsApp Metni
+async function raporDetayWA(){
+  const sid = document.getElementById('rapor-sefer-sel')?.value;
+  if(!sid){ showToast('Please select a voyage'); return; }
+  const data = raporVeriHazirla(sid);
+  if(!data){ showToast('Voyage not found'); return; }
+  if(!data.turRaporlari.length){ showToast('No tour participations yet'); return; }
+
+  const v = data.sefer;
+  const rehberAdi = (CU && CU.name) ? CU.name : 'Guide';
+
+  const lines = [];
+  lines.push('📋 *VOYAGO — Tour Detail Report*');
+  lines.push('🚢 ' + (v.ship||'-'));
+  lines.push('📅 ' + (v.label||'-'));
+  if(v.route) lines.push('🗺️ ' + v.route);
+  lines.push('');
+  lines.push('━━━━━━━━━━━━━━━━━━');
+  lines.push('');
+
+  data.turRaporlari.forEach(r => {
+    lines.push('*' + (r.tur.name||'') + '*');
+    if(r.tur.liman) lines.push('📍 ' + r.tur.liman);
+    if(r.tur.saat) lines.push('⏰ ' + r.tur.saat + (r.tur.gun?' (Day '+r.tur.gun+')':''));
+    lines.push('▸ ' + r.kabinSayisi + ' cabins / ' + r.topKisi + ' pax (' + r.topYet + 'A' + (r.topCoc>0?' '+r.topCoc+'C':'') + (r.topBeb>0?' '+r.topBeb+'I':'') + ')');
+    lines.push('');
+    r.yolcular.forEach((y, i) => {
+      const detayParts = [];
+      if(y.yet>0) detayParts.push(y.yet+'A');
+      if(y.coc>0) detayParts.push(y.coc+'C');
+      if(y.beb>0) detayParts.push(y.beb+'I');
+      lines.push((i+1) + '. ' + y.name + ' — Cabin ' + y.kabin + ' (' + detayParts.join(' ') + ')');
+    });
+    lines.push('');
+  });
+
+  lines.push('━━━━━━━━━━━━━━━━━━');
+  lines.push('*GRAND TOTAL: ' + data.genel.kabin + ' cabins / ' + data.genel.kisi + ' pax*');
+  const genelDetay = [];
+  if(data.genel.yet>0) genelDetay.push(data.genel.yet + ' Adult');
+  if(data.genel.coc>0) genelDetay.push(data.genel.coc + ' Child');
+  if(data.genel.beb>0) genelDetay.push(data.genel.beb + ' Infant');
+  lines.push(genelDetay.join(' · '));
+  lines.push('');
+  lines.push('_— ' + rehberAdi + ', Tour Guide_');
+  lines.push('_Generated: ' + raporTarih() + '_');
+
+  const text = lines.join('\n');
+
+  try {
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(text);
+      showToast('✓ Copied to clipboard! Now paste in WhatsApp');
+    } else {
+      raporKopyalaModal(text);
+      return;
+    }
+  } catch(e) {
+    raporKopyalaModal(text);
+    return;
+  }
+
+  setTimeout(() => {
+    if(confirm('Open WhatsApp Web to send the report?')){
+      window.open('https://web.whatsapp.com', '_blank');
+    }
+  }, 800);
+}
+
+// Pano API çalışmazsa - manuel kopyalama modalı
+function raporKopyalaModal(text){
+  document.getElementById('rapor-kopya-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'rapor-kopya-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px;';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;max-width:600px;width:100%;max-height:90vh;display:flex;flex-direction:column;font-family:'DM Sans',sans-serif;">
+      <div style="padding:14px 18px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-weight:600;">📋 Copy this text</div>
+        <button onclick="document.getElementById('rapor-kopya-modal').remove()" style="background:transparent;border:none;font-size:20px;cursor:pointer;">✕</button>
+      </div>
+      <textarea readonly style="flex:1;padding:14px;border:none;font-family:monospace;font-size:11px;line-height:1.5;resize:none;outline:none;" onclick="this.select()">${escapeHTML(text)}</textarea>
+      <div style="padding:12px 18px;background:#f9fafb;font-size:11px;color:#666;text-align:center;">
+        Tap the text → Select All → Copy
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
 }
 
 // ══ YOLCU DÜZENLEME ══
