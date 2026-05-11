@@ -913,6 +913,10 @@ textarea.ai2{resize:none;}
       <div class="em" id="ale" style="margin-bottom:12px;">Kullanıcı adı veya şifre hatalı.</div>
       <div class="fg"><label class="fl" data-t="kullanici_adi">Kullanıcı Adı</label><input class="fi" type="text" id="au" autocomplete="off" placeholder="kullanici.adi"></div>
       <div class="fg"><label class="fl" data-t="sifre">Şifre</label><input class="fi" type="password" id="ap" placeholder="••••••••" onkeydown="if(event.key==='Enter')doAL()"></div>
+      <label style="display:flex;align-items:center;gap:8px;margin:8px 0 14px;color:rgba(255,255,255,.85);font-size:13px;cursor:pointer;user-select:none;">
+        <input type="checkbox" id="au-hatirla" checked style="width:18px;height:18px;cursor:pointer;accent-color:#16a34a;">
+        <span>Beni hatırla (bir daha sorma)</span>
+      </label>
       <button class="bpu" onclick="doAL()"><span data-t="giris_yap">Giriş Yap</span></button>
       <div style="text-align:center;margin-top:12px;">
         <button onclick="showScreen('sforgot')" style="background:none;border:none;color:rgba(255,255,255,.6);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">Şifremi Unuttum</button>
@@ -1375,6 +1379,18 @@ textarea.ai2{resize:none;}
           <button onclick="raporDetayPDF()" style="padding:11px;background:#0d3b6e;color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 Detail PDF</button>
           <button onclick="raporOzetWA()" style="padding:11px;background:#16a34a;color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">💬 Summary Text</button>
           <button onclick="raporDetayWA()" style="padding:11px;background:#15803d;color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">💬 Detail Text</button>
+        </div>
+
+        <!-- Tur Almayanlar bölümü -->
+        <div style="margin-top:14px;padding-top:14px;border-top:1.5px dashed #1a5fa8;">
+          <div style="font-size:13px;font-weight:600;color:#0d3b6e;margin-bottom:4px;">🎯 Tur Almayan Yolcular</div>
+          <div style="font-size:11px;color:#0d3b6e;margin-bottom:10px;line-height:1.5;">
+            Hiç tura kayıt olmamış yolcular için promosyon mesajı gönderin.
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <button onclick="turAlmayanListe()" style="padding:11px;background:#f59e0b;color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 Liste Göster</button>
+            <button onclick="turAlmayanTopluWA()" style="padding:11px;background:#16a34a;color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">💬 Tümünü Davet Et</button>
+          </div>
         </div>
       </div>
 
@@ -3308,8 +3324,18 @@ async function doAL(){
   if(!USERS[u]||USERS[u].pass!==p){err.style.display='block';return;}
   err.style.display='none';
   CU={key:u,...USERS[u]};
-  // localStorage'a kaydet — F5'te hatırlasın
-  try{ localStorage.setItem('voyago_admin', JSON.stringify({key:u})); }catch(e){}
+  // "Beni Hatırla" tickbox'ı (default açık)
+  const hatirla = document.getElementById('au-hatirla')?.checked !== false;
+  if(hatirla){
+    try{
+      localStorage.setItem('voyago_admin', JSON.stringify({key:u, time:Date.now()}));
+      // Cookie de — bazı tarayıcılarda localStorage temizlenirse cookie kalır (90 gün)
+      document.cookie = 'voyago_admin=' + encodeURIComponent(u) + '; max-age=' + (90*24*60*60) + '; path=/; SameSite=Lax';
+    }catch(e){}
+  } else {
+    // Hatırlama istenmiyorsa temizle
+    try{ localStorage.removeItem('voyago_admin'); document.cookie='voyago_admin=; max-age=0; path=/'; }catch(e){}
+  }
   // Rol bazlı başlangıç gemisi
   if(CU.role==='voyago') ACTIVE_SHIP=SHIPS[0]||VOYAGES[0]?.ship||'';
   else if(CU.role==='acente') ACTIVE_SHIP=SHIPS[0]||VOYAGES[0]?.ship||'';
@@ -7143,25 +7169,43 @@ function baslat() {
 async function autoLogin() {
   // Admin oturumu kontrolü — F5'te rehber/acente geri gelsin
   try{
+    let key = null;
+    // Önce localStorage'tan dene
     const adminKayit = localStorage.getItem('voyago_admin');
     if(adminKayit){
-      const {key} = JSON.parse(adminKayit);
-      if(key && USERS[key]){
-        CU = {key, ...USERS[key]};
-        // DB henüz yüklenmediyse bekle
-        if(!DB_READY){
-          await initDB();
-        }
-        if(CU.role==='voyago') ACTIVE_SHIP=SHIPS[0]||VOYAGES[0]?.ship||'';
-        else if(CU.role==='acente') ACTIVE_SHIP=SHIPS[0]||VOYAGES[0]?.ship||'';
-        else {
-          const rehberSeferi=VOYAGES.find(v=>v.guide===CU.key&&v.status!=='archived');
-          ACTIVE_SHIP=rehberSeferi?.ship||CU.ship||VOYAGES[0]?.ship||'';
-        }
-        await setupAdmin();
-        showScreen('sc');
-        return;
+      try {
+        const obj = JSON.parse(adminKayit);
+        key = obj.key;
+      } catch(e){}
+    }
+    // localStorage çalışmazsa cookie'den dene (Safari sık temizler)
+    if(!key){
+      const cookieMatch = document.cookie.match(/voyago_admin=([^;]+)/);
+      if(cookieMatch){
+        try { key = decodeURIComponent(cookieMatch[1]); } catch(e){}
       }
+    }
+
+    if(key && USERS[key]){
+      CU = {key, ...USERS[key]};
+      // localStorage'ı tazele (cookie ile bulunduysa)
+      try{ localStorage.setItem('voyago_admin', JSON.stringify({key, time:Date.now()})); }catch(e){}
+      // Cookie'yi de tazele (90 gün uzat)
+      try{ document.cookie = 'voyago_admin=' + encodeURIComponent(key) + '; max-age=' + (90*24*60*60) + '; path=/; SameSite=Lax'; }catch(e){}
+
+      // DB henüz yüklenmediyse bekle
+      if(!DB_READY){
+        await initDB();
+      }
+      if(CU.role==='voyago') ACTIVE_SHIP=SHIPS[0]||VOYAGES[0]?.ship||'';
+      else if(CU.role==='acente') ACTIVE_SHIP=SHIPS[0]||VOYAGES[0]?.ship||'';
+      else {
+        const rehberSeferi=VOYAGES.find(v=>v.guide===CU.key&&v.status!=='archived');
+        ACTIVE_SHIP=rehberSeferi?.ship||CU.ship||VOYAGES[0]?.ship||'';
+      }
+      await setupAdmin();
+      showScreen('sc');
+      return;
     }
   }catch(e){console.log('autoLogin hatası:',e);}
   // Yolcu oturumu kontrolü
@@ -7170,6 +7214,7 @@ async function autoLogin() {
 function doLogout() {
   CP = null; CU = null;
   try{ localStorage.removeItem('voyago_admin'); }catch(e){}
+  try{ document.cookie = 'voyago_admin=; max-age=0; path=/'; }catch(e){}
   try{ if(typeof sesAnonsKanaliKapat==='function') sesAnonsKanaliKapat(); }catch(e){}
   try{ if(typeof ydRealtimeKapat==='function') ydRealtimeKapat(); }catch(e){}
   try{ const wb = document.getElementById('wa-grup-btn'); if(wb) wb.style.display = 'none'; }catch(e){}
@@ -11106,6 +11151,228 @@ function raporKopyalaModal(text){
     </div>
   `;
   document.body.appendChild(modal);
+}
+
+// ══ TUR ALMAYAN YOLCULAR — Promote sistemi ══
+
+// Tur almayan yolcuları bul
+function turAlmayanlariBul(seferId){
+  return passengers.filter(p =>
+    p.sefer === seferId &&
+    (!p.joinedTours || p.joinedTours.length === 0)
+  );
+}
+
+// Promosyon mesajı oluştur (yolcuya kişiselleştirilmiş)
+function turAlmayanMesajOlustur(p){
+  const rehberAdi = (CU && CU.name) ? CU.name : 'Rehberiniz';
+  const ilkAd = (p.name || '').split(' ')[0] || p.name || '';
+
+  const satirlar = [];
+  satirlar.push('🌊 Merhaba *' + ilkAd + '*,');
+  satirlar.push('');
+  satirlar.push('Rehberiniz *' + rehberAdi + '* olarak sefer programınızda');
+  satirlar.push('size özel bilgilendirme yapmak istedim.');
+  satirlar.push('');
+  satirlar.push('📍 Henüz herhangi bir tura katılmadığınızı gördüm.');
+  satirlar.push('Uğradığımız limanlarda *kaçırılmaması gereken* deneyimler var:');
+  satirlar.push('');
+  satirlar.push('🏛️ Tarihi turlar (Atina, Efes, Mikonos antik kenti...)');
+  satirlar.push('🏖️ Ada turları (Santorini, Mikonos, Rodos...)');
+  satirlar.push('🍷 Şarap & gastronomi turları');
+  satirlar.push('🚌 Konforlu otobüs + uzman rehber eşliğinde');
+  satirlar.push('');
+  satirlar.push('✨ Detaylı bilgi ve rezervasyon için');
+  satirlar.push('bana yazabilir veya uygulamadan tur listesine');
+  satirlar.push('göz atabilirsiniz.');
+  satirlar.push('');
+  satirlar.push('⏰ Bazı turlar limitli kontenjanlı,');
+  satirlar.push('yer ayırtmak için acele edin!');
+  satirlar.push('');
+  satirlar.push('Keyifli bir yolculuk diliyorum ⚓');
+  satirlar.push('');
+  satirlar.push('_— Rehber ' + rehberAdi + '_');
+
+  return satirlar.join('\n');
+}
+
+// 📋 Tur Almayan Listesi modal
+function turAlmayanListe(){
+  const sid = document.getElementById('rapor-sefer-sel')?.value;
+  if(!sid){ showToast('Lütfen bir sefer seçin'); return; }
+  const v = VOYAGES.find(x => x.id === sid);
+  if(!v){ showToast('Sefer bulunamadı'); return; }
+
+  const yolcular = turAlmayanlariBul(sid);
+
+  document.getElementById('tur-almayan-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'tur-almayan-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding:0;backdrop-filter:blur(6px);';
+
+  let icerikHTML;
+  if(yolcular.length === 0){
+    icerikHTML = `
+      <div style="text-align:center;padding:40px 20px;">
+        <div style="font-size:60px;margin-bottom:12px;">🎉</div>
+        <div style="font-size:18px;font-weight:600;color:#16a34a;margin-bottom:6px;">Harika!</div>
+        <div style="font-size:13px;color:#666;line-height:1.5;">Bu seferdeki <b>tüm yolcular</b> en az bir tura katılmış. Promosyon mesajı göndermeye gerek yok!</div>
+      </div>
+    `;
+  } else {
+    // Telefon eksik olanları say
+    const telVar = yolcular.filter(p => p.tel && p.tel.replace(/[^0-9]/g,'').length >= 10).length;
+    const telYok = yolcular.length - telVar;
+
+    icerikHTML = `
+      <div style="padding:14px 18px;background:#fef3c7;border-radius:10px;margin-bottom:12px;">
+        <div style="font-size:13px;color:#92400e;line-height:1.5;">
+          📊 <b>${yolcular.length} yolcu</b> hiç tura katılmamış.<br>
+          📱 <b>${telVar}</b> telefon var, <b>${telYok}</b> eksik
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${yolcular.map(p => {
+          const telVar = p.tel && p.tel.replace(/[^0-9]/g,'').length >= 10;
+          return `
+            <div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px;">
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;font-weight:600;color:#1a1a1a;">${escapeHTML(p.name||'(İsimsiz)')}</div>
+                <div style="font-size:11px;color:#888;margin-top:2px;">Kabin ${escapeHTML(p.kabin||'?')} ${telVar?'· 📞 '+escapeHTML(p.tel):'· ⚠️ Tel yok'}</div>
+              </div>
+              ${telVar
+                ? `<button onclick="turAlmayanTekWA('${escapeHTML(p.kabin)}', '${escapeHTML(sid)}')" style="padding:7px 12px;background:#16a34a;color:white;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">💬 Davet Gönder</button>`
+                : `<span style="padding:7px 12px;background:#f3f4f6;color:#888;border-radius:8px;font-size:11px;">Tel eksik</span>`
+              }
+            </div>
+          `;
+        }).join('')}
+      </div>
+      <button onclick="turAlmayanTopluWA(); document.getElementById('tur-almayan-modal').remove();" style="margin-top:14px;width:100%;padding:13px;background:#16a34a;color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">💬 Tümünü Davet Et (Toplu Metin)</button>
+    `;
+  }
+
+  modal.innerHTML = `
+    <div style="background:#fafaf8;border-radius:24px 24px 0 0;width:100%;max-width:560px;max-height:90vh;display:flex;flex-direction:column;font-family:'DM Sans',sans-serif;animation:sesPopIn .3s ease;">
+      <div style="padding:18px 22px 12px;border-bottom:1px solid #f0f0f0;flex-shrink:0;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-family:'DM Serif Display',serif;font-size:18px;color:#1a1a1a;">🎯 Tur Almayan Yolcular</div>
+          <div style="font-size:11px;color:#888;margin-top:2px;">${escapeHTML(v.label||'')}</div>
+        </div>
+        <button onclick="document.getElementById('tur-almayan-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:#888;width:30px;height:30px;display:flex;align-items:center;justify-content:center;">✕</button>
+      </div>
+      <div style="padding:14px 22px 22px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;">
+        ${icerikHTML}
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+// 💬 Tek yolcuya promosyon mesajı (WhatsApp aç)
+function turAlmayanTekWA(kabin, seferId){
+  const p = passengers.find(x => x.kabin === kabin && x.sefer === seferId);
+  if(!p){ showToast('Yolcu bulunamadı'); return; }
+  const ham = (p.tel || '').replace(/[^0-9]/g, '');
+  if(!ham || ham.length < 10){
+    showToast('⚠️ Telefon numarası eksik');
+    return;
+  }
+  const mesaj = encodeURIComponent(turAlmayanMesajOlustur(p));
+  const url = 'https://wa.me/' + ham + '?text=' + mesaj;
+  window.open(url, '_blank');
+  showToast('📱 WhatsApp açılıyor — ' + p.name.split(' ')[0]);
+}
+
+// 💬 Tüm tur almayanlar için toplu metin
+async function turAlmayanTopluWA(){
+  const sid = document.getElementById('rapor-sefer-sel')?.value;
+  if(!sid){ showToast('Lütfen bir sefer seçin'); return; }
+  const v = VOYAGES.find(x => x.id === sid);
+  if(!v){ showToast('Sefer bulunamadı'); return; }
+
+  const yolcular = turAlmayanlariBul(sid);
+  if(yolcular.length === 0){
+    showToast('🎉 Herkes tura katılmış!');
+    return;
+  }
+
+  const rehberAdi = (CU && CU.name) ? CU.name : 'Rehberiniz';
+
+  // Genel toplu metin — tüm yolculara aynı mesaj (kabin/isim ile)
+  const lines = [];
+  lines.push('📋 *TUR ALMAYAN YOLCULAR — Davet Mesaj Listesi*');
+  lines.push('🚢 ' + (v.ship || '-'));
+  lines.push('📅 ' + (v.label || '-'));
+  lines.push('');
+  lines.push('Bu liste *' + yolcular.length + ' yolcu* için hazırlandı.');
+  lines.push('Her birine ayrı ayrı mesaj gönderebilirsiniz.');
+  lines.push('');
+  lines.push('━━━━━━━━━━━━━━━━━━');
+  lines.push('');
+
+  yolcular.forEach((p, idx) => {
+    const ham = (p.tel || '').replace(/[^0-9]/g, '');
+    const telOk = ham && ham.length >= 10;
+    lines.push('*' + (idx+1) + '. ' + (p.name || '(İsimsiz)') + '*');
+    lines.push('🛏️ Kabin: ' + (p.kabin || '?'));
+    if(telOk){
+      lines.push('📞 ' + p.tel);
+      lines.push('🔗 https://wa.me/' + ham);
+    } else {
+      lines.push('⚠️ Telefon eksik');
+    }
+    lines.push('');
+  });
+
+  lines.push('━━━━━━━━━━━━━━━━━━');
+  lines.push('');
+  lines.push('💡 *Önerilen mesaj şablonu:*');
+  lines.push('');
+  lines.push('🌊 Merhaba [Yolcu Adı],');
+  lines.push('');
+  lines.push('Rehberiniz *' + rehberAdi + '* olarak sefer programınızda');
+  lines.push('size özel bilgilendirme yapmak istedim.');
+  lines.push('');
+  lines.push('📍 Henüz herhangi bir tura katılmadığınızı gördüm.');
+  lines.push('Uğradığımız limanlarda *kaçırılmaması gereken* deneyimler var:');
+  lines.push('');
+  lines.push('🏛️ Tarihi turlar (Atina, Efes, Mikonos antik kenti...)');
+  lines.push('🏖️ Ada turları (Santorini, Mikonos, Rodos...)');
+  lines.push('🍷 Şarap & gastronomi turları');
+  lines.push('');
+  lines.push('✨ Detaylı bilgi için bana yazabilir veya');
+  lines.push('uygulamadan tur listesine göz atabilirsiniz.');
+  lines.push('');
+  lines.push('⏰ Bazı turlar limitli kontenjanlı,');
+  lines.push('yer ayırtmak için acele edin!');
+  lines.push('');
+  lines.push('Keyifli bir yolculuk diliyorum ⚓');
+  lines.push('');
+  lines.push('— Rehber ' + rehberAdi);
+
+  const text = lines.join('\n');
+
+  try {
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(text);
+      showToast('✓ Liste panoya kopyalandı! WhatsApp\'ta yapıştırabilirsiniz');
+    } else {
+      raporKopyalaModal(text);
+      return;
+    }
+  } catch(e) {
+    raporKopyalaModal(text);
+    return;
+  }
+
+  // Bilgilendirici modal göster
+  setTimeout(() => {
+    const onay = confirm('📋 ' + yolcular.length + ' yolcu için davet listesi panonuza kopyalandı.\n\nHer yolcuya tek tek gönderim için "Liste Göster" butonunu kullanabilirsiniz.\n\nWhatsApp Web\'i açayım mı?');
+    if(onay){
+      window.open('https://web.whatsapp.com', '_blank');
+    }
+  }, 800);
 }
 
 // ══ YOLCU DÜZENLEME ══
