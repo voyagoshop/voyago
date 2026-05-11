@@ -5887,6 +5887,8 @@ function renderKontrolListesi(){
 }
 
 function setKontrol(key, val, tid, sid){
+  // Sadece kontrolDurum'u günceller, joinedTours veya tur_katilim_detay'a DOKUNMAZ
+  console.log('[SETKONTROL]', { key, val, tid, sid, oncekiDurum: kontrolDurum[key]||0 });
   kontrolDurum[key] = kontrolDurum[key]===val ? 0 : val;
   renderKontrolListesi();
   renderTurAlmayanlar();
@@ -6115,6 +6117,14 @@ function qrSonucIsle(decodedText, decodedResult){
   // Kayıt et
   const key = kabin+'_'+sefer+'_'+tid;
   const oncedenGeldi = kontrolDurum[key] === 1;
+  console.log('[QR OKUNDU]', {
+    kabin, sefer, tid,
+    yolcuAdi: p.name,
+    turAdi: t.name,
+    yolcununTurlari: p.joinedTours,
+    turdaKayitliMi: p.joinedTours.includes(tid),
+    oncedenGeldi
+  });
   kontrolDurum[key] = 1;
   _qrTaramaSayisi++;
 
