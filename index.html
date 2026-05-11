@@ -818,7 +818,7 @@ textarea.ai2{resize:none;}
     <div style="text-align:center;margin-bottom:24px;padding:0 10px;">
       <div style="font-family:'DM Serif Display',serif;font-size:22px;color:white;line-height:1.3;" data-t="slogan">Yolculuğunuz Başlamak Üzere</div>
       <div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:6px;" data-t="slogan_sub">Giriş yapın, her şey hazır sizi bekliyor.</div>
-      <!-- Telefona yükle butonu -->
+      <!-- Telefona yükle butonu - rehber/talimat açar -->
       <button onclick="pwaYukle()" style="margin-top:14px;padding:8px 20px;background:rgba(255,255,255,.15);color:white;border:1.5px solid rgba(255,255,255,.4);border-radius:20px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">
         📱 Uygulamayı Telefona Yükle
       </button>
@@ -13184,8 +13184,8 @@ window.addEventListener('load', () => {
         return;
       }
     } catch(e){}
-    // Normal banner zamanlaması: 30 saniye uygulama kullanımından sonra
-    setTimeout(pwaBannerGosterDeneme, 30000);
+    // Otomatik banner KAPATILDI — yolcuları rahatsız ediyordu, iOS'ta düzgün çalışmıyordu
+    // İhtiyaç olursa: setTimeout(pwaBannerGosterDeneme, 30000);
   }, 800);
 });
 </script>
