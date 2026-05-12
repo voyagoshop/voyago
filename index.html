@@ -2196,7 +2196,7 @@ async function initDB() {
       startDate: s.baslangic || '', endDate: s.bitis || ''
     }));
 
-    // Yolcuları yükle
+    // Yolcuları yükle (arşivli olanlar da DB'de durur — rapor için)
     const yolcularDB = await dbGet('yolcular');
     passengers = yolcularDB.map(y => ({
       name: y.ad, kabin: y.kabin, tel: y.telefon || '',
@@ -2204,7 +2204,10 @@ async function initDB() {
       child: y.cocuk || 0, baby: y.bebek || 0,
       checkedIn: y.checkin || false, checkinDone: y.checkin_yapildi || false,
       joinedTours: y.katildigi_turlar || [],
-      tur_katilim_detay: y.tur_katilim_detay || {}
+      tur_katilim_detay: y.tur_katilim_detay || {},
+      arsivli: y.arsivli === true,  // Arşivlenmiş seferin yolcuları
+      email: y.email || '',
+      pazarlama_izni: y.pazarlama_izni || false
     }));
 
     // Turları yükle (görsel hariç — sonra ayrı çekilir, performans için)
@@ -3473,8 +3476,8 @@ async function setupAdmin(){
   // Aktif seferler listesi
   const vlEl=document.getElementById('vl');
   if(vlEl)vlEl.innerHTML=mv.map(v=>{
-    const cnt=passengers.filter(p=>p.sefer===v.id).length;
-    const ci=passengers.filter(p=>p.sefer===v.id&&p.checkedIn).length;
+    const cnt=passengers.filter(p=>p.sefer===v.id && !p.arsivli).length;
+    const ci=passengers.filter(p=>p.sefer===v.id && !p.arsivli && p.checkedIn).length;
     const g=USERS[v.guide];
     return `<div class="voyage-card">
       <div class="voyage-header">
@@ -3623,16 +3626,28 @@ function archiveVoyage(id){
 }
 
 // Arşivden geri al
-function unarchiveVoyage(id){
+async function unarchiveVoyage(id){
   const v=VOYAGES.find(v=>v.id===id);
   if(!v)return;
   v.status='active';
   if(v.visible === undefined || v.visible === null) v.visible = true;
   saveSeferDB(v);
+
+  // Bu seferin arşivli yolcularını da geri getir
+  try {
+    await sb.from('yolcular').update({ arsivli: false }).eq('sefer_id', id);
+    // Bellekteki yolcuların da arsivli flag'ini güncelle
+    passengers.forEach(p => {
+      if(p.sefer === id) p.arsivli = false;
+    });
+  } catch(e){
+    console.error('Yolcu geri alma hatası:', e);
+  }
+
   setupAdmin();
   populateSeferler();
   if(typeof renderSeferPanel === 'function') renderSeferPanel();
-  showToast('↩️ Sefer geri alındı, aktif seferler arasında.');
+  showToast('↩️ Sefer geri alındı, yolcular aktif seferler arasında.');
 }
 function deleteVoyage(id){
   if(!confirm('Bu sefer silinsin mi? Geri alinamaz!'))return;
@@ -3948,7 +3963,8 @@ function renderPS(s){
   const iS=CU?.role==='super';
   const activeShip=iS?ACTIVE_SHIP:CU?.ship;
   const mvi=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived').map(v=>v.id);
-  let list=passengers.filter(p=>mvi.includes(p.sefer));
+  // Arşivli yolcuları AKTİF listeden hariç tut (rapor için DB'de duruyor)
+  let list=passengers.filter(p=>mvi.includes(p.sefer) && !p.arsivli);
   if(s!=='hepsi')list=list.filter(p=>p.sefer===s);
   // Arama filtresi
   const q=(document.getElementById('search-passenger')?.value||'').trim().toLowerCase();
@@ -4234,7 +4250,9 @@ function renderTA(s){
   });
   const el=document.getElementById('tal');
   el.innerHTML=tours.map(t=>{
-    const kat=passengers.filter(p=>p.joinedTours.includes(t.id));
+    // Sadece aktif (arşivlenmemiş) seferlerin yolcuları + arşivli olmayanlar
+    const aktifSeferIds = VOYAGES.filter(v=>v.status!=='archived').map(v=>v.id);
+    const kat=passengers.filter(p=>!p.arsivli && aktifSeferIds.includes(p.sefer) && p.joinedTours.includes(t.id));
     const total=kat.reduce((a,p)=>a+(p.adult*t.ap)+(p.child*t.cp)+(p.baby*t.bp),0);
     const kisi=kat.reduce((a,p)=>a+p.adult+p.child+p.baby,0);
     const sT=t.seferler.map(sid=>{const v=VOYAGES.find(v=>v.id===sid);return v?`<span class="badge bb" style="font-size:10px;margin-right:4px;">${v.label.split('-')[0].trim()}</span>`:''}).join('');
@@ -4568,7 +4586,9 @@ function turSeferdenCikar(){const tid=document.getElementById('tur-ekle-tur').va
 // ── KATILIMCILAR ──
 function showKatilimcilar(tid){
   const t=TOURS.find(t=>t.id===tid);if(!t)return;
-  const kat=passengers.filter(p=>p.joinedTours.includes(tid));
+  // Sadece aktif sefer + arşivli olmayan yolcular
+  const aktifSeferIds = VOYAGES.filter(v=>v.status!=='archived').map(v=>v.id);
+  const kat=passengers.filter(p=>!p.arsivli && aktifSeferIds.includes(p.sefer) && p.joinedTours.includes(tid));
   document.getElementById('kat-modal-title').textContent=t.name+' ('+kat.length+' kabin)';
 
   // Modal alt kısmına aksiyon butonları
@@ -4635,17 +4655,17 @@ function htkAra(){
   const sayisalMi = /^\d+$/.test(arama);
   const aramaNorm = (typeof isimNormalize === 'function') ? isimNormalize(arama) : arama.toLowerCase();
 
-  // Yolcu eşleştirme
+  // Yolcu eşleştirme (arşivli olanları hariç tut)
   let eslesenler;
   if(sayisalMi){
     // Kabin başlangıcı eşleşmesi
     eslesenler = passengers.filter(p => 
-      p.sefer === aktifSefer && p.kabin && String(p.kabin).startsWith(arama)
+      p.sefer === aktifSefer && !p.arsivli && p.kabin && String(p.kabin).startsWith(arama)
     );
   } else {
     // İsim eşleştirme (esnek)
     eslesenler = passengers.filter(p => {
-      if(p.sefer !== aktifSefer || !p.name) return false;
+      if(p.sefer !== aktifSefer || p.arsivli || !p.name) return false;
       const adNorm = isimNormalize(p.name);
       // Tam içerik veya kelime başlangıcı
       return adNorm.includes(aramaNorm);
@@ -5295,29 +5315,29 @@ Yolcular silinmesin diyorsanız "İptal" seçin (sefer açık kalır, başka zam
 async function seferKapatTemizle(seferId){
   const v = VOYAGES.find(x=>x.id===seferId);
   if(!v) return;
-  showToast('⏳ Yolcu kayıtları siliniyor...');
+  showToast('⏳ Sefer arşivleniyor (yolcu verileri korunuyor)...');
 
   try{
     const yolcular = passengers.filter(p=>p.sefer===seferId);
 
-    // 1. Push subscription'ları sil
+    // 1. Push subscription'ları sil (gereksiz, eski yolcu artık bildirim almaz)
     try{
       await sb.from('push_subscriptions').delete().eq('yolcu_sefer', seferId);
     }catch(e){console.log('Push sil:', e);}
 
-    // 2. Yolcuları DB'den sil (toplu)
+    // 2. Yolcuları ARŞİVLE (silme!) - veri korunur, sadece aktif listede görünmez
     try{
-      await sb.from('yolcular').delete().eq('sefer_id', seferId);
-    }catch(e){console.error('Yolcu sil:', e);}
+      await sb.from('yolcular').update({ arsivli: true }).eq('sefer_id', seferId);
+    }catch(e){console.error('Yolcu arşivle:', e);}
 
-    // 3. Bellekten kaldır
-    for(let i=passengers.length-1; i>=0; i--){
-      if(passengers[i].sefer === seferId) passengers.splice(i,1);
-    }
+    // 3. Bellekteki yolcuları da arşivli işaretle (silme!)
+    passengers.forEach(p => {
+      if(p.sefer === seferId) p.arsivli = true;
+    });
 
     // 4. Seferi arşivle
     v.status = 'archived';
-    v.visible = false;
+    // visible KALIR — geri alınınca hemen görünür
     await saveSeferDB(v);
 
     // UI yenile
@@ -5325,7 +5345,7 @@ async function seferKapatTemizle(seferId){
     if(typeof setupAdmin === 'function') setupAdmin();
     if(typeof populateSeferler === 'function') populateSeferler();
 
-    showToast('✓ Sefer kapatıldı: ' + yolcular.length + ' yolcu silindi, sefer arşivlendi');
+    showToast('✓ Sefer arşivlendi: ' + yolcular.length + ' yolcu verisi korundu, raporlardan erişilebilir');
     _SEFER_KAPAT_ID = null;
   }catch(e){
     console.error('Sefer kapat hatası:', e);
@@ -5808,8 +5828,8 @@ function renderKontrolListesi(){
   // Katılımcı listesi
   let katilimSatirlar = []; // {p, tid, t, key} array
   if(hepsiMod){
-    // Tüm turlardaki tüm katılımcıları topla
-    passengers.filter(p=>p.sefer===sid).forEach(p=>{
+    // Tüm turlardaki tüm katılımcıları topla (arşivli olmayan)
+    passengers.filter(p=>p.sefer===sid && !p.arsivli).forEach(p=>{
       (p.joinedTours||[]).forEach(turId=>{
         const t = TOURS.find(x=>x.id===turId);
         if(t){
@@ -5834,7 +5854,7 @@ function renderKontrolListesi(){
       return;
     }
     const tur = TOURS.find(t=>t.id===tid);
-    passengers.filter(p=>p.sefer===sid&&p.joinedTours.includes(tid)).forEach(p=>{
+    passengers.filter(p=>p.sefer===sid && !p.arsivli && p.joinedTours.includes(tid)).forEach(p=>{
       katilimSatirlar.push({
         p, tid, t: tur,
         key: p.kabin+'_'+sid+'_'+tid
@@ -5926,8 +5946,8 @@ function renderTurAlmayanlar(){
   const sayiEl = document.getElementById('tur-almayan-sayi');
   if(!el||!sid) return;
 
-  // Bu seferdeki tüm yolcular
-  const tumYolcular = passengers.filter(p=>p.sefer===sid);
+  // Bu seferdeki tüm yolcular (arşivli olmayan)
+  const tumYolcular = passengers.filter(p=>p.sefer===sid && !p.arsivli);
   // Hiç tur almamış olanlar
   const turAlmayanlar = tumYolcular.filter(p=>!p.joinedTours||p.joinedTours.length===0);
 
@@ -5952,7 +5972,7 @@ function turAlmayanMesajKopyala(){
   const sid = document.getElementById('kontrol-sefer-sel')?.value;
   const mesaj = document.getElementById('tur-almayan-mesaj')?.value.trim();
   if(!sid||!mesaj){showToast('Sefer seçin ve mesaj yazın.');return;}
-  const tumYolcular = passengers.filter(p=>p.sefer===sid);
+  const tumYolcular = passengers.filter(p=>p.sefer===sid && !p.arsivli);
   const turAlmayanlar = tumYolcular.filter(p=>!p.joinedTours||p.joinedTours.length===0);
   if(!turAlmayanlar.length){showToast('Tur almayan yolcu yok!');return;}
   const NL = String.fromCharCode(10);
@@ -6214,8 +6234,8 @@ function turListesiKopyala(tip){
 
   const tur = TOURS.find(t=>t.id===tid);
   const sefer = VOYAGES.find(v=>v.id===sid);
-  const tumKatilan = passengers.filter(p=>p.sefer===sid&&p.joinedTours.includes(tid));
-  const tumSefer = passengers.filter(p=>p.sefer===sid);
+  const tumKatilan = passengers.filter(p=>p.sefer===sid && !p.arsivli && p.joinedTours.includes(tid));
+  const tumSefer = passengers.filter(p=>p.sefer===sid && !p.arsivli);
   const katilmayan = tumSefer.filter(p=>!p.joinedTours.includes(tid));
 
   let liste = tip==='katilan' ? tumKatilan : tip==='katilmayan' ? katilmayan : tumSefer;
@@ -10669,15 +10689,31 @@ function raporSeferDropdownGuncelle(){
   if(!sel) return;
   const iS = CU?.role === 'super';
   const activeShip = iS ? ACTIVE_SHIP : CU?.ship;
-  const seferler = VOYAGES.filter(v => v.ship === activeShip && v.status !== 'archived');
-  if(!seferler.length){
-    sel.innerHTML = '<option value="">No active voyage</option>';
+  // Aktif seferler + arşivlenmiş seferler (raporlama için ikisi de lazım)
+  const aktifSeferler = VOYAGES.filter(v => v.ship === activeShip && v.status !== 'archived');
+  const arsivliSeferler = VOYAGES.filter(v => v.ship === activeShip && v.status === 'archived');
+
+  if(!aktifSeferler.length && !arsivliSeferler.length){
+    sel.innerHTML = '<option value="">No voyage available</option>';
     return;
   }
-  sel.innerHTML = seferler.map(v => `<option value="${v.id}">${escapeHTML(v.label||'')} ${v.startDate?'· '+v.startDate:''}</option>`).join('');
+
+  let html = '';
+  if(aktifSeferler.length){
+    html += '<optgroup label="🟢 Active / Aktif Seferler">';
+    html += aktifSeferler.map(v => `<option value="${v.id}">${escapeHTML(v.label||'')} ${v.startDate?'· '+v.startDate:''}</option>`).join('');
+    html += '</optgroup>';
+  }
+  if(arsivliSeferler.length){
+    html += '<optgroup label="🟡 Archived / Arşivli Seferler">';
+    html += arsivliSeferler.map(v => `<option value="${v.id}">${escapeHTML(v.label||'')} ${v.startDate?'· '+v.startDate:''} (archived)</option>`).join('');
+    html += '</optgroup>';
+  }
+  sel.innerHTML = html;
+
   // Aktif sefer seçili olsun
-  const aktif = getCurrentSeferId() || seferler[0].id;
-  sel.value = aktif;
+  const aktif = getCurrentSeferId() || aktifSeferler[0]?.id || arsivliSeferler[0]?.id;
+  if(aktif) sel.value = aktif;
 }
 
 // Rapor verilerini hesapla
