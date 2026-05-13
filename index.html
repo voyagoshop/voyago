@@ -6013,19 +6013,30 @@ async function aiOnizlemeAktar(){
   const d = (typeof getDailyForSefer === 'function') ? getDailyForSefer(sv) : {};
   if(!d.program) d.program = [];
 
-  // Yeni aktiviteleri ekle
+  // Yeni aktiviteleri ekle — MEVCUT PROGRAM YAPISINA UYGUN ALANLAR
   secililer.forEach(a => {
+    // "yer" varsa onunla başla, yoksa açıklama
+    const yerParca = (a.yer || '').trim();
+    const aciklamaParca = (a.aciklama || '').trim();
+    let altMetin = yerParca;
+    if(aciklamaParca && aciklamaParca !== yerParca){
+      altMetin = yerParca ? (yerParca + ' — ' + aciklamaParca) : aciklamaParca;
+    }
     d.program.push({
-      saat: a.saat || '',
-      ad: a.ad || '',
-      yer: a.yer || '',
-      kategori: a.kategori || 'Diğer',
-      aciklama: a.aciklama || ''
+      time: a.saat || '',      // ⚠️ "time" alanı (eski sistem)
+      title: a.ad || '',        // ⚠️ "title" alanı (eski sistem)
+      sub: altMetin,            // ⚠️ "sub" alanı (eski sistem) — yer + açıklama birleştirilmiş
+      img: null                 // AI'dan resim gelmiyor
     });
   });
 
   // Saat sırasına göre sırala
-  d.program.sort((a,b) => (a.saat||'').localeCompare(b.saat||''));
+  d.program.sort((a,b) => (a.time||'').localeCompare(b.time||''));
+
+  // programItems değişkenini de güncelle (admin formu görüyorsa)
+  if(typeof programItems !== 'undefined'){
+    programItems = JSON.parse(JSON.stringify(d.program));
+  }
 
   // DB'ye kaydet
   try {
@@ -6035,6 +6046,9 @@ async function aiOnizlemeAktar(){
     showToast('✓ ' + secililer.length + ' aktivite günlük programa eklendi');
     document.getElementById('ai-onizleme-modal').remove();
     // UI yenile
+    if(typeof renderProgramForm === 'function' && typeof programItems !== 'undefined'){
+      renderProgramForm(programItems);
+    }
     if(typeof renderGsAdmin === 'function') renderGsAdmin();
     if(typeof renderGsYolcu === 'function') renderGsYolcu();
     const durum = document.getElementById('ai-cikar-durum');
@@ -12708,6 +12722,8 @@ const YENILEME_BEKLEME_MS = 2000; // 2 saniyeden sık yenileme yapma
 async function yolcuOdakYenile(){
   // Sadece yolcu giriş yapmışsa yap
   if(!CP) return;
+  // CP'nin temel bilgileri yoksa atla (henüz check-in tamamlanmamış olabilir)
+  if(!CP.kabin || !CP.sefer) return;
   // Çok sık çağırılırsa atla
   const simdi = Date.now();
   if(simdi - _sonYenileme < YENILEME_BEKLEME_MS) return;
@@ -12718,8 +12734,10 @@ async function yolcuOdakYenile(){
     if(typeof initDB === 'function'){
       await initDB();
     }
+    // CP hâlâ var mı kontrol et (initDB sonrası null olabilir)
+    if(!CP || !CP.kabin || !CP.sefer) return;
     // Yolcu kaydını DB'den taze al (CP'yi güncelle)
-    const benim = passengers.find(p=>p.kabin===CP.kabin && p.sefer===CP.sefer);
+    const benim = passengers.find(p=>p && p.kabin && p.kabin===CP.kabin && p.sefer===CP.sefer);
     if(benim){
       // CP'yi güncelle ama referansı koru
       Object.assign(CP, benim);
