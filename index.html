@@ -1460,6 +1460,21 @@ textarea.ai2{resize:none;}
         <button class="bp" onclick="document.getElementById('gz-file').click()" style="padding:10px;">📷 Fotoğraf Ekle</button>
         <button class="bs" onclick="clearGazete()">Gazeteyi Temizle</button>
       </div>
+
+      <!-- 🤖 AI ile Aktiviteleri Çıkar -->
+      <div class="fs2" style="background:linear-gradient(135deg,#6d28d9 0%,#7c3aed 100%);border:none;margin-top:14px;color:white;">
+        <div class="fst" style="color:white;display:flex;align-items:center;gap:8px;">
+          <span style="font-size:20px;">🤖</span> AI ile Günlük Programa Aktar
+        </div>
+        <div style="font-size:12px;color:rgba(255,255,255,.9);margin-bottom:12px;line-height:1.5;">
+          Yüklediğiniz gazete sayfalarından <b>yapay zeka</b> aktiviteleri çıkarsın ve günlük programa eklesin. Saniyeler içinde tamamlanır.
+        </div>
+        <button id="ai-cikar-btn" onclick="aiAktiviteCikar()" style="width:100%;padding:14px;background:white;color:#6d28d9;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;">
+          <span style="font-size:18px;">✨</span>
+          <span>Aktiviteleri Çıkar (AI)</span>
+        </button>
+        <div id="ai-cikar-durum" style="font-size:11px;color:rgba(255,255,255,.85);margin-top:8px;text-align:center;"></div>
+      </div>
     </div>
 
     <!-- GELECEK TURLAR -->
@@ -5652,6 +5667,311 @@ function sendMsg(){
   setTimeout(()=>{const r=document.createElement('div');r.className='msg mi';const rp=['Mesajinizi aldim!','Tabii, yardimci olacagim.','Anliyorum.'];r.innerHTML=rp[Math.floor(Math.random()*rp.length)]+'<div class="mtime">'+time+'</div>';area.appendChild(r);},1200);
 }
 function doLogout2_eski(){CU=null;CP=null;showScreen('sl');}
+// ══ AI AKTİVİTE ÇIKARMA (OpenAI Vision) ══
+const _AI_OK = 'BQRUERUAWB1xXh8VAAoiLnpBWVwPQiEJKDcfc35jJCAXUyAidglxURwsLFAiWGhWAmQxXxgXU1hIfWBYIFk6LDZWCgcAARoNHQAkW2FqVH0PHy1SJQNQW3R8Ogw3NB0eWmcCWkUXKBhSLAUIVQZDB08FJiViSkRyAQcQBgU6dB0CVzkHVDIWDXRZWmVbXEpZKSBxaldvRAsBL1ZWeAFrXx0aLCA=';
+
+function _aiOkAc(){
+  const xk = 'voyago2026';
+  try {
+    const bin = atob(_AI_OK);
+    let s = '';
+    for(let i=0; i<bin.length; i++){
+      s += String.fromCharCode(bin.charCodeAt(i) ^ xk.charCodeAt(i % xk.length));
+    }
+    return s;
+  } catch(e){ return ''; }
+}
+
+let _AI_ONIZLEME_AKTIVITELER = [];
+
+// Görseli base64'e çevir
+async function _aiGorselB64(url){
+  if(url.startsWith('data:')){
+    return url; // Zaten base64
+  }
+  // URL ise fetch et
+  try {
+    const r = await fetch(url);
+    const blob = await r.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch(e) {
+    console.error('Görsel çevirme hatası:', e);
+    return null;
+  }
+}
+
+// Ana fonksiyon - AI'a gönder ve aktiviteleri çıkar
+async function aiAktiviteCikar(){
+  if(!GAZETE_IMGS || GAZETE_IMGS.length === 0){
+    showToast('⚠️ Önce gazete sayfası yükleyin');
+    return;
+  }
+
+  const btn = document.getElementById('ai-cikar-btn');
+  const durum = document.getElementById('ai-cikar-durum');
+  if(btn) btn.disabled = true;
+  if(btn) btn.style.opacity = '.6';
+  if(durum) durum.textContent = '⏳ AI gazeteyi okuyor... (' + GAZETE_IMGS.length + ' sayfa)';
+
+  try {
+    // Görselleri hazırla
+    const gorseller = [];
+    for(let i=0; i<GAZETE_IMGS.length; i++){
+      if(durum) durum.textContent = '⏳ Sayfa ' + (i+1) + '/' + GAZETE_IMGS.length + ' hazırlanıyor...';
+      const b64 = await _aiGorselB64(GAZETE_IMGS[i]);
+      if(b64) gorseller.push(b64);
+    }
+
+    if(!gorseller.length){
+      throw new Error('Görseller işlenemedi');
+    }
+
+    if(durum) durum.textContent = '🤖 AI ' + gorseller.length + ' sayfayı analiz ediyor...';
+
+    // OpenAI API çağrısı
+    const prompt = `Bu cruise gemisi günlük programı sayfalarıdır. Tüm aktiviteleri, gösterileri, etkinlikleri, restoran/bar özel programlarını çıkar.
+
+Her aktivite için şu bilgileri al:
+- saat (örn: "21:00" veya "20:00-22:00")
+- ad (kısa, net başlık - Türkçe)
+- yer (gemideki lokasyon, örn: "Casino Bar", "Theatre", "Pool Deck")
+- kategori (şunlardan biri: "Eğlence", "Yemek", "Spor", "Çocuk", "Spa", "Mağaza", "Bilgi")
+- aciklama (1 cümle, isteğe bağlı)
+
+DİKKAT:
+- Sadece **gerçek aktiviteleri** çıkar (reklamları/banner'ları atla)
+- Aynı aktivite birden çok sayfada varsa **bir kez** ekle
+- Saat formatını **24 saat** yap (PM/AM olmasın)
+- Türkçe olarak yaz
+
+Sadece JSON dizi olarak dön, başka açıklama ekleme:
+[
+  {"saat":"21:00","ad":"Stand Up Gecesi","yer":"Theatre","kategori":"Eğlence","aciklama":"Komedyen showu"},
+  ...
+]`;
+
+    const content = [{ type: 'text', text: prompt }];
+    gorseller.forEach(g => {
+      content.push({
+        type: 'image_url',
+        image_url: { url: g, detail: 'high' }
+      });
+    });
+
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + _aiOkAc()
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [{ role: 'user', content }],
+        max_tokens: 3000,
+        temperature: 0.2
+      })
+    });
+
+    if(!resp.ok){
+      const errText = await resp.text();
+      console.error('OpenAI hatası:', errText);
+      throw new Error('AI hatası: ' + resp.status);
+    }
+
+    const data = await resp.json();
+    const cevap = data.choices?.[0]?.message?.content || '';
+
+    // JSON'u parse et (AI bazen ```json ile sarar)
+    let temizCevap = cevap.trim();
+    if(temizCevap.startsWith('```')){
+      temizCevap = temizCevap.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+    }
+    // İlk [ ve son ] arası al
+    const ilkBraket = temizCevap.indexOf('[');
+    const sonBraket = temizCevap.lastIndexOf(']');
+    if(ilkBraket >= 0 && sonBraket > ilkBraket){
+      temizCevap = temizCevap.substring(ilkBraket, sonBraket+1);
+    }
+
+    let aktiviteler;
+    try {
+      aktiviteler = JSON.parse(temizCevap);
+    } catch(e) {
+      console.error('JSON parse hatası:', e, cevap);
+      throw new Error('AI cevabı okunamadı');
+    }
+
+    if(!Array.isArray(aktiviteler) || aktiviteler.length === 0){
+      throw new Error('Aktivite bulunamadı');
+    }
+
+    _AI_ONIZLEME_AKTIVITELER = aktiviteler;
+    aiOnizlemeModalAc();
+    if(durum) durum.textContent = '✓ ' + aktiviteler.length + ' aktivite bulundu';
+  } catch(e) {
+    console.error('AI çıkarma hatası:', e);
+    if(durum) durum.textContent = '⚠️ Hata: ' + (e.message||'bilinmeyen');
+    showToast('⚠️ AI çıkarma başarısız: ' + (e.message||'') );
+  } finally {
+    if(btn) btn.disabled = false;
+    if(btn) btn.style.opacity = '1';
+  }
+}
+
+// Önizleme modalı - kategorilere göre gruplayıp göster
+function aiOnizlemeModalAc(){
+  document.getElementById('ai-onizleme-modal')?.remove();
+
+  // Kategorilere göre grupla
+  const kategoriler = {};
+  const kategoriIkonlari = {
+    'Eğlence': '🎭', 'Yemek': '🍽️', 'Spor': '🏃',
+    'Çocuk': '🧒', 'Spa': '💆', 'Mağaza': '🛍️',
+    'Bilgi': 'ℹ️', 'Diğer': '📌'
+  };
+
+  _AI_ONIZLEME_AKTIVITELER.forEach((a, idx) => {
+    a._idx = idx;
+    a._secili = true; // Varsayılan: hepsi seçili
+    const kat = a.kategori || 'Diğer';
+    if(!kategoriler[kat]) kategoriler[kat] = [];
+    kategoriler[kat].push(a);
+  });
+
+  // Kategori sırası: Eğlence, Yemek, Spor, sonra alfabetik
+  const oncelikSira = ['Eğlence', 'Yemek', 'Spor', 'Çocuk', 'Spa', 'Mağaza', 'Bilgi', 'Diğer'];
+  const sortedKats = Object.keys(kategoriler).sort((a,b) => {
+    const aIdx = oncelikSira.indexOf(a);
+    const bIdx = oncelikSira.indexOf(b);
+    if(aIdx < 0 && bIdx < 0) return a.localeCompare(b, 'tr');
+    if(aIdx < 0) return 1;
+    if(bIdx < 0) return -1;
+    return aIdx - bIdx;
+  });
+
+  // Saat sıralaması
+  Object.values(kategoriler).forEach(arr => {
+    arr.sort((a,b) => (a.saat||'').localeCompare(b.saat||''));
+  });
+
+  const modal = document.createElement('div');
+  modal.id = 'ai-onizleme-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);';
+
+  modal.innerHTML = `
+    <div style="background:#fafaf8;border-radius:24px 24px 0 0;width:100%;max-width:560px;max-height:92vh;display:flex;flex-direction:column;font-family:'DM Sans',sans-serif;animation:sesPopIn .3s ease;">
+      <div style="padding:18px 22px 12px;border-bottom:1px solid #f0f0f0;flex-shrink:0;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-family:'DM Serif Display',serif;font-size:18px;color:#1a1a1a;">🤖 AI Aktivite Önizlemesi</div>
+          <div style="font-size:11px;color:#888;margin-top:2px;">${_AI_ONIZLEME_AKTIVITELER.length} aktivite bulundu</div>
+        </div>
+        <button onclick="document.getElementById('ai-onizleme-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:#888;width:30px;height:30px;display:flex;align-items:center;justify-content:center;">✕</button>
+      </div>
+
+      <div style="padding:10px 16px;background:#ede9fe;border-bottom:1px solid #d8b4fe;flex-shrink:0;display:flex;gap:8px;align-items:center;">
+        <button onclick="aiOnizlemeTumSec(true)" style="flex:1;padding:7px;background:#7c3aed;color:white;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">✓ Tümünü Seç</button>
+        <button onclick="aiOnizlemeTumSec(false)" style="flex:1;padding:7px;background:transparent;color:#6d28d9;border:1.5px solid #7c3aed;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">✗ Hiçbiri</button>
+      </div>
+
+      <div style="padding:14px 18px 18px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;">
+        ${sortedKats.map(kat => `
+          <div style="margin-bottom:18px;">
+            <div style="font-size:12px;font-weight:700;color:#6d28d9;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+              <span style="font-size:18px;">${kategoriIkonlari[kat]||'📌'}</span>
+              <span>${escapeHTML(kat)} (${kategoriler[kat].length})</span>
+            </div>
+            ${kategoriler[kat].map(a => `
+              <label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:white;border:1.5px solid #e5e7eb;border-radius:10px;margin-bottom:6px;cursor:pointer;user-select:none;" data-aidx="${a._idx}">
+                <input type="checkbox" checked onchange="aiOnizlemeSecDegistir(${a._idx}, this.checked)" style="width:18px;height:18px;margin-top:2px;cursor:pointer;accent-color:#7c3aed;flex-shrink:0;">
+                <div style="flex:1;min-width:0;">
+                  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px;">
+                    ${a.saat ? `<span style="background:#7c3aed;color:white;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">${escapeHTML(a.saat)}</span>` : ''}
+                    <span style="font-size:13px;font-weight:600;color:#1a1a1a;">${escapeHTML(a.ad||'')}</span>
+                  </div>
+                  ${a.yer ? `<div style="font-size:11px;color:#666;">📍 ${escapeHTML(a.yer)}</div>` : ''}
+                  ${a.aciklama ? `<div style="font-size:11px;color:#888;margin-top:2px;">${escapeHTML(a.aciklama)}</div>` : ''}
+                </div>
+              </label>
+            `).join('')}
+          </div>
+        `).join('')}
+      </div>
+
+      <div style="padding:14px 18px 18px;border-top:1px solid #f0f0f0;background:white;display:flex;gap:8px;flex-shrink:0;">
+        <button onclick="document.getElementById('ai-onizleme-modal').remove()" style="flex:1;padding:13px;background:transparent;color:#666;border:1.5px solid #e0e0e0;border-radius:12px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">İptal</button>
+        <button onclick="aiOnizlemeAktar()" style="flex:2;padding:13px;background:linear-gradient(135deg,#6d28d9,#7c3aed);color:white;border:none;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">✓ Günlük Programa Aktar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function aiOnizlemeSecDegistir(idx, secili){
+  if(_AI_ONIZLEME_AKTIVITELER[idx]) _AI_ONIZLEME_AKTIVITELER[idx]._secili = secili;
+}
+
+function aiOnizlemeTumSec(secili){
+  _AI_ONIZLEME_AKTIVITELER.forEach(a => a._secili = secili);
+  // Checkbox'ları güncelle
+  document.querySelectorAll('#ai-onizleme-modal input[type=checkbox]').forEach(cb => cb.checked = secili);
+}
+
+// Günlük programa aktar
+async function aiOnizlemeAktar(){
+  const secililer = _AI_ONIZLEME_AKTIVITELER.filter(a => a._secili);
+  if(!secililer.length){
+    showToast('⚠️ En az 1 aktivite seçin');
+    return;
+  }
+
+  // Aktif seferin günlük programını al
+  const sv = getCurrentSeferId() || VOYAGES.find(v=>v.status!=='archived')?.id;
+  if(!sv){
+    showToast('⚠️ Aktif sefer bulunamadı');
+    return;
+  }
+
+  // Daily'den mevcut programı al (yoksa boş array)
+  const d = (typeof getDailyForSefer === 'function') ? getDailyForSefer(sv) : {};
+  if(!d.program) d.program = [];
+
+  // Yeni aktiviteleri ekle
+  secililer.forEach(a => {
+    d.program.push({
+      saat: a.saat || '',
+      ad: a.ad || '',
+      yer: a.yer || '',
+      kategori: a.kategori || 'Diğer',
+      aciklama: a.aciklama || ''
+    });
+  });
+
+  // Saat sırasına göre sırala
+  d.program.sort((a,b) => (a.saat||'').localeCompare(b.saat||''));
+
+  // DB'ye kaydet
+  try {
+    if(typeof saveDailyDB === 'function'){
+      await saveDailyDB(sv);
+    }
+    showToast('✓ ' + secililer.length + ' aktivite günlük programa eklendi');
+    document.getElementById('ai-onizleme-modal').remove();
+    // UI yenile
+    if(typeof renderGsAdmin === 'function') renderGsAdmin();
+    if(typeof renderGsYolcu === 'function') renderGsYolcu();
+    const durum = document.getElementById('ai-cikar-durum');
+    if(durum) durum.textContent = '✓ ' + secililer.length + ' aktivite eklendi!';
+  } catch(e) {
+    console.error('Aktarma hatası:', e);
+    showToast('⚠️ Aktarım başarısız: ' + (e.message||''));
+  }
+}
+
 // ── GELECEK TURLAR (FIRSATLAR) ──
 let GELECEK_TURLAR = []; // DB'den yüklenir
 let newGtImg = null;
