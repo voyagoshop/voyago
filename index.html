@@ -883,6 +883,9 @@ textarea.ai2{resize:none;}
           <div class="kisi-box"><div class="kisi-label">Bebek<span>0-2</span></div><div class="kisi-ctrl"><button class="kisi-btn" onclick="changeKisi('baby',-1)">-</button><div class="kisi-num" id="k-baby">0</div><button class="kisi-btn" onclick="changeKisi('baby',1)">+</button></div></div>
         </div>
       </div>
+
+      <!-- Ek yolcu isim alanları (Y/Ç ≥ 2 olursa dinamik açılır) -->
+      <div id="ek-yolcu-isimleri" style="display:none;"></div>
       <div class="ib">📱 Kabin numaranızla check-in yapılır. WhatsApp numaranıza bildirimler gönderilir.</div>
       <div class="em" id="le">Lütfen tüm alanları doldurun.</div>
 
@@ -2222,7 +2225,8 @@ async function initDB() {
       tur_katilim_detay: y.tur_katilim_detay || {},
       arsivli: y.arsivli === true,  // Arşivlenmiş seferin yolcuları
       email: y.email || '',
-      pazarlama_izni: y.pazarlama_izni || false
+      pazarlama_izni: y.pazarlama_izni || false,
+      ekstra_isimler: y.ekstra_isimler || []  // Diğer yolcular (ek isimler)
     }));
 
     // Turları yükle (görsel hariç — sonra ayrı çekilir, performans için)
@@ -2392,7 +2396,8 @@ async function saveYolcuDB(p) {
         katildigi_turlar: p.joinedTours,
         tur_katilim_detay: p.tur_katilim_detay || {},
         email: p.email || null,
-        pazarlama_izni: p.pazarlama_izni || false
+        pazarlama_izni: p.pazarlama_izni || false,
+        ekstra_isimler: p.ekstra_isimler || []
       });
     } else {
       // Kabinsiz — id ile güncelle (ilk eşleşeni)
@@ -2405,7 +2410,8 @@ async function saveYolcuDB(p) {
           katildigi_turlar: p.joinedTours,
           tur_katilim_detay: p.tur_katilim_detay || {},
           email: p.email || null,
-          pazarlama_izni: p.pazarlama_izni || false
+          pazarlama_izni: p.pazarlama_izni || false,
+          ekstra_isimler: p.ekstra_isimler || []
         });
       }
     }
@@ -2418,7 +2424,8 @@ async function saveYolcuDB(p) {
       katildigi_turlar: p.joinedTours,
       tur_katilim_detay: p.tur_katilim_detay || {},
       email: p.email || null,
-      pazarlama_izni: p.pazarlama_izni || false
+      pazarlama_izni: p.pazarlama_izni || false,
+      ekstra_isimler: p.ekstra_isimler || []
     });
   }
 }
@@ -2807,7 +2814,65 @@ function changeKisi(type,delta){
   loginKisi[type]=Math.max(0,loginKisi[type]+delta);
   if(type==='adult'&&loginKisi[type]<1)loginKisi[type]=1;
   document.getElementById('k-'+type).textContent=loginKisi[type];
+  // Ek yolcu isim alanlarını yeniden çiz
+  ekYolcuIsimleriRender();
 }
+
+// Ek yolcu isim alanlarını dinamik olarak çiz
+function ekYolcuIsimleriRender(){
+  const el = document.getElementById('ek-yolcu-isimleri');
+  if(!el) return;
+  // Mevcut değerleri sakla (kullanıcı yazdığı şeyler kaybolmasın)
+  const eskiDegerler = {};
+  el.querySelectorAll('input').forEach(inp => {
+    if(inp.value) eskiDegerler[inp.dataset.idx] = inp.value;
+  });
+
+  const yetEk = Math.max(0, loginKisi.adult - 1); // 1. yetişkin ana isim
+  const cocEk = loginKisi.child;
+  const bebEk = loginKisi.baby;
+  const toplam = yetEk + cocEk + bebEk;
+
+  if(toplam === 0){
+    el.style.display = 'none';
+    el.innerHTML = '';
+    return;
+  }
+
+  el.style.display = 'block';
+  let html = '<div style="background:rgba(255,255,255,.08);border-radius:12px;padding:12px;margin-top:10px;">';
+  html += '<div style="font-size:12px;color:rgba(255,255,255,.85);margin-bottom:8px;line-height:1.5;">👥 <b>Sizinle birlikte gelen yolcular</b><br><span style="font-size:11px;opacity:.8;">İsimleri yazın (bebek için isteğe bağlı)</span></div>';
+
+  let idx = 0;
+  // Ek yetişkinler
+  for(let i = 0; i < yetEk; i++){
+    const eski = eskiDegerler[idx] || '';
+    html += `<div class="fg" style="margin-bottom:6px;">
+      <input class="fi" type="text" data-idx="${idx}" data-tip="yetiskin" value="${escapeHTML(eski)}" placeholder="${i+2}. Yetişkin - Ad Soyad" style="padding:9px 12px;font-size:13px;">
+    </div>`;
+    idx++;
+  }
+  // Çocuklar
+  for(let i = 0; i < cocEk; i++){
+    const eski = eskiDegerler[idx] || '';
+    html += `<div class="fg" style="margin-bottom:6px;">
+      <input class="fi" type="text" data-idx="${idx}" data-tip="cocuk" value="${escapeHTML(eski)}" placeholder="${i+1}. Çocuk - Ad Soyad" style="padding:9px 12px;font-size:13px;">
+    </div>`;
+    idx++;
+  }
+  // Bebekler
+  for(let i = 0; i < bebEk; i++){
+    const eski = eskiDegerler[idx] || '';
+    html += `<div class="fg" style="margin-bottom:6px;">
+      <input class="fi" type="text" data-idx="${idx}" data-tip="bebek" value="${escapeHTML(eski)}" placeholder="${i+1}. Bebek - Ad (opsiyonel)" style="padding:9px 12px;font-size:13px;">
+    </div>`;
+    idx++;
+  }
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
 function changeKisiAdmin(type,delta){
   adminKisi[type]=Math.max(0,adminKisi[type]+delta);
   if(type==='ya'&&adminKisi[type]<1)adminKisi[type]=1;
@@ -2917,6 +2982,13 @@ function doPL(){
     }
   }
 
+  // Ek yolcu isimlerini topla (Y/Ç/B'den >= 2 varsa)
+  const ekIsimler = [];
+  document.querySelectorAll('#ek-yolcu-isimleri input').forEach(inp => {
+    const v = (inp.value || '').trim();
+    if(v) ekIsimler.push(v);
+  });
+
   const isFirst=!p||!p.checkinDone;
   if(p){
     // Mevcut yolcu güncelleniyor (ya kabin eşleşti ya isim eşleşti)
@@ -2926,10 +2998,11 @@ function doPL(){
     p.kabin=kabin;  // Kabinsiz yolcular için kabin doldurulur
     p.adult=loginKisi.adult;p.child=loginKisi.child;p.baby=loginKisi.baby;
     p.email=email||null;p.pazarlama_izni=pazarlamaIzni;
+    p.ekstra_isimler = ekIsimler;
   }
   else{
     // Yeni yolcu (listede yoktu)
-    p={name,kabin,tel:code+' '+phone,sefer:sv,adult:loginKisi.adult,child:loginKisi.child,baby:loginKisi.baby,email:email||null,pazarlama_izni:pazarlamaIzni,checkedIn:true,checkinDone:true,joinedTours:[]};
+    p={name,kabin,tel:code+' '+phone,sefer:sv,adult:loginKisi.adult,child:loginKisi.child,baby:loginKisi.baby,email:email||null,pazarlama_izni:pazarlamaIzni,checkedIn:true,checkinDone:true,joinedTours:[],ekstra_isimler:ekIsimler};
     passengers.push(p);
   }
   CP=p;
@@ -10095,6 +10168,13 @@ document.head.appendChild(gcStyle);
       </div>
     </div>
 
+    <!-- Diğer Yolcular (ek isimler) -->
+    <div class="yd-grup" id="yd-ek-yolcu-grup" style="display:none;">
+      <div class="yd-grup-title">👥 Diğer Yolcular</div>
+      <div style="font-size:11px;color:var(--t2);margin-bottom:8px;line-height:1.5;">Bu kabindeki diğer kişilerin adlarını yazın (bebek için isteğe bağlı)</div>
+      <div id="yd-ek-isim-liste"></div>
+    </div>
+
     <div class="yd-tur-uyari" id="yd-tur-uyari" style="display:none;">
       <b>ℹ️ Tur Kayıtları:</b> Bu yolcunun mevcut tur kayıtları varsa, kişi sayısı azalırsa otomatik düşülür ve fiyat yeniden hesaplanır. <b>Artırırsanız</b> turlara ekstra kişi otomatik eklenmez — turdan tekrar kayıt ekleyebilirsiniz.
     </div>
@@ -10537,6 +10617,26 @@ function tkBiletYazdir(kabin, sefer, tid){
 
   const gemi = v ? (v.ship || '') : '';
 
+  // Tur katılım detayı (kişi sayısı, ücret)
+  const det = (p.tur_katilim_detay && p.tur_katilim_detay[tid]) || null;
+  const yet = det ? (det.yetiskin||0) : (p.adult||0);
+  const coc = det ? (det.cocuk||0) : (p.child||0);
+  const beb = det ? (det.bebek||0) : (p.baby||0);
+  const toplamKisi = yet + coc + beb;
+  const ucret = det ? (det.ucret||0) : (yet*t.ap + coc*t.cp + beb*t.bp);
+
+  // Tüm yolcu adları: ana ad + ek isimler
+  const tumIsimler = [p.name];
+  if(p.ekstra_isimler && p.ekstra_isimler.length){
+    p.ekstra_isimler.forEach(eki => { if(eki) tumIsimler.push(eki); });
+  }
+  // Yolcu satırları HTML
+  const yolcuListesiHTML = tumIsimler.map((ad, i) => `
+    <div style="display:flex;gap:4mm;font-size:10pt;margin:0.5mm 0;">
+      <span class="kucuk">${i+1}.</span>
+      <span style="flex:1;">${escapeHTML(ad)}</span>
+    </div>`).join('');
+
   const html = `<!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -10614,11 +10714,24 @@ ${gemi ? `<div class="merkez ufak">${escapeHTML(gemi)}</div>` : ''}
 
 <hr class="cizgi">
 
-<!-- Yolcu -->
-<div class="kalin" style="font-size: 11pt; margin: 1mm 0;">${escapeHTML(p.name)}</div>
+<!-- Yolcular (ana + ek isimler) -->
+<div class="kalin kucuk" style="margin: 1mm 0;">YOLCULAR:</div>
+${yolcuListesiHTML}
+
+<hr class="cizgi">
+
+<!-- Kişi sayısı + Tutar -->
+<div style="display: flex; justify-content: space-between; margin: 1mm 0;">
+  <span class="kucuk">Toplam Kişi:</span>
+  <span class="kalin">${toplamKisi} kişi (${yet}Y${coc>0?' '+coc+'Ç':''}${beb>0?' '+beb+'B':''})</span>
+</div>
 <div style="display: flex; justify-content: space-between; margin: 1mm 0;">
   <span class="kucuk">Kabin No:</span>
   <span class="kalin" style="font-size: 11pt;">${escapeHTML(p.kabin)}</span>
+</div>
+<div style="display: flex; justify-content: space-between; margin: 1mm 0;">
+  <span class="kucuk">Tutar:</span>
+  <span class="kalin" style="font-size: 12pt;">€${ucret}</span>
 </div>
 
 <hr class="cizgi">
@@ -10683,15 +10796,37 @@ async function topluBiletYazdir(tid){
     const biletNo = tarihStr + '-' + (p.kabin || 'NoKabin') + '-' + tidSon4;
     const qrUrl = window.location.origin + window.location.pathname + '?qr=' + encodeURIComponent(biletNo) + '&k=' + encodeURIComponent(p.kabin || '') + '&s=' + encodeURIComponent(p.sefer) + '&t=' + encodeURIComponent(tid);
     const gemi = v ? (v.ship || '') : '';
+
+    // Katılım detayı (kişi sayısı, ücret)
+    const det = (p.tur_katilim_detay && p.tur_katilim_detay[tid]) || null;
+    const yet = det ? (det.yetiskin||0) : (p.adult||0);
+    const coc = det ? (det.cocuk||0) : (p.child||0);
+    const beb = det ? (det.bebek||0) : (p.baby||0);
+    const toplamKisi = yet + coc + beb;
+    const ucret = det ? (det.ucret||0) : (yet*t.ap + coc*t.cp + beb*t.bp);
+
+    // Tüm yolcu adları
+    const tumIsimler = [p.name || '(İsimsiz)'];
+    if(p.ekstra_isimler && p.ekstra_isimler.length){
+      p.ekstra_isimler.forEach(eki => { if(eki) tumIsimler.push(eki); });
+    }
+
     biletler.push({
       name: p.name || '(İsimsiz)',
       kabin: p.kabin || '?',
-      biletNo, qrUrl, gemi
+      biletNo, qrUrl, gemi,
+      tumIsimler, toplamKisi, yet, coc, beb, ucret
     });
   }
 
   // Tüm biletleri tek HTML'de birleştir, her biri ayrı sayfada (page-break)
-  const biletHTML = biletler.map((b, idx) => `
+  const biletHTML = biletler.map((b, idx) => {
+    const yolcuListesiHTML = b.tumIsimler.map((ad, i) => `
+      <div style="display:flex;gap:4mm;font-size:10pt;margin:0.5mm 0;">
+        <span class="kucuk">${i+1}.</span>
+        <span style="flex:1;">${escapeHTML(ad)}</span>
+      </div>`).join('');
+    return `
     <div class="bilet-tek" style="${idx > 0 ? 'page-break-before:always;' : ''}">
       <!-- Header -->
       <div class="merkez kucuk kalin">VOYAGO</div>
@@ -10701,11 +10836,22 @@ async function topluBiletYazdir(tid){
       <!-- Tur adı -->
       <div class="merkez kalin" style="font-size: 12pt; margin: 2mm 0;">${escapeHTML(t.name)}</div>
       <hr class="cizgi">
-      <!-- Yolcu -->
-      <div class="kalin" style="font-size: 11pt; margin: 1mm 0;">${escapeHTML(b.name)}</div>
+      <!-- Yolcular -->
+      <div class="kalin kucuk" style="margin: 1mm 0;">YOLCULAR:</div>
+      ${yolcuListesiHTML}
+      <hr class="cizgi">
+      <!-- Kişi sayısı + Tutar -->
+      <div style="display: flex; justify-content: space-between; margin: 1mm 0;">
+        <span class="kucuk">Toplam Kişi:</span>
+        <span class="kalin">${b.toplamKisi} kişi (${b.yet}Y${b.coc>0?' '+b.coc+'Ç':''}${b.beb>0?' '+b.beb+'B':''})</span>
+      </div>
       <div style="display: flex; justify-content: space-between; margin: 1mm 0;">
         <span class="kucuk">Kabin No:</span>
         <span class="kalin" style="font-size: 11pt;">${escapeHTML(b.kabin)}</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; margin: 1mm 0;">
+        <span class="kucuk">Tutar:</span>
+        <span class="kalin" style="font-size: 12pt;">€${b.ucret}</span>
       </div>
       <hr class="cizgi">
       <!-- QR Kod -->
@@ -10717,7 +10863,8 @@ async function topluBiletYazdir(tid){
       <!-- Bilet No -->
       <div class="merkez ufak">${escapeHTML(b.biletNo)}</div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   const html = `<!DOCTYPE html>
 <html lang="tr">
@@ -11758,6 +11905,10 @@ function ydAc(kabin, sefer, isim){
   document.getElementById('yd-child').textContent = YD_SECIM.child;
   document.getElementById('yd-baby').textContent = YD_SECIM.baby;
 
+  // Mevcut ek isimleri yükle
+  YD_EK_ISIMLER = (p.ekstra_isimler || []).slice();
+  ydEkIsimleriRender();
+
   // Tur kaydı varsa uyarı göster
   const turCnt = (p.joinedTours||[]).length;
   const uyari = document.getElementById('yd-tur-uyari');
@@ -11772,6 +11923,49 @@ function ydAc(kabin, sefer, isim){
   document.getElementById('yd-modal').classList.add('active');
 }
 
+let YD_EK_ISIMLER = [];
+
+function ydEkIsimleriRender(){
+  const grup = document.getElementById('yd-ek-yolcu-grup');
+  const liste = document.getElementById('yd-ek-isim-liste');
+  if(!grup || !liste) return;
+
+  const yetEk = Math.max(0, YD_SECIM.adult - 1);
+  const cocEk = YD_SECIM.child;
+  const bebEk = YD_SECIM.baby;
+  const toplam = yetEk + cocEk + bebEk;
+
+  if(toplam === 0){
+    grup.style.display = 'none';
+    liste.innerHTML = '';
+    return;
+  }
+
+  grup.style.display = 'block';
+
+  let html = '';
+  let idx = 0;
+  // Ek yetişkinler
+  for(let i = 0; i < yetEk; i++){
+    const v = YD_EK_ISIMLER[idx] || '';
+    html += `<input type="text" class="yd-input" data-yd-ek="${idx}" data-tip="yetiskin" placeholder="${i+2}. Yetişkin - Ad Soyad" value="${escapeHTML(v)}" style="margin-bottom:6px;">`;
+    idx++;
+  }
+  // Çocuklar
+  for(let i = 0; i < cocEk; i++){
+    const v = YD_EK_ISIMLER[idx] || '';
+    html += `<input type="text" class="yd-input" data-yd-ek="${idx}" data-tip="cocuk" placeholder="${i+1}. Çocuk - Ad Soyad" value="${escapeHTML(v)}" style="margin-bottom:6px;">`;
+    idx++;
+  }
+  // Bebekler
+  for(let i = 0; i < bebEk; i++){
+    const v = YD_EK_ISIMLER[idx] || '';
+    html += `<input type="text" class="yd-input" data-yd-ek="${idx}" data-tip="bebek" placeholder="${i+1}. Bebek - Ad (opsiyonel)" value="${escapeHTML(v)}" style="margin-bottom:6px;">`;
+    idx++;
+  }
+  liste.innerHTML = html;
+}
+
 function ydKisiArttir(kategori, delta){
   const yeni = YD_SECIM[kategori] + delta;
   if(yeni < 0) return;
@@ -11779,9 +11973,15 @@ function ydKisiArttir(kategori, delta){
   if(kategori === 'adult' && yeni < 1) return;
   // Maks 9 civarı, makul sınır
   if(yeni > 9) return;
+  // Önce mevcut input değerlerini sakla
+  document.querySelectorAll('[data-yd-ek]').forEach(inp => {
+    const i = parseInt(inp.dataset.ydEk);
+    if(!isNaN(i)) YD_EK_ISIMLER[i] = inp.value || '';
+  });
   YD_SECIM[kategori] = yeni;
   document.getElementById('yd-' + kategori).textContent = yeni;
   ydButonDurum();
+  ydEkIsimleriRender();
 }
 
 function ydButonDurum(){
@@ -11828,6 +12028,14 @@ async function ydKaydet(){
   p.adult = YD_SECIM.adult;
   p.child = YD_SECIM.child;
   p.baby = YD_SECIM.baby;
+
+  // Ek isimleri topla ve kaydet
+  const yeniEkIsimler = [];
+  document.querySelectorAll('[data-yd-ek]').forEach(inp => {
+    const v = (inp.value || '').trim();
+    if(v) yeniEkIsimler.push(v);
+  });
+  p.ekstra_isimler = yeniEkIsimler;
 
   // Tur kayıtlarını güncelle (kişi sayısı azaldıysa)
   if(p.tur_katilim_detay && Object.keys(p.tur_katilim_detay).length > 0){
