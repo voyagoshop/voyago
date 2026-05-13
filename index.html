@@ -6015,23 +6015,54 @@ async function aiOnizlemeAktar(){
 
   // Yeni aktiviteleri ekle — MEVCUT PROGRAM YAPISINA UYGUN ALANLAR
   secililer.forEach(a => {
+    // SAAT NORMALIZE — HTML5 time input için HH:MM formatı gerek
+    let saatHam = (a.saat || '').trim();
+    let saatNormal = '';
+    let saatAralik = ''; // Eğer "08:00-10:00" gibi aralık varsa
+
+    // "All Day", "Tüm Gün" gibi → boş bırak
+    if(/all\s*day|tüm\s*gün|gün\s*boyu|24\s*saat/i.test(saatHam)){
+      saatNormal = '';
+      saatAralik = 'Gün Boyu';
+    } else {
+      // İlk HH:MM veya H:MM yakala
+      const m = saatHam.match(/(\d{1,2}):(\d{2})/);
+      if(m){
+        const sa = parseInt(m[1], 10);
+        const dk = parseInt(m[2], 10);
+        if(sa >= 0 && sa <= 23 && dk >= 0 && dk <= 59){
+          saatNormal = String(sa).padStart(2,'0') + ':' + String(dk).padStart(2,'0');
+        }
+      }
+      // Eğer aralık varsa (örn: "08:00-10:00") tamamını sub'da göster
+      if(/\d{1,2}:\d{2}\s*[-–—]\s*\d{1,2}:\d{2}/.test(saatHam)){
+        saatAralik = saatHam;
+      }
+    }
+
     // "yer" varsa onunla başla, yoksa açıklama
     const yerParca = (a.yer || '').trim();
     const aciklamaParca = (a.aciklama || '').trim();
-    let altMetin = yerParca;
-    if(aciklamaParca && aciklamaParca !== yerParca){
-      altMetin = yerParca ? (yerParca + ' — ' + aciklamaParca) : aciklamaParca;
-    }
+    const parcalar = [];
+    if(saatAralik) parcalar.push(saatAralik);
+    if(yerParca) parcalar.push(yerParca);
+    if(aciklamaParca && aciklamaParca !== yerParca) parcalar.push(aciklamaParca);
+    const altMetin = parcalar.join(' · ');
+
     d.program.push({
-      time: a.saat || '',      // ⚠️ "time" alanı (eski sistem)
-      title: a.ad || '',        // ⚠️ "title" alanı (eski sistem)
-      sub: altMetin,            // ⚠️ "sub" alanı (eski sistem) — yer + açıklama birleştirilmiş
-      img: null                 // AI'dan resim gelmiyor
+      time: saatNormal,         // HH:MM formatı (boş olabilir)
+      title: a.ad || '',
+      sub: altMetin,            // Aralık + yer + açıklama
+      img: null
     });
   });
 
-  // Saat sırasına göre sırala
-  d.program.sort((a,b) => (a.time||'').localeCompare(b.time||''));
+  // Saat sırasına göre sırala (boş saatler sona)
+  d.program.sort((a,b) => {
+    const aSaat = a.time || 'ZZ'; // boşsa sona at
+    const bSaat = b.time || 'ZZ';
+    return aSaat.localeCompare(bSaat);
+  });
 
   // programItems değişkenini de güncelle (admin formu görüyorsa)
   if(typeof programItems !== 'undefined'){
