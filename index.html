@@ -1002,6 +1002,10 @@ textarea.ai2{resize:none;}
   </div>
   <div class="pc">
     <div id="tab-program" class="tp active">
+      <!-- 🌅 Akıllı Karşılama Banner -->
+      <div id="akilli-karsilama"></div>
+      <!-- 🗺️ Sefer Haritası -->
+      <div id="sefer-haritasi"></div>
       <div id="meeting-area"></div>
       <div id="port-area"></div>
       <div id="program-area"></div>
@@ -3408,6 +3412,10 @@ function doPL(){
 function renderProgramPage(sv){
   const d=getDailyForSefer(sv);
 
+  // 🌅 Akıllı karşılama + 🗺️ Sefer haritası render et
+  try { if(typeof renderAkilliKarsilama === 'function') renderAkilliKarsilama(sv); } catch(e){}
+  try { if(typeof renderSeferHaritasi === 'function') renderSeferHaritasi(sv); } catch(e){}
+
   // Toplanti
   const ma=document.getElementById('meeting-area');
   if(d.meeting?.saat||d.meeting?.yer){
@@ -4896,6 +4904,312 @@ ${sayfalar}
   w.document.write(html);
   w.document.close();
   showToast('📸 Albüm açılıyor...');
+}
+
+// ══ 🌅 AKILLI KARŞILAMA (her gün, saate göre) ══
+
+function renderAkilliKarsilama(sv){
+  const el = document.getElementById('akilli-karsilama');
+  if(!el) return;
+  if(!CP){ el.innerHTML = ''; return; }
+
+  const v = VOYAGES.find(x => x.id === sv);
+  const ilkAd = (CP.name||'').split(' ')[0] || 'Misafirimiz';
+
+  // Şu anki saat
+  const simdi = new Date();
+  const saat = simdi.getHours();
+
+  // Saate göre selamlama + emoji + renk
+  let emoji, selamla, mesaj, gradient;
+
+  if(saat >= 5 && saat < 11){
+    // SABAH
+    emoji = '☀️';
+    selamla = 'Günaydın';
+    gradient = 'linear-gradient(135deg,#fbbf24,#f59e0b)';
+    mesaj = sabahMesaji(sv, v);
+  } else if(saat >= 11 && saat < 15){
+    // ÖĞLEN
+    emoji = '🌞';
+    selamla = 'İyi öğlenler';
+    gradient = 'linear-gradient(135deg,#fb923c,#ea580c)';
+    mesaj = oglenMesaji(sv, v);
+  } else if(saat >= 15 && saat < 19){
+    // İKİNDİ
+    emoji = '🌤️';
+    selamla = 'İyi günler';
+    gradient = 'linear-gradient(135deg,#06b6d4,#0891b2)';
+    mesaj = ikindiMesaji(sv, v);
+  } else if(saat >= 19 && saat < 23){
+    // AKŞAM
+    emoji = '🌅';
+    selamla = 'İyi akşamlar';
+    gradient = 'linear-gradient(135deg,#f97316,#dc2626)';
+    mesaj = aksamMesaji(sv, v);
+  } else {
+    // GECE
+    emoji = '🌙';
+    selamla = 'İyi geceler';
+    gradient = 'linear-gradient(135deg,#312e81,#1e1b4b)';
+    mesaj = geceMesaji(sv, v);
+  }
+
+  // Hangi gün — başlangıçtan bugün
+  let gunYazi = '';
+  if(v && v.startDate){
+    const baslangic = new Date(v.startDate);
+    const bugun = new Date();
+    bugun.setHours(0,0,0,0); baslangic.setHours(0,0,0,0);
+    const fark = Math.floor((bugun - baslangic) / (1000*60*60*24)) + 1;
+    if(fark >= 1) gunYazi = fark + '. Gün';
+  }
+
+  el.innerHTML = `
+    <div style="background:${gradient};border-radius:18px;padding:16px 18px;color:white;margin-bottom:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);position:relative;overflow:hidden;">
+      <div style="position:absolute;top:-20px;right:-20px;font-size:90px;opacity:.15;pointer-events:none;">${emoji}</div>
+      <div style="position:relative;">
+        <div style="font-size:11px;opacity:.92;font-weight:600;letter-spacing:.5px;margin-bottom:2px;">${escapeHTML(selamla.toUpperCase())} ${gunYazi ? '· '+gunYazi : ''}</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:22px;line-height:1.2;margin-bottom:6px;">${escapeHTML(selamla)} ${escapeHTML(ilkAd)} ${emoji}</div>
+        <div style="font-size:13px;opacity:.95;line-height:1.5;">${mesaj}</div>
+      </div>
+    </div>
+  `;
+}
+
+// Sabah mesajları (5-11)
+function sabahMesaji(sv, v){
+  const d = (typeof getDailyForSefer === 'function') ? getDailyForSefer(sv) : null;
+  const liman = d?.port?.name || '';
+  const mesajlar = [];
+
+  if(liman){
+    mesajlar.push('Bugün <b>' + escapeHTML(liman) + '</b>\'deyiz! 🎉 Harika bir gün sizi bekliyor.');
+    mesajlar.push('Bugün <b>' + escapeHTML(liman) + '</b>\'i keşfedeceğiz. Hazır mısınız? ✨');
+  } else if(v?.ship){
+    mesajlar.push('<b>' + escapeHTML(v.ship) + '</b> sizleri bekliyor. Kahvaltıya ne dersiniz? ☕');
+    mesajlar.push('Güzel bir gemi sabahı! Güvertede güneş tadını çıkarın 🌊');
+  } else {
+    mesajlar.push('Güne enerji dolu başlayalım! Bugünkü program sizi bekliyor.');
+  }
+  return mesajlar[Math.floor(Math.random()*mesajlar.length)];
+}
+
+// Öğlen mesajları (11-15)
+function oglenMesaji(sv, v){
+  const d = (typeof getDailyForSefer === 'function') ? getDailyForSefer(sv) : null;
+  const liman = d?.port?.name || '';
+
+  // Bugünkü turları bul
+  const turlar = TOURS.filter(t => t.aktif !== false && (!t.seferler || t.seferler.includes(sv)));
+  const benimTurlar = CP ? turlar.filter(t => (CP.joinedTours||[]).includes(t.id)) : [];
+
+  const mesajlar = [];
+  if(benimTurlar.length > 0){
+    const turAd = benimTurlar[0].name;
+    mesajlar.push('Az sonra <b>' + escapeHTML(turAd) + '</b> turunuz başlıyor — hazırlanmayı unutmayın! 🎒');
+  } else if(liman){
+    mesajlar.push('Öğle yemeğinden sonra <b>' + escapeHTML(liman) + '</b>\'i keşfedebilirsiniz 🏛️');
+    mesajlar.push('Henüz tur ayırmadıysanız geç değil — Turlar sekmesinde harika seçenekler var! 🗺️');
+  } else {
+    mesajlar.push('Öğle yemeği keyfi başladı 🍽️ Restoranlara göz attınız mı?');
+    mesajlar.push('Gemide güzel bir öğle vakti. Havuz başına ne dersiniz? 🏊');
+  }
+  return mesajlar[Math.floor(Math.random()*mesajlar.length)];
+}
+
+// İkindi mesajları (15-19)
+function ikindiMesaji(sv, v){
+  const d = (typeof getDailyForSefer === 'function') ? getDailyForSefer(sv) : null;
+  const liman = d?.port?.name || '';
+
+  const mesajlar = [];
+  if(liman){
+    mesajlar.push('Bugün <b>' + escapeHTML(liman) + '</b> nasıldı? Fotoğraflarınızı albümde paylaşmayı unutmayın! 📸');
+    mesajlar.push('Güzel anılar biriktiriyor musunuz? Albümde paylaşıma açın 🌅');
+  } else {
+    mesajlar.push('Çay/kahve molası vakti ☕ Akşam programını incelediniz mi?');
+    mesajlar.push('Spa, masaj veya güvertede dinlenme... Tercih sizin 💆');
+  }
+  return mesajlar[Math.floor(Math.random()*mesajlar.length)];
+}
+
+// Akşam mesajları (19-23)
+function aksamMesaji(sv, v){
+  const d = (typeof getDailyForSefer === 'function') ? getDailyForSefer(sv) : null;
+  // Akşamki gösteri/yemek var mı?
+  const program = d?.program || [];
+  const aksamAktivite = program.find(p => {
+    if(!p.time) return false;
+    const [sa] = p.time.split(':').map(Number);
+    return sa >= 19 && sa <= 23;
+  });
+
+  const mesajlar = [];
+  if(aksamAktivite){
+    mesajlar.push('Bu akşam <b>' + escapeHTML(aksamAktivite.title||'eğlence') + '</b> sizi bekliyor! ' + (aksamAktivite.time ? '⏰ '+escapeHTML(aksamAktivite.time) : '') + ' 🎭');
+  } else {
+    mesajlar.push('Akşam yemeğinde afiyet olsun! 🍽️ Bu akşam menüyü gördünüz mü?');
+    mesajlar.push('Güzel bir akşam başlıyor 🌅 Programda eğlence var mı bakalım?');
+    mesajlar.push('Yarınki günü hayal etmek için harika bir akşam ✨');
+  }
+  return mesajlar[Math.floor(Math.random()*mesajlar.length)];
+}
+
+// Gece mesajları (23-5)
+function geceMesaji(sv, v){
+  const mesajlar = [
+    'Tatlı rüyalar! 🌙 Yarın daha güzel bir gün olacak ✨',
+    'İyi dinlenmeler. Yarın hala harika yerler keşfedeceğiz 💤',
+    'Gece güzel, dalga sesi eşliğinde uyumanın keyfi 🌊',
+    'Yıldızlar şahit, harika bir yolculuk yapıyorsunuz ⭐'
+  ];
+  return mesajlar[Math.floor(Math.random()*mesajlar.length)];
+}
+
+// ══ 🗺️ SEFER HARİTASI ══
+
+function renderSeferHaritasi(sv){
+  const el = document.getElementById('sefer-haritasi');
+  if(!el) return;
+
+  const v = VOYAGES.find(x => x.id === sv);
+  if(!v){ el.innerHTML = ''; return; }
+
+  // Sefer rotasını bul — VOYAGES.route'tan parse et veya günlük programlardan limanları çek
+  // En iyisi: tüm günlerin liman_ad'larını topla, sefer süresince
+  const limanlar = haritaLimanlariBul(sv, v);
+
+  if(!limanlar.length || limanlar.length < 2){
+    el.innerHTML = '';
+    return;
+  }
+
+  // Bugünkü pozisyon
+  let bugunIdx = -1;
+  if(v.startDate){
+    const baslangic = new Date(v.startDate);
+    const bugun = new Date();
+    bugun.setHours(0,0,0,0); baslangic.setHours(0,0,0,0);
+    const fark = Math.floor((bugun - baslangic) / (1000*60*60*24));
+    if(fark >= 0 && fark < limanlar.length){
+      bugunIdx = fark;
+    }
+  }
+
+  // Toplam ilerleme %
+  const toplamGun = limanlar.length;
+  const ilerleme = bugunIdx < 0 ? 0 : Math.min(100, Math.round(((bugunIdx + 1) / toplamGun) * 100));
+
+  // İstasyonlar HTML
+  const istasyonlarHTML = limanlar.map((l, i) => {
+    const gecmis = i < bugunIdx;
+    const bugun = i === bugunIdx;
+    const gelecek = i > bugunIdx;
+
+    let renk, ikon, etiket;
+    if(gecmis){ renk = '#16a34a'; ikon = '✓'; etiket = 'Geçildi'; }
+    else if(bugun){ renk = '#1a5fa8'; ikon = '🚢'; etiket = 'Bugün'; }
+    else { renk = '#d1d5db'; ikon = '○'; etiket = 'Yarın+'; }
+
+    return `
+      <div style="flex:1;min-width:0;text-align:center;position:relative;">
+        ${bugun ? `<div style="position:absolute;top:-22px;left:50%;transform:translateX(-50%);font-size:18px;animation:gemiSallan 3s ease-in-out infinite;">🚢</div>` : ''}
+        <div style="width:32px;height:32px;border-radius:50%;background:${renk};color:white;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:14px;font-weight:700;box-shadow:${bugun?'0 0 0 4px rgba(26,95,168,.2)':''};">${ikon}</div>
+        <div style="font-size:10px;font-weight:600;color:${bugun?'#1a5fa8':gecmis?'#16a34a':'#9ca3af'};margin-top:5px;line-height:1.2;">${escapeHTML(l.ad)}</div>
+        <div style="font-size:9px;color:#888;margin-top:1px;">${l.tarih ? escapeHTML(l.tarih) : ''}</div>
+      </div>
+    `;
+  }).join('');
+
+  // Bağlantı çizgileri (istasyonlar arası)
+  const baglantilarHTML = [];
+  for(let i = 0; i < limanlar.length - 1; i++){
+    const tamGecmis = i < bugunIdx;
+    const renk = tamGecmis ? '#16a34a' : '#d1d5db';
+    baglantilarHTML.push(`<div style="flex:1;height:3px;background:${renk};margin-top:14px;"></div>`);
+  }
+
+  el.innerHTML = `
+    <div style="background:white;border-radius:18px;padding:18px 16px;margin-bottom:12px;box-shadow:0 4px 12px rgba(0,0,0,.06);border:1px solid #f0f0f0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div>
+          <div style="font-size:12px;color:#888;font-weight:600;letter-spacing:.5px;text-transform:uppercase;">🗺️ Sefer Yolculuğunuz</div>
+          <div style="font-size:14px;color:#1a1a1a;font-weight:700;margin-top:2px;">${ilerleme}% tamamlandı</div>
+        </div>
+        <div style="background:#dbeafe;color:#1e40af;padding:5px 12px;border-radius:14px;font-size:11px;font-weight:700;">${limanlar.length} liman</div>
+      </div>
+
+      <!-- İlerleme barı -->
+      <div style="background:#f3f4f6;height:6px;border-radius:3px;overflow:hidden;margin-bottom:24px;">
+        <div style="background:linear-gradient(90deg,#16a34a,#22c55e);height:100%;width:${ilerleme}%;border-radius:3px;transition:width 1s ease;"></div>
+      </div>
+
+      <!-- İstasyonlar -->
+      <div style="display:flex;align-items:flex-start;gap:0;padding:8px 0;">
+        ${limanlar.map((l, i) => {
+          let item = `<div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;width:${100/limanlar.length}%;min-width:60px;text-align:center;position:relative;">`;
+          const gecmis = i < bugunIdx;
+          const bugun = i === bugunIdx;
+          let renk, ikon;
+          if(gecmis){ renk = '#16a34a'; ikon = '✓'; }
+          else if(bugun){ renk = '#1a5fa8'; ikon = '🚢'; }
+          else { renk = '#d1d5db'; ikon = '○'; }
+          if(bugun){
+            item += `<div style="position:absolute;top:-28px;left:50%;transform:translateX(-50%);font-size:16px;animation:gemiSallan 2s ease-in-out infinite;">⚓</div>`;
+          }
+          item += `<div style="width:36px;height:36px;border-radius:50%;background:${renk};color:white;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;${bugun?'box-shadow:0 0 0 5px rgba(26,95,168,.2);':''}">${ikon}</div>`;
+          item += `<div style="font-size:10px;font-weight:600;color:${bugun?'#1a5fa8':gecmis?'#16a34a':'#9ca3af'};margin-top:6px;line-height:1.25;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(l.ad)}</div>`;
+          if(l.tarih) item += `<div style="font-size:9px;color:#aaa;margin-top:1px;">${escapeHTML(l.tarih)}</div>`;
+          item += '</div>';
+
+          // Bağlantı çizgisi (son istasyon hariç)
+          if(i < limanlar.length - 1){
+            const tamGecmis = i < bugunIdx;
+            const renkBag = tamGecmis ? '#16a34a' : '#d1d5db';
+            item += `<div style="flex:1;height:3px;background:${renkBag};margin-top:17px;align-self:flex-start;min-width:6px;"></div>`;
+          }
+          return item;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// Sefer için liman listesini bul
+function haritaLimanlariBul(sv, v){
+  const limanlar = [];
+
+  // DAILY objesinde sefer bilgisi varsa al
+  if(typeof DAILY !== 'undefined' && DAILY[sv]){
+    const d = DAILY[sv];
+    if(d && d.port && d.port.name){
+      limanlar.push({
+        ad: d.port.name.split(',')[0].trim(),
+        tarih: d.port.tarih || '',
+        varis: d.port.arival || '',
+        ayrilik: d.port.depart || ''
+      });
+    }
+  }
+
+  // v.route varsa parse et (öncelikli — tüm rota burada)
+  if(v && v.route){
+    // "İstanbul - Mikonos - Santorini - İstanbul" formatı
+    const parcalar = v.route.split(/\s*[-→»]\s*/).map(s=>s.trim()).filter(s=>s);
+    if(parcalar.length >= 2){
+      // route varsa onu kullan — daha doğru
+      limanlar.length = 0; // önceki kayıtları temizle
+      parcalar.forEach(p => limanlar.push({ ad: p, tarih: '' }));
+    }
+  }
+
+  // Hiçbir şey yoksa sefer label'i
+  if(limanlar.length === 0 && v && v.label){
+    limanlar.push({ ad: v.label, tarih: '' });
+  }
+
+  return limanlar;
 }
 
 // ══ 🎉 HOŞGELDİNİZ KARŞILAMA MODAL ══
