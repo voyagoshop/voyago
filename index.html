@@ -2263,7 +2263,89 @@ textarea.ai2{resize:none;}
 .ara-sonuc-baslik{font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:2px;}
 .ara-sonuc-detay{font-size:11px;color:#666;display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
 .ara-vurgu{background:#fef08a;color:#854d0e;padding:0 2px;border-radius:2px;font-weight:600;}
+
+/* 🎉 KARŞILAMA MODAL ANİMASYONLARI */
+@keyframes karsilamaIn { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes dalgaHareket { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes gemiSallan { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+@keyframes parlaKayma { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
+@keyframes konfetiDus { 0% { transform: translateY(-20vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(120vh) rotate(720deg); opacity: 0; } }
+@keyframes kartGir { from { opacity: 0; transform: translateX(-30px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes btnNabız { 0%, 100% { box-shadow: 0 6px 20px rgba(245,158,11,.4); } 50% { box-shadow: 0 8px 28px rgba(245,158,11,.7); } }
+
+.kars-modal { position: fixed; inset: 0; background: linear-gradient(160deg, #0d3b6e 0%, #1a5fa8 60%, #2563eb 100%); z-index: 99999; display: flex; flex-direction: column; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.kars-konfeti { position: absolute; top: 0; left: 0; right: 0; height: 100%; pointer-events: none; overflow: hidden; }
+.kars-konfeti span { position: absolute; top: -20px; width: 10px; height: 10px; opacity: 0.8; animation: konfetiDus 4s linear infinite; }
+.kars-icerik { flex: 1; padding: 20px 22px 30px; color: white; max-width: 540px; margin: 0 auto; width: 100%; position: relative; z-index: 2; }
+.kars-x { position: absolute; top: 12px; right: 12px; background: rgba(255,255,255,.18); border: none; color: white; width: 36px; height: 36px; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10; backdrop-filter: blur(10px); transition: background .15s; }
+.kars-x:hover, .kars-x:active { background: rgba(255,255,255,.35); }
+.kars-gemi-anim { font-size: 70px; display: inline-block; animation: gemiSallan 3s ease-in-out infinite; filter: drop-shadow(0 6px 16px rgba(0,0,0,.3)); }
+.kars-baslik { font-family: 'DM Serif Display', serif; font-size: 30px; line-height: 1.15; margin-top: 8px; text-shadow: 0 2px 12px rgba(0,0,0,.25); }
+.kars-alt { font-size: 14px; opacity: .95; margin-top: 6px; line-height: 1.55; }
+.kars-kart { background: rgba(255,255,255,.13); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.18); border-radius: 16px; padding: 14px 16px; margin-top: 12px; display: flex; gap: 12px; align-items: flex-start; animation: kartGir .5s ease-out backwards; }
+.kars-kart:nth-child(1) { animation-delay: .15s; }
+.kars-kart:nth-child(2) { animation-delay: .3s; }
+.kars-kart:nth-child(3) { animation-delay: .45s; }
+.kars-kart:nth-child(4) { animation-delay: .6s; }
+.kars-kart-emoji { font-size: 32px; flex-shrink: 0; animation: dalgaHareket 2.5s ease-in-out infinite; }
+.kars-kart-baslik { font-size: 15px; font-weight: 700; color: white; margin-bottom: 4px; }
+.kars-kart-aciklama { font-size: 12.5px; color: rgba(255,255,255,.92); line-height: 1.5; }
+.kars-btn { width: 100%; padding: 16px; background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #1a1a1a; border: none; border-radius: 14px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; margin-top: 18px; animation: btnNabız 2s ease-in-out infinite; }
+.kars-iyi-yolculuklar { text-align: center; font-size: 12px; opacity: .85; margin-top: 14px; font-style: italic; }
 </style>
+
+<!-- 🎉 HOŞGELDİNİZ KARŞILAMA MODAL (sefer başında bir kez) -->
+<div id="kars-modal" class="kars-modal" style="display:none;">
+  <button class="kars-x" onclick="karsilamaKapat()" aria-label="Kapat">✕</button>
+  <div class="kars-konfeti" id="kars-konfeti"></div>
+  <div class="kars-icerik">
+    <div style="text-align:center;padding-top:26px;">
+      <div class="kars-gemi-anim">🚢</div>
+      <div class="kars-baslik" id="kars-baslik">Hoş Geldiniz!</div>
+      <div class="kars-alt">İyi haberler — yolculuğunuz başlamak üzere! ✨<br>Birazdan şunlar olacak:</div>
+    </div>
+
+    <div class="kars-kart">
+      <div class="kars-kart-emoji">🛂</div>
+      <div>
+        <div class="kars-kart-baslik">Pasaport Kontrolü</div>
+        <div class="kars-kart-aciklama">Az sonra pasaport polisinden geçeceksiniz. Pasaportunuzu el altında bulundurun.</div>
+      </div>
+    </div>
+
+    <div class="kars-kart">
+      <div class="kars-kart-emoji">🧳</div>
+      <div>
+        <div class="kars-kart-baslik">Bavul Servisi</div>
+        <div class="kars-kart-aciklama">Gemi önünde bavullarınız özenle alınacak ve <b>kabinlerinize ulaştırılacaktır</b>. Sizin taşımanıza gerek yok!</div>
+      </div>
+    </div>
+
+    <div class="kars-kart">
+      <div class="kars-kart-emoji">🎫</div>
+      <div>
+        <div class="kars-kart-baslik">Gemi Kartı = Kabin Anahtarı</div>
+        <div class="kars-kart-aciklama">Pasaportlarınız gemiye girerken teslim alınır. Yerine size <b>gemi kartı</b> verilir — bu hem kimlik kartınız hem de <b>kabin anahtarınız</b>!</div>
+      </div>
+    </div>
+
+    <div class="kars-kart">
+      <div class="kars-kart-emoji">🏁</div>
+      <div>
+        <div class="kars-kart-baslik">Dönüş Vakti</div>
+        <div class="kars-kart-aciklama">Sefer sonunda pasaportlarınız <b>eksiksiz iade edilecek</b>. Hiç endişeniz olmasın 😊</div>
+      </div>
+    </div>
+
+    <button class="kars-btn" onclick="karsilamaKapat()">
+      ⚓ Anladım, Maceraya Başlayalım!
+    </button>
+
+    <div class="kars-iyi-yolculuklar">
+      ✨ Unutulmaz bir yolculuk dileriz ✨
+    </div>
+  </div>
+</div>
 
 <!-- 🗽 LİMAN DÜZENLEME MODAL -->
 <div id="lb-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(8px);">
@@ -2465,6 +2547,20 @@ async function initDB() {
       pazarlama_izni: y.pazarlama_izni || false,
       ekstra_isimler: y.ekstra_isimler || []  // Diğer yolcular (ek isimler)
     }));
+
+    // 🔥 kontrolDurum'u DB'den geri yükle (sayfa yenilense bile QR/kontrol işaretleri kaybolmasın)
+    kontrolDurum = {};
+    passengers.forEach(p => {
+      if(p.tur_katilim_detay){
+        Object.keys(p.tur_katilim_detay).forEach(tid => {
+          const det = p.tur_katilim_detay[tid];
+          if(det && typeof det.geldi !== 'undefined' && det.geldi > 0){
+            const key = p.kabin + '_' + p.sefer + '_' + tid;
+            kontrolDurum[key] = det.geldi;
+          }
+        });
+      }
+    });
 
     // Turları yükle (görsel hariç — sonra ayrı çekilir, performans için)
     let turlarDB = [];
@@ -3300,7 +3396,11 @@ function doPL(){
       code: document.getElementById('cc').value
     }));
   } catch(e) {}
-  if(isFirst) showToast('Check-in yapildi! Hos geldiniz, '+name.split(' ')[0]+'!');
+  if(isFirst) {
+    showToast('Check-in yapildi! Hos geldiniz, '+name.split(' ')[0]+'!');
+    // 🎉 İlk kez geldi — karşılama modal'ını aç (1 saniye gecikme)
+    setTimeout(()=>{ if(typeof karsilamaGoster === 'function') karsilamaGoster(p); }, 1000);
+  }
   else showToast('Hos geldiniz, '+name.split(' ')[0]+'!');
 }
 
@@ -4797,6 +4897,93 @@ ${sayfalar}
   w.document.close();
   showToast('📸 Albüm açılıyor...');
 }
+
+// ══ 🎉 HOŞGELDİNİZ KARŞILAMA MODAL ══
+// Sadece sefer başında, ilk check-in'de bir kez gösterilir
+
+function karsilamaGosterildi(kabin, sefer){
+  // Bu yolcuya bu seferin karşılaması daha önce gösterildi mi?
+  try {
+    const key = 'voyago_kars_' + sefer + '_' + kabin;
+    return localStorage.getItem(key) === '1';
+  } catch(e){ return false; }
+}
+
+function karsilamaIsaretle(kabin, sefer){
+  try {
+    const key = 'voyago_kars_' + sefer + '_' + kabin;
+    localStorage.setItem(key, '1');
+  } catch(e){}
+}
+
+function karsilamaGoster(p){
+  if(!p || !p.kabin || !p.sefer) return;
+  // Bir kez gösterildi mi?
+  if(karsilamaGosterildi(p.kabin, p.sefer)) return;
+
+  // Yolcunun ilk adı
+  const ilkAd = (p.name||'').split(' ')[0] || 'Misafirimiz';
+  document.getElementById('kars-baslik').innerHTML = ilkAd + ', Hoş Geldiniz! 🎉';
+
+  // Modal'ı göster
+  document.getElementById('kars-modal').style.display = 'flex';
+
+  // Konfeti efekti
+  karsilamaKonfetiBaslat();
+
+  // İşaretle - bir daha gösterme
+  karsilamaIsaretle(p.kabin, p.sefer);
+}
+
+function karsilamaKapat(){
+  const modal = document.getElementById('kars-modal');
+  if(modal){
+    modal.style.transition = 'opacity .3s';
+    modal.style.opacity = '0';
+    setTimeout(()=>{
+      modal.style.display = 'none';
+      modal.style.opacity = '';
+      // Konfetileri temizle
+      const k = document.getElementById('kars-konfeti');
+      if(k) k.innerHTML = '';
+    }, 300);
+  }
+}
+
+function karsilamaKonfetiBaslat(){
+  const container = document.getElementById('kars-konfeti');
+  if(!container) return;
+  container.innerHTML = '';
+  const renkler = ['#fbbf24', '#f59e0b', '#22d3ee', '#34d399', '#a78bfa', '#fb7185', '#ffffff', '#fde047'];
+  const sekiller = ['•', '◆', '▲', '★', '♥'];
+
+  // 60 parça konfeti
+  for(let i = 0; i < 60; i++){
+    const k = document.createElement('span');
+    const sol = Math.random() * 100;
+    const gecikme = Math.random() * 3;
+    const sure = 3 + Math.random() * 3;
+    const renk = renkler[Math.floor(Math.random() * renkler.length)];
+    const sekil = sekiller[Math.floor(Math.random() * sekiller.length)];
+    const boyut = 8 + Math.random() * 14;
+    k.textContent = sekil;
+    k.style.cssText = `left: ${sol}%; color: ${renk}; font-size: ${boyut}px; animation-delay: ${gecikme}s; animation-duration: ${sure}s; width: auto; height: auto;`;
+    container.appendChild(k);
+  }
+
+  // 6 saniye sonra konfetiler bittiğinde sustur (yenilemesin)
+  setTimeout(()=>{
+    container.innerHTML = '';
+  }, 8000);
+}
+
+// ESC ile kapanma
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape'){
+    const m = document.getElementById('kars-modal');
+    if(m && m.style.display === 'flex') karsilamaKapat();
+  }
+});
 
 // ══ FOTOĞRAF YARIŞMASI SİSTEMİ ══
 
@@ -8496,6 +8683,8 @@ function renderKontrolListesi(){
   if(!tSel||!sSel)return;
   const tid=tSel.value;
   const sid=sSel.value;
+  // Her render'da QR sayacını güncelle (DB'den hesapla)
+  if(typeof qrSayaciGuncelle === 'function') qrSayaciGuncelle();
   if(!sid){
     document.getElementById('kontrol-list').innerHTML='<div class="es">Sefer seçin.</div>';
     renderTurAlmayanlar();
@@ -8621,10 +8810,37 @@ function renderKontrolListesi(){
   }).join('');
 }
 
-function setKontrol(key, val, tid, sid){
-  // Sadece kontrolDurum'u günceller, joinedTours veya tur_katilim_detay'a DOKUNMAZ
-  console.log('[SETKONTROL]', { key, val, tid, sid, oncekiDurum: kontrolDurum[key]||0 });
-  kontrolDurum[key] = kontrolDurum[key]===val ? 0 : val;
+async function setKontrol(key, val, tid, sid){
+  // key: kabin_sefer_tid formatında
+  const yeniDurum = kontrolDurum[key]===val ? 0 : val;
+  kontrolDurum[key] = yeniDurum;
+  console.log('[SETKONTROL]', { key, val, tid, sid, yeniDurum });
+
+  // Key'i parse et
+  const parcalar = key.split('_');
+  if(parcalar.length < 3 || !tid || !sid){
+    // DB'ye yazma — eksik bilgi
+    renderKontrolListesi();
+    renderTurAlmayanlar();
+    return;
+  }
+  const kabin = parcalar[0];
+
+  // Yolcuyu bul
+  const p = passengers.find(x => x.kabin === kabin && x.sefer === sid);
+  if(p){
+    // tur_katilim_detay yapısını güncelle
+    if(!p.tur_katilim_detay) p.tur_katilim_detay = {};
+    if(!p.tur_katilim_detay[tid]) p.tur_katilim_detay[tid] = {};
+    p.tur_katilim_detay[tid].geldi = yeniDurum; // 0/1/2
+    p.tur_katilim_detay[tid].kontrol_zamani = new Date().toISOString();
+
+    // DB'ye kaydet
+    try {
+      if(typeof saveYolcuDB === 'function') await saveYolcuDB(p);
+    } catch(e){ console.error('Kontrol kayıt:', e); }
+  }
+
   renderKontrolListesi();
   renderTurAlmayanlar();
 }
@@ -8707,7 +8923,7 @@ function kabinHizliAra(){
   }
 }
 
-function kabinHizliGeldi(){
+async function kabinHizliGeldi(){
   const kabin = document.getElementById('kontrol-kabin-ara')?.value.trim();
   if(!kabin) return;
   const tid = document.getElementById('kontrol-tur-sel')?.value;
@@ -8717,6 +8933,16 @@ function kabinHizliGeldi(){
   if(!p){showToast('Kabin '+kabin+' bu turda kayıtlı değil!');return;}
   const key = kabin+'_'+sid+'_'+tid;
   kontrolDurum[key] = 1; // Geldi
+
+  // DB'ye yaz — kalıcı olsun
+  if(!p.tur_katilim_detay) p.tur_katilim_detay = {};
+  if(!p.tur_katilim_detay[tid]) p.tur_katilim_detay[tid] = {};
+  p.tur_katilim_detay[tid].geldi = 1;
+  p.tur_katilim_detay[tid].kontrol_zamani = new Date().toISOString();
+  try {
+    if(typeof saveYolcuDB === 'function') await saveYolcuDB(p);
+  } catch(e){ console.error('Hızlı geldi:', e); }
+
   document.getElementById('kontrol-kabin-ara').value = '';
   document.getElementById('kontrol-kabin-sonuc').innerHTML = 
     '<span style="color:var(--green);">✅ '+p.name+' geldi olarak işaretlendi!</span>';
@@ -8733,6 +8959,27 @@ let _qrTarayici = null;
 let _qrTaramaSayisi = 0;
 let _qrSonOkunan = ''; // Çift okumayı engellemek için
 let _qrSonOkunanZaman = 0;
+
+// QR sayacını DB'den hesapla (sefer + tur bazlı)
+function qrSayaciHesapla(sid, tid){
+  if(!sid || !tid) return 0;
+  return passengers.filter(p => 
+    p.sefer === sid && 
+    p.tur_katilim_detay && 
+    p.tur_katilim_detay[tid] && 
+    p.tur_katilim_detay[tid].geldi === 1
+  ).length;
+}
+
+// QR sayacını ekranda güncelle
+function qrSayaciGuncelle(){
+  const tid = document.getElementById('kontrol-tur-sel')?.value;
+  const sid = document.getElementById('kontrol-sefer-sel')?.value;
+  if(!tid || !sid || tid === 'hepsi') return;
+  _qrTaramaSayisi = qrSayaciHesapla(sid, tid);
+  const sayac = document.getElementById('qr-tara-sayac');
+  if(sayac && _qrTaramaSayisi > 0) sayac.textContent = '✓ ' + _qrTaramaSayisi + ' bilet okundu';
+}
 
 function qrTaraBaslat(){
   const tid = document.getElementById('kontrol-tur-sel')?.value;
@@ -8796,7 +9043,7 @@ function qrKameraAc(){
   }
 }
 
-function qrSonucIsle(decodedText, decodedResult){
+async function qrSonucIsle(decodedText, decodedResult){
   // Çift okumayı engelle (aynı QR 3 saniye içinde tekrar okunmasın)
   const simdi = Date.now();
   if(decodedText === _qrSonOkunan && (simdi - _qrSonOkunanZaman) < 3000) return;
@@ -8862,6 +9109,18 @@ function qrSonucIsle(decodedText, decodedResult){
   });
   kontrolDurum[key] = 1;
   _qrTaramaSayisi++;
+
+  // 🔥 DB'YE YAZ — sayfa yenilense bile kalıcı olsun
+  if(p){
+    if(!p.tur_katilim_detay) p.tur_katilim_detay = {};
+    if(!p.tur_katilim_detay[tid]) p.tur_katilim_detay[tid] = {};
+    p.tur_katilim_detay[tid].geldi = 1;
+    p.tur_katilim_detay[tid].kontrol_zamani = new Date().toISOString();
+    p.tur_katilim_detay[tid].qr_okundu = true;
+    try {
+      if(typeof saveYolcuDB === 'function') await saveYolcuDB(p);
+    } catch(e){ console.error('QR kayıt:', e); }
+  }
 
   // Ekrandaki sayacı güncelle
   const sayac = document.getElementById('qr-tara-sayac');
