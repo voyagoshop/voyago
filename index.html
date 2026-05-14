@@ -1027,6 +1027,46 @@ textarea.ai2{resize:none;}
       </div>
       <div id="hikayeler-yolcu-liste"></div>
     </div>
+
+    <!-- 📸 ALBÜM SEKMESİ -->
+    <div id="tab-albuм" class="tp">
+      <div style="padding:6px 0 14px;">
+        <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--t);margin-bottom:4px;">📸 Sefer Albümü</div>
+        <div style="font-size:13px;color:var(--t2);">Anılarınızı paylaşın, başkalarınınkini görün</div>
+      </div>
+
+      <!-- 🏆 YARIŞMA KARTI -->
+      <div id="yarisma-karti" style="display:none;margin-bottom:14px;"></div>
+
+      <!-- Yükleme butonu -->
+      <input type="file" id="albuм-file" accept="image/*" multiple style="display:none;" onchange="albuмFotoEkle(this)">
+      <button onclick="document.getElementById('albuм-file').click()" style="width:100%;padding:14px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:white;border:none;border-radius:14px;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:14px;box-shadow:0 4px 12px rgba(124,58,237,.3);">
+        <span style="font-size:20px;">📸</span>
+        <span>Fotoğraf Ekle</span>
+      </button>
+
+      <div id="albuм-yukleme-durum" style="font-size:12px;color:#7c3aed;text-align:center;margin-bottom:10px;display:none;"></div>
+
+      <!-- PDF İndirme butonu -->
+      <div id="albuм-pdf-alani" style="display:none;margin-bottom:14px;">
+        <button onclick="albuмPDFOlustur()" style="width:100%;padding:11px;background:white;border:1.5px solid #7c3aed;color:#7c3aed;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          📥 Anı Albümü PDF İndir
+        </button>
+      </div>
+
+      <!-- İstatistik -->
+      <div id="albuм-stats" style="font-size:11px;color:#888;text-align:center;margin-bottom:10px;"></div>
+
+      <!-- Galeri grid -->
+      <div id="albuм-galeri" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;">
+        <div style="grid-column:1/-1;text-align:center;padding:40px 20px;color:#888;">
+          <div style="font-size:48px;margin-bottom:10px;opacity:.5;">📷</div>
+          <div style="font-size:13px;">Henüz fotoğraf yok</div>
+          <div style="font-size:11px;margin-top:4px;opacity:.7;">İlk fotoğrafı sen ekle!</div>
+        </div>
+      </div>
+    </div>
+
     <div id="tab-yemek" class="tp">
       <div id="yemek-area"></div>
     </div>
@@ -1100,6 +1140,7 @@ textarea.ai2{resize:none;}
       <button class="nb" id="nb-gelecek" onclick="switchTab('gelecek')"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 13.9 8.6 19.5 10.5 13.9 12.4 12 18 10.1 12.4 4.5 10.5 10.1 8.6Z"/><path d="M19 14v4M21 16h-4M5 4v3M6.5 5.5h-3"/></svg></span><span style="font-size:9px;">Fırsat Turları</span></button>
       <button class="nb" id="nb-rehber" onclick="switchTab('rehber')"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/></svg></span><span data-t="rehber">Rehber</span></button>
       <button class="nb" id="nb-alisveris" onclick="switchTab('alisveris')"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/></svg></span><span style="font-size:9px;">Alışveriş</span></button>
+      <button class="nb" id="nb-albuм" onclick="switchTab('albuм')"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span><span style="font-size:9px;">Albüm</span></button>
     </div>
   </div>
 </div>
@@ -1140,6 +1181,7 @@ textarea.ai2{resize:none;}
       <button class="att" id="ratab-gemiplan" onclick="adminTab('gemiplan')"><span class="aico">🗺️</span><span>Gemi Planı</span></button>
       <button class="att" id="ratab-rehrapor" onclick="adminTab('rehrapor')"><span class="aico">📝</span><span>Raporlar</span></button>
       <button class="att" id="ratab-limanbilgi" onclick="adminTab('limanbilgi')"><span class="aico">🗽</span><span>Liman Bilgi</span></button>
+      <button class="att" id="ratab-yarisma" onclick="adminTab('yarisma')"><span class="aico">🏆</span><span>Yarışma</span></button>
       <button class="att" id="ratab-kontrol" onclick="adminTab('kontrol')"><span class="aico">✅</span><span>Tur Kontrol</span></button>
       <button class="att" id="ratab-gelecek" onclick="adminTab('gelecek')"><span class="aico">🌟</span><span>Fırsat Turları</span></button>
       <button class="att" id="ratab-alisveris" onclick="adminTab('alisveris')"><span class="aico">🛍️</span><span>Alışveriş</span></button>
@@ -2016,6 +2058,30 @@ textarea.ai2{resize:none;}
           <div style="text-align:center;padding:20px;color:#888;font-size:12px;">Henüz liman bilgisi yok</div>
         </div>
       </div>
+    </div>
+
+    <!-- 🏆 YARIŞMA PANELİ -->
+    <div id="admin-yarisma" class="apg">
+      <div style="background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:16px;padding:16px;margin-bottom:14px;color:white;">
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:4px;">🏆 Fotoğraf Yarışması</div>
+        <div style="font-size:12px;opacity:.9;line-height:1.5;">En çok beğeni alan yolcu kazansın! Sefer sonunda kazananı ilan edin, otomatik tebrik PDF'i + WhatsApp mesajı.</div>
+      </div>
+
+      <!-- Durum kartı -->
+      <div id="yarisma-admin-durum" style="margin-bottom:14px;"></div>
+
+      <!-- Lider tablosu -->
+      <div class="fs2">
+        <div class="fst" style="display:flex;align-items:center;gap:6px;">
+          🥇 <span>Sıralama (Lider Tablosu)</span>
+        </div>
+        <div id="yarisma-siralama" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="text-align:center;padding:20px;color:#888;font-size:12px;">⏳ Yükleniyor...</div>
+        </div>
+      </div>
+
+      <!-- Aksiyon butonları -->
+      <div id="yarisma-aksiyonlar" style="margin-top:14px;"></div>
     </div>
 
     <!-- REHBERLER -->
@@ -4367,6 +4433,864 @@ function limanBilgiAc(id){
   document.body.appendChild(modal);
 }
 
+// ══ SEFER ALBÜMÜ SİSTEMİ ══
+
+let ALBUM_FOTOGRAFLAR = [];
+let ALBUM_BEGENILER = {}; // localStorage'dan yüklenen beğeniler
+
+// localStorage'dan beğenileri yükle (kullanıcı kendi beğendiklerini hatırlasın)
+function albumBegenileriYukle(){
+  try {
+    const k = localStorage.getItem('voyago_album_begeniler');
+    if(k) ALBUM_BEGENILER = JSON.parse(k);
+  } catch(e){}
+}
+albumBegenileriYukle();
+
+function albumBegenileriKaydet(){
+  try {
+    localStorage.setItem('voyago_album_begeniler', JSON.stringify(ALBUM_BEGENILER));
+  } catch(e){}
+}
+
+// Albümü render et (yolcu görür)
+async function renderAlbuм(){
+  const galeri = document.getElementById('albuм-galeri');
+  const statsEl = document.getElementById('albuм-stats');
+  const pdfAlani = document.getElementById('albuм-pdf-alani');
+  if(!galeri) return;
+
+  // Sefer ID
+  const sid = CP?.sefer;
+  if(!sid){
+    galeri.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#888;font-size:13px;">Lütfen önce giriş yapın</div>';
+    return;
+  }
+
+  // Loading
+  galeri.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#888;"><div style="font-size:24px;">⏳</div></div>';
+
+  // DB'den çek
+  try {
+    const { data, error } = await sb.from('sefer_albumu')
+      .select('*')
+      .eq('sefer_id', sid)
+      .order('yuklenme', { ascending: false });
+    if(error) throw error;
+    ALBUM_FOTOGRAFLAR = data || [];
+  } catch(e){
+    console.error('Albüm yükleme:', e);
+    galeri.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#dc2626;font-size:13px;">Albüm yüklenemedi</div>';
+    return;
+  }
+
+  // İstatistik
+  if(statsEl){
+    if(ALBUM_FOTOGRAFLAR.length){
+      const farkliYolcu = new Set(ALBUM_FOTOGRAFLAR.map(f => f.yolcu_kabin)).size;
+      statsEl.textContent = `📷 ${ALBUM_FOTOGRAFLAR.length} fotoğraf · ${farkliYolcu} yolcu`;
+    } else {
+      statsEl.textContent = '';
+    }
+  }
+
+  // PDF butonu (sadece fotoğraf varsa göster)
+  if(pdfAlani){
+    pdfAlani.style.display = ALBUM_FOTOGRAFLAR.length > 0 ? 'block' : 'none';
+  }
+
+  // Galeri render
+  if(!ALBUM_FOTOGRAFLAR.length){
+    galeri.innerHTML = `
+      <div style="grid-column:1/-1;text-align:center;padding:40px 20px;color:#888;">
+        <div style="font-size:48px;margin-bottom:10px;opacity:.5;">📷</div>
+        <div style="font-size:13px;">Henüz fotoğraf yok</div>
+        <div style="font-size:11px;margin-top:4px;opacity:.7;">İlk fotoğrafı sen ekle!</div>
+      </div>
+    `;
+    return;
+  }
+
+  galeri.innerHTML = ALBUM_FOTOGRAFLAR.map(f => {
+    const benimKi = f.yolcu_kabin === CP?.kabin;
+    const benimBegenim = ALBUM_BEGENILER[f.id] === true;
+    return `
+      <div style="position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:#f3f4f6;cursor:pointer;" onclick="albuмBuyut('${f.id}')">
+        <img src="${escapeHTML(f.resim_url)}" style="width:100%;height:100%;object-fit:cover;display:block;" loading="lazy">
+        <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,.7),transparent);padding:18px 6px 4px;">
+          <div style="font-size:9px;color:white;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(f.yolcu_ad||'')}</div>
+        </div>
+        <button onclick="event.stopPropagation();albuмBegen('${f.id}')" style="position:absolute;top:5px;right:5px;background:rgba(255,255,255,.9);border:none;border-radius:50%;width:26px;height:26px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;${benimBegenim?'color:#dc2626;':''}">${benimBegenim?'❤️':'🤍'}</button>
+        ${f.begeniler > 0 ? `<div style="position:absolute;top:6px;left:5px;background:rgba(0,0,0,.6);color:white;border-radius:10px;padding:2px 6px;font-size:10px;font-weight:600;">❤️ ${f.begeniler}</div>` : ''}
+        ${benimKi ? `<div style="position:absolute;bottom:24px;right:4px;background:#1a5fa8;color:white;border-radius:8px;padding:2px 5px;font-size:9px;font-weight:600;">Benim</div>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  // Yarışma kartını da güncelle
+  if(typeof renderYarismaKarti === 'function') renderYarismaKarti();
+}
+
+// Fotoğraf ekleme
+async function albuмFotoEkle(input){
+  const files = Array.from(input.files || []);
+  if(!files.length) return;
+
+  const sid = CP?.sefer;
+  const yolcuKabin = CP?.kabin || '';
+  const yolcuAd = CP?.name || 'Misafir';
+  if(!sid){ showToast('Lütfen önce giriş yapın'); return; }
+
+  const durumEl = document.getElementById('albuм-yukleme-durum');
+  if(durumEl){
+    durumEl.style.display = 'block';
+    durumEl.textContent = '⏳ ' + files.length + ' fotoğraf yükleniyor...';
+  }
+
+  let basariliSayi = 0;
+  for(let i = 0; i < files.length; i++){
+    const file = files[i];
+    if(durumEl) durumEl.textContent = '⏳ Yükleniyor ' + (i+1) + '/' + files.length + '...';
+
+    try {
+      // Sıkıştır
+      const sikistirilmis = await albuмSikistir(file, 1400, 0.85);
+      if(!sikistirilmis){ continue; }
+
+      // Storage'a yükle
+      const filename = sid + '/' + Date.now() + '_' + Math.random().toString(36).substring(2,8) + '.webp';
+      const { error: uploadError } = await sb.storage
+        .from('album-fotograflar')
+        .upload(filename, sikistirilmis, { contentType: 'image/webp' });
+
+      if(uploadError){
+        console.error('Storage upload:', uploadError);
+        continue;
+      }
+
+      // Public URL
+      const { data: urlData } = sb.storage.from('album-fotograflar').getPublicUrl(filename);
+      const publicUrl = urlData.publicUrl;
+
+      // DB'ye kaydet
+      const id = 'p' + Date.now() + Math.random().toString(36).substring(2,5);
+      const { error: dbError } = await sb.from('sefer_albumu').insert({
+        id,
+        sefer_id: sid,
+        yolcu_kabin: yolcuKabin,
+        yolcu_ad: yolcuAd,
+        resim_url: publicUrl,
+        baslik: '',
+        begeniler: 0
+      });
+      if(dbError){
+        console.error('DB insert:', dbError);
+        continue;
+      }
+      basariliSayi++;
+    } catch(e){
+      console.error('Foto yükleme:', e);
+    }
+  }
+
+  input.value = ''; // file input sıfırla
+  if(durumEl){
+    durumEl.textContent = '✓ ' + basariliSayi + ' fotoğraf yüklendi';
+    setTimeout(() => { durumEl.style.display = 'none'; }, 3000);
+  }
+  showToast('✓ ' + basariliSayi + ' fotoğraf eklendi');
+  renderAlbuм();
+}
+
+// Görsel sıkıştırma (WebP)
+async function albuмSikistir(file, maxBoyut, kalite){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = e => { img.src = e.target.result; };
+    reader.onerror = () => resolve(null);
+    img.onload = () => {
+      let { width, height } = img;
+      // Orantı koru, en uzun kenar max
+      if(width > maxBoyut || height > maxBoyut){
+        const r = Math.min(maxBoyut/width, maxBoyut/height);
+        width = Math.round(width * r);
+        height = Math.round(height * r);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(blob => resolve(blob), 'image/webp', kalite);
+    };
+    img.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+
+// Beğen / beğen kaldır
+async function albuмBegen(id){
+  const foto = ALBUM_FOTOGRAFLAR.find(f => f.id === id);
+  if(!foto) return;
+
+  const benimBegenim = ALBUM_BEGENILER[id] === true;
+  const yeniSayi = benimBegenim
+    ? Math.max(0, (foto.begeniler||0) - 1)
+    : (foto.begeniler||0) + 1;
+
+  try {
+    const { error } = await sb.from('sefer_albumu').update({ begeniler: yeniSayi }).eq('id', id);
+    if(error) throw error;
+    foto.begeniler = yeniSayi;
+    ALBUM_BEGENILER[id] = !benimBegenim;
+    albumBegenileriKaydet();
+    renderAlbuм();
+  } catch(e){
+    console.error('Beğeni:', e);
+  }
+}
+
+// Büyütülmüş foto görüntüleyici
+function albuмBuyut(id){
+  const foto = ALBUM_FOTOGRAFLAR.find(f => f.id === id);
+  if(!foto) return;
+
+  document.getElementById('albuм-buyuk-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'albuм-buyuk-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.onclick = () => modal.remove();
+
+  const benimKi = foto.yolcu_kabin === CP?.kabin;
+  modal.innerHTML = `
+    <div style="max-width:100%;max-height:100%;position:relative;display:flex;flex-direction:column;align-items:center;gap:10px;" onclick="event.stopPropagation()">
+      <img src="${escapeHTML(foto.resim_url)}" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:10px;">
+      <div style="background:rgba(0,0,0,.7);color:white;padding:8px 14px;border-radius:20px;font-size:12px;font-family:'DM Sans',sans-serif;display:flex;gap:12px;align-items:center;">
+        <span>📸 ${escapeHTML(foto.yolcu_ad||'')}</span>
+        <span>❤️ ${foto.begeniler||0}</span>
+        ${benimKi ? `<button onclick="albuмSil('${foto.id}')" style="background:#dc2626;color:white;border:none;border-radius:12px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">🗑️ Sil</button>` : ''}
+      </div>
+      <button onclick="document.getElementById('albuм-buyuk-modal').remove()" style="position:absolute;top:-40px;right:0;background:rgba(255,255,255,.2);color:white;border:none;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;">✕</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+// Fotoğraf sil (sadece kendi fotoğrafını silebilir)
+async function albuмSil(id){
+  const foto = ALBUM_FOTOGRAFLAR.find(f => f.id === id);
+  if(!foto) return;
+  if(foto.yolcu_kabin !== CP?.kabin){
+    showToast('⚠️ Sadece kendi fotoğraflarınızı silebilirsiniz');
+    return;
+  }
+  if(!confirm('Bu fotoğraf silinsin mi?')) return;
+
+  try {
+    // Storage'dan sil (URL'den filename çıkar)
+    const url = foto.resim_url;
+    const m = url.match(/album-fotograflar\/(.+)$/);
+    if(m && m[1]){
+      try { await sb.storage.from('album-fotograflar').remove([m[1]]); } catch(e){}
+    }
+    // DB'den sil
+    const { error } = await sb.from('sefer_albumu').delete().eq('id', id);
+    if(error) throw error;
+    ALBUM_FOTOGRAFLAR = ALBUM_FOTOGRAFLAR.filter(f => f.id !== id);
+    document.getElementById('albuм-buyuk-modal')?.remove();
+    showToast('✓ Silindi');
+    renderAlbuм();
+  } catch(e){
+    console.error('Foto sil:', e);
+    showToast('⚠️ Silinemedi');
+  }
+}
+
+// PDF olarak indir (anı albümü)
+async function albuмPDFOlustur(){
+  if(!ALBUM_FOTOGRAFLAR.length){
+    showToast('⚠️ Henüz fotoğraf yok');
+    return;
+  }
+
+  const sid = CP?.sefer;
+  const v = VOYAGES.find(x => x.id === sid);
+  const seferLabel = v?.label || 'Sefer';
+  const gemiAd = v?.ship || '';
+
+  // HTML hazırla — her fotoğraf bir sayfa
+  showToast('⏳ Albüm hazırlanıyor...');
+
+  // Beğeniye göre sırala (en çok beğenilen önce)
+  const sirali = [...ALBUM_FOTOGRAFLAR].sort((a,b) => (b.begeniler||0) - (a.begeniler||0));
+
+  const sayfalar = sirali.map((f, i) => `
+    <div class="albuм-sayfa" style="${i > 0 ? 'page-break-before:always;' : ''}">
+      <img src="${escapeHTML(f.resim_url)}" crossorigin="anonymous">
+      <div class="meta">
+        <div class="ad">${escapeHTML(f.yolcu_ad || 'Misafir')}</div>
+        ${f.begeniler > 0 ? `<div class="bg">❤️ ${f.begeniler}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>VOYAGO Anı Albümü — ${escapeHTML(seferLabel)}</title>
+<style>
+  @page { size: A4; margin: 10mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1a1a; background: white; }
+  .kapak { page-break-after: always; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; text-align: center; background: linear-gradient(135deg, #1a5fa8, #0d3b6e); color: white; padding: 40px; }
+  .kapak h1 { font-size: 48pt; margin-bottom: 12px; font-family: Georgia, serif; }
+  .kapak .alt { font-size: 18pt; opacity: .9; margin-bottom: 24px; }
+  .kapak .gemi { font-size: 14pt; opacity: .8; }
+  .kapak .stats { margin-top: 40px; padding: 20px 30px; background: rgba(255,255,255,.15); border-radius: 12px; font-size: 12pt; }
+  .albuм-sayfa { min-height: 90vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 14mm; page-break-inside: avoid; }
+  .albuм-sayfa img { max-width: 100%; max-height: 75vh; object-fit: contain; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,.15); }
+  .meta { margin-top: 14px; text-align: center; }
+  .meta .ad { font-size: 14pt; font-weight: 600; color: #1a5fa8; }
+  .meta .bg { font-size: 11pt; color: #dc2626; margin-top: 4px; }
+  .yazdir-btn { position: fixed; top: 8px; right: 8px; padding: 10px 16px; background: #7c3aed; color: white; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; box-shadow: 0 3px 10px rgba(0,0,0,.2); z-index: 9999; }
+  @media print { .yazdir-btn { display: none; } }
+</style>
+</head>
+<body>
+<button class="yazdir-btn" onclick="window.print()">🖨️ Yazdır / PDF Olarak Kaydet</button>
+
+<div class="kapak">
+  <h1>VOYAGO</h1>
+  <div class="alt">Anı Albümü</div>
+  <div class="gemi">🚢 ${escapeHTML(gemiAd)} · ${escapeHTML(seferLabel)}</div>
+  <div class="stats">
+    📷 ${ALBUM_FOTOGRAFLAR.length} fotoğraf<br>
+    👥 ${new Set(ALBUM_FOTOGRAFLAR.map(f => f.yolcu_kabin)).size} yolcu paylaştı
+  </div>
+</div>
+
+${sayfalar}
+
+<sc${''}ript>
+  // Resimlerin yüklenmesini bekle (PDF için)
+  let yuklenen = 0;
+  const toplam = document.querySelectorAll('img').length;
+  document.querySelectorAll('img').forEach(img => {
+    if(img.complete) yuklenen++;
+    else {
+      img.onload = img.onerror = () => {
+        yuklenen++;
+        if(yuklenen === toplam) setTimeout(() => window.print(), 600);
+      };
+    }
+  });
+  if(yuklenen === toplam) setTimeout(() => window.print(), 600);
+</sc${''}ript>
+</body>
+</html>`;
+
+  const w = window.open('', '_blank', 'width=900,height=700');
+  if(!w){ showToast('Pop-up engellendi'); return; }
+  w.document.write(html);
+  w.document.close();
+  showToast('📸 Albüm açılıyor...');
+}
+
+// ══ FOTOĞRAF YARIŞMASI SİSTEMİ ══
+
+// Yolcu tarafı — yarışma kartını albümde göster
+async function renderYarismaKarti(){
+  const el = document.getElementById('yarisma-karti');
+  if(!el) return;
+
+  const sid = CP?.sefer;
+  if(!sid) { el.style.display = 'none'; return; }
+
+  const v = VOYAGES.find(x => x.id === sid);
+  if(!v) { el.style.display = 'none'; return; }
+
+  // Sefer kapatılmış mı?
+  if(v.yarisma_durumu === 'kapali'){
+    // Kazanan açıklandı
+    const kazananId = v.yarisma_kazanan;
+    if(!kazananId){
+      el.style.display = 'none';
+      return;
+    }
+    // ALBUM_FOTOGRAFLAR'da bul
+    const kazanFoto = ALBUM_FOTOGRAFLAR.find(f => f.id === kazananId);
+    if(!kazanFoto){
+      el.style.display = 'none';
+      return;
+    }
+    const benKazandimMi = kazanFoto.yolcu_kabin === CP?.kabin;
+
+    el.style.display = 'block';
+    el.innerHTML = `
+      <div style="background:linear-gradient(135deg,#fbbf24,#f59e0b);border-radius:16px;padding:16px;color:white;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-15px;right:-15px;font-size:80px;opacity:.2;">🏆</div>
+        <div style="font-size:12px;opacity:.9;margin-bottom:2px;">🏆 YARIŞMA SONUCU</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:20px;line-height:1.2;margin-bottom:8px;">${benKazandimMi ? '🎉 Tebrikler! Sen kazandın!' : 'Kazanan açıklandı'}</div>
+        <div style="display:flex;gap:10px;align-items:center;background:rgba(255,255,255,.15);border-radius:12px;padding:8px;">
+          <img src="${escapeHTML(kazanFoto.resim_url)}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;flex-shrink:0;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:700;">${escapeHTML(kazanFoto.yolcu_ad||'Misafir')}</div>
+            <div style="font-size:11px;opacity:.9;">❤️ ${kazanFoto.begeniler||0} beğeni</div>
+          </div>
+          ${benKazandimMi ? `<button onclick="yarismaSertifikaIndir()" style="background:white;color:#d97706;border:none;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0;">📜 Sertifika</button>` : ''}
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // Yarışma aktif — top 3 lider tablosu
+  if(!ALBUM_FOTOGRAFLAR.length){
+    el.style.display = 'block';
+    el.innerHTML = `
+      <div style="background:linear-gradient(135deg,#dbeafe,#bfdbfe);border:1.5px solid #1a5fa8;border-radius:14px;padding:14px 16px;">
+        <div style="font-size:13px;font-weight:700;color:#0d3b6e;margin-bottom:4px;display:flex;align-items:center;gap:6px;">
+          🏆 Fotoğraf Yarışması
+        </div>
+        <div style="font-size:11px;color:#0d3b6e;line-height:1.5;">
+          En çok beğeni alan yolcu kazanır! Fotoğraf yükleyin, beğeni toplayın 🎉
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // Top 3
+  const sirali = [...ALBUM_FOTOGRAFLAR].sort((a,b) => (b.begeniler||0) - (a.begeniler||0));
+  const top3 = sirali.slice(0, 3);
+  const lider = top3[0];
+
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div style="background:linear-gradient(135deg,#fbbf24,#f59e0b);border-radius:16px;padding:14px 16px;color:white;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div>
+          <div style="font-size:11px;opacity:.9;">🏆 FOTOĞRAF YARIŞMASI</div>
+          <div style="font-size:14px;font-weight:700;">Sefer sonunda kazanan açıklanır</div>
+        </div>
+        <div style="background:rgba(255,255,255,.25);padding:5px 10px;border-radius:20px;font-size:11px;font-weight:600;">DEVAM EDİYOR</div>
+      </div>
+      <div style="background:rgba(255,255,255,.15);border-radius:10px;padding:8px 10px;">
+        <div style="font-size:10px;opacity:.85;margin-bottom:4px;">⭐ Lider:</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div style="font-size:18px;">🥇</div>
+          <div style="flex:1;min-width:0;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(lider.yolcu_ad||'Misafir')}</div>
+          <div style="font-size:12px;font-weight:700;">❤️ ${lider.begeniler||0}</div>
+        </div>
+        ${top3.length > 1 ? `<div style="font-size:10px;opacity:.85;margin-top:6px;line-height:1.4;">
+          🥈 ${escapeHTML(top3[1].yolcu_ad||'')} (${top3[1].begeniler||0} ❤️)
+          ${top3.length > 2 ? '<br>🥉 '+escapeHTML(top3[2].yolcu_ad||'')+' ('+(top3[2].begeniler||0)+' ❤️)' : ''}
+        </div>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+// Rehber tarafı — yarışma admin panelini render et
+async function renderYarismaAdmin(){
+  const durumEl = document.getElementById('yarisma-admin-durum');
+  const siralamaEl = document.getElementById('yarisma-siralama');
+  const aksiyonEl = document.getElementById('yarisma-aksiyonlar');
+  if(!durumEl || !siralamaEl) return;
+
+  const sid = getCurrentSeferId();
+  if(!sid){
+    durumEl.innerHTML = '<div style="background:#fef3c7;border-radius:12px;padding:14px;color:#92400e;font-size:13px;">⚠️ Aktif sefer yok</div>';
+    siralamaEl.innerHTML = '';
+    aksiyonEl.innerHTML = '';
+    return;
+  }
+
+  const v = VOYAGES.find(x => x.id === sid);
+  if(!v){ return; }
+
+  // DB'den fotoğrafları çek
+  try {
+    const { data, error } = await sb.from('sefer_albumu')
+      .select('*')
+      .eq('sefer_id', sid)
+      .order('begeniler', { ascending: false });
+    if(error) throw error;
+    ALBUM_FOTOGRAFLAR = data || [];
+  } catch(e){
+    console.error('Yarışma yükleme:', e);
+    siralamaEl.innerHTML = '<div style="color:#dc2626;font-size:12px;text-align:center;padding:20px;">Yüklenemedi</div>';
+    return;
+  }
+
+  const kapali = v.yarisma_durumu === 'kapali';
+  const kazananId = v.yarisma_kazanan;
+
+  // Durum kartı
+  if(kapali && kazananId){
+    const kazanFoto = ALBUM_FOTOGRAFLAR.find(f => f.id === kazananId);
+    durumEl.innerHTML = `
+      <div style="background:linear-gradient(135deg,#16a34a,#15803d);border-radius:14px;padding:14px 16px;color:white;">
+        <div style="font-size:11px;opacity:.9;margin-bottom:3px;">✓ YARIŞMA TAMAMLANDI</div>
+        <div style="font-size:14px;font-weight:700;margin-bottom:8px;">Kazanan: ${escapeHTML(kazanFoto?.yolcu_ad||'')}</div>
+        <div style="font-size:11px;opacity:.9;">❤️ ${kazanFoto?.begeniler||0} beğeni ile kazandı</div>
+      </div>
+    `;
+  } else if(ALBUM_FOTOGRAFLAR.length === 0){
+    durumEl.innerHTML = `
+      <div style="background:#fef3c7;border-radius:14px;padding:14px 16px;border-left:3px solid #f59e0b;">
+        <div style="font-size:13px;color:#92400e;font-weight:600;margin-bottom:3px;">⏳ Henüz fotoğraf yok</div>
+        <div style="font-size:11px;color:#78350f;line-height:1.5;">Yolcuların albümde fotoğraf paylaşması ve beğeni toplaması bekleniyor.</div>
+      </div>
+    `;
+  } else {
+    const farkliYolcu = new Set(ALBUM_FOTOGRAFLAR.map(f => f.yolcu_kabin)).size;
+    const toplamBegeni = ALBUM_FOTOGRAFLAR.reduce((a,f) => a + (f.begeniler||0), 0);
+    durumEl.innerHTML = `
+      <div style="background:linear-gradient(135deg,#dbeafe,#bfdbfe);border:1.5px solid #1a5fa8;border-radius:14px;padding:14px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center;">
+          <div>
+            <div style="font-size:20px;font-weight:700;color:#0d3b6e;">${ALBUM_FOTOGRAFLAR.length}</div>
+            <div style="font-size:10px;color:#1e40af;">📷 Fotoğraf</div>
+          </div>
+          <div>
+            <div style="font-size:20px;font-weight:700;color:#0d3b6e;">${farkliYolcu}</div>
+            <div style="font-size:10px;color:#1e40af;">👥 Yolcu</div>
+          </div>
+          <div>
+            <div style="font-size:20px;font-weight:700;color:#dc2626;">${toplamBegeni}</div>
+            <div style="font-size:10px;color:#1e40af;">❤️ Beğeni</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Sıralama listesi
+  if(!ALBUM_FOTOGRAFLAR.length){
+    siralamaEl.innerHTML = '<div style="text-align:center;padding:20px;color:#888;font-size:12px;">Henüz fotoğraf paylaşılmadı</div>';
+  } else {
+    siralamaEl.innerHTML = ALBUM_FOTOGRAFLAR.slice(0, 10).map((f, i) => {
+      const sira = i + 1;
+      let madalya = '', renkBg = 'white';
+      if(sira === 1){ madalya = '🥇'; renkBg = '#fef3c7'; }
+      else if(sira === 2){ madalya = '🥈'; renkBg = '#f3f4f6'; }
+      else if(sira === 3){ madalya = '🥉'; renkBg = '#fed7aa'; }
+      else madalya = sira + '.';
+
+      const benKazanan = kapali && f.id === kazananId;
+
+      return `
+        <div style="background:${renkBg};border:${benKazanan?'2px solid #16a34a':'1px solid #e5e7eb'};border-radius:10px;padding:10px;display:flex;gap:10px;align-items:center;">
+          <div style="font-size:20px;width:30px;text-align:center;flex-shrink:0;">${madalya}</div>
+          <img src="${escapeHTML(f.resim_url)}" style="width:46px;height:46px;object-fit:cover;border-radius:8px;flex-shrink:0;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:600;color:#1a1a1a;">${escapeHTML(f.yolcu_ad||'')}</div>
+            <div style="font-size:11px;color:#666;">Kabin ${escapeHTML(f.yolcu_kabin||'?')}</div>
+          </div>
+          <div style="background:#fee2e2;color:#dc2626;padding:5px 12px;border-radius:14px;font-size:13px;font-weight:700;flex-shrink:0;">❤️ ${f.begeniler||0}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Aksiyon butonları
+  if(kapali){
+    aksiyonEl.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button onclick="yarismaKazanaWA('${kazananId}')" style="width:100%;padding:13px;background:#25d366;color:white;border:none;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">📱 Kazanana WhatsApp Tebrik Gönder</button>
+        <button onclick="yarismaSertifikaPDF('${kazananId}', true)" style="width:100%;padding:13px;background:#7c3aed;color:white;border:none;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">📜 Sertifika PDF Yazdır</button>
+        <button onclick="yarismaSifirla()" style="width:100%;padding:11px;background:transparent;border:1px solid #dc2626;color:#dc2626;border-radius:12px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">↺ Yarışmayı Tekrar Aç</button>
+      </div>
+    `;
+  } else if(ALBUM_FOTOGRAFLAR.length > 0){
+    aksiyonEl.innerHTML = `
+      <button onclick="yarismaKazaniIlanEt()" style="width:100%;padding:14px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;box-shadow:0 4px 12px rgba(245,158,11,.3);">
+        🎉 Kazananı İlan Et
+      </button>
+      <div style="font-size:11px;color:#666;margin-top:8px;text-align:center;line-height:1.5;">
+        Lider yolcu kazanan olarak ilan edilir, tüm yolculara bildirim gider
+      </div>
+    `;
+  } else {
+    aksiyonEl.innerHTML = '';
+  }
+}
+
+// Kazananı ilan et
+async function yarismaKazaniIlanEt(){
+  const sid = getCurrentSeferId();
+  if(!sid){ showToast('Sefer yok'); return; }
+  const v = VOYAGES.find(x => x.id === sid);
+  if(!v){ return; }
+
+  if(!ALBUM_FOTOGRAFLAR.length){
+    showToast('⚠️ Henüz fotoğraf yok');
+    return;
+  }
+
+  const sirali = [...ALBUM_FOTOGRAFLAR].sort((a,b) => (b.begeniler||0) - (a.begeniler||0));
+  const kazanan = sirali[0];
+
+  if(!confirm('🏆 Kazanan:\n\n' + (kazanan.yolcu_ad||'') + ' (Kabin ' + (kazanan.yolcu_kabin||'') + ')\n' + (kazanan.begeniler||0) + ' beğeni\n\nİlan edilsin mi? Bu işlem tüm yolculara bildirim gönderir.')) return;
+
+  try {
+    // DB'de seferi güncelle
+    await sb.from('seferler').update({
+      yarisma_kazanan: kazanan.id,
+      yarisma_durumu: 'kapali'
+    }).eq('id', sid);
+
+    // Local state
+    v.yarisma_kazanan = kazanan.id;
+    v.yarisma_durumu = 'kapali';
+
+    // Tüm yolculara push gönder
+    try {
+      if(typeof pushGonder === 'function'){
+        await pushGonder({
+          sefer: sid,
+          baslik: '🏆 Yarışma Kazananı!',
+          mesaj: 'Fotoğraf yarışmasının kazananı: ' + (kazanan.yolcu_ad||'') + ' (Kabin ' + (kazanan.yolcu_kabin||'') + ') · ' + (kazanan.begeniler||0) + ' beğeni! 🎉'
+        });
+      }
+    } catch(e){ console.log('Push:', e); }
+
+    showToast('🎉 Kazanan ilan edildi: ' + (kazanan.yolcu_ad||''));
+    renderYarismaAdmin();
+  } catch(e){
+    console.error('Yarışma ilan hata:', e);
+    showToast('⚠️ Hata: ' + (e.message||''));
+  }
+}
+
+// Yarışmayı sıfırla
+async function yarismaSifirla(){
+  if(!confirm('Yarışma sonucu sıfırlansın mı?\n(Beğeniler korunur, sadece kazanan ilanı kalkar)')) return;
+
+  const sid = getCurrentSeferId();
+  if(!sid) return;
+  const v = VOYAGES.find(x => x.id === sid);
+  if(!v) return;
+
+  try {
+    await sb.from('seferler').update({
+      yarisma_kazanan: null,
+      yarisma_durumu: 'aktif'
+    }).eq('id', sid);
+    v.yarisma_kazanan = null;
+    v.yarisma_durumu = 'aktif';
+    showToast('↺ Yarışma yeniden açıldı');
+    renderYarismaAdmin();
+  } catch(e){
+    console.error(e);
+    showToast('⚠️ Hata');
+  }
+}
+
+// Kazanana WhatsApp tebrik
+function yarismaKazanaWA(kazananId){
+  const foto = ALBUM_FOTOGRAFLAR.find(f => f.id === kazananId);
+  if(!foto){ showToast('Kazanan bulunamadı'); return; }
+
+  // Yolcunun telefonu
+  const p = passengers.find(x => x.kabin === foto.yolcu_kabin && x.sefer === foto.sefer_id);
+  if(!p || !p.tel){ showToast('⚠️ Yolcu telefonu eksik'); return; }
+
+  const ham = (p.tel || '').replace(/[^0-9]/g, '');
+  if(!ham || ham.length < 10){ showToast('⚠️ Geçersiz telefon'); return; }
+
+  const rehberAdi = (CU && CU.name) ? CU.name : 'Rehberiniz';
+  const v = VOYAGES.find(x => x.id === foto.sefer_id);
+  const ilkAd = (p.name||'').split(' ')[0];
+
+  const lines = [
+    '🏆 *VOYAGO Fotoğraf Yarışması*',
+    '',
+    'Sevgili *' + ilkAd + '*,',
+    '',
+    '🎉 Tebrikler! Fotoğraf yarışmamızın *birincisi* siz oldunuz!',
+    '',
+    '❤️ *' + (foto.begeniler||0) + ' beğeni* ile diğer tüm yolcuları geride bıraktınız.',
+    '',
+    '🚢 ' + (v?.ship || '') + (v?.label ? ' · ' + v.label : ''),
+    '',
+    'Anınızı paylaştığınız için teşekkür ederiz. Ödülünüzle ilgili detaylar için bana yazabilirsiniz.',
+    '',
+    '_— ' + rehberAdi + '_'
+  ];
+
+  const text = encodeURIComponent(lines.join('\n'));
+  window.open('https://wa.me/' + ham + '?text=' + text, '_blank');
+  showToast('📱 WhatsApp açılıyor...');
+}
+
+// Sertifika PDF — hem rehber hem yolcu kullanır
+async function yarismaSertifikaPDF(kazananId, otomatikYazdir){
+  const foto = ALBUM_FOTOGRAFLAR.find(f => f.id === kazananId);
+  if(!foto){ showToast('Kazanan bulunamadı'); return; }
+
+  const v = VOYAGES.find(x => x.id === foto.sefer_id);
+  const seferLabel = v?.label || 'Sefer';
+  const gemiAd = v?.ship || '';
+  const rehberAdi = (CU && CU.name) ? CU.name : 'VOYAGO Rehber';
+  const bugun = new Date().toLocaleDateString('tr-TR', { day:'numeric', month:'long', year:'numeric' });
+
+  const html = `<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Sertifika — ${escapeHTML(foto.yolcu_ad||'')}</title>
+<style>
+  @page { size: A4 landscape; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; }
+  body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fbbf24 100%);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    min-height: 100vh;
+  }
+  .sertifika {
+    width: 100%;
+    max-width: 1000px;
+    aspect-ratio: 1.414;
+    background: white;
+    border-radius: 12px;
+    padding: 50px 60px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.2);
+    position: relative;
+    border: 3px solid #d97706;
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    text-align: center;
+  }
+  .sertifika::before {
+    content: '';
+    position: absolute;
+    inset: 12px;
+    border: 1px solid #f59e0b;
+    border-radius: 8px;
+    pointer-events: none;
+  }
+  .ust { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .voyago { font-family: Georgia, serif; font-size: 36pt; color: #0d3b6e; letter-spacing: 4px; font-weight: 700; }
+  .alt-baslik { font-size: 13pt; color: #92400e; letter-spacing: 6px; text-transform: uppercase; }
+  .ana { display: flex; flex-direction: column; align-items: center; gap: 16px; flex: 1; justify-content: center; width: 100%; }
+  .madalya { font-size: 72pt; }
+  .basari-yazi { font-size: 14pt; color: #555; }
+  .kazanan-adi {
+    font-family: 'Brush Script MT', cursive, Georgia;
+    font-size: 48pt;
+    color: #0d3b6e;
+    font-weight: 700;
+    border-bottom: 2px solid #f59e0b;
+    padding-bottom: 8px;
+    margin: 4px 0;
+  }
+  .aciklama {
+    font-size: 12pt;
+    color: #555;
+    line-height: 1.6;
+    max-width: 600px;
+  }
+  .vurgu {
+    font-size: 18pt;
+    color: #d97706;
+    font-weight: 700;
+    margin: 8px 0;
+  }
+  .sefer-detay {
+    background: #fef3c7;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 11pt;
+    color: #78350f;
+  }
+  .alt-bilgi {
+    display: flex; justify-content: space-between;
+    width: 100%;
+    align-items: flex-end;
+    margin-top: 12px;
+  }
+  .imza-alani {
+    border-top: 1.5px solid #1a1a1a;
+    padding-top: 6px;
+    min-width: 200px;
+    font-size: 10pt;
+    color: #555;
+    text-align: center;
+  }
+  .tarih { font-size: 10pt; color: #888; }
+  .yazdir-btn {
+    position: fixed; top: 8px; right: 8px;
+    padding: 10px 16px; background: #7c3aed; color: white;
+    border: none; border-radius: 8px; font-size: 13px;
+    cursor: pointer; box-shadow: 0 3px 10px rgba(0,0,0,.2);
+    font-family: -apple-system, sans-serif; z-index: 9999;
+  }
+  @media print {
+    .yazdir-btn { display: none; }
+    body { padding: 0; background: white; }
+    .sertifika { box-shadow: none; border: 3px solid #d97706; }
+  }
+</style>
+</head>
+<body>
+<button class="yazdir-btn" onclick="window.print()">🖨️ Yazdır / PDF Kaydet</button>
+
+<div class="sertifika">
+  <div class="ust">
+    <div class="voyago">VOYAGO</div>
+    <div class="alt-baslik">★ Başarı Sertifikası ★</div>
+  </div>
+
+  <div class="ana">
+    <div class="madalya">🏆</div>
+    <div class="basari-yazi">Bu sertifika</div>
+    <div class="kazanan-adi">${escapeHTML(foto.yolcu_ad||'Misafirimiz')}</div>
+    <div class="aciklama">
+      VOYAGO Sefer Albümü Fotoğraf Yarışması'nda<br>
+      <span class="vurgu">BİRİNCİ</span><br>
+      olduğunu belgeler.
+    </div>
+    <div class="sefer-detay">
+      🚢 ${escapeHTML(gemiAd)} · ${escapeHTML(seferLabel)} · ❤️ ${foto.begeniler||0} beğeni
+    </div>
+  </div>
+
+  <div class="alt-bilgi">
+    <div class="tarih">📅 ${escapeHTML(bugun)}</div>
+    <div class="imza-alani">${escapeHTML(rehberAdi)}<br><span style="font-size:8pt;color:#888;">VOYAGO Rehberi</span></div>
+  </div>
+</div>
+
+${otomatikYazdir ? `<sc${''}ript>
+  window.addEventListener('load', () => setTimeout(() => window.print(), 500));
+</sc${''}ript>` : ''}
+</body>
+</html>`;
+
+  const w = window.open('', '_blank', 'width=1100,height=750');
+  if(!w){ showToast('Pop-up engellendi'); return; }
+  w.document.write(html);
+  w.document.close();
+  showToast('📜 Sertifika açılıyor...');
+}
+
+// Yolcu için sertifika indir (kendi sertifikası)
+function yarismaSertifikaIndir(){
+  const sid = CP?.sefer;
+  const v = VOYAGES.find(x => x.id === sid);
+  if(!v || !v.yarisma_kazanan){
+    showToast('Sertifika hazır değil');
+    return;
+  }
+  yarismaSertifikaPDF(v.yarisma_kazanan, true);
+}
+
 // ══ LİMAN BİLGİLERİ SİSTEMİ ══
 
 let LIMAN_BILGILERI = [];
@@ -6360,7 +7284,9 @@ async function loadVoyagesFromDB(){
         id:s.id, label:s.etiket, route:s.guzergah||'',
         ship:s.gemi||'', guide:s.rehber_adi||'',
         status:s.durum||'active', visible:s.gorunur!==false,
-        startDate:s.baslangic||'', endDate:s.bitis||''
+        startDate:s.baslangic||'', endDate:s.bitis||'',
+        yarisma_kazanan: s.yarisma_kazanan || null,
+        yarisma_durumu: s.yarisma_durumu || 'aktif'
       });
     });
   }catch(e){ console.error('Sefer yükleme hatası:', e); }
@@ -6872,6 +7798,7 @@ function adminTab(name){
   if(name==='dashboard') setTimeout(()=>{ if(typeof renderDashboard === 'function') renderDashboard(); }, 100);
   if(name==='bil') setTimeout(()=>{ if(typeof renderSablonlar === 'function') renderSablonlar(); }, 100);
   if(name==='limanbilgi') setTimeout(()=>{ if(typeof renderLimanListesi === 'function') renderLimanListesi(); }, 100);
+  if(name==='yarisma') setTimeout(()=>{ if(typeof renderYarismaAdmin === 'function') renderYarismaAdmin(); }, 100);
   if(name==='gz')renderGazeteAdmin();
   if(name==='gunluk'){initDailyForms();setTimeout(renderGsAdmin,200);}
   if(name==='tur'){
@@ -6997,6 +7924,7 @@ function switchTab(name){
   document.getElementById('tab-'+name).classList.add('active');
   document.getElementById('nb-'+name).classList.add('active');
   if(name==='gelecek')renderGelecekTurlar();
+  if(name==='albuм'){ if(typeof renderAlbuм === 'function') renderAlbuм(); }
   if(name==='anket'){
     if(CP){
       // ÖNCE global anket sorularını çek (sefer bağımsız, kalıcı)
