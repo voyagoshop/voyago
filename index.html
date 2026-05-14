@@ -1121,7 +1121,8 @@ textarea.ai2{resize:none;}
     </div>
   </div>
     <div class="atsw" id="rehber-menu" style="display:none;">
-      <button class="att active" id="ratab-ci" onclick="adminTab('ci')"><span class="aico">✅</span><span>Check-in</span></button>
+      <button class="att active" id="ratab-dashboard" onclick="adminTab('dashboard')"><span class="aico">📊</span><span>Özet</span></button>
+      <button class="att" id="ratab-ci" onclick="adminTab('ci')"><span class="aico">✅</span><span>Check-in</span></button>
       <button class="att" id="ratab-gunluk" onclick="adminTab('gunluk')"><span class="aico">📅</span><span>Günlük</span></button>
       <button class="att" id="ratab-tur" onclick="adminTab('tur')"><span class="aico">🗺️</span><span>Turlar</span></button>
       <button class="att" id="ratab-gz" onclick="adminTab('gz')"><span class="aico">📰</span><span>Gazete</span></button>
@@ -1202,8 +1203,18 @@ textarea.ai2{resize:none;}
       <div id="tum-kullanici-list"></div>
     </div>
 
+    <!-- DASHBOARD - Rehber Anasayfa Özeti -->
+    <div id="admin-dashboard" class="apg active">
+      <div id="dashboard-icerik" style="display:flex;flex-direction:column;gap:12px;">
+        <div style="text-align:center;padding:40px 20px;color:#888;">
+          <div style="font-size:40px;margin-bottom:10px;">⏳</div>
+          <div>Dashboard yükleniyor...</div>
+        </div>
+      </div>
+    </div>
+
     <!-- CHECK-IN -->
-    <div id="admin-ci" class="apg active">
+    <div id="admin-ci" class="apg">
       <!-- TOPLU WHATSAPP DUYURU -->
       <div style="background:linear-gradient(135deg,#075e54,#128c7e);border-radius:14px;padding:12px 14px;margin-bottom:12px;">
         <div style="font-size:13px;font-weight:600;color:white;margin-bottom:8px;">📢 Tüm Yolculara WhatsApp Duyurusu</div>
@@ -3617,7 +3628,7 @@ async function setupAdmin(){
 
   // Rehber için aktif sekmeyi yükle
   if(isGuide){
-    adminTab('ci');
+    adminTab('dashboard');
     // Günlük veriyi taze çek
     const svNow = getCurrentSeferId();
     if(svNow){
@@ -4047,6 +4058,248 @@ function saveYemek(){
 // ── CHECK-IN ──
 function filterPS(el,s){document.querySelectorAll('#af .fc').forEach(c=>c.classList.remove('active'));el.classList.add('active');CASF=s;renderPS(s);}
 function filterCI(el,f){document.querySelectorAll('.ct').forEach(b=>b.classList.remove('active'));el.classList.add('active');CIF=f;renderPS(CASF);}
+// ══ DASHBOARD - Rehber Anasayfa Özeti ══
+function renderDashboard(){
+  const el = document.getElementById('dashboard-icerik');
+  if(!el) return;
+
+  // Aktif sefer
+  const sid = getCurrentSeferId();
+  const v = VOYAGES.find(x => x.id === sid);
+  if(!v){
+    el.innerHTML = `
+      <div style="background:white;border-radius:14px;padding:30px 20px;text-align:center;">
+        <div style="font-size:48px;margin-bottom:12px;">🚢</div>
+        <div style="font-size:16px;font-weight:600;color:#1a1a1a;margin-bottom:6px;">Aktif sefer yok</div>
+        <div style="font-size:13px;color:#666;line-height:1.5;">Seferler sekmesinden yeni bir sefer oluşturun veya mevcut seferi aktif yapın.</div>
+        <button onclick="adminTab('sef')" style="margin-top:16px;padding:10px 20px;background:#1a5fa8;color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">Seferlere Git</button>
+      </div>
+    `;
+    return;
+  }
+
+  // Bu seferin yolcuları (arşivli olmayan)
+  const seferYolculari = passengers.filter(p => p.sefer === sid && !p.arsivli);
+  const toplamYolcu = seferYolculari.length;
+  const checkInYapan = seferYolculari.filter(p => p.checkinDone).length;
+  const checkInYapmayan = toplamYolcu - checkInYapan;
+  const telVarOlanlar = seferYolculari.filter(p => p.tel && p.tel.replace(/[^0-9]/g,'').length >= 10).length;
+  const telEksikOlanlar = toplamYolcu - telVarOlanlar;
+
+  // Toplam kişi (Y+Ç+B)
+  const toplamKisi = seferYolculari.reduce((a,p) => a + (p.adult||0) + (p.child||0) + (p.baby||0), 0);
+
+  // Aktif turlar (bu seferin turları)
+  const seferTurlari = TOURS.filter(t =>
+    t.aktif !== false && (
+      !t.seferler || t.seferler.length === 0 || t.seferler.includes(sid)
+    )
+  );
+  const toplamTur = seferTurlari.length;
+
+  // Tur katılımları
+  let toplamKatilim = 0;
+  let toplamGelir = 0;
+  let turDolulukOranlari = [];
+  seferTurlari.forEach(t => {
+    const katilan = seferYolculari.filter(p => (p.joinedTours||[]).includes(t.id));
+    const kabinSayi = katilan.length;
+    toplamKatilim += kabinSayi;
+    katilan.forEach(p => {
+      const det = (p.tur_katilim_detay && p.tur_katilim_detay[t.id]) || null;
+      const ucret = det ? (det.ucret||0) : ((p.adult||0)*t.ap + (p.child||0)*t.cp + (p.baby||0)*t.bp);
+      toplamGelir += ucret;
+    });
+    // Kapasite varsa doluluk
+    if(t.kapasite && t.kapasite > 0){
+      const kisi = katilan.reduce((a,p) => {
+        const det = p.tur_katilim_detay?.[t.id];
+        return a + (det ? det.kisi : (p.adult||0)+(p.child||0)+(p.baby||0));
+      }, 0);
+      const oran = Math.round((kisi / t.kapasite) * 100);
+      turDolulukOranlari.push({ t, kisi, oran });
+    }
+  });
+
+  // Tur almayanlar
+  const turAlmayanlar = seferYolculari.filter(p => !p.joinedTours || p.joinedTours.length === 0);
+
+  // En popüler tur
+  let enPopuler = null;
+  let enPopulerKisi = 0;
+  seferTurlari.forEach(t => {
+    const katilan = seferYolculari.filter(p => (p.joinedTours||[]).includes(t.id));
+    const kisi = katilan.reduce((a,p) => {
+      const det = p.tur_katilim_detay?.[t.id];
+      return a + (det ? det.kisi : (p.adult||0)+(p.child||0)+(p.baby||0));
+    }, 0);
+    if(kisi > enPopulerKisi){
+      enPopulerKisi = kisi;
+      enPopuler = t;
+    }
+  });
+
+  // Bugünkü turlar — günlük programdan port bilgisi al
+  const dailyData = (typeof getDailyForSefer === 'function') ? getDailyForSefer(sid) : null;
+  const bugunLiman = dailyData?.port?.name || '';
+  const bugunkuTurlar = bugunLiman ? seferTurlari.filter(t =>
+    t.liman && t.liman.toLowerCase().includes(bugunLiman.toLowerCase().split(',')[0])
+  ) : [];
+
+  // Sefer günü hesaplaması
+  let gunBilgisi = '';
+  if(v.startDate){
+    const baslangic = new Date(v.startDate);
+    const bugun = new Date();
+    bugun.setHours(0,0,0,0); baslangic.setHours(0,0,0,0);
+    const gunFark = Math.floor((bugun - baslangic) / (1000*60*60*24)) + 1;
+    if(gunFark > 0 && gunFark <= 30){
+      gunBilgisi = gunFark + '. Gün';
+    } else if(gunFark <= 0){
+      gunBilgisi = Math.abs(gunFark) + ' gün sonra başlıyor';
+    } else {
+      gunBilgisi = 'Tamamlandı';
+    }
+  }
+
+  // Renkli durum
+  const ciOran = toplamYolcu > 0 ? Math.round((checkInYapan / toplamYolcu) * 100) : 0;
+  const turOran = toplamYolcu > 0 ? Math.round((seferYolculari.filter(p => p.joinedTours && p.joinedTours.length > 0).length / toplamYolcu) * 100) : 0;
+
+  const rehberAdi = (CU && CU.name) ? CU.name.split(' ')[0] : 'Rehber';
+  const saatStr = new Date().toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'});
+
+  el.innerHTML = `
+    <!-- Selamlama Banner -->
+    <div style="background:linear-gradient(135deg,#1a5fa8,#0d3b6e);border-radius:16px;padding:18px 20px;color:white;">
+      <div style="font-size:11px;opacity:.85;margin-bottom:3px;">${saatStr} · ${gunBilgisi || 'Sefer'}</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:20px;line-height:1.3;">Merhaba ${escapeHTML(rehberAdi)} 👋</div>
+      <div style="font-size:13px;opacity:.9;margin-top:4px;">🚢 ${escapeHTML(v.ship||'')} · ${escapeHTML(v.label||'')}</div>
+    </div>
+
+    ${bugunLiman ? `
+    <!-- Bugünkü Liman -->
+    <div style="background:linear-gradient(135deg,#16a34a,#15803d);border-radius:14px;padding:14px 16px;color:white;">
+      <div style="font-size:11px;opacity:.85;margin-bottom:2px;">📍 Bugün</div>
+      <div style="font-size:17px;font-weight:700;">${escapeHTML(bugunLiman)}</div>
+      ${bugunkuTurlar.length ? `<div style="font-size:12px;opacity:.9;margin-top:6px;">🚌 ${bugunkuTurlar.length} tur planlı</div>` : ''}
+    </div>
+    ` : ''}
+
+    <!-- Hızlı Sayılar Grid -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div onclick="adminTab('ci')" style="background:white;border-radius:12px;padding:14px;cursor:pointer;border:1px solid #f0f0f0;transition:transform .15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+        <div style="font-size:11px;color:#888;margin-bottom:4px;">👥 Yolcular</div>
+        <div style="font-size:24px;font-weight:700;color:#1a5fa8;line-height:1;">${toplamYolcu}</div>
+        <div style="font-size:11px;color:#16a34a;margin-top:4px;">${checkInYapan} check-in (${ciOran}%)</div>
+      </div>
+      <div onclick="adminTab('ci')" style="background:white;border-radius:12px;padding:14px;cursor:pointer;border:1px solid #f0f0f0;transition:transform .15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+        <div style="font-size:11px;color:#888;margin-bottom:4px;">🧑‍🤝‍🧑 Toplam Kişi</div>
+        <div style="font-size:24px;font-weight:700;color:#1a5fa8;line-height:1;">${toplamKisi}</div>
+        <div style="font-size:11px;color:#666;margin-top:4px;">${toplamYolcu} kabin</div>
+      </div>
+      <div onclick="adminTab('tur')" style="background:white;border-radius:12px;padding:14px;cursor:pointer;border:1px solid #f0f0f0;transition:transform .15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+        <div style="font-size:11px;color:#888;margin-bottom:4px;">🗺️ Turlar</div>
+        <div style="font-size:24px;font-weight:700;color:#7c3aed;line-height:1;">${toplamTur}</div>
+        <div style="font-size:11px;color:#666;margin-top:4px;">${toplamKatilim} kabin kayıt</div>
+      </div>
+      <div onclick="adminTab('tur')" style="background:white;border-radius:12px;padding:14px;cursor:pointer;border:1px solid #f0f0f0;transition:transform .15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+        <div style="font-size:11px;color:#888;margin-bottom:4px;">💰 Toplam Gelir</div>
+        <div style="font-size:24px;font-weight:700;color:#16a34a;line-height:1;">€${toplamGelir}</div>
+        <div style="font-size:11px;color:#666;margin-top:4px;">tur satışı</div>
+      </div>
+    </div>
+
+    ${enPopuler ? `
+    <!-- En Popüler Tur -->
+    <div style="background:linear-gradient(135deg,#fbbf24,#f59e0b);border-radius:14px;padding:14px 16px;color:white;">
+      <div style="font-size:11px;opacity:.9;margin-bottom:2px;">🏆 En Popüler Tur</div>
+      <div style="font-size:15px;font-weight:700;line-height:1.3;">${escapeHTML(enPopuler.name)}</div>
+      <div style="font-size:12px;opacity:.95;margin-top:4px;">${enPopulerKisi} kişi katılıyor</div>
+    </div>
+    ` : ''}
+
+    ${turDolulukOranlari.length ? `
+    <!-- Tur Doluluk -->
+    <div style="background:white;border-radius:14px;padding:14px;border:1px solid #f0f0f0;">
+      <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+        📊 <span>Tur Doluluk Durumu</span>
+      </div>
+      ${turDolulukOranlari.slice(0,5).map(({t, kisi, oran}) => {
+        const renk = oran >= 90 ? '#dc2626' : oran >= 70 ? '#f59e0b' : '#16a34a';
+        return `
+          <div style="margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <div style="font-size:12px;color:#1a1a1a;font-weight:500;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHTML(t.name)}</div>
+              <div style="font-size:11px;color:${renk};font-weight:700;margin-left:8px;flex-shrink:0;">${kisi}/${t.kapasite} (${oran}%)</div>
+            </div>
+            <div style="background:#f3f4f6;height:6px;border-radius:3px;overflow:hidden;">
+              <div style="background:${renk};height:100%;width:${Math.min(oran,100)}%;border-radius:3px;transition:width .3s;"></div>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+    ` : ''}
+
+    <!-- Aksiyon Listesi (Uyarılar) -->
+    ${(checkInYapmayan > 0 || telEksikOlanlar > 0 || turAlmayanlar.length > 0) ? `
+    <div style="background:white;border-radius:14px;padding:14px;border:1px solid #f0f0f0;">
+      <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+        ⚠️ <span>Dikkat Edilecekler</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${checkInYapmayan > 0 ? `
+          <div onclick="adminTab('ci')" style="background:#fef3c7;border-radius:10px;padding:10px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:12px;font-weight:600;color:#92400e;">Check-in olmayan yolcular</div>
+              <div style="font-size:11px;color:#78350f;margin-top:1px;">Tıklayın → Check-in sekmesi</div>
+            </div>
+            <div style="background:#f59e0b;color:white;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:700;">${checkInYapmayan}</div>
+          </div>
+        ` : ''}
+        ${telEksikOlanlar > 0 ? `
+          <div onclick="adminTab('ci')" style="background:#fee2e2;border-radius:10px;padding:10px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:12px;font-weight:600;color:#991b1b;">Telefonu eksik yolcular</div>
+              <div style="font-size:11px;color:#7f1d1d;margin-top:1px;">WhatsApp gönderilemez</div>
+            </div>
+            <div style="background:#dc2626;color:white;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:700;">${telEksikOlanlar}</div>
+          </div>
+        ` : ''}
+        ${turAlmayanlar.length > 0 ? `
+          <div onclick="adminTab('tur')" style="background:#dbeafe;border-radius:10px;padding:10px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:12px;font-weight:600;color:#1e40af;">Hiç tur almayan yolcular</div>
+              <div style="font-size:11px;color:#1e3a8a;margin-top:1px;">Promosyon mesajı gönderilebilir</div>
+            </div>
+            <div style="background:#1a5fa8;color:white;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:700;">${turAlmayanlar.length}</div>
+          </div>
+        ` : ''}
+      </div>
+    </div>
+    ` : ''}
+
+    <!-- Hızlı İşlemler -->
+    <div style="background:white;border-radius:14px;padding:14px;border:1px solid #f0f0f0;">
+      <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+        ⚡ <span>Hızlı İşlemler</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <button onclick="adminTab('tur')" style="padding:10px;background:#7c3aed;color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">⚡ Hızlı Tur Kayıt</button>
+        <button onclick="adminTab('kontrol')" style="padding:10px;background:#16a34a;color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">✅ Tur Kontrol</button>
+        <button onclick="adminTab('gz')" style="padding:10px;background:#f59e0b;color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">📰 Gazete</button>
+        <button onclick="adminTab('bil')" style="padding:10px;background:#1a5fa8;color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">🔔 Bildirim Gönder</button>
+      </div>
+    </div>
+
+    <!-- Footer info -->
+    <div style="text-align:center;padding:8px;color:#aaa;font-size:11px;">
+      🔄 Sayfa yenile: ${saatStr} · ${gunBilgisi || 'Bugün'}
+    </div>
+  `;
+}
+
 function renderPS(s){
   const iS=CU?.role==='super';
   const activeShip=iS?ACTIVE_SHIP:CU?.ship;
@@ -5549,6 +5802,7 @@ function adminTab(name){
   const prefix=isGuide?'ratab-':isAcente?'aatab-':'vatab-';
   const btn=document.getElementById(prefix+name);
   if(btn)btn.classList.add('active');
+  if(name==='dashboard') setTimeout(()=>{ if(typeof renderDashboard === 'function') renderDashboard(); }, 100);
   if(name==='gz')renderGazeteAdmin();
   if(name==='gunluk'){initDailyForms();setTimeout(renderGsAdmin,200);}
   if(name==='tur'){
