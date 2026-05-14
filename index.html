@@ -1139,6 +1139,7 @@ textarea.ai2{resize:none;}
       <button class="att" id="ratab-sef" onclick="adminTab('sef')"><span class="aico">🚢</span><span>Seferler</span></button>
       <button class="att" id="ratab-gemiplan" onclick="adminTab('gemiplan')"><span class="aico">🗺️</span><span>Gemi Planı</span></button>
       <button class="att" id="ratab-rehrapor" onclick="adminTab('rehrapor')"><span class="aico">📝</span><span>Raporlar</span></button>
+      <button class="att" id="ratab-limanbilgi" onclick="adminTab('limanbilgi')"><span class="aico">🗽</span><span>Liman Bilgi</span></button>
       <button class="att" id="ratab-kontrol" onclick="adminTab('kontrol')"><span class="aico">✅</span><span>Tur Kontrol</span></button>
       <button class="att" id="ratab-gelecek" onclick="adminTab('gelecek')"><span class="aico">🌟</span><span>Fırsat Turları</span></button>
       <button class="att" id="ratab-alisveris" onclick="adminTab('alisveris')"><span class="aico">🛍️</span><span>Alışveriş</span></button>
@@ -1680,6 +1681,18 @@ textarea.ai2{resize:none;}
 
     <div id="admin-bil" class="apg">
       <div class="fs2"><div class="fst">Sefer seç</div><div class="sc3" id="nsc"></div><div class="fst">Tür</div><div class="tc3"><div class="tch active" onclick="togType(this)">Tur hatırlatma</div><div class="tch" onclick="togType(this)">Promosyon</div><div class="tch" onclick="togType(this)">Acil duyuru</div><div class="tch" onclick="togType(this)">Genel bilgi</div></div></div>
+
+      <!-- 🔔 HAZIR ŞABLONLAR -->
+      <div class="fs2" style="background:linear-gradient(135deg,#f0f9ff 0%,#dbeafe 100%);border:1.5px solid #1a5fa8;">
+        <div class="fst" style="color:#0d3b6e;display:flex;align-items:center;gap:6px;">
+          <span style="font-size:18px;">⚡</span> Hazır Şablonlar
+        </div>
+        <div style="font-size:12px;color:#0d3b6e;margin-bottom:10px;line-height:1.5;">
+          Tek tıkla mesajı doldur. <b>{liman}</b>, <b>{saat}</b>, <b>{tur}</b> otomatik değişir.
+        </div>
+        <div id="sablon-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;"></div>
+      </div>
+
       <div class="fs2"><div class="fst">Mesaj</div><input class="ai2" type="text" id="nt" placeholder="Başlık" oninput="updWA()"><textarea class="ai2" rows="4" id="nb3" placeholder="Mesaj metni..." oninput="updWA()"></textarea><div class="two"><div><label class="fl" style="margin-bottom:3px;">Zaman</label><select class="fs" style="margin:0;"><option>Hemen</option><option>Bu gece 20:00</option><option>Yarın 07:00</option></select></div><div><label class="fl" style="margin-bottom:3px;">Kanal</label><select class="fs" style="margin:0;"><option>WhatsApp + Uygulama</option><option>Sadece WhatsApp</option><option>Sadece uygulama</option></select></div></div></div>
       <div class="wap" id="wap"><div class="wap-t">Önizleme:</div><div class="wap-b" id="wapb"></div></div>
       <button class="bwa" onclick="sendWA()"><span style="font-size:18px;">💬</span> WhatsApp Web'de Gönder</button>
@@ -1974,6 +1987,37 @@ textarea.ai2{resize:none;}
     <!-- ANKET PANELİ (admin görür) -->
     <div id="admin-anket" style="display:none;"></div>
 
+    <!-- LİMAN BİLGİLERİ -->
+    <div id="admin-limanbilgi" class="apg">
+      <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);border-radius:16px;padding:16px;margin-bottom:14px;color:white;">
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:4px;">🗽 Liman Bilgileri</div>
+        <div style="font-size:12px;opacity:.85;line-height:1.5;">Her liman için para, taksi, güvenlik, öneriler. AI ile saniyeler içinde hazırlayın, yolcular görsün.</div>
+      </div>
+
+      <!-- 🤖 AI ile Üretim Kartı -->
+      <div class="fs2" style="background:linear-gradient(135deg,#ede9fe,#ddd6fe);border:1.5px solid #7c3aed;">
+        <div class="fst" style="color:#5b21b6;display:flex;align-items:center;gap:6px;">
+          <span style="font-size:18px;">🤖</span> AI ile Liman Bilgisi Üret
+        </div>
+        <div style="font-size:12px;color:#5b21b6;margin-bottom:10px;line-height:1.5;">
+          Liman adını yazın → AI 10 saniye içinde tüm bilgileri çıkarır → düzenleyin → kaydedin.
+        </div>
+        <input class="ai2" type="text" id="lb-ai-liman" placeholder="Örn: Atina, Yunanistan veya Mikonos" style="margin-bottom:8px;">
+        <button onclick="aiLimanBilgisiUret()" style="width:100%;padding:12px;background:linear-gradient(135deg,#6d28d9,#7c3aed);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          ✨ AI ile Bilgileri Çıkar
+        </button>
+        <div id="lb-ai-durum" style="font-size:11px;color:#5b21b6;margin-top:8px;text-align:center;"></div>
+      </div>
+
+      <!-- Liman Listesi -->
+      <div class="fs2">
+        <div class="fst">📋 Kayıtlı Limanlar</div>
+        <div id="liman-listesi" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="text-align:center;padding:20px;color:#888;font-size:12px;">Henüz liman bilgisi yok</div>
+        </div>
+      </div>
+    </div>
+
     <!-- REHBERLER -->
     <div id="admin-reh" class="apg">
       <div id="gl"></div>
@@ -2154,6 +2198,73 @@ textarea.ai2{resize:none;}
 .ara-sonuc-detay{font-size:11px;color:#666;display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
 .ara-vurgu{background:#fef08a;color:#854d0e;padding:0 2px;border-radius:2px;font-weight:600;}
 </style>
+
+<!-- 🗽 LİMAN DÜZENLEME MODAL -->
+<div id="lb-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(8px);">
+  <div style="background:#fafaf8;border-radius:24px 24px 0 0;width:100%;max-width:560px;max-height:92vh;display:flex;flex-direction:column;font-family:'DM Sans',sans-serif;animation:sesPopIn .3s ease;">
+    <div style="padding:18px 22px 12px;border-bottom:1px solid #f0f0f0;flex-shrink:0;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;color:#1a1a1a;" id="lb-modal-baslik">Liman Bilgisi</div>
+        <div style="font-size:11px;color:#888;margin-top:2px;">AI üretti — düzenleyebilirsiniz</div>
+      </div>
+      <button onclick="lbModalKapat()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:#888;width:30px;height:30px;display:flex;align-items:center;justify-content:center;">✕</button>
+    </div>
+
+    <div style="padding:14px 18px 18px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;">
+      <div style="margin-bottom:12px;">
+        <label class="fl" style="margin-bottom:4px;">📍 Liman Adı</label>
+        <input class="ai2" type="text" id="lb-liman-adi" placeholder="Atina, Yunanistan">
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label class="fl" style="margin-bottom:4px;">🌍 Ülke</label>
+        <input class="ai2" type="text" id="lb-ulke" placeholder="Yunanistan">
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label class="fl" style="margin-bottom:4px;">💸 Para Birimi & Örnek Fiyatlar</label>
+        <textarea class="ai2" id="lb-para" rows="3" placeholder="Euro (€). Su ~€1, kahve ~€3, yemek ~€15-25"></textarea>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label class="fl" style="margin-bottom:4px;">📈 Kur Bilgisi</label>
+        <input class="ai2" type="text" id="lb-kur" placeholder="1 € ≈ 35 TL (yaklaşık)">
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label class="fl" style="margin-bottom:4px;">🚕 Liman → Merkez Mesafe & Taksi</label>
+        <textarea class="ai2" id="lb-mesafe" rows="2" placeholder="Şehir merkezine ~10 km. Taksi ~€20-30, otobüs ~€2."></textarea>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label class="fl" style="margin-bottom:4px;">⚠️ Güvenlik Uyarıları</label>
+        <textarea class="ai2" id="lb-guvenlik" rows="3" placeholder="Kalabalık yerlerde cüzdana dikkat. Geceleri kenar mahallelere gitmeyin..."></textarea>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label class="fl" style="margin-bottom:4px;">💡 Yararlı İpuçları</label>
+        <textarea class="ai2" id="lb-ipuclari" rows="3" placeholder="Rahat ayakkabı giyin. Pasaport fotokopisi yanınızda olsun..."></textarea>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label class="fl" style="margin-bottom:4px;">🗣️ Dil & Faydalı Cümleler</label>
+        <textarea class="ai2" id="lb-dil" rows="2" placeholder="Yunanca. 'Merhaba' = Yassas, 'Teşekkürler' = Efharisto"></textarea>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label class="fl" style="margin-bottom:4px;">⭐ Önerilen Yerler</label>
+        <div id="lb-oneriler-liste" style="display:flex;flex-direction:column;gap:6px;"></div>
+        <button onclick="lbOneriEkle()" style="margin-top:8px;width:100%;padding:8px;background:transparent;border:1.5px dashed #1a5fa8;color:#1a5fa8;border-radius:8px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Yer Ekle</button>
+      </div>
+    </div>
+
+    <div style="padding:14px 18px 18px;border-top:1px solid #f0f0f0;background:white;display:flex;gap:8px;flex-shrink:0;">
+      <button onclick="lbModalKapat()" style="flex:1;padding:13px;background:transparent;color:#666;border:1.5px solid #e0e0e0;border-radius:12px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">İptal</button>
+      <button id="lb-sil-btn" onclick="lbSil()" style="padding:13px 18px;background:#dc2626;color:white;border:none;border-radius:12px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;display:none;">🗑️ Sil</button>
+      <button onclick="lbKaydet()" style="flex:2;padding:13px;background:linear-gradient(135deg,#0d3b6e,#1a5fa8);color:white;border:none;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">💾 Kaydet</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ── SUPABASE BAĞLANTISI ──
@@ -2373,6 +2484,8 @@ async function initDB() {
     setTimeout(loadTurGorselleri, 800);
     // Gelecek turları DB'den yükle
     setTimeout(()=>{ if(typeof gelecekTurlariYukle==='function') gelecekTurlariYukle(); }, 900);
+    // Liman bilgilerini DB'den yükle
+    setTimeout(()=>{ if(typeof limanBilgileriYukle==='function') limanBilgileriYukle(); }, 950);
     populateSeferler();
   } catch(e) {
     console.error('DB init hatasi:', e);
@@ -3161,6 +3274,49 @@ function renderProgramPage(sv){
         <div class="pt"><div class="ptl">Ayrilis</div><div class="ptv">${d.port.depart||'--:--'}</div><div class="pts2">Bugün</div></div>
       </div>
     </div>`;
+
+    // 🗽 Liman Bilgileri Kartı (yolcu için - kayıtlı liman bilgisi varsa)
+    const limanBilgi = (typeof bugunkuLimanBilgisi === 'function') ? bugunkuLimanBilgisi(sv) : null;
+    if(limanBilgi){
+      const ikonRenkler = {
+        'restoran': {ikon:'🍽️', renk:'#dc2626'},
+        'mağaza': {ikon:'🛍️', renk:'#f59e0b'},
+        'müze': {ikon:'🏛️', renk:'#7c3aed'},
+        'cafe': {ikon:'☕', renk:'#92400e'},
+        'park': {ikon:'🌳', renk:'#16a34a'},
+        'plaj': {ikon:'🏖️', renk:'#0891b2'},
+        'manzara': {ikon:'🌅', renk:'#f59e0b'},
+        'alışveriş': {ikon:'🛍️', renk:'#f59e0b'}
+      };
+      const onerilerHtml = (limanBilgi.oneriler||[]).map(o => {
+        const tipKey = (o.tip||'').toLowerCase();
+        const meta = ikonRenkler[tipKey] || {ikon:'⭐', renk:'#1a5fa8'};
+        return `
+          <div style="background:white;border:1px solid #f0f0f0;border-radius:10px;padding:10px 12px;margin-bottom:6px;">
+            <div style="display:flex;gap:8px;align-items:flex-start;">
+              <div style="font-size:18px;flex-shrink:0;">${meta.ikon}</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;font-weight:600;color:#1a1a1a;">${escapeHTML(o.ad||'')}</div>
+                ${o.aciklama ? `<div style="font-size:11px;color:#666;margin-top:2px;line-height:1.4;">${escapeHTML(o.aciklama)}</div>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      pa.innerHTML += `
+        <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);border-radius:16px;padding:14px 16px;color:white;margin-top:10px;cursor:pointer;" onclick="limanBilgiAc('${limanBilgi.id}')">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:11px;opacity:.85;margin-bottom:2px;">🗽 Liman Rehberi</div>
+              <div style="font-size:15px;font-weight:700;">${escapeHTML(limanBilgi.liman_adi||'')}</div>
+              <div style="font-size:11px;opacity:.85;margin-top:2px;">💸 Para · 🚕 Ulaşım · ⚠️ Güvenlik · ⭐ ${(limanBilgi.oneriler||[]).length} öneri</div>
+            </div>
+            <div style="font-size:22px;">→</div>
+          </div>
+        </div>
+      `;
+    }
   } else {
     if(!DB_READY){
       pa.innerHTML='<div class="no-data" style="text-align:center;padding:20px;"><div style="font-size:24px;opacity:.5;margin-bottom:6px;">⏳</div><div>Liman bilgisi yükleniyor...</div></div>';
@@ -4107,6 +4263,569 @@ function saveYemek(){
 // ── CHECK-IN ──
 function filterPS(el,s){document.querySelectorAll('#af .fc').forEach(c=>c.classList.remove('active'));el.classList.add('active');CASF=s;renderPS(s);}
 function filterCI(el,f){document.querySelectorAll('.ct').forEach(b=>b.classList.remove('active'));el.classList.add('active');CIF=f;renderPS(CASF);}
+// Yolcu için liman bilgi modal'ı aç
+function limanBilgiAc(id){
+  const l = LIMAN_BILGILERI.find(x => x.id === id);
+  if(!l){ showToast('Liman bilgisi yok'); return; }
+
+  document.getElementById('liman-yolcu-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'liman-yolcu-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);';
+
+  const mapsUrl = 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(l.liman_adi||'');
+
+  const ikonRenkler = {
+    'restoran': {ikon:'🍽️', renk:'#dc2626', bg:'#fee2e2'},
+    'mağaza': {ikon:'🛍️', renk:'#92400e', bg:'#fef3c7'},
+    'müze': {ikon:'🏛️', renk:'#5b21b6', bg:'#ede9fe'},
+    'cafe': {ikon:'☕', renk:'#92400e', bg:'#fef3c7'},
+    'park': {ikon:'🌳', renk:'#15803d', bg:'#dcfce7'},
+    'plaj': {ikon:'🏖️', renk:'#0e7490', bg:'#cffafe'},
+    'manzara': {ikon:'🌅', renk:'#92400e', bg:'#fef3c7'},
+    'alışveriş': {ikon:'🛍️', renk:'#92400e', bg:'#fef3c7'}
+  };
+
+  modal.innerHTML = `
+    <div style="background:#fafaf8;border-radius:24px 24px 0 0;width:100%;max-width:560px;max-height:92vh;display:flex;flex-direction:column;font-family:'DM Sans',sans-serif;animation:sesPopIn .3s ease;">
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);padding:20px 22px 18px;color:white;flex-shrink:0;position:relative;">
+        <button onclick="document.getElementById('liman-yolcu-modal').remove()" style="position:absolute;top:14px;right:14px;background:rgba(255,255,255,.2);border:none;width:30px;height:30px;border-radius:50%;color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+        <div style="font-size:11px;opacity:.85;margin-bottom:3px;">🗽 Liman Rehberi</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:22px;line-height:1.2;">${escapeHTML(l.liman_adi||'')}</div>
+        ${l.ulke ? `<div style="font-size:13px;opacity:.9;margin-top:3px;">📍 ${escapeHTML(l.ulke)}</div>` : ''}
+        <a href="${mapsUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.2);color:white;padding:6px 12px;border-radius:20px;font-size:11px;text-decoration:none;margin-top:10px;">
+          📍 Haritada Aç
+        </a>
+      </div>
+
+      <div style="padding:14px 18px 18px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;">
+        ${l.para_birimi ? `
+        <div style="background:white;border-radius:12px;padding:12px 14px;margin-bottom:8px;">
+          <div style="font-size:11px;color:#888;margin-bottom:4px;font-weight:600;">💸 PARA & FİYATLAR</div>
+          <div style="font-size:13px;color:#1a1a1a;line-height:1.5;">${escapeHTML(l.para_birimi)}</div>
+          ${l.kur_bilgisi ? `<div style="font-size:11px;color:#16a34a;font-weight:600;margin-top:4px;">📈 ${escapeHTML(l.kur_bilgisi)}</div>` : ''}
+        </div>
+        ` : ''}
+
+        ${l.mesafe ? `
+        <div style="background:white;border-radius:12px;padding:12px 14px;margin-bottom:8px;">
+          <div style="font-size:11px;color:#888;margin-bottom:4px;font-weight:600;">🚕 ULAŞIM</div>
+          <div style="font-size:13px;color:#1a1a1a;line-height:1.5;">${escapeHTML(l.mesafe)}</div>
+        </div>
+        ` : ''}
+
+        ${l.guvenlik ? `
+        <div style="background:#fef3c7;border-radius:12px;padding:12px 14px;margin-bottom:8px;border-left:3px solid #f59e0b;">
+          <div style="font-size:11px;color:#92400e;margin-bottom:4px;font-weight:600;">⚠️ GÜVENLİK UYARILARI</div>
+          <div style="font-size:13px;color:#78350f;line-height:1.5;">${escapeHTML(l.guvenlik)}</div>
+        </div>
+        ` : ''}
+
+        ${l.ipuclari ? `
+        <div style="background:#dbeafe;border-radius:12px;padding:12px 14px;margin-bottom:8px;border-left:3px solid #1a5fa8;">
+          <div style="font-size:11px;color:#1e40af;margin-bottom:4px;font-weight:600;">💡 YARARLI İPUÇLARI</div>
+          <div style="font-size:13px;color:#1e3a8a;line-height:1.5;">${escapeHTML(l.ipuclari)}</div>
+        </div>
+        ` : ''}
+
+        ${l.dil_bilgisi ? `
+        <div style="background:#ede9fe;border-radius:12px;padding:12px 14px;margin-bottom:8px;border-left:3px solid #7c3aed;">
+          <div style="font-size:11px;color:#5b21b6;margin-bottom:4px;font-weight:600;">🗣️ DİL</div>
+          <div style="font-size:13px;color:#4c1d95;line-height:1.5;">${escapeHTML(l.dil_bilgisi)}</div>
+        </div>
+        ` : ''}
+
+        ${(l.oneriler && l.oneriler.length) ? `
+        <div style="margin-top:14px;">
+          <div style="font-size:13px;font-weight:700;color:#1a1a1a;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+            ⭐ <span>Önerilen Yerler (${l.oneriler.length})</span>
+          </div>
+          ${l.oneriler.map(o => {
+            const tipKey = (o.tip||'').toLowerCase();
+            const meta = ikonRenkler[tipKey] || {ikon:'⭐', renk:'#1a5fa8', bg:'#dbeafe'};
+            return `
+              <div style="background:white;border:1px solid #f0f0f0;border-radius:12px;padding:12px;margin-bottom:6px;display:flex;gap:10px;align-items:flex-start;">
+                <div style="background:${meta.bg};border-radius:10px;padding:6px 10px;font-size:20px;flex-shrink:0;">${meta.ikon}</div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:600;color:#1a1a1a;">${escapeHTML(o.ad||'')}</div>
+                  ${o.tip ? `<div style="font-size:10px;color:${meta.renk};font-weight:600;text-transform:uppercase;margin-top:2px;">${escapeHTML(o.tip)}</div>` : ''}
+                  ${o.aciklama ? `<div style="font-size:12px;color:#666;margin-top:4px;line-height:1.5;">${escapeHTML(o.aciklama)}</div>` : ''}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+        ` : ''}
+
+        <div style="text-align:center;padding:14px 0 6px;font-size:10px;color:#aaa;">
+          🚢 VOYAGO Liman Rehberi
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+// ══ LİMAN BİLGİLERİ SİSTEMİ ══
+
+let LIMAN_BILGILERI = [];
+let LB_DUZENLENEN = null; // Şu an düzenlenen liman objesi
+let LB_ONERILER = []; // Modal'daki öneri listesi (geçici)
+
+// DB'den yükle
+async function limanBilgileriYukle(){
+  try {
+    const { data, error } = await sb.from('liman_bilgileri').select('*').order('liman_adi');
+    if(error){ console.error('Liman yükleme:', error); return; }
+    LIMAN_BILGILERI = data || [];
+    renderLimanListesi();
+  } catch(e){ console.error('Liman yükleme:', e); }
+}
+
+// Liman listesini admin panelde render et
+function renderLimanListesi(){
+  const el = document.getElementById('liman-listesi');
+  if(!el) return;
+  if(!LIMAN_BILGILERI.length){
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:#888;font-size:12px;">Henüz liman bilgisi yok. Yukarıdaki AI ile başlayın!</div>';
+    return;
+  }
+  el.innerHTML = LIMAN_BILGILERI.map(l => `
+    <div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:12px;cursor:pointer;" onclick="lbDuzenle('${l.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:14px;font-weight:700;color:#1a1a1a;">📍 ${escapeHTML(l.liman_adi||'')}</div>
+          <div style="font-size:11px;color:#666;margin-top:2px;">${escapeHTML(l.ulke||'')} ${l.para_birimi ? '· '+escapeHTML(l.para_birimi.substring(0,30))+(l.para_birimi.length>30?'…':'') : ''}</div>
+        </div>
+        <div style="background:#dbeafe;color:#1e40af;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;flex-shrink:0;">Düzenle</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// AI ile liman bilgisi üret
+async function aiLimanBilgisiUret(){
+  const limanInp = document.getElementById('lb-ai-liman');
+  const durum = document.getElementById('lb-ai-durum');
+  const liman = (limanInp?.value || '').trim();
+
+  if(!liman){
+    showToast('⚠️ Liman adı yazın');
+    if(limanInp) limanInp.focus();
+    return;
+  }
+
+  if(durum) durum.textContent = '🤖 AI bilgileri çıkarıyor... (~10 saniye)';
+
+  try {
+    const prompt = `Sen bir cruise rehbersin. "${liman}" limanı için bilgileri çıkar ve Türkçe olarak detaylı yaz. Pratik, gerçekçi ve doğru bilgi ver.
+
+JSON formatında dön, başka açıklama ekleme:
+{
+  "liman_adi": "Liman tam adı (şehir, ülke)",
+  "ulke": "Ülke adı",
+  "para_birimi": "Para birimi adı (€/Euro) + 4-5 örnek fiyat (su, kahve, yemek, taksi, hatıralık)",
+  "kur_bilgisi": "1 birim ≈ X TL (yaklaşık güncel)",
+  "mesafe": "Liman'dan şehir merkezine mesafe + ulaşım önerileri ve yaklaşık taksi/otobüs fiyatı",
+  "guvenlik": "Yolcunun bilmesi gereken güvenlik uyarıları (3-4 madde, virgül ile ayır)",
+  "ipuclari": "Yararlı pratik ipuçları (kıyafet, fotoğraf, tuvalet, market saatleri, vs. - 4-5 madde virgül ile)",
+  "dil_bilgisi": "Konuşulan dil + 3-4 temel kelime (Merhaba, Teşekkürler, Yardım, vb.)",
+  "oneriler": [
+    {"ad": "Yer adı", "tip": "restoran/mağaza/müze/cafe", "aciklama": "Kısa açıklama, neden gidilmeli"}
+  ]
+}
+
+ÖNERİLERDE: 4-6 popüler ve güvenli yer ekle (restoran, müze, fotoğraf noktası, alışveriş, manzara). Turist tuzaklarından kaçın, gerçek değerli yerler öner.`;
+
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + _aiOkAc()
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 2000,
+        temperature: 0.3
+      })
+    });
+
+    if(!resp.ok){
+      throw new Error('AI hatası: ' + resp.status);
+    }
+
+    const data = await resp.json();
+    const cevap = data.choices?.[0]?.message?.content || '';
+
+    // JSON parse
+    let temiz = cevap.trim();
+    if(temiz.startsWith('```')){
+      temiz = temiz.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+    }
+    const ilkBraket = temiz.indexOf('{');
+    const sonBraket = temiz.lastIndexOf('}');
+    if(ilkBraket >= 0 && sonBraket > ilkBraket){
+      temiz = temiz.substring(ilkBraket, sonBraket+1);
+    }
+
+    const limanData = JSON.parse(temiz);
+
+    // Modal'ı doldur ve aç
+    LB_DUZENLENEN = {
+      id: null, // yeni kayıt
+      liman_adi: limanData.liman_adi || liman,
+      ulke: limanData.ulke || '',
+      para_birimi: limanData.para_birimi || '',
+      kur_bilgisi: limanData.kur_bilgisi || '',
+      mesafe: limanData.mesafe || '',
+      guvenlik: limanData.guvenlik || '',
+      ipuclari: limanData.ipuclari || '',
+      dil_bilgisi: limanData.dil_bilgisi || '',
+      oneriler: Array.isArray(limanData.oneriler) ? limanData.oneriler : []
+    };
+
+    LB_ONERILER = LB_DUZENLENEN.oneriler.slice();
+    lbModalAc();
+    if(durum) durum.textContent = '✓ AI bilgileri üretildi, kontrol edip kaydedin';
+    if(limanInp) limanInp.value = '';
+  } catch(e){
+    console.error('AI liman hatası:', e);
+    if(durum) durum.textContent = '⚠️ Hata: ' + (e.message||'bilinmeyen');
+    showToast('⚠️ AI üretemedi: ' + (e.message||''));
+  }
+}
+
+// Modal'ı aç
+function lbModalAc(){
+  if(!LB_DUZENLENEN) return;
+
+  const isYeni = !LB_DUZENLENEN.id;
+  document.getElementById('lb-modal-baslik').textContent = isYeni ? '🤖 AI Üretti — Liman Bilgisi' : '✏️ Liman Düzenle';
+  document.getElementById('lb-sil-btn').style.display = isYeni ? 'none' : 'block';
+
+  // Alanları doldur
+  document.getElementById('lb-liman-adi').value = LB_DUZENLENEN.liman_adi || '';
+  document.getElementById('lb-ulke').value = LB_DUZENLENEN.ulke || '';
+  document.getElementById('lb-para').value = LB_DUZENLENEN.para_birimi || '';
+  document.getElementById('lb-kur').value = LB_DUZENLENEN.kur_bilgisi || '';
+  document.getElementById('lb-mesafe').value = LB_DUZENLENEN.mesafe || '';
+  document.getElementById('lb-guvenlik').value = LB_DUZENLENEN.guvenlik || '';
+  document.getElementById('lb-ipuclari').value = LB_DUZENLENEN.ipuclari || '';
+  document.getElementById('lb-dil').value = LB_DUZENLENEN.dil_bilgisi || '';
+
+  // Önerileri render et
+  lbOnerileriRender();
+
+  document.getElementById('lb-modal').style.display = 'flex';
+}
+
+function lbModalKapat(){
+  document.getElementById('lb-modal').style.display = 'none';
+  LB_DUZENLENEN = null;
+  LB_ONERILER = [];
+}
+
+function lbOnerileriRender(){
+  const el = document.getElementById('lb-oneriler-liste');
+  if(!el) return;
+  if(!LB_ONERILER.length){
+    el.innerHTML = '<div style="font-size:11px;color:#888;padding:8px;text-align:center;">Henüz öneri yok</div>';
+    return;
+  }
+  el.innerHTML = LB_ONERILER.map((o, i) => `
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:8px 10px;">
+      <div style="display:flex;gap:6px;margin-bottom:5px;">
+        <input type="text" value="${escapeHTML(o.ad||'')}" oninput="LB_ONERILER[${i}].ad=this.value" placeholder="Yer adı" style="flex:2;padding:5px 8px;font-size:12px;border:1px solid #ddd;border-radius:6px;outline:none;">
+        <input type="text" value="${escapeHTML(o.tip||'')}" oninput="LB_ONERILER[${i}].tip=this.value" placeholder="Tip" style="flex:1;padding:5px 8px;font-size:12px;border:1px solid #ddd;border-radius:6px;outline:none;">
+        <button onclick="lbOneriSil(${i})" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;">✕</button>
+      </div>
+      <input type="text" value="${escapeHTML(o.aciklama||'')}" oninput="LB_ONERILER[${i}].aciklama=this.value" placeholder="Açıklama" style="width:100%;padding:5px 8px;font-size:11px;border:1px solid #ddd;border-radius:6px;outline:none;">
+    </div>
+  `).join('');
+}
+
+function lbOneriEkle(){
+  LB_ONERILER.push({ ad: '', tip: '', aciklama: '' });
+  lbOnerileriRender();
+}
+
+function lbOneriSil(idx){
+  LB_ONERILER.splice(idx, 1);
+  lbOnerileriRender();
+}
+
+// Mevcut liman bilgisini düzenleme
+function lbDuzenle(id){
+  const l = LIMAN_BILGILERI.find(x => x.id === id);
+  if(!l) return;
+  LB_DUZENLENEN = JSON.parse(JSON.stringify(l));
+  LB_ONERILER = Array.isArray(l.oneriler) ? JSON.parse(JSON.stringify(l.oneriler)) : [];
+  lbModalAc();
+}
+
+// Kaydet
+async function lbKaydet(){
+  const liman_adi = document.getElementById('lb-liman-adi').value.trim();
+  if(!liman_adi){
+    showToast('⚠️ Liman adı gerekli');
+    return;
+  }
+
+  // Boş önerileri temizle
+  const oneriler = LB_ONERILER.filter(o => o.ad && o.ad.trim());
+
+  const veri = {
+    liman_adi,
+    ulke: document.getElementById('lb-ulke').value.trim(),
+    para_birimi: document.getElementById('lb-para').value.trim(),
+    kur_bilgisi: document.getElementById('lb-kur').value.trim(),
+    mesafe: document.getElementById('lb-mesafe').value.trim(),
+    guvenlik: document.getElementById('lb-guvenlik').value.trim(),
+    ipuclari: document.getElementById('lb-ipuclari').value.trim(),
+    dil_bilgisi: document.getElementById('lb-dil').value.trim(),
+    oneriler: oneriler,
+    son_guncelleme: new Date().toISOString(),
+    olusturan: CU?.key || ''
+  };
+
+  try {
+    if(LB_DUZENLENEN?.id){
+      // Güncelle
+      const { error } = await sb.from('liman_bilgileri').update(veri).eq('id', LB_DUZENLENEN.id);
+      if(error) throw error;
+      const idx = LIMAN_BILGILERI.findIndex(x => x.id === LB_DUZENLENEN.id);
+      if(idx >= 0) LIMAN_BILGILERI[idx] = { ...LIMAN_BILGILERI[idx], ...veri };
+      showToast('✓ Güncellendi: ' + liman_adi);
+    } else {
+      // Yeni kayıt
+      const id = 'l' + Date.now();
+      const yeni = { id, ...veri };
+      const { error } = await sb.from('liman_bilgileri').insert(yeni);
+      if(error) throw error;
+      LIMAN_BILGILERI.push(yeni);
+      showToast('✓ Eklendi: ' + liman_adi);
+    }
+    lbModalKapat();
+    renderLimanListesi();
+  } catch(e){
+    console.error('Liman kayıt:', e);
+    showToast('⚠️ Kaydedilemedi: ' + (e.message||''));
+  }
+}
+
+// Sil
+async function lbSil(){
+  if(!LB_DUZENLENEN?.id) return;
+  if(!confirm('Bu liman bilgisi silinsin mi?\n\n"' + LB_DUZENLENEN.liman_adi + '"')) return;
+
+  try {
+    const { error } = await sb.from('liman_bilgileri').delete().eq('id', LB_DUZENLENEN.id);
+    if(error) throw error;
+    LIMAN_BILGILERI = LIMAN_BILGILERI.filter(x => x.id !== LB_DUZENLENEN.id);
+    lbModalKapat();
+    renderLimanListesi();
+    showToast('✓ Silindi');
+  } catch(e){
+    console.error('Liman sil:', e);
+    showToast('⚠️ Silinemedi: ' + (e.message||''));
+  }
+}
+
+// Bugünkü liman için bilgi getir (yolcu kullanır)
+function bugunkuLimanBilgisi(seferId){
+  const dailyData = (typeof getDailyForSefer === 'function' && seferId) ? getDailyForSefer(seferId) : null;
+  const bugunLiman = dailyData?.port?.name || '';
+  if(!bugunLiman) return null;
+
+  // Eşleştir (içeriyor mantığı ile)
+  const bugunNorm = aramaNormalize(bugunLiman);
+  return LIMAN_BILGILERI.find(l => {
+    const lNorm = aramaNormalize(l.liman_adi||'');
+    return lNorm === bugunNorm || bugunNorm.includes(lNorm.split(',')[0]) || lNorm.includes(bugunNorm.split(',')[0]);
+  });
+}
+
+// ══ PUSH BİLDİRİM ŞABLONLARI ══
+
+const PUSH_SABLONLAR = [
+  // ⏰ TUR & LİMAN HATIRLATMALARI
+  {
+    icon: '🌅', renk: '#f59e0b', kat: 'tur',
+    isim: 'Yarınki Liman',
+    baslik: 'Yarın {liman}',
+    mesaj: 'Yarın saat {varis}\'te {liman} limanına yanaşacağız. Kahvaltıdan hemen sonra başlayacak turlarımız için hazır olun! 🚌'
+  },
+  {
+    icon: '⚓', renk: '#1a5fa8', kat: 'tur',
+    isim: 'Limana Yaklaşıyoruz',
+    baslik: 'Yakında {liman}',
+    mesaj: '⚓ 30 dakika sonra {liman} limanına yanaşacağız. Tur katılımcıları lütfen pasaportlarını hazır bulundursun.'
+  },
+  {
+    icon: '🚌', renk: '#7c3aed', kat: 'tur',
+    isim: 'Turlar Başlıyor',
+    baslik: 'Turlar başladı',
+    mesaj: '🚌 Bugünkü turlar başlıyor! Kayıtlı olduğunuz turun saatini kontrol etmeyi unutmayın. Toplanma noktası için uygulamadaki biletinizi gösterin.'
+  },
+  {
+    icon: '⏰', renk: '#dc2626', kat: 'tur',
+    isim: 'Tur Toplanma 30dk',
+    baslik: 'Tur 30 dakika sonra!',
+    mesaj: '⏰ Sayın yolcumuz, kayıt olduğunuz {tur} turu 30 dakika içinde başlıyor! Lütfen toplanma noktasında hazır olun.'
+  },
+  {
+    icon: '🕐', renk: '#dc2626', kat: 'tur',
+    isim: 'Gemiye Dönüş',
+    baslik: '⚠️ Gemiye Dönüş',
+    mesaj: '🕐 Hatırlatma: Gemimiz saat {saat}\'da kalkacaktır. Lütfen en geç {erken} itibarıyla gemide olunuz. Geç kalmayın!'
+  },
+
+  // 🍽️ YEMEK & AKTİVİTE
+  {
+    icon: '🍽️', renk: '#16a34a', kat: 'genel',
+    isim: 'Akşam Yemeği',
+    baslik: 'Akşam yemeği başlıyor',
+    mesaj: '🍽️ Akşam yemeği servisimiz {saat} - {bitis} saatleri arasındadır. Bu akşamın menüsünü Yemek sekmesinden inceleyebilirsiniz. Afiyet olsun!'
+  },
+  {
+    icon: '🎭', renk: '#7c3aed', kat: 'genel',
+    isim: 'Akşam Show',
+    baslik: 'Bu akşam show var',
+    mesaj: '🎭 Bu akşam saat {saat}\'de tiyatroda muhteşem bir show var! Yerlerinizi erken alın, kaçırmamak için Uygulama → Program sekmesinden detayları görebilirsiniz.'
+  },
+  {
+    icon: '🍸', renk: '#7c3aed', kat: 'genel',
+    isim: 'Captain\'s Cocktail',
+    baslik: 'Captain\'s Welcome Cocktail',
+    mesaj: '🍸 Bu akşam saat {saat}\'de Atrium\'da Captain\'s Welcome Cocktail! Kaptanımızın size hoş geldiniz konuşması ve canlı müzik eşliğinde keyifli bir akşam dileriz.'
+  },
+
+  // 📰 BİLGİ
+  {
+    icon: '📰', renk: '#0d3b6e', kat: 'bilgi',
+    isim: 'Yeni Gazete',
+    baslik: 'Yeni gazete yüklendi',
+    mesaj: '📰 Bugünkü gazete uygulamada hazır! Gazete sekmesinden bugünkü tüm aktiviteleri, gösterileri ve özel programları görebilirsiniz.'
+  },
+  {
+    icon: '🌤️', renk: '#16a34a', kat: 'bilgi',
+    isim: 'Hava Durumu',
+    baslik: 'Bugünkü hava',
+    mesaj: '🌤️ Bugün {liman}\'de hava güneşli olacak. Şapka, güneş kremi ve rahat ayakkabı önerimizdir. İyi günler!'
+  },
+  {
+    icon: '🛍️', renk: '#f59e0b', kat: 'bilgi',
+    isim: 'Alışveriş Promosyon',
+    baslik: 'Mağaza İndirimleri',
+    mesaj: '🛍️ Sevgili yolcularımız, gemi mağazalarında bugün özel indirimler var! Detaylar için Alışveriş sekmesine göz atın.'
+  },
+
+  // 🚨 ACİL
+  {
+    icon: '🚨', renk: '#dc2626', kat: 'acil',
+    isim: 'Acil Toplantı',
+    baslik: '🚨 Acil Duyuru',
+    mesaj: '🚨 Sayın yolcularımız, lütfen acilen rehberinizle iletişime geçin. Detaylı bilgi için cabin telefonunuzu kontrol edin.'
+  },
+  {
+    icon: '⛅', renk: '#dc2626', kat: 'acil',
+    isim: 'Program Değişikliği',
+    baslik: 'Program Güncellemesi',
+    mesaj: '⛅ Hava koşulları nedeniyle bugünün programında değişiklik yapılmıştır. Lütfen Program sekmesinden güncel bilgileri kontrol edin.'
+  }
+];
+
+// Şablonu yerine değişkenleri koy (liman, saat, vs.)
+function sablonDoldur(metin){
+  if(!metin) return '';
+  let sonuc = metin;
+
+  // Aktif sefer & günlük veri
+  const sid = getCurrentSeferId();
+  const v = VOYAGES.find(x => x.id === sid);
+  const dailyData = (typeof getDailyForSefer === 'function' && sid) ? getDailyForSefer(sid) : null;
+
+  // {liman}
+  const liman = dailyData?.port?.name || (v?.label || 'limanımız');
+  sonuc = sonuc.replace(/\{liman\}/g, liman);
+
+  // {varis} ve {ayrilik}
+  sonuc = sonuc.replace(/\{varis\}/g, dailyData?.port?.arival || '08:00');
+  sonuc = sonuc.replace(/\{ayrilik\}/g, dailyData?.port?.depart || '18:00');
+
+  // {saat} - şu an
+  const simdi = new Date();
+  const saat = String(simdi.getHours()).padStart(2,'0') + ':' + String(simdi.getMinutes()).padStart(2,'0');
+  sonuc = sonuc.replace(/\{saat\}/g, saat);
+
+  // {erken} - kalkış saatinden 1 saat önce
+  if(dailyData?.port?.depart){
+    const [sa, dk] = dailyData.port.depart.split(':').map(Number);
+    if(!isNaN(sa)){
+      const erken = String(Math.max(0, sa-1)).padStart(2,'0') + ':' + String(dk||0).padStart(2,'0');
+      sonuc = sonuc.replace(/\{erken\}/g, erken);
+    }
+  }
+  sonuc = sonuc.replace(/\{erken\}/g, '17:30');
+
+  // {bitis} - yemek bitiş (yaklaşık 2 saat)
+  sonuc = sonuc.replace(/\{bitis\}/g, '22:00');
+
+  // {tur} - ilk tur veya jenerik
+  const turlar = TOURS.filter(t => t.aktif !== false && (!t.seferler || t.seferler.includes(sid)));
+  const ilkTur = turlar[0];
+  sonuc = sonuc.replace(/\{tur\}/g, ilkTur?.name || 'turunuz');
+
+  return sonuc;
+}
+
+function renderSablonlar(){
+  const grid = document.getElementById('sablon-grid');
+  if(!grid) return;
+  grid.innerHTML = PUSH_SABLONLAR.map((s, idx) => `
+    <button onclick="sablonSec(${idx})" style="text-align:left;padding:10px 12px;background:white;border:1.5px solid #e5e7eb;border-radius:10px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;display:flex;flex-direction:column;gap:2px;" onmouseover="this.style.borderColor='${s.renk}';this.style.transform='translateY(-1px)'" onmouseout="this.style.borderColor='#e5e7eb';this.style.transform=''">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:16px;">${s.icon}</span>
+        <span style="font-size:12px;font-weight:600;color:${s.renk};">${escapeHTML(s.isim)}</span>
+      </div>
+      <div style="font-size:10px;color:#888;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(s.baslik)}</div>
+    </button>
+  `).join('');
+}
+
+function sablonSec(idx){
+  const s = PUSH_SABLONLAR[idx];
+  if(!s) return;
+
+  // Başlığı doldur
+  const baslikInp = document.getElementById('nt');
+  if(baslikInp){
+    baslikInp.value = sablonDoldur(s.baslik);
+  }
+
+  // Mesajı doldur
+  const mesajInp = document.getElementById('nb3');
+  if(mesajInp){
+    mesajInp.value = sablonDoldur(s.mesaj);
+  }
+
+  // Type'ı eşleştir (kategori → tab)
+  const tipMap = { 'tur': 0, 'promosyon': 1, 'acil': 2, 'bilgi': 3, 'genel': 3 };
+  const tipIdx = tipMap[s.kat] ?? 3;
+  document.querySelectorAll('.tc3 .tch').forEach((el, i) => {
+    el.classList.toggle('active', i === tipIdx);
+  });
+
+  // Önizlemeyi güncelle
+  if(typeof updWA === 'function') updWA();
+
+  // Başlık alanına focus + toast
+  showToast('✓ Şablon yüklendi: ' + s.isim);
+  if(baslikInp) baslikInp.focus();
+}
+
 // ══ DASHBOARD - Rehber Anasayfa Özeti ══
 function renderDashboard(){
   const el = document.getElementById('dashboard-icerik');
@@ -6151,6 +6870,8 @@ function adminTab(name){
   const btn=document.getElementById(prefix+name);
   if(btn)btn.classList.add('active');
   if(name==='dashboard') setTimeout(()=>{ if(typeof renderDashboard === 'function') renderDashboard(); }, 100);
+  if(name==='bil') setTimeout(()=>{ if(typeof renderSablonlar === 'function') renderSablonlar(); }, 100);
+  if(name==='limanbilgi') setTimeout(()=>{ if(typeof renderLimanListesi === 'function') renderLimanListesi(); }, 100);
   if(name==='gz')renderGazeteAdmin();
   if(name==='gunluk'){initDailyForms();setTimeout(renderGsAdmin,200);}
   if(name==='tur'){
