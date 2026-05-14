@@ -984,6 +984,10 @@ textarea.ai2{resize:none;}
           </div>
           <div class="tpill" id="akl">Kabin 214</div>
           <div style="display:flex;gap:5px;align-items:center;">
+            <button class="lob" onclick="aramaAc()" title="Ara" style="padding:5px 9px;display:flex;align-items:center;gap:4px;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <span style="font-size:11px;">Ara</span>
+            </button>
             <div class="dil-wrapper">
               <button class="dil-btn" id="dil-btn-app" onclick="dilMenuAc('app')" style="font-size:16px;padding:3px 8px;">🇹🇷</button>
               <div class="dil-menu" id="dil-menu-app"></div>
@@ -2106,6 +2110,51 @@ textarea.ai2{resize:none;}
   <div class="md"><div class="mdt" id="kat-modal-title">Katilimcilar</div><div id="kat-modal-body"></div><div class="mdb" id="kat-modal-bottom"><div id="kat-modal-actions" style="display:flex;gap:6px;flex:1;flex-wrap:wrap;"></div><button class="mc" onclick="closeModal('kat-modal')" style="flex:none;padding:10px 20px;">Kapat</button></div></div>
 </div>
 
+<!-- 🔍 ARAMA MODAL (yolcu için global arama) -->
+<div id="arama-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(8px);">
+  <div style="background:#fafaf8;border-radius:24px 24px 0 0;width:100%;max-width:560px;max-height:90vh;display:flex;flex-direction:column;font-family:'DM Sans',sans-serif;animation:sesPopIn .3s ease;">
+    <!-- Header -->
+    <div style="padding:18px 18px 12px;border-bottom:1px solid #f0f0f0;flex-shrink:0;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;color:#1a1a1a;flex:1;">🔍 Ara</div>
+        <button onclick="aramaKapat()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:#888;width:30px;height:30px;display:flex;align-items:center;justify-content:center;">✕</button>
+      </div>
+      <div style="position:relative;">
+        <input type="text" id="arama-input" placeholder="Tur, aktivite, yemek, liman..." autocomplete="off" style="width:100%;padding:12px 40px 12px 14px;background:white;border:1.5px solid #e5e7eb;border-radius:12px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;" oninput="aramaYap()">
+        <button id="arama-temizle-btn" onclick="aramaTemizle()" style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);background:#e5e7eb;border:none;width:24px;height:24px;border-radius:50%;font-size:12px;cursor:pointer;color:#666;">×</button>
+      </div>
+      <!-- Hızlı arama önerileri -->
+      <div id="arama-oneriler" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">
+        <button onclick="aramaOnerSec('tur')" class="ara-chip">🗺️ Turlar</button>
+        <button onclick="aramaOnerSec('yemek')" class="ara-chip">🍽️ Yemek</button>
+        <button onclick="aramaOnerSec('eğlence')" class="ara-chip">🎭 Eğlence</button>
+        <button onclick="aramaOnerSec('spa')" class="ara-chip">💆 Spa</button>
+        <button onclick="aramaOnerSec('liman')" class="ara-chip">📍 Liman</button>
+      </div>
+    </div>
+    <!-- Sonuçlar -->
+    <div id="arama-sonuc" style="padding:12px 18px 18px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;">
+      <div style="text-align:center;padding:40px 20px;color:#888;font-size:13px;">
+        <div style="font-size:40px;margin-bottom:10px;">🔍</div>
+        <div>Bir şeyler yazın aramaya başlasın</div>
+        <div style="font-size:11px;margin-top:6px;opacity:.7;">Tur adı, liman, yemek, saat... her şey</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.ara-chip{padding:5px 12px;background:white;border:1px solid #e5e7eb;border-radius:14px;font-size:11px;font-weight:500;color:#1a1a1a;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.ara-chip:hover{background:#f9fafb;border-color:#1a5fa8;}
+.ara-sonuc-grup{margin-bottom:16px;}
+.ara-sonuc-grup-baslik{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:flex;align-items:center;gap:5px;}
+.ara-sonuc-item{background:white;border:1px solid #f0f0f0;border-radius:10px;padding:10px 12px;margin-bottom:5px;cursor:pointer;transition:all .15s;}
+.ara-sonuc-item:hover{border-color:#1a5fa8;transform:translateX(2px);}
+.ara-sonuc-baslik{font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:2px;}
+.ara-sonuc-detay{font-size:11px;color:#666;display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.ara-vurgu{background:#fef08a;color:#854d0e;padding:0 2px;border-radius:2px;font-weight:600;}
+</style>
+
 <script>
 // ── SUPABASE BAĞLANTISI ──
 const SUPABASE_URL = 'https://mvltmnysiujelphcijls.supabase.co';
@@ -3211,7 +3260,7 @@ function renderPassTours(sv){
       ? `<div style="background:linear-gradient(135deg,#7B0F0F,#a32d2d);color:white;border-radius:10px;padding:8px 12px;margin-bottom:6px;font-size:12px;font-weight:500;text-align:center;animation:countdown-flash 2s ease-in-out infinite;">${t.uyari_mesaji}</div>`
       : '';
 
-    return `<div class="ti ${j?'joined':''}" style="cursor:pointer;" onclick="turDetayAc('${t.id}')">
+    return `<div class="ti ${j?'joined':''}" data-tur-id="${t.id}" style="cursor:pointer;" onclick="turDetayAc('${t.id}')">
       ${uyariHtml}
       <div class="ti-img" onclick="event.stopPropagation();${t.img?`lightboxAc('${t.img}')`:''}">
         ${t.img?`<img src="${t.img}" alt="${t.name}" data-tur-img="${t.id}" style="cursor:zoom-in;">`:`<img data-tur-img="${t.id}" src="" style="display:none;"><span style="font-size:32px;">🗺️</span>`}
@@ -4299,6 +4348,305 @@ function renderDashboard(){
     </div>
   `;
 }
+
+// ══ GLOBAL ARAMA SİSTEMİ ══
+
+function aramaAc(){
+  const modal = document.getElementById('arama-modal');
+  if(!modal) return;
+  modal.style.display = 'flex';
+  setTimeout(() => {
+    const inp = document.getElementById('arama-input');
+    if(inp) inp.focus();
+  }, 100);
+}
+
+function aramaKapat(){
+  const modal = document.getElementById('arama-modal');
+  if(modal) modal.style.display = 'none';
+  const inp = document.getElementById('arama-input');
+  if(inp) inp.value = '';
+  document.getElementById('arama-temizle-btn').style.display = 'none';
+  // Sıfırlama içeriği geri yükle
+  document.getElementById('arama-sonuc').innerHTML = `
+    <div style="text-align:center;padding:40px 20px;color:#888;font-size:13px;">
+      <div style="font-size:40px;margin-bottom:10px;">🔍</div>
+      <div>Bir şeyler yazın aramaya başlasın</div>
+      <div style="font-size:11px;margin-top:6px;opacity:.7;">Tur adı, liman, yemek, saat... her şey</div>
+    </div>
+  `;
+}
+
+function aramaTemizle(){
+  const inp = document.getElementById('arama-input');
+  if(inp){
+    inp.value = '';
+    inp.focus();
+  }
+  document.getElementById('arama-temizle-btn').style.display = 'none';
+  aramaYap();
+}
+
+function aramaOnerSec(kategori){
+  const inp = document.getElementById('arama-input');
+  if(inp){
+    inp.value = kategori;
+    inp.focus();
+  }
+  aramaYap();
+}
+
+// Türkçe normalize (büyük harf + diakritik kaldır)
+function aramaNormalize(s){
+  if(!s) return '';
+  return String(s).toLocaleLowerCase('tr-TR')
+    .replace(/ı/g,'i').replace(/ş/g,'s').replace(/ç/g,'c')
+    .replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ö/g,'o')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+
+// Arama sonucunda vurgulama
+function aramaVurgula(metin, aramaNorm){
+  if(!aramaNorm || !metin) return escapeHTML(metin||'');
+  const metinNorm = aramaNormalize(metin);
+  const idx = metinNorm.indexOf(aramaNorm);
+  if(idx < 0) return escapeHTML(metin);
+  // Vurgula
+  return escapeHTML(metin.substring(0, idx)) + 
+         '<span class="ara-vurgu">' + escapeHTML(metin.substring(idx, idx + aramaNorm.length)) + '</span>' + 
+         escapeHTML(metin.substring(idx + aramaNorm.length));
+}
+
+let _aramaTimer = null;
+
+function aramaYap(){
+  // Debounce — kullanıcı yazmayı bitirsin
+  clearTimeout(_aramaTimer);
+  _aramaTimer = setTimeout(aramaCalistir, 150);
+}
+
+function aramaCalistir(){
+  const inp = document.getElementById('arama-input');
+  const sonucEl = document.getElementById('arama-sonuc');
+  if(!inp || !sonucEl) return;
+
+  const q = (inp.value || '').trim();
+  const temizBtn = document.getElementById('arama-temizle-btn');
+  if(temizBtn) temizBtn.style.display = q ? 'flex' : 'none';
+
+  if(!q || q.length < 2){
+    sonucEl.innerHTML = `
+      <div style="text-align:center;padding:40px 20px;color:#888;font-size:13px;">
+        <div style="font-size:40px;margin-bottom:10px;">🔍</div>
+        <div>${q.length === 1 ? 'Bir karakter daha yazın' : 'Bir şeyler yazın aramaya başlasın'}</div>
+        <div style="font-size:11px;margin-top:6px;opacity:.7;">Tur adı, liman, yemek, saat... her şey</div>
+      </div>
+    `;
+    return;
+  }
+
+  const qNorm = aramaNormalize(q);
+  const aktifSeferId = CP?.sefer;
+  if(!aktifSeferId){
+    sonucEl.innerHTML = '<div style="text-align:center;padding:30px;color:#888;font-size:13px;">Sefer bilgisi yok</div>';
+    return;
+  }
+
+  // Sonuçları topla
+  const sonuclar = {
+    turlar: [],
+    program: [],
+    yemek: [],
+    liman: [],
+    aktivite_kategori: []
+  };
+
+  // 1. TURLAR
+  const turlar = TOURS.filter(t =>
+    t.aktif !== false && (
+      !t.seferler || t.seferler.length === 0 || t.seferler.includes(aktifSeferId)
+    )
+  );
+  turlar.forEach(t => {
+    const eslesirAd = aramaNormalize(t.name||'').includes(qNorm);
+    const eslesirLiman = aramaNormalize(t.liman||'').includes(qNorm);
+    const eslesirAciklama = aramaNormalize(t.aciklama||'').includes(qNorm);
+    if(eslesirAd || eslesirLiman || eslesirAciklama){
+      sonuclar.turlar.push({
+        tur: t,
+        eslesirAd, eslesirLiman, eslesirAciklama
+      });
+    }
+  });
+
+  // 2. GÜNLÜK PROGRAM
+  const dailyData = (typeof getDailyForSefer === 'function') ? getDailyForSefer(aktifSeferId) : null;
+  if(dailyData && dailyData.program){
+    dailyData.program.forEach(p => {
+      const baslik = p.title || '';
+      const detay = p.sub || '';
+      const saat = p.time || '';
+      if(aramaNormalize(baslik).includes(qNorm) || aramaNormalize(detay).includes(qNorm)){
+        sonuclar.program.push({ baslik, detay, saat });
+      }
+    });
+  }
+
+  // 3. YEMEK
+  if(dailyData && dailyData.yemek){
+    dailyData.yemek.forEach(y => {
+      const baslik = y.title || y.name || '';
+      const detay = y.sub || y.desc || '';
+      const saat = y.time || y.saat || '';
+      if(aramaNormalize(baslik).includes(qNorm) || aramaNormalize(detay).includes(qNorm)){
+        sonuclar.yemek.push({ baslik, detay, saat });
+      }
+    });
+  }
+
+  // 4. LİMAN (sefer programındaki tüm günlerin limanları)
+  if(dailyData && dailyData.port){
+    const limanAd = dailyData.port.name || '';
+    if(aramaNormalize(limanAd).includes(qNorm)){
+      sonuclar.liman.push({
+        ad: limanAd,
+        varis: dailyData.port.arival || '',
+        ayrilik: dailyData.port.depart || '',
+        bugun: true
+      });
+    }
+  }
+
+  // 5. Tüm seferler için gemiplan (varsa)
+  const v = VOYAGES.find(x => x.id === aktifSeferId);
+  if(v && v.gemi_plan){
+    // gemi_plan formatına göre değişir, atlanır
+  }
+
+  // Sonuç sayısı
+  const toplam = sonuclar.turlar.length + sonuclar.program.length + sonuclar.yemek.length + sonuclar.liman.length;
+
+  if(toplam === 0){
+    sonucEl.innerHTML = `
+      <div style="text-align:center;padding:40px 20px;color:#888;font-size:13px;">
+        <div style="font-size:40px;margin-bottom:10px;">🤷</div>
+        <div>"<b>${escapeHTML(q)}</b>" için sonuç bulunamadı</div>
+        <div style="font-size:11px;margin-top:6px;opacity:.7;">Başka kelimelerle deneyin</div>
+      </div>
+    `;
+    return;
+  }
+
+  // HTML oluştur
+  let html = `<div style="font-size:11px;color:#888;margin-bottom:12px;">${toplam} sonuç bulundu</div>`;
+
+  // TURLAR
+  if(sonuclar.turlar.length){
+    html += `<div class="ara-sonuc-grup">
+      <div class="ara-sonuc-grup-baslik">🗺️ Turlar (${sonuclar.turlar.length})</div>`;
+    sonuclar.turlar.forEach(({tur, eslesirAd, eslesirLiman}) => {
+      const adVurgulu = eslesirAd ? aramaVurgula(tur.name, qNorm) : escapeHTML(tur.name||'');
+      const limanVurgulu = eslesirLiman ? aramaVurgula(tur.liman||'', qNorm) : escapeHTML(tur.liman||'');
+      html += `
+        <div class="ara-sonuc-item" onclick="aramaSonucTurAc('${tur.id}')">
+          <div class="ara-sonuc-baslik">${adVurgulu}</div>
+          <div class="ara-sonuc-detay">
+            ${tur.liman ? `<span>📍 ${limanVurgulu}</span>` : ''}
+            ${tur.saat ? `<span>⏰ ${escapeHTML(tur.saat)}</span>` : ''}
+            ${tur.gun ? `<span>📅 ${tur.gun}. Gün</span>` : ''}
+            <span style="color:#16a34a;font-weight:600;">€${tur.ap || 0}</span>
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+  }
+
+  // GÜNLÜK PROGRAM
+  if(sonuclar.program.length){
+    html += `<div class="ara-sonuc-grup">
+      <div class="ara-sonuc-grup-baslik">📅 Günlük Program (${sonuclar.program.length})</div>`;
+    sonuclar.program.forEach(p => {
+      const baslikVur = aramaVurgula(p.baslik, qNorm);
+      const detayVur = aramaVurgula(p.detay, qNorm);
+      html += `
+        <div class="ara-sonuc-item" onclick="switchTab('program');aramaKapat();">
+          <div class="ara-sonuc-baslik">${baslikVur}</div>
+          <div class="ara-sonuc-detay">
+            ${p.saat ? `<span>⏰ ${escapeHTML(p.saat)}</span>` : ''}
+            ${p.detay ? `<span>${detayVur}</span>` : ''}
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+  }
+
+  // YEMEK
+  if(sonuclar.yemek.length){
+    html += `<div class="ara-sonuc-grup">
+      <div class="ara-sonuc-grup-baslik">🍽️ Yemek (${sonuclar.yemek.length})</div>`;
+    sonuclar.yemek.forEach(y => {
+      const baslikVur = aramaVurgula(y.baslik, qNorm);
+      const detayVur = aramaVurgula(y.detay, qNorm);
+      html += `
+        <div class="ara-sonuc-item" onclick="switchTab('yemek');aramaKapat();">
+          <div class="ara-sonuc-baslik">${baslikVur}</div>
+          <div class="ara-sonuc-detay">
+            ${y.saat ? `<span>⏰ ${escapeHTML(y.saat)}</span>` : ''}
+            ${y.detay ? `<span>${detayVur}</span>` : ''}
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+  }
+
+  // LİMAN
+  if(sonuclar.liman.length){
+    html += `<div class="ara-sonuc-grup">
+      <div class="ara-sonuc-grup-baslik">📍 Liman (${sonuclar.liman.length})</div>`;
+    sonuclar.liman.forEach(l => {
+      const adVur = aramaVurgula(l.ad, qNorm);
+      html += `
+        <div class="ara-sonuc-item" onclick="switchTab('program');aramaKapat();">
+          <div class="ara-sonuc-baslik">${adVur} ${l.bugun ? '<span style="background:#dcfce7;color:#15803d;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:4px;">Bugün</span>' : ''}</div>
+          <div class="ara-sonuc-detay">
+            ${l.varis ? `<span>🚢 Varış: ${escapeHTML(l.varis)}</span>` : ''}
+            ${l.ayrilik ? `<span>⛵ Ayrılış: ${escapeHTML(l.ayrilik)}</span>` : ''}
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+  }
+
+  sonucEl.innerHTML = html;
+}
+
+// Tıklanan tur açma
+function aramaSonucTurAc(tid){
+  aramaKapat();
+  switchTab('turlar');
+  // Tur kartına scroll
+  setTimeout(() => {
+    const turEl = document.querySelector(`[data-tur-id="${tid}"]`);
+    if(turEl){
+      turEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      turEl.style.transition = 'box-shadow .3s';
+      turEl.style.boxShadow = '0 0 0 3px #1a5fa8';
+      setTimeout(() => { turEl.style.boxShadow = ''; }, 1500);
+    }
+  }, 300);
+}
+
+// ESC ile kapatma
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape'){
+    const modal = document.getElementById('arama-modal');
+    if(modal && modal.style.display === 'flex') aramaKapat();
+  }
+});
 
 function renderPS(s){
   const iS=CU?.role==='super';
