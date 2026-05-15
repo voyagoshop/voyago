@@ -739,7 +739,7 @@ textarea.ai2{resize:none;}
   <!-- Geri sayım -->
   <div style="text-align:center;margin-bottom:20px;">
     <div id="loading-count" style="font-size:52px;font-weight:600;color:white;font-family:'DM Serif Display',serif;line-height:1;opacity:0;animation:fadeInDown .5s ease .8s forwards;">3</div>
-    <div style="font-size:13px;color:rgba(255,255,255,.6);margin-top:8px;opacity:0;animation:fadeInDown .5s ease 1s forwards;">Hazırlanıyor...</div>
+    <div id="loading-mesaj" style="font-size:13px;color:rgba(255,255,255,.7);margin-top:8px;opacity:0;animation:fadeInDown .5s ease 1s forwards;">Hazırlanıyor...</div>
   </div>
 
   <!-- Nokta animasyonu -->
@@ -10397,11 +10397,30 @@ function baslat() {
   const araclar = ['🚢','🚢','🚢','🚌','✈️'];
   if(vehicle) vehicle.textContent = araclar[Math.floor(Math.random()*araclar.length)];
 
+  // 🚀 Otomatik giriş varsa loading kısa olsun
+  const yolcuKayit = localStorage.getItem('voyago_yolcu');
+  const adminKayit = localStorage.getItem('voyago_admin') || document.cookie.match(/voyago_admin=/);
+  const hizliGiris = yolcuKayit || adminKayit;
+
+  // Loading mesajını yolcu adına göre kişiselleştir
+  try {
+    const mesajEl = document.getElementById('loading-mesaj');
+    if(mesajEl){
+      if(yolcuKayit){
+        const p = JSON.parse(yolcuKayit);
+        const ad = (p.name||'').split(' ')[0];
+        if(ad) mesajEl.textContent = 'Tekrar hoş geldin, ' + ad + '! 👋';
+      } else if(adminKayit){
+        mesajEl.textContent = 'Sisteme giriliyor...';
+      }
+    }
+  } catch(e){}
+
   function hideScreen(cb) {
     if(screen) {
       screen.style.opacity = '0';
-      screen.style.transition = 'opacity .5s ease';
-      setTimeout(() => { screen.style.display = 'none'; if(cb)cb(); }, 500);
+      screen.style.transition = 'opacity .3s ease';
+      setTimeout(() => { screen.style.display = 'none'; if(cb)cb(); }, 300);
     } else { if(cb)cb(); }
   }
 
@@ -10411,18 +10430,18 @@ function baslat() {
     if(loadingDone && dbDone) autoLogin();
   }
 
-  // Loading: her zaman 3 saniyede biter
-  let sayi = 3;
-  const maxWait = setTimeout(()=>{ loadingDone=true; tryAutoLogin(); }, 4500);
+  // Loading: hızlı giriş varsa 2 saniye, yoksa 3 saniye
+  let sayi = hizliGiris ? 2 : 3;
+  const maxWait = setTimeout(()=>{ loadingDone=true; tryAutoLogin(); }, hizliGiris ? 2500 : 4500);
   const tick = setInterval(() => {
     sayi--;
     if(countEl) countEl.textContent = sayi > 0 ? sayi : '✓';
     if(sayi <= 0) {
       clearInterval(tick);
       clearTimeout(maxWait);
-      setTimeout(() => hideScreen(()=>{ loadingDone=true; tryAutoLogin(); }), 300);
+      setTimeout(() => hideScreen(()=>{ loadingDone=true; tryAutoLogin(); }), 200);
     }
-  }, 750);
+  }, hizliGiris ? 500 : 750);
 
   // DB: max 10 saniyede timeout (yavaş bağlantılar için)
   const dbTimeout = setTimeout(()=>{ dbDone=true; tryAutoLogin(); }, 10000);
@@ -10517,17 +10536,19 @@ function checkHosgeldin() {
 
     // Sefer hâlâ aktif mi?
     const v = VOYAGES.find(v => v.id === p.sefer && v.visible && v.status !== 'archived');
-    if (!v) return;
+    if (!v) {
+      // Geçersiz sefer - localStorage'ı temizle
+      try { localStorage.removeItem('voyago_yolcu'); } catch(e){}
+      return;
+    }
 
-    // Kartı göster, formu gizle
-    const ad = p.name ? p.name.split(' ')[0] : '';
-    const sefer = v.label ? v.label.split('-')[0].trim() : p.sefer;
-    document.getElementById('hosgeldin-ad').textContent = 'Tekrar merhaba, ' + ad + '! 👋';
-    document.getElementById('hosgeldin-detay').textContent = 'Kabin ' + p.kabin + ' · ' + sefer + ' · ' + (v.ship || '');
-
-    hosKarti.style.display = 'block';
-    formKarti.style.display = 'none';
-  } catch(e) {}
+    // 🚀 DİREKT OTOMATİK GİRİŞ - hoş geldin kartı gösterme
+    setTimeout(() => {
+      if(typeof devamEt === 'function') devamEt();
+    }, 50);
+  } catch(e) {
+    console.log('Otomatik giriş hata:', e);
+  }
 }
 
 async function devamEt() {
