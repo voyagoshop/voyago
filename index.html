@@ -917,7 +917,28 @@ textarea.ai2{resize:none;}
       <div style="font-family:'DM Serif Display',serif;font-size:32px;color:white;letter-spacing:-1px;">VOYAGO</div>
       <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:4px;" data-t="personel_girisi">Personel Girişi</div>
     </div>
-    <div class="alc">
+
+    <!-- 👋 ADMİN HOŞGELDİN KARTI (kayıtlı giriş için) -->
+    <div id="admin-hosgeldin-karti" style="display:none;background:white;border-radius:20px;padding:20px 22px;width:100%;max-width:390px;box-shadow:0 20px 60px rgba(0,0,0,.4);margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+        <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#26215c,#534ab7);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;color:white;">👋</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:15px;font-weight:600;color:#1a1a1a;" id="admin-hosgeldin-ad">Tekrar hoş geldiniz!</div>
+          <div style="font-size:12px;color:#6b6b6b;margin-top:2px;" id="admin-hosgeldin-detay">Rehber</div>
+        </div>
+      </div>
+      <button onclick="adminDevamEt()" id="admin-hosgeldin-devam-btn" style="width:100%;padding:13px;background:linear-gradient(135deg,#26215c,#534ab7);color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:8px;">
+        <span id="admin-hosgeldin-devam-yazi">✓ Devam Et</span>
+      </button>
+      <button onclick="adminFarkliHesap()" style="width:100%;padding:9px;background:transparent;color:#6b6b6b;border:1.5px solid #e0e0e0;border-radius:10px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:6px;">
+        🔄 Farklı bir kullanıcı ile giriş yap
+      </button>
+      <button onclick="adminTumCikis()" style="width:100%;padding:9px;background:transparent;color:#dc2626;border:1.5px solid #fecaca;border-radius:10px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">
+        🚪 Tam Çıkış (Kayıtları Temizle)
+      </button>
+    </div>
+
+    <div class="alc" id="admin-giris-form">
       <div class="em" id="ale" style="margin-bottom:12px;">Kullanıcı adı veya şifre hatalı.</div>
       <div class="fg"><label class="fl" data-t="kullanici_adi">Kullanıcı Adı</label><input class="fi" type="text" id="au" autocomplete="off" placeholder="kullanici.adi"></div>
       <div class="fg"><label class="fl" data-t="sifre">Şifre</label><input class="fi" type="password" id="ap" placeholder="••••••••" onkeydown="if(event.key==='Enter')doAL()"></div>
@@ -10491,43 +10512,146 @@ async function autoLogin() {
     }
 
     if(key && USERS[key]){
-      CU = {key, ...USERS[key]};
-      // localStorage'ı tazele (cookie ile bulunduysa)
-      try{ localStorage.setItem('voyago_admin', JSON.stringify({key, time:Date.now()})); }catch(e){}
-      // Cookie'yi de tazele (90 gün uzat)
-      try{ document.cookie = 'voyago_admin=' + encodeURIComponent(key) + '; max-age=' + (90*24*60*60) + '; path=/; SameSite=Lax'; }catch(e){}
-
       // DB henüz yüklenmediyse bekle
       if(!DB_READY){
         await initDB();
       }
-      if(CU.role==='voyago') ACTIVE_SHIP=SHIPS[0]||VOYAGES[0]?.ship||'';
-      else if(CU.role==='acente') ACTIVE_SHIP=SHIPS[0]||VOYAGES[0]?.ship||'';
-      else {
-        const rehberSeferi=VOYAGES.find(v=>v.guide===CU.key&&v.status!=='archived');
-        ACTIVE_SHIP=rehberSeferi?.ship||CU.ship||VOYAGES[0]?.ship||'';
-      }
-      await setupAdmin();
-      showScreen('sc');
+      // Admin hoşgeldin kartı göster (otomatik giriş yapma)
+      adminHosgeldinGoster(key);
       return;
     }
   }catch(e){console.log('autoLogin hatası:',e);}
   // Yolcu oturumu kontrolü
   checkHosgeldin();
 }
-function doLogout() {
-  CP = null; CU = null;
-  // Admin kaydını temizle
+
+// Admin hoşgeldin kartını göster (rehber tek tıkla giriş yapsın)
+function adminHosgeldinGoster(key){
+  const u = USERS[key];
+  if(!u){ return; }
+  // Login ekranını göster
+  showScreen('sal');
+  // Kartı doldur
+  const ad = u.name || key;
+  const ilkAd = ad.split(' ')[0];
+  const rol = u.role === 'voyago' ? 'VOYAGO Yöneticisi' 
+            : u.role === 'acente' ? 'Acente' 
+            : u.role === 'super' ? 'Süper Yönetici'
+            : 'Rehber';
+
+  document.getElementById('admin-hosgeldin-ad').textContent = 'Tekrar merhaba, ' + ilkAd + '! 👋';
+  document.getElementById('admin-hosgeldin-detay').textContent = rol + (u.ship ? ' · ' + u.ship : '');
+  const yaziEl = document.getElementById('admin-hosgeldin-devam-yazi');
+  if(yaziEl) yaziEl.textContent = '✓ ' + ilkAd + ' olarak devam et';
+
+  // Kartı göster, formu gizle
+  const kart = document.getElementById('admin-hosgeldin-karti');
+  const form = document.getElementById('admin-giris-form');
+  if(kart) kart.style.display = 'block';
+  if(form) form.style.display = 'none';
+}
+
+// Admin devam et — kayıtlı kullanıcı ile giriş
+async function adminDevamEt(){
+  try {
+    let key = null;
+    const adminKayit = localStorage.getItem('voyago_admin');
+    if(adminKayit){
+      try { key = JSON.parse(adminKayit).key; } catch(e){}
+    }
+    if(!key){
+      const cookieMatch = document.cookie.match(/voyago_admin=([^;]+)/);
+      if(cookieMatch){ try { key = decodeURIComponent(cookieMatch[1]); } catch(e){} }
+    }
+    if(!key || !USERS[key]){
+      adminFarkliHesap();
+      return;
+    }
+
+    CU = {key, ...USERS[key]};
+    // Tazele
+    try{ localStorage.setItem('voyago_admin', JSON.stringify({key, time:Date.now()})); }catch(e){}
+    try{ document.cookie = 'voyago_admin=' + encodeURIComponent(key) + '; max-age=' + (90*24*60*60) + '; path=/; SameSite=Lax'; }catch(e){}
+
+    if(!DB_READY){ await initDB(); }
+    if(CU.role==='voyago') ACTIVE_SHIP=SHIPS[0]||VOYAGES[0]?.ship||'';
+    else if(CU.role==='acente') ACTIVE_SHIP=SHIPS[0]||VOYAGES[0]?.ship||'';
+    else {
+      const rehberSeferi=VOYAGES.find(v=>v.guide===CU.key&&v.status!=='archived');
+      ACTIVE_SHIP=rehberSeferi?.ship||CU.ship||VOYAGES[0]?.ship||'';
+    }
+    await setupAdmin();
+    showScreen('sc');
+  } catch(e){
+    console.error('adminDevamEt hata:', e);
+    showToast('⚠️ Giriş yapılamadı, lütfen tekrar deneyin');
+    adminFarkliHesap();
+  }
+}
+
+// Admin - farklı kullanıcıyla giriş (formu göster, kayıt sil)
+function adminFarkliHesap(){
+  // Kayıtları sil
   try{ localStorage.removeItem('voyago_admin'); }catch(e){}
   try{ document.cookie = 'voyago_admin=; max-age=0; path=/'; }catch(e){}
-  // ⚠️ voyago_yolcu kaydını SİLMİYORUZ — yolcu yanlışlıkla çıkış yaptıysa kolay geri dönebilsin
-  // Tamamen çıkış için "Yolculuğu Tamamen Bitir" butonu var
+  // Kartı gizle, formu göster
+  const kart = document.getElementById('admin-hosgeldin-karti');
+  const form = document.getElementById('admin-giris-form');
+  if(kart) kart.style.display = 'none';
+  if(form) form.style.display = 'block';
+  // Form input'larını temizle
+  const au = document.getElementById('au');
+  const ap = document.getElementById('ap');
+  if(au) au.value = '';
+  if(ap) ap.value = '';
+  if(au) au.focus();
+}
+
+// Admin - tam çıkış (kayıtları temizle)
+function adminTumCikis(){
+  if(!confirm('Tüm kayıtlı bilgilerinizi temizlemek istediğinize emin misiniz?\n\nBu işlem:\n• Otomatik giriş kayıtlarını siler\n• Bir daha bu cihazda otomatik giriş yapamazsınız\n• Yeniden giriş için kullanıcı adı + şifre gerekir')) return;
+  try{ localStorage.removeItem('voyago_admin'); }catch(e){}
+  try{ document.cookie = 'voyago_admin=; max-age=0; path=/'; }catch(e){}
+  // Kartı gizle, formu göster
+  const kart = document.getElementById('admin-hosgeldin-karti');
+  const form = document.getElementById('admin-giris-form');
+  if(kart) kart.style.display = 'none';
+  if(form) form.style.display = 'block';
+  showToast('✓ Çıkış yapıldı. İyi günler!');
+}
+function doLogout() {
+  const wasAdmin = !!CU; // Admin miydi yolcu mu?
+  CP = null; CU = null;
+  // ⚠️ voyago_admin ve voyago_yolcu kayıtlarını SİLMİYORUZ
+  // Yolcu/rehber yanlışlıkla çıkış yaptıysa kolay geri dönebilsin
+  // Tamamen çıkış için ilgili "Tam Çıkış" butonları var
   try{ if(typeof sesAnonsKanaliKapat==='function') sesAnonsKanaliKapat(); }catch(e){}
   try{ if(typeof ydRealtimeKapat==='function') ydRealtimeKapat(); }catch(e){}
   try{ const wb = document.getElementById('wa-grup-btn'); if(wb) wb.style.display = 'none'; }catch(e){}
-  showScreen('sl');
-  // Hoşgeldin kartı varsa göstermek için checkHosgeldin çağır
-  setTimeout(()=>{ checkHosgeldin(); }, 100);
+
+  if(wasAdmin){
+    // Admin'ı login ekranına götür ve hoşgeldin kartı göster
+    let key = null;
+    try {
+      const adminKayit = localStorage.getItem('voyago_admin');
+      if(adminKayit) key = JSON.parse(adminKayit).key;
+    } catch(e){}
+    if(!key){
+      const cookieMatch = document.cookie.match(/voyago_admin=([^;]+)/);
+      if(cookieMatch){ try { key = decodeURIComponent(cookieMatch[1]); } catch(e){} }
+    }
+    if(key && USERS[key]){
+      // Hoşgeldin kartı göster
+      setTimeout(()=>{ adminHosgeldinGoster(key); }, 100);
+      return;
+    }
+    // Kayıt yok - normal login ekranına
+    showScreen('sal');
+  } else {
+    // Yolcu - hoşgeldin kartı göster
+    showScreen('sl');
+    setTimeout(()=>{ checkHosgeldin(); }, 100);
+  }
 }
 
 // Yolcunun seferi tamamen bitirmesi — tüm kayıtları sil
