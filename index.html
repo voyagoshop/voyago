@@ -833,13 +833,16 @@ textarea.ai2{resize:none;}
           <div style="font-size:12px;color:#6b6b6b;margin-top:2px;" id="hosgeldin-detay">Kabin 214 · 29 Mar seferi</div>
         </div>
       </div>
-      <button onclick="devamEt()" id="hosgeldin-devam-btn" style="width:100%;padding:13px;background:linear-gradient(135deg,#0f6e56,#1D9E75);color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:10px;position:relative;overflow:hidden;" data-t="devam_et">
+      <button onclick="devamEt()" id="hosgeldin-devam-btn" style="width:100%;padding:13px;background:linear-gradient(135deg,#0f6e56,#1D9E75);color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:8px;position:relative;overflow:hidden;" data-t="devam_et">
         <span id="hosgeldin-devam-yazi">✓ Devam Et</span>
         <span id="hosgeldin-devam-sayac" style="opacity:.8;margin-left:6px;font-size:13px;"></span>
         <div id="hosgeldin-progress" style="position:absolute;bottom:0;left:0;height:3px;background:rgba(255,255,255,.5);width:0;transition:width .1s linear;"></div>
       </button>
-      <button onclick="yeniGiris()" style="width:100%;padding:10px;background:transparent;color:#6b6b6b;border:1.5px solid #e0e0e0;border-radius:12px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">
-        Farklı bir hesapla giriş yap
+      <button onclick="yeniGiris()" style="width:100%;padding:9px;background:transparent;color:#6b6b6b;border:1.5px solid #e0e0e0;border-radius:10px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:6px;">
+        🔄 Farklı bir hesapla giriş yap
+      </button>
+      <button onclick="yolculuguBitir()" style="width:100%;padding:9px;background:transparent;color:#dc2626;border:1.5px solid #fecaca;border-radius:10px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">
+        🚪 Yolculuğu Tamamen Bitir
       </button>
     </div>
 
@@ -10429,9 +10432,10 @@ function baslat() {
     if(loadingDone && dbDone) autoLogin();
   }
 
-  // Loading: 3 saniye normal süre (kart çıkacak)
-  let sayi = 3;
-  const maxWait = setTimeout(()=>{ loadingDone=true; tryAutoLogin(); }, 4000);
+  // Loading: kayıtlı kullanıcı varsa 2 saniye, yoksa 3 saniye
+  const kayitliKullanici = localStorage.getItem('voyago_yolcu') || localStorage.getItem('voyago_admin') || document.cookie.match(/voyago_admin=/);
+  let sayi = kayitliKullanici ? 2 : 3;
+  const maxWait = setTimeout(()=>{ loadingDone=true; tryAutoLogin(); }, kayitliKullanici ? 2500 : 4000);
   const tick = setInterval(() => {
     sayi--;
     if(countEl) countEl.textContent = sayi > 0 ? sayi : '✓';
@@ -10440,7 +10444,7 @@ function baslat() {
       clearTimeout(maxWait);
       setTimeout(() => hideScreen(()=>{ loadingDone=true; tryAutoLogin(); }), 200);
     }
-  }, 700);
+  }, kayitliKullanici ? 600 : 700);
 
   // DB: max 10 saniyede timeout (yavaş bağlantılar için)
   const dbTimeout = setTimeout(()=>{ dbDone=true; tryAutoLogin(); }, 10000);
@@ -10516,19 +10520,38 @@ function doLogout() {
   // Admin kaydını temizle
   try{ localStorage.removeItem('voyago_admin'); }catch(e){}
   try{ document.cookie = 'voyago_admin=; max-age=0; path=/'; }catch(e){}
-  // 🔥 Yolcu kaydını da temizle — yoksa otomatik tekrar giriş yapar!
-  try{ localStorage.removeItem('voyago_yolcu'); }catch(e){}
+  // ⚠️ voyago_yolcu kaydını SİLMİYORUZ — yolcu yanlışlıkla çıkış yaptıysa kolay geri dönebilsin
+  // Tamamen çıkış için "Yolculuğu Tamamen Bitir" butonu var
   try{ if(typeof sesAnonsKanaliKapat==='function') sesAnonsKanaliKapat(); }catch(e){}
   try{ if(typeof ydRealtimeKapat==='function') ydRealtimeKapat(); }catch(e){}
   try{ const wb = document.getElementById('wa-grup-btn'); if(wb) wb.style.display = 'none'; }catch(e){}
-  // Giriş formunu görünür yap, hoşgeldin kartını gizle
-  try {
-    const formKarti = document.getElementById('giris-form-karti');
-    const hosKarti = document.getElementById('hosgeldin-karti');
-    if(formKarti) formKarti.style.display = '';
-    if(hosKarti) hosKarti.style.display = 'none';
-  } catch(e){}
   showScreen('sl');
+  // Hoşgeldin kartı varsa göstermek için checkHosgeldin çağır
+  setTimeout(()=>{ checkHosgeldin(); }, 100);
+}
+
+// Yolcunun seferi tamamen bitirmesi — tüm kayıtları sil
+function yolculuguBitir() {
+  if(!confirm('Yolculuğunuzu tamamen bitirmek istediğinize emin misiniz?\n\nBu işlem:\n• Kayıtlı bilgilerinizi temizler\n• Bir daha otomatik giriş yapamazsınız\n• Yeniden giriş için ad+kabin gerekir')) return;
+  // Tüm yolcu kayıtlarını temizle
+  try { localStorage.removeItem('voyago_yolcu'); } catch(e){}
+  // Karşılama modal kayıtları da temizle
+  try {
+    Object.keys(localStorage).forEach(k => {
+      if(k.startsWith('voyago_kars_')) localStorage.removeItem(k);
+    });
+  } catch(e){}
+  // Albüm beğenilerini de sil
+  try { localStorage.removeItem('voyago_album_begeniler'); } catch(e){}
+  // Geri sayımı durdur
+  if(_hosgeldinTimer){ clearTimeout(_hosgeldinTimer); _hosgeldinTimer = null; }
+  if(_hosgeldinTickTimer){ clearInterval(_hosgeldinTickTimer); _hosgeldinTickTimer = null; }
+  // Formu göster
+  const hosKarti = document.getElementById('hosgeldin-karti');
+  const formKarti = document.getElementById('giris-form-karti');
+  if(hosKarti) hosKarti.style.display = 'none';
+  if(formKarti) formKarti.style.display = 'block';
+  showToast('✓ Yolculuk sonlandırıldı. İyi günler!');
 }
 
 // ── HOŞ GELDİN KARTI ──
@@ -10558,6 +10581,10 @@ function checkHosgeldin() {
     const sefer = v.label ? v.label.split('-')[0].trim() : p.sefer;
     document.getElementById('hosgeldin-ad').textContent = 'Tekrar merhaba, ' + ad + '! 👋';
     document.getElementById('hosgeldin-detay').textContent = 'Kabin ' + p.kabin + ' · ' + sefer + ' · ' + (v.ship || '');
+
+    // Devam butonunu kişiselleştir
+    const yaziEl = document.getElementById('hosgeldin-devam-yazi');
+    if(yaziEl && ad) yaziEl.textContent = '✓ ' + ad + ' olarak devam et';
 
     hosKarti.style.display = 'block';
     formKarti.style.display = 'none';
