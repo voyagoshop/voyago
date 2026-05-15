@@ -833,8 +833,10 @@ textarea.ai2{resize:none;}
           <div style="font-size:12px;color:#6b6b6b;margin-top:2px;" id="hosgeldin-detay">Kabin 214 · 29 Mar seferi</div>
         </div>
       </div>
-      <button onclick="devamEt()" style="width:100%;padding:13px;background:linear-gradient(135deg,#0f6e56,#1D9E75);color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:10px;" data-t="devam_et">
-        ✓ Devam Et
+      <button onclick="devamEt()" id="hosgeldin-devam-btn" style="width:100%;padding:13px;background:linear-gradient(135deg,#0f6e56,#1D9E75);color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:10px;position:relative;overflow:hidden;" data-t="devam_et">
+        <span id="hosgeldin-devam-yazi">✓ Devam Et</span>
+        <span id="hosgeldin-devam-sayac" style="opacity:.8;margin-left:6px;font-size:13px;"></span>
+        <div id="hosgeldin-progress" style="position:absolute;bottom:0;left:0;height:3px;background:rgba(255,255,255,.5);width:0;transition:width .1s linear;"></div>
       </button>
       <button onclick="yeniGiris()" style="width:100%;padding:10px;background:transparent;color:#6b6b6b;border:1.5px solid #e0e0e0;border-radius:12px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">
         Farklı bir hesapla giriş yap
@@ -10397,13 +10399,10 @@ function baslat() {
   const araclar = ['🚢','🚢','🚢','🚌','✈️'];
   if(vehicle) vehicle.textContent = araclar[Math.floor(Math.random()*araclar.length)];
 
-  // 🚀 Otomatik giriş varsa loading kısa olsun
-  const yolcuKayit = localStorage.getItem('voyago_yolcu');
-  const adminKayit = localStorage.getItem('voyago_admin') || document.cookie.match(/voyago_admin=/);
-  const hizliGiris = yolcuKayit || adminKayit;
-
   // Loading mesajını yolcu adına göre kişiselleştir
   try {
+    const yolcuKayit = localStorage.getItem('voyago_yolcu');
+    const adminKayit = localStorage.getItem('voyago_admin') || document.cookie.match(/voyago_admin=/);
     const mesajEl = document.getElementById('loading-mesaj');
     if(mesajEl){
       if(yolcuKayit){
@@ -10419,8 +10418,8 @@ function baslat() {
   function hideScreen(cb) {
     if(screen) {
       screen.style.opacity = '0';
-      screen.style.transition = 'opacity .3s ease';
-      setTimeout(() => { screen.style.display = 'none'; if(cb)cb(); }, 300);
+      screen.style.transition = 'opacity .4s ease';
+      setTimeout(() => { screen.style.display = 'none'; if(cb)cb(); }, 400);
     } else { if(cb)cb(); }
   }
 
@@ -10430,9 +10429,9 @@ function baslat() {
     if(loadingDone && dbDone) autoLogin();
   }
 
-  // Loading: hızlı giriş varsa 2 saniye, yoksa 3 saniye
-  let sayi = hizliGiris ? 2 : 3;
-  const maxWait = setTimeout(()=>{ loadingDone=true; tryAutoLogin(); }, hizliGiris ? 2500 : 4500);
+  // Loading: 3 saniye normal süre (kart çıkacak)
+  let sayi = 3;
+  const maxWait = setTimeout(()=>{ loadingDone=true; tryAutoLogin(); }, 4000);
   const tick = setInterval(() => {
     sayi--;
     if(countEl) countEl.textContent = sayi > 0 ? sayi : '✓';
@@ -10441,7 +10440,7 @@ function baslat() {
       clearTimeout(maxWait);
       setTimeout(() => hideScreen(()=>{ loadingDone=true; tryAutoLogin(); }), 200);
     }
-  }, hizliGiris ? 500 : 750);
+  }, 700);
 
   // DB: max 10 saniyede timeout (yavaş bağlantılar için)
   const dbTimeout = setTimeout(()=>{ dbDone=true; tryAutoLogin(); }, 10000);
@@ -10514,16 +10513,28 @@ async function autoLogin() {
 }
 function doLogout() {
   CP = null; CU = null;
+  // Admin kaydını temizle
   try{ localStorage.removeItem('voyago_admin'); }catch(e){}
   try{ document.cookie = 'voyago_admin=; max-age=0; path=/'; }catch(e){}
+  // 🔥 Yolcu kaydını da temizle — yoksa otomatik tekrar giriş yapar!
+  try{ localStorage.removeItem('voyago_yolcu'); }catch(e){}
   try{ if(typeof sesAnonsKanaliKapat==='function') sesAnonsKanaliKapat(); }catch(e){}
   try{ if(typeof ydRealtimeKapat==='function') ydRealtimeKapat(); }catch(e){}
   try{ const wb = document.getElementById('wa-grup-btn'); if(wb) wb.style.display = 'none'; }catch(e){}
+  // Giriş formunu görünür yap, hoşgeldin kartını gizle
+  try {
+    const formKarti = document.getElementById('giris-form-karti');
+    const hosKarti = document.getElementById('hosgeldin-karti');
+    if(formKarti) formKarti.style.display = '';
+    if(hosKarti) hosKarti.style.display = 'none';
+  } catch(e){}
   showScreen('sl');
-  setTimeout(()=>{ checkHosgeldin(); }, 100);
 }
 
 // ── HOŞ GELDİN KARTI ──
+let _hosgeldinTimer = null;
+let _hosgeldinTickTimer = null;
+
 function checkHosgeldin() {
   try {
     const kayit = localStorage.getItem('voyago_yolcu');
@@ -10542,16 +10553,36 @@ function checkHosgeldin() {
       return;
     }
 
-    // 🚀 DİREKT OTOMATİK GİRİŞ - hoş geldin kartı gösterme
-    setTimeout(() => {
-      if(typeof devamEt === 'function') devamEt();
-    }, 50);
+    // Hoşgeldin kartını göster
+    const ad = p.name ? p.name.split(' ')[0] : '';
+    const sefer = v.label ? v.label.split('-')[0].trim() : p.sefer;
+    document.getElementById('hosgeldin-ad').textContent = 'Tekrar merhaba, ' + ad + '! 👋';
+    document.getElementById('hosgeldin-detay').textContent = 'Kabin ' + p.kabin + ' · ' + sefer + ' · ' + (v.ship || '');
+
+    hosKarti.style.display = 'block';
+    formKarti.style.display = 'none';
+
+    // ℹ️ Otomatik geri sayım YOK — yolcu kendi butona basacak
+    // Eskiden 3sn sonra otomatik devam ederdi, kullanıcı isteğiyle kaldırıldı
+    if(_hosgeldinTimer) clearTimeout(_hosgeldinTimer);
+    if(_hosgeldinTickTimer) clearInterval(_hosgeldinTickTimer);
+    _hosgeldinTimer = null;
+    _hosgeldinTickTimer = null;
+
+    // Geri sayım ile ilgili UI'yi gizle (varsa)
+    const sayacEl = document.getElementById('hosgeldin-devam-sayac');
+    const progressEl = document.getElementById('hosgeldin-progress');
+    if(sayacEl) sayacEl.textContent = '';
+    if(progressEl){ progressEl.style.transition = ''; progressEl.style.width = '0'; }
   } catch(e) {
-    console.log('Otomatik giriş hata:', e);
+    console.log('checkHosgeldin hata:', e);
   }
 }
 
 async function devamEt() {
+  // Geri sayım varsa durdur
+  if(_hosgeldinTimer){ clearTimeout(_hosgeldinTimer); _hosgeldinTimer = null; }
+  if(_hosgeldinTickTimer){ clearInterval(_hosgeldinTickTimer); _hosgeldinTickTimer = null; }
   try {
     const kayit = localStorage.getItem('voyago_yolcu');
     if (!kayit) { yeniGiris(); return; }
@@ -10642,6 +10673,9 @@ async function devamEt() {
 }
 
 function yeniGiris() {
+  // Geri sayımı durdur (varsa)
+  if(_hosgeldinTimer){ clearTimeout(_hosgeldinTimer); _hosgeldinTimer = null; }
+  if(_hosgeldinTickTimer){ clearInterval(_hosgeldinTickTimer); _hosgeldinTickTimer = null; }
   // Kayıtlı veriyi sil, formu göster
   try { localStorage.removeItem('voyago_yolcu'); } catch(e) {}
   const hosKarti = document.getElementById('hosgeldin-karti');
