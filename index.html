@@ -13783,12 +13783,12 @@ function tkBiletYazdir(kabin, sefer, tid){
   // Yolcu sayısı (ek isimler dahil)
   const toplamYolcuSayisi = tumIsimler.length;
   // Yolcu sayısına göre dinamik font boyutu (çok yolcu varsa daha küçük yaz)
-  const isimFontSize = toplamYolcuSayisi <= 2 ? '9pt' : toplamYolcuSayisi <= 4 ? '8pt' : '7.5pt';
-  const isimSatirMargin = toplamYolcuSayisi <= 2 ? '0.5mm' : '0.2mm';
+  const isimFontSize = toplamYolcuSayisi <= 3 ? '10pt' : toplamYolcuSayisi <= 5 ? '9pt' : '8pt';
+  const isimSatirMargin = toplamYolcuSayisi <= 3 ? '0.6mm' : '0.3mm';
 
   // Yolcu satırları HTML (kompakt format)
   const yolcuListesiHTML = tumIsimler.map((ad, i) => `
-    <div style="display:flex;gap:2mm;font-size:${isimFontSize};margin:${isimSatirMargin} 0;line-height:1.15;">
+    <div style="display:flex;gap:2mm;font-size:${isimFontSize};margin:${isimSatirMargin} 0;line-height:1.2;">
       <span style="opacity:.7;">${i+1}.</span>
       <span style="flex:1;">${escapeHTML(ad)}</span>
     </div>`).join('');
@@ -13801,7 +13801,7 @@ function tkBiletYazdir(kabin, sefer, tid){
 <sc${''}ript src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></sc${''}ript>
 <style>
   @page {
-    size: 102mm 76mm;       /* 4" × 3" termal kağıt */
+    size: 76mm 102mm;       /* DİKEY: 3" × 4" termal kağıt */
     margin: 0;
   }
   * { box-sizing: border-box; margin: 0; padding: 0;
@@ -13809,45 +13809,31 @@ function tkBiletYazdir(kabin, sefer, tid){
     break-inside: avoid;
   }
   html, body {
-    width: 102mm;
-    height: 76mm;
+    width: 76mm;
+    height: 102mm;
     font-family: 'Courier New', 'Consolas', monospace;
-    font-size: 8.5pt;
-    line-height: 1.2;
+    font-size: 9pt;
+    line-height: 1.25;
     color: #000;
     background: white;
     overflow: hidden;
   }
   body {
-    padding: 2mm 3mm;
-    display: flex;
-    flex-direction: row;
-    gap: 3mm;
-  }
-  /* Sol taraf: bilgiler */
-  .sol-taraf {
-    flex: 1.5;
-    min-width: 0;
+    padding: 3mm 4mm;
     display: flex;
     flex-direction: column;
-  }
-  /* Sağ taraf: QR kod */
-  .sag-taraf {
-    flex: 0 0 28mm;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
   }
   .merkez { text-align: center; }
   .kalin { font-weight: 700; }
-  .kucuk { font-size: 7.5pt; }
-  .ufak { font-size: 6.5pt; line-height: 1.1; }
-  hr.cizgi { border: 0; border-top: 1px dashed #000; margin: 1mm 0; }
-  hr.kalın { border: 0; border-top: 1.5px solid #000; margin: 0.8mm 0; }
-  .satir { display: flex; justify-content: space-between; margin: 0.4mm 0; font-size: 8pt; line-height: 1.2; }
-  .qr-container { padding: 1mm; }
+  .kucuk { font-size: 8pt; }
+  .ufak { font-size: 7pt; line-height: 1.1; }
+  hr.cizgi { border: 0; border-top: 1px dashed #000; margin: 1.2mm 0; }
+  hr.kalın { border: 0; border-top: 1.5px solid #000; margin: 1mm 0; }
+  .satir { display: flex; justify-content: space-between; margin: 0.5mm 0; font-size: 9pt; line-height: 1.2; }
+  .qr-container { 
+    text-align: center; 
+    padding: 1mm 0;
+  }
   .qr-container canvas, .qr-container img {
     margin: 0 auto;
     display: block;
@@ -13870,8 +13856,8 @@ function tkBiletYazdir(kabin, sefer, tid){
   @media print {
     .yazdir-btn { display: none; }
     html, body { 
-      width: 102mm !important;
-      height: 76mm !important;
+      width: 76mm !important;
+      height: 102mm !important;
       overflow: hidden !important;
     }
   }
@@ -13880,49 +13866,45 @@ function tkBiletYazdir(kabin, sefer, tid){
 <body>
 <button class="yazdir-btn" onclick="window.print()">🖨️ Yazdır</button>
 
-<!-- SOL TARAF: Tüm bilgiler -->
-<div class="sol-taraf">
-  <!-- Header (kompakt) -->
-  <div class="merkez ufak kalin" style="line-height:1.1;">VOYAGO${gemi ? ' · ' + escapeHTML(gemi.substring(0,18)) : ''}</div>
-  
-  <!-- Tur adı -->
-  <div class="merkez kalin" style="font-size: 10pt; margin: 1mm 0 0.5mm; line-height:1.15;">${escapeHTML(t.name)}</div>
+<!-- Header -->
+<div class="merkez ufak kalin">VOYAGO</div>
+${gemi ? `<div class="merkez ufak">${escapeHTML(gemi)}</div>` : ''}
 
-  <hr class="cizgi">
+<hr class="kalın">
 
-  <!-- Yolcular (ana + ek isimler) -->
-  <div class="kalin" style="font-size: 7pt; margin: 0.3mm 0;">YOLCULAR:</div>
-  ${yolcuListesiHTML}
+<!-- Tur adı -->
+<div class="merkez kalin" style="font-size: 11pt; margin: 1mm 0; line-height:1.2;">${escapeHTML(t.name)}</div>
 
-  <hr class="cizgi">
+<hr class="cizgi">
 
-  <!-- Kişi sayısı + Kabin + Tutar (kompakt) -->
-  <div class="satir">
-    <span class="kucuk">Toplam:</span>
-    <span class="kalin">${toplamKisi} kişi (${yet}Y${coc>0?' '+coc+'Ç':''}${beb>0?' '+beb+'B':''})</span>
-  </div>
-  <div class="satir">
-    <span class="kucuk">Kabin:</span>
-    <span class="kalin">${escapeHTML(p.kabin)}</span>
-  </div>
-  <div class="satir">
-    <span class="kucuk">Tutar:</span>
-    <span class="kalin" style="font-size:10pt;">€${ucret}</span>
-  </div>
+<!-- Yolcular (ana + ek isimler) -->
+<div class="kalin" style="font-size: 8pt; margin: 0.5mm 0;">YOLCULAR:</div>
+${yolcuListesiHTML}
 
-  <!-- Bilet no en altta -->
-  <div style="margin-top:auto;">
-    <hr class="cizgi">
-    <div class="merkez ufak">${biletNo}</div>
-  </div>
+<hr class="cizgi">
+
+<!-- Kişi sayısı + Kabin (tutar yok) -->
+<div class="satir">
+  <span class="kucuk">Toplam:</span>
+  <span class="kalin">${toplamKisi} kişi (${yet}Y${coc>0?' '+coc+'Ç':''}${beb>0?' '+beb+'B':''})</span>
+</div>
+<div class="satir">
+  <span class="kucuk">Kabin:</span>
+  <span class="kalin" style="font-size:11pt;">${escapeHTML(p.kabin)}</span>
 </div>
 
-<!-- SAĞ TARAF: QR kod -->
-<div class="sag-taraf">
-  <div class="qr-container">
-    <div id="qrcode"></div>
-  </div>
-  <div class="ufak" style="margin-top: 1mm;">Rehbere okutunuz</div>
+<hr class="cizgi">
+
+<!-- QR Kod (ortada büyük) -->
+<div class="qr-container">
+  <div id="qrcode"></div>
+  <div class="ufak" style="margin-top: 1.5mm;">Rehbere okutunuz</div>
+</div>
+
+<!-- Bilet no en altta -->
+<div style="margin-top:auto;">
+  <hr class="cizgi">
+  <div class="merkez ufak">${biletNo}</div>
 </div>
 
 <sc${''}ript>
@@ -13931,8 +13913,8 @@ function tkBiletYazdir(kabin, sefer, tid){
     try {
       new QRCode(document.getElementById('qrcode'), {
         text: ${JSON.stringify(qrUrl)},
-        width: 90,
-        height: 90,
+        width: 110,
+        height: 110,
         colorDark: '#000000',
         colorLight: '#ffffff',
         correctLevel: QRCode.CorrectLevel.M
