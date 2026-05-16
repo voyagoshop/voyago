@@ -13955,13 +13955,12 @@ async function topluBiletYazdir(tid){
     const qrUrl = window.location.origin + window.location.pathname + '?qr=' + encodeURIComponent(biletNo) + '&k=' + encodeURIComponent(p.kabin || '') + '&s=' + encodeURIComponent(p.sefer) + '&t=' + encodeURIComponent(tid);
     const gemi = v ? (v.ship || '') : '';
 
-    // Katılım detayı (kişi sayısı, ücret)
+    // Katılım detayı (kişi sayısı - tutar gizli)
     const det = (p.tur_katilim_detay && p.tur_katilim_detay[tid]) || null;
     const yet = det ? (det.yetiskin||0) : (p.adult||0);
     const coc = det ? (det.cocuk||0) : (p.child||0);
     const beb = det ? (det.bebek||0) : (p.baby||0);
     const toplamKisi = yet + coc + beb;
-    const ucret = det ? (det.ucret||0) : (yet*t.ap + coc*t.cp + beb*t.bp);
 
     // Tüm yolcu adları
     const tumIsimler = [p.name || '(İsimsiz)'];
@@ -13973,53 +13972,55 @@ async function topluBiletYazdir(tid){
       name: p.name || '(İsimsiz)',
       kabin: p.kabin || '?',
       biletNo, qrUrl, gemi,
-      tumIsimler, toplamKisi, yet, coc, beb, ucret
+      tumIsimler, toplamKisi, yet, coc, beb
     });
   }
 
   // Tüm biletleri tek HTML'de birleştir, her biri ayrı sayfada (page-break)
   const biletHTML = biletler.map((b, idx) => {
+    // Her bilet için akıllı font boyutu
+    const isimSayisi = b.tumIsimler.length;
+    const isimFontSize = isimSayisi <= 3 ? '10pt' : isimSayisi <= 5 ? '9pt' : '8pt';
+    const isimSatirMargin = isimSayisi <= 3 ? '0.6mm' : '0.3mm';
+
     const yolcuListesiHTML = b.tumIsimler.map((ad, i) => `
-      <div style="display:flex;gap:4mm;font-size:10pt;margin:0.5mm 0;">
-        <span class="kucuk">${i+1}.</span>
+      <div style="display:flex;gap:2mm;font-size:${isimFontSize};margin:${isimSatirMargin} 0;line-height:1.2;">
+        <span style="opacity:.7;">${i+1}.</span>
         <span style="flex:1;">${escapeHTML(ad)}</span>
       </div>`).join('');
     return `
     <div class="bilet-tek" style="${idx > 0 ? 'page-break-before:always;' : ''}">
       <!-- Header -->
-      <div class="merkez kucuk kalin">VOYAGO</div>
-      <div class="merkez ufak">Gemi Rehber Uygulaması</div>
+      <div class="merkez ufak kalin">VOYAGO</div>
       ${b.gemi ? `<div class="merkez ufak">${escapeHTML(b.gemi)}</div>` : ''}
       <hr class="kalın">
       <!-- Tur adı -->
-      <div class="merkez kalin" style="font-size: 12pt; margin: 2mm 0;">${escapeHTML(t.name)}</div>
+      <div class="merkez kalin" style="font-size: 11pt; margin: 1mm 0; line-height:1.2;">${escapeHTML(t.name)}</div>
       <hr class="cizgi">
       <!-- Yolcular -->
-      <div class="kalin kucuk" style="margin: 1mm 0;">YOLCULAR:</div>
+      <div class="kalin" style="font-size: 8pt; margin: 0.5mm 0;">YOLCULAR:</div>
       ${yolcuListesiHTML}
       <hr class="cizgi">
-      <!-- Kişi sayısı + Tutar -->
-      <div style="display: flex; justify-content: space-between; margin: 1mm 0;">
-        <span class="kucuk">Toplam Kişi:</span>
+      <!-- Kişi sayısı + Kabin (tutar yok) -->
+      <div class="satir">
+        <span class="kucuk">Toplam:</span>
         <span class="kalin">${b.toplamKisi} kişi (${b.yet}Y${b.coc>0?' '+b.coc+'Ç':''}${b.beb>0?' '+b.beb+'B':''})</span>
       </div>
-      <div style="display: flex; justify-content: space-between; margin: 1mm 0;">
-        <span class="kucuk">Kabin No:</span>
-        <span class="kalin" style="font-size: 11pt;">${escapeHTML(b.kabin)}</span>
-      </div>
-      <div style="display: flex; justify-content: space-between; margin: 1mm 0;">
-        <span class="kucuk">Tutar:</span>
-        <span class="kalin" style="font-size: 12pt;">€${b.ucret}</span>
+      <div class="satir">
+        <span class="kucuk">Kabin:</span>
+        <span class="kalin" style="font-size:11pt;">${escapeHTML(b.kabin)}</span>
       </div>
       <hr class="cizgi">
       <!-- QR Kod -->
       <div class="qr-container">
         <div class="qrcode-${idx}" data-qr-url="${escapeHTML(b.qrUrl)}"></div>
-        <div class="ufak" style="margin-top: 2mm;">Rehbere okutunuz</div>
+        <div class="ufak" style="margin-top: 1.5mm;">Rehbere okutunuz</div>
       </div>
-      <hr class="cizgi">
-      <!-- Bilet No -->
-      <div class="merkez ufak">${escapeHTML(b.biletNo)}</div>
+      <!-- Bilet no en altta -->
+      <div style="margin-top:auto;">
+        <hr class="cizgi">
+        <div class="merkez ufak">${escapeHTML(b.biletNo)}</div>
+      </div>
     </div>
   `;
   }).join('');
@@ -14031,30 +14032,45 @@ async function topluBiletYazdir(tid){
 <title>Toplu Biletler — ${escapeHTML(t.name)} (${biletler.length})</title>
 <sc${''}ript src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></sc${''}ript>
 <style>
-  @page { size: 80mm auto; margin: 0; }
+  @page {
+    size: 76mm 102mm;       /* DİKEY: 3" × 4" termal kağıt */
+    margin: 0;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
-    width: 80mm;
+    width: 76mm;
     font-family: 'Courier New', 'Consolas', monospace;
-    font-size: 11pt;
-    line-height: 1.3;
+    font-size: 9pt;
+    line-height: 1.25;
     color: #000;
     background: white;
   }
   body { padding: 0; }
   .bilet-tek {
-    padding: 3mm 5mm 3mm 9mm;
+    width: 76mm;
+    height: 102mm;
+    padding: 3mm 4mm;
     page-break-inside: avoid;
     break-inside: avoid;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
   .merkez { text-align: center; }
   .kalin { font-weight: 700; }
-  .kucuk { font-size: 9pt; }
-  .ufak { font-size: 8pt; }
-  hr.cizgi { border: 0; border-top: 1px dashed #000; margin: 2mm 0; }
-  hr.kalın { border: 0; border-top: 2px solid #000; margin: 1.5mm 0; }
-  .qr-container { text-align: center; margin: 2mm 0; }
-  .qr-container canvas, .qr-container img { margin: 0 auto; }
+  .kucuk { font-size: 8pt; }
+  .ufak { font-size: 7pt; line-height: 1.1; }
+  hr.cizgi { border: 0; border-top: 1px dashed #000; margin: 1.2mm 0; }
+  hr.kalın { border: 0; border-top: 1.5px solid #000; margin: 1mm 0; }
+  .satir { display: flex; justify-content: space-between; margin: 0.5mm 0; font-size: 9pt; line-height: 1.2; }
+  .qr-container { 
+    text-align: center; 
+    padding: 1mm 0;
+  }
+  .qr-container canvas, .qr-container img { 
+    margin: 0 auto;
+    display: block;
+  }
   .yazdir-btn {
     position: fixed; top: 8px; right: 8px;
     padding: 8px 14px; background: #1a5fa8; color: white;
@@ -14070,12 +14086,19 @@ async function topluBiletYazdir(tid){
   }
   @media print {
     .yazdir-btn, .info-bar { display: none; }
-    html, body { height: auto !important; }
+    html, body { 
+      height: auto !important;
+    }
+    .bilet-tek {
+      width: 76mm !important;
+      height: 102mm !important;
+      overflow: hidden !important;
+    }
   }
 </style>
 </head>
 <body>
-<div class="info-bar">📋 ${biletler.length} bilet hazır — yazdırılırken her bilet kendi sayfasında çıkar</div>
+<div class="info-bar">📋 ${biletler.length} bilet hazır — her bilet 76mm × 102mm tek sayfada</div>
 <button class="yazdir-btn" onclick="window.print()">🖨️ Hepsini Yazdır</button>
 
 ${biletHTML}
@@ -14087,7 +14110,7 @@ ${biletHTML}
       try {
         const url = el.getAttribute('data-qr-url');
         new QRCode(el, {
-          text: url, width: 130, height: 130,
+          text: url, width: 110, height: 110,
           colorDark: '#000000', colorLight: '#ffffff',
           correctLevel: QRCode.CorrectLevel.M
         });
