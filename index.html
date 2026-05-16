@@ -6316,29 +6316,51 @@ function renderDashboard(){
   );
   const toplamTur = seferTurlari.length;
 
-  // Tur katılımları
+  // Tur katılımları + DETAYLI Y/Ç/B dağılımı
   let toplamKatilim = 0;
   let toplamGelir = 0;
   let turDolulukOranlari = [];
+  let turDetaylari = []; // Her tur için detay: ad, kabin, kişi, Y, Ç, B, gelir
   seferTurlari.forEach(t => {
     const katilan = seferYolculari.filter(p => (p.joinedTours||[]).includes(t.id));
     const kabinSayi = katilan.length;
     toplamKatilim += kabinSayi;
+
+    let turY = 0, turC = 0, turB = 0, turGelir = 0;
     katilan.forEach(p => {
       const det = (p.tur_katilim_detay && p.tur_katilim_detay[t.id]) || null;
-      const ucret = det ? (det.ucret||0) : ((p.adult||0)*t.ap + (p.child||0)*t.cp + (p.baby||0)*t.bp);
+      // Yetişkin, çocuk, bebek - tur_katilim_detay'da varsa onu, yoksa yolcunun kendi sayılarını al
+      const y = det && typeof det.yetiskin !== 'undefined' ? det.yetiskin : (p.adult || 0);
+      const c = det && typeof det.cocuk !== 'undefined' ? det.cocuk : (p.child || 0);
+      const b = det && typeof det.bebek !== 'undefined' ? det.bebek : (p.baby || 0);
+      turY += y; turC += c; turB += b;
+      const ucret = det ? (det.ucret||0) : (y*t.ap + c*t.cp + b*t.bp);
+      turGelir += ucret;
       toplamGelir += ucret;
     });
+
+    // Detayı kaydet (kişi var olan turlar)
+    if(kabinSayi > 0){
+      turDetaylari.push({
+        tur: t,
+        kabin: kabinSayi,
+        yetiskin: turY,
+        cocuk: turC,
+        bebek: turB,
+        toplamKisi: turY + turC + turB,
+        gelir: turGelir
+      });
+    }
+
     // Kapasite varsa doluluk
     if(t.kapasite && t.kapasite > 0){
-      const kisi = katilan.reduce((a,p) => {
-        const det = p.tur_katilim_detay?.[t.id];
-        return a + (det ? det.kisi : (p.adult||0)+(p.child||0)+(p.baby||0));
-      }, 0);
+      const kisi = turY + turC + turB;
       const oran = Math.round((kisi / t.kapasite) * 100);
       turDolulukOranlari.push({ t, kisi, oran });
     }
   });
+  // Tur detaylarını kişi sayısına göre sırala (çoktan aza)
+  turDetaylari.sort((a,b) => b.toplamKisi - a.toplamKisi);
 
   // Tur almayanlar
   const turAlmayanlar = seferYolculari.filter(p => !p.joinedTours || p.joinedTours.length === 0);
@@ -6458,6 +6480,59 @@ function renderDashboard(){
           </div>
         `;
       }).join('')}
+    </div>
+    ` : ''}
+
+    ${turDetaylari.length ? `
+    <!-- 👥 Tur Katılım Detayı (Y/Ç/B) -->
+    <div style="background:white;border-radius:14px;padding:14px;border:1px solid #f0f0f0;">
+      <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+        👥 <span>Tur Katılım Detayı</span>
+      </div>
+      <div style="font-size:11px;color:#666;margin-bottom:10px;">
+        Yetişkin · Çocuk · Bebek dağılımı (kişi sayısına göre sırala)
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${turDetaylari.map((d, i) => {
+          const renk = i === 0 ? '#16a34a' : i === 1 ? '#1a5fa8' : i === 2 ? '#7c3aed' : '#888';
+          const limanKisa = d.tur.liman ? ' · ' + escapeHTML(d.tur.liman.split(',')[0]) : '';
+          return `
+            <div style="background:#fafafa;border:1px solid #f0f0f0;border-radius:10px;padding:11px 12px;" onclick="adminTab('tur')">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:600;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHTML(d.tur.name)}</div>
+                  <div style="font-size:10px;color:#888;margin-top:1px;">${d.kabin} kabin${limanKisa}</div>
+                </div>
+                <div style="background:${renk};color:white;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:700;flex-shrink:0;margin-left:8px;">
+                  ${d.toplamKisi} kişi
+                </div>
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                ${d.yetiskin > 0 ? `
+                  <div style="background:#dbeafe;color:#1e40af;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:3px;">
+                    <span>🧑</span> <span>${d.yetiskin} yetişkin</span>
+                  </div>
+                ` : ''}
+                ${d.cocuk > 0 ? `
+                  <div style="background:#fef3c7;color:#92400e;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:3px;">
+                    <span>🧒</span> <span>${d.cocuk} çocuk</span>
+                  </div>
+                ` : ''}
+                ${d.bebek > 0 ? `
+                  <div style="background:#fce7f3;color:#9f1239;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:3px;">
+                    <span>👶</span> <span>${d.bebek} bebek</span>
+                  </div>
+                ` : ''}
+                ${d.gelir > 0 ? `
+                  <div style="background:#dcfce7;color:#15803d;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:3px;margin-left:auto;">
+                    <span>💰</span> <span>€${d.gelir}</span>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
     </div>
     ` : ''}
 
