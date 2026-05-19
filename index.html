@@ -15919,37 +15919,64 @@ let WA_ADMIN_AKTIF_GEMI = null;
 function waAdminChipRender(){
   const el = document.getElementById('wa-link-sefer-chips');
   if(!el) return;
-  // Sefer chip'leri yerine gemi chip'leri göster
+
+  // Tüm gemileri topla — birden çok kaynaktan
+  const gemilerSet = new Set();
+  // 1. VOYAGES'tan
+  VOYAGES.forEach(v => { if(v.ship) gemilerSet.add(v.ship); });
+  // 2. SHIPS global'inden
+  if(typeof SHIPS !== 'undefined' && Array.isArray(SHIPS)){
+    SHIPS.forEach(s => { if(s) gemilerSet.add(s); });
+  }
+  // 3. Kullanıcının kendi gemisi
+  if(CU?.ship) gemilerSet.add(CU.ship);
+  // 4. WA_LINKS_GEMI'deki kayıtlı gemiler
+  Object.keys(WA_LINKS_GEMI).forEach(g => { if(g) gemilerSet.add(g); });
+
   const iS = CU?.role === 'super' || CU?.role === 'voyago';
   let gemiler;
   if(iS){
-    // Super/voyago tüm gemileri görür
-    gemiler = [...new Set(VOYAGES.map(v => v.ship).filter(Boolean))];
+    gemiler = [...gemilerSet];
   } else {
     // Acente/rehber sadece kendi gemisini
-    gemiler = [CU?.ship].filter(Boolean);
+    gemiler = CU?.ship ? [CU.ship] : [...gemilerSet];
   }
-  // Eğer hiç gemi yoksa
+
+  // Hiç gemi yoksa fallback
   if(!gemiler.length){
-    el.innerHTML = '<div style="font-size:11px;color:var(--t3);">Henüz gemi tanımlı değil</div>';
+    el.innerHTML = '<div style="font-size:12px;color:#666;padding:10px;background:#fef3c7;border-radius:8px;">⚠️ Henüz gemi tanımlı değil. Önce bir sefer oluşturun.</div>';
     return;
   }
-  // Aktif gemiyi belirle
+
+  // Aktif gemiyi belirle (yoksa ilkini al)
   if(!WA_ADMIN_AKTIF_GEMI || !gemiler.includes(WA_ADMIN_AKTIF_GEMI)){
     WA_ADMIN_AKTIF_GEMI = gemiler[0];
   }
-  el.innerHTML = `
-    <div style="font-size:11px;color:#666;margin-bottom:8px;">
-      🚢 Gemi başına tek WhatsApp grup linki. Tüm seferler aynı linki kullanır.
-    </div>
-    ${gemiler.map(g => {
-      const aktif = g === WA_ADMIN_AKTIF_GEMI;
-      const dolu = !!WA_LINKS_GEMI[g];
-      return `<div class="ch ${aktif?'active':''}" onclick="waAdminGemiSec('${escapeHTML(g).replace(/'/g, "&#39;")}')">
-        ${dolu?'✓ ':''}🚢 ${escapeHTML(g)}
-      </div>`;
-    }).join('')}
-  `;
+
+  // Tek gemi varsa chip gösterme - direkt başlık göster
+  if(gemiler.length === 1){
+    el.innerHTML = `
+      <div style="background:linear-gradient(135deg,#dcfce7,#bbf7d0);border-radius:10px;padding:10px 14px;margin-bottom:8px;border-left:3px solid #16a34a;">
+        <div style="font-size:11px;color:#15803d;font-weight:600;margin-bottom:2px;">🚢 GEMİ</div>
+        <div style="font-size:14px;color:#0d4d2a;font-weight:700;">${escapeHTML(WA_ADMIN_AKTIF_GEMI)}</div>
+        <div style="font-size:10px;color:#15803d;margin-top:4px;">Bu geminin tüm seferleri aynı linki kullanır</div>
+      </div>
+    `;
+  } else {
+    // Birden çok gemi varsa chip'lerle seçim
+    el.innerHTML = `
+      <div style="font-size:11px;color:#666;margin-bottom:8px;">
+        🚢 Gemi başına tek WhatsApp grup linki. Tüm seferler aynı linki kullanır.
+      </div>
+      ${gemiler.map(g => {
+        const aktif = g === WA_ADMIN_AKTIF_GEMI;
+        const dolu = !!WA_LINKS_GEMI[g];
+        return `<div class="ch ${aktif?'active':''}" onclick="waAdminGemiSec('${escapeHTML(g).replace(/'/g, "&#39;")}')">
+          ${dolu?'✓ ':''}🚢 ${escapeHTML(g)}
+        </div>`;
+      }).join('')}
+    `;
+  }
   waAdminInputDoldur();
 }
 
