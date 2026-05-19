@@ -15836,15 +15836,17 @@ function escapeHTML(s){
 })();
 
 // ══ WHATSAPP BİLDİRİM GRUBU ══
-// Sefer bazlı linkler bellek içinde tutulur
-let WA_LINKS = {}; // {sefer_id: 'https://chat.whatsapp.com/...'}
-let WA_ADMIN_AKTIF_SEFER = null;
+// Gemi başına bir link tutulur — tüm seferlerde aynı grup
+let WA_LINKS_GEMI = {}; // {gemi_adi: 'https://chat.whatsapp.com/...'}
 
 // ── Yolcu: Topbar butonunu güncelle ──
 function waGrupButonGuncelle(){
   const btn = document.getElementById('wa-grup-btn');
   if(!btn || !CP) return;
-  const link = WA_LINKS[CP.sefer];
+  // Yolcunun seferinin gemisini bul
+  const v = VOYAGES.find(x => x.id === CP.sefer);
+  const gemi = v?.ship || '';
+  const link = WA_LINKS_GEMI[gemi];
   if(link){
     btn.style.display = 'flex';
     btn.classList.remove('devre-disi');
@@ -15857,9 +15859,11 @@ function waGrupButonGuncelle(){
 // ── Yolcu: Modal aç ──
 function waGrupModalAc(){
   if(!CP){ showToast('Lütfen önce giriş yapın'); return; }
-  const link = WA_LINKS[CP.sefer];
+  const v = VOYAGES.find(x => x.id === CP.sefer);
+  const gemi = v?.ship || '';
+  const link = WA_LINKS_GEMI[gemi];
   if(!link){
-    showToast('Bu sefer için henüz grup linki tanımlanmamış');
+    showToast('Bu gemi için henüz grup linki tanımlanmamış');
     return;
   }
   document.getElementById('wa-modal').classList.add('active');
@@ -15868,7 +15872,9 @@ function waGrupModalAc(){
 // ── Yolcu: Gruba katıl ──
 function waGrubaKatil(){
   if(!CP) return;
-  const link = WA_LINKS[CP.sefer];
+  const v = VOYAGES.find(x => x.id === CP.sefer);
+  const gemi = v?.ship || '';
+  const link = WA_LINKS_GEMI[gemi];
   if(!link){ showToast('Grup linki bulunamadı'); return; }
   window.open(link, '_blank');
   document.getElementById('wa-modal').classList.remove('active');
@@ -15880,96 +15886,142 @@ function waGrupModalKapat(e){
   document.getElementById('wa-modal').classList.remove('active');
 }
 
-// ── Linkleri DB'den yükle ──
+// ── Linkleri DB'den yükle (gemi başına) ──
 async function waLinkleriYukle(){
   try{
-    const { data, error } = await sb.from('seferler').select('id, wa_grup_link');
+    // Önce yeni tabloyu dene
+    const { data, error } = await sb.from('gemi_wa_linkleri').select('gemi, wa_grup_link');
     if(error) throw error;
-    WA_LINKS = {};
+    WA_LINKS_GEMI = {};
     (data||[]).forEach(s=>{
-      if(s.wa_grup_link) WA_LINKS[s.id] = s.wa_grup_link;
+      if(s.wa_grup_link) WA_LINKS_GEMI[s.gemi] = s.wa_grup_link;
     });
     waGrupButonGuncelle();
   }catch(e){
-    console.log('WA link yükleme:', e);
+    console.log('WA gemi link yükleme:', e);
+    // Tablo yoksa eski sistemi dene (geçiş süresi için)
+    try {
+      const { data, error } = await sb.from('seferler').select('id, gemi, wa_grup_link');
+      if(!error && data){
+        WA_LINKS_GEMI = {};
+        data.forEach(s=>{
+          if(s.wa_grup_link && s.gemi) WA_LINKS_GEMI[s.gemi] = s.wa_grup_link;
+        });
+        waGrupButonGuncelle();
+      }
+    } catch(e2){}
   }
 }
 
-// ── Admin: sefer chip'lerini render et ──
+// ── Admin: Gemi başına link yönetimi ──
+let WA_ADMIN_AKTIF_GEMI = null;
+
 function waAdminChipRender(){
   const el = document.getElementById('wa-link-sefer-chips');
   if(!el) return;
-  const iS = CU?.role === 'super';
-  const activeShip = iS ? ACTIVE_SHIP : CU?.ship;
-  const seferler = VOYAGES.filter(v => !activeShip || v.ship === activeShip || !v.ship);
-  if(!seferler.length){
-    el.innerHTML = '<div style="font-size:11px;color:var(--t3);">Sefer yok</div>';
+  // Sefer chip'leri yerine gemi chip'leri göster
+  const iS = CU?.role === 'super' || CU?.role === 'voyago';
+  let gemiler;
+  if(iS){
+    // Super/voyago tüm gemileri görür
+    gemiler = [...new Set(VOYAGES.map(v => v.ship).filter(Boolean))];
+  } else {
+    // Acente/rehber sadece kendi gemisini
+    gemiler = [CU?.ship].filter(Boolean);
+  }
+  // Eğer hiç gemi yoksa
+  if(!gemiler.length){
+    el.innerHTML = '<div style="font-size:11px;color:var(--t3);">Henüz gemi tanımlı değil</div>';
     return;
   }
-  // İlk sefer varsayılan seç
-  if(!WA_ADMIN_AKTIF_SEFER || !seferler.find(s=>s.id===WA_ADMIN_AKTIF_SEFER)){
-    WA_ADMIN_AKTIF_SEFER = seferler[0].id;
+  // Aktif gemiyi belirle
+  if(!WA_ADMIN_AKTIF_GEMI || !gemiler.includes(WA_ADMIN_AKTIF_GEMI)){
+    WA_ADMIN_AKTIF_GEMI = gemiler[0];
   }
-  el.innerHTML = seferler.map(s=>{
-    const aktif = s.id === WA_ADMIN_AKTIF_SEFER;
-    const dolu = !!WA_LINKS[s.id];
-    return `<div class="ch ${aktif?'active':''}" onclick="waAdminSeferSec('${s.id}')" style="${aktif?'':''}">
-      ${dolu?'✓ ':''}${s.label||s.id}
-    </div>`;
-  }).join('');
+  el.innerHTML = `
+    <div style="font-size:11px;color:#666;margin-bottom:8px;">
+      🚢 Gemi başına tek WhatsApp grup linki. Tüm seferler aynı linki kullanır.
+    </div>
+    ${gemiler.map(g => {
+      const aktif = g === WA_ADMIN_AKTIF_GEMI;
+      const dolu = !!WA_LINKS_GEMI[g];
+      return `<div class="ch ${aktif?'active':''}" onclick="waAdminGemiSec('${escapeHTML(g).replace(/'/g, "&#39;")}')">
+        ${dolu?'✓ ':''}🚢 ${escapeHTML(g)}
+      </div>`;
+    }).join('')}
+  `;
   waAdminInputDoldur();
 }
 
-function waAdminSeferSec(sid){
-  WA_ADMIN_AKTIF_SEFER = sid;
+function waAdminGemiSec(gemi){
+  WA_ADMIN_AKTIF_GEMI = gemi;
   waAdminChipRender();
+}
+
+// Eski API uyumluluğu (waAdminSeferSec hâlâ çağrılabilir)
+function waAdminSeferSec(gemi){
+  waAdminGemiSec(gemi);
 }
 
 function waAdminInputDoldur(){
   const inp = document.getElementById('wa-link-input');
   const dur = document.getElementById('wa-link-durum');
   if(!inp) return;
-  const link = WA_LINKS[WA_ADMIN_AKTIF_SEFER] || '';
+  const link = WA_LINKS_GEMI[WA_ADMIN_AKTIF_GEMI] || '';
   inp.value = link;
   if(dur){
     if(link){
-      dur.innerHTML = '✓ Bu sefer için link tanımlı — yolcular topbar\'dan göreceği';
+      dur.innerHTML = '✓ Bu gemi için link tanımlı — <b>tüm seferlerde</b> yolcular topbar\'dan göreceği';
       dur.style.color = '#0d4d2a';
     } else {
-      dur.innerHTML = 'ℹ️ Bu sefer için link tanımlı değil — yolcuların topbar butonu görünmüyor';
+      dur.innerHTML = 'ℹ️ Bu gemi için link tanımlı değil — yolcuların topbar butonu görünmüyor';
       dur.style.color = '#92400e';
     }
   }
 }
 
-// ── Admin: Linki kaydet ──
+// ── Admin: Linki kaydet (gemi başına) ──
 async function waLinkKaydet(){
-  if(!WA_ADMIN_AKTIF_SEFER){ showToast('Önce bir sefer seçin'); return; }
+  if(!WA_ADMIN_AKTIF_GEMI){ showToast('Önce bir gemi seçin'); return; }
   const link = (document.getElementById('wa-link-input').value || '').trim();
   if(link && !link.startsWith('https://chat.whatsapp.com/')){
     if(!confirm('Bu link geçerli bir WhatsApp grup linki gibi görünmüyor.\nLinkler genelde "https://chat.whatsapp.com/..." ile başlar.\n\nYine de kaydetmek istiyor musunuz?')) return;
   }
   try{
-    const { error } = await sb.from('seferler').update({ wa_grup_link: link || null }).eq('id', WA_ADMIN_AKTIF_SEFER);
-    if(error) throw error;
-    if(link) WA_LINKS[WA_ADMIN_AKTIF_SEFER] = link;
-    else delete WA_LINKS[WA_ADMIN_AKTIF_SEFER];
+    // Önce gemi_wa_linkleri tablosunda var mı?
+    const { data: mevcut } = await sb.from('gemi_wa_linkleri').select('gemi').eq('gemi', WA_ADMIN_AKTIF_GEMI);
+    if(mevcut && mevcut.length){
+      // Güncelle
+      const { error } = await sb.from('gemi_wa_linkleri')
+        .update({ wa_grup_link: link || null, guncelleme: new Date().toISOString() })
+        .eq('gemi', WA_ADMIN_AKTIF_GEMI);
+      if(error) throw error;
+    } else {
+      // Yeni kayıt
+      const { error } = await sb.from('gemi_wa_linkleri')
+        .insert({ gemi: WA_ADMIN_AKTIF_GEMI, wa_grup_link: link || null });
+      if(error) throw error;
+    }
+    if(link) WA_LINKS_GEMI[WA_ADMIN_AKTIF_GEMI] = link;
+    else delete WA_LINKS_GEMI[WA_ADMIN_AKTIF_GEMI];
     waAdminChipRender();
-    showToast('✓ Link kaydedildi');
+    showToast('✓ Link kaydedildi — tüm seferlerde aktif');
   }catch(e){
     console.error('Link kayıt:', e);
     showToast('⚠️ Kayıt başarısız: ' + (e.message||''));
   }
 }
 
-// ── Admin: Linki sil ──
+// ── Admin: Linki sil (gemi başına) ──
 async function waLinkSil(){
-  if(!WA_ADMIN_AKTIF_SEFER){ showToast('Önce bir sefer seçin'); return; }
-  if(!confirm('Bu sefer için WhatsApp grup linkini silmek istediğinize emin misiniz?')) return;
+  if(!WA_ADMIN_AKTIF_GEMI){ showToast('Önce bir gemi seçin'); return; }
+  if(!confirm('Bu geminin WhatsApp grup linkini silmek istediğinize emin misiniz?\n\nTüm seferlerde yolcular bu grubu göremeyecek.')) return;
   try{
-    const { error } = await sb.from('seferler').update({ wa_grup_link: null }).eq('id', WA_ADMIN_AKTIF_SEFER);
+    const { error } = await sb.from('gemi_wa_linkleri')
+      .delete()
+      .eq('gemi', WA_ADMIN_AKTIF_GEMI);
     if(error) throw error;
-    delete WA_LINKS[WA_ADMIN_AKTIF_SEFER];
+    delete WA_LINKS_GEMI[WA_ADMIN_AKTIF_GEMI];
     document.getElementById('wa-link-input').value = '';
     waAdminChipRender();
     showToast('Link silindi');
