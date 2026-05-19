@@ -3419,12 +3419,18 @@ function doPL(){
   // Veritabanına kaydet
   saveYolcuDB(p);
   // Tarayıcıya kaydet — bir sonraki ziyarette otomatik giriş
+  const yolcuKayit = {
+    name: p.name, kabin: p.kabin, tel: p.tel,
+    sefer: p.sefer, adult: p.adult, child: p.child, baby: p.baby,
+    code: document.getElementById('cc').value
+  };
   try {
-    localStorage.setItem('voyago_yolcu', JSON.stringify({
-      name: p.name, kabin: p.kabin, tel: p.tel,
-      sefer: p.sefer, adult: p.adult, child: p.child, baby: p.baby,
-      code: document.getElementById('cc').value
-    }));
+    localStorage.setItem('voyago_yolcu', JSON.stringify(yolcuKayit));
+  } catch(e) {}
+  // Cookie'ye de yaz (Safari/iOS localStorage'ı temizleyebilir, cookie 90 gün dayanır)
+  try {
+    const yolcuStr = encodeURIComponent(JSON.stringify(yolcuKayit));
+    document.cookie = 'voyago_yolcu=' + yolcuStr + '; max-age=' + (90*24*60*60) + '; path=/; SameSite=Lax';
   } catch(e) {}
   if(isFirst) {
     showToast('Check-in yapildi! Hos geldiniz, '+name.split(' ')[0]+'!');
@@ -9321,20 +9327,66 @@ function kabinHizliAra(){
   if(!kabin){sonuc.innerHTML='';return;}
   const tid = document.getElementById('kontrol-tur-sel')?.value;
   const sid = document.getElementById('kontrol-sefer-sel')?.value;
-  if(!tid||!sid){sonuc.innerHTML='<span style="color:var(--amber);">Önce tur seçin</span>';return;}
-  // Kabin ara
-  const p = passengers.find(px=>px.kabin===kabin&&px.sefer===sid&&px.joinedTours.includes(tid));
-  if(!p){
-    sonuc.innerHTML='<span style="color:var(--red);">❌ Kabin '+kabin+' bu turda kayıtlı değil</span>';
+  if(!sid){sonuc.innerHTML='<span style="color:var(--amber);">Önce sefer seçin</span>';return;}
+
+  // Kabin'i temizle (boşluk kaldır, büyük harf)
+  const kabinTemiz = kabin.trim().toUpperCase();
+
+  // Önce bu seferdeki TÜM yolcuları bul (kabin eşleşmesi esnek)
+  const seferYolculari = passengers.filter(px =>
+    px.sefer === sid && !px.arsivli && px.kabin &&
+    px.kabin.toString().trim().toUpperCase() === kabinTemiz
+  );
+
+  if(seferYolculari.length === 0){
+    sonuc.innerHTML='<span style="color:var(--red);">❌ Kabin '+kabin+' bu seferde kayıtlı değil</span>';
     return;
   }
-  const key = kabin+'_'+sid+'_'+tid;
+
+  // Birden çok yolcu varsa (paylaşımlı kabin?) ilkini al
+  const p = seferYolculari[0];
+
+  // Tur seçimine göre dallandır
+  if(!tid || tid === 'hepsi'){
+    // Tur seçilmemiş veya "Hepsi" modunda — yolcuyu göster, hangi turlara katıldığını listele
+    const katilanTurlar = (p.joinedTours||[]).map(turId => {
+      const t = TOURS.find(x=>x.id===turId);
+      return t ? t.name : '';
+    }).filter(Boolean);
+
+    if(katilanTurlar.length === 0){
+      sonuc.innerHTML='<span style="color:var(--amber);">⚠️ '+escapeHTML(p.name)+' (Kabin '+escapeHTML(kabin)+') — Hiç tura katılmıyor</span>';
+    } else {
+      sonuc.innerHTML='<span style="color:var(--blue);">👤 '+escapeHTML(p.name)+' (Kabin '+escapeHTML(kabin)+') — Turlar: <b>'+katilanTurlar.join(', ')+'</b><br><span style="font-size:11px;">Bir turu seçip "Geldi" basın</span></span>';
+    }
+    return;
+  }
+
+  // Tur seçili - bu yolcu o turda var mı?
+  if(!p.joinedTours || !p.joinedTours.includes(tid)){
+    // Yolcu bu turda değil ama başka turlarda olabilir
+    const katilanTurlar = (p.joinedTours||[]).map(turId => {
+      const t = TOURS.find(x=>x.id===turId);
+      return t ? t.name : '';
+    }).filter(Boolean);
+    const baska = katilanTurlar.length ? ' Katıldığı turlar: ' + katilanTurlar.join(', ') : '';
+    sonuc.innerHTML='<span style="color:var(--red);">❌ '+escapeHTML(p.name)+' bu turda kayıtlı değil.'+escapeHTML(baska)+'</span>';
+    return;
+  }
+
+  // Yolcu turda var - kontrol durumunu göster
+  const key = kabinTemiz+'_'+sid+'_'+tid;
   const d = kontrolDurum[key]||0;
-  const kisi = p.adult+p.child+p.baby;
+  const det = p.tur_katilim_detay?.[tid];
+  const yet = det ? (det.yetiskin||0) : (p.adult||0);
+  const coc = det ? (det.cocuk||0) : (p.child||0);
+  const beb = det ? (det.bebek||0) : (p.baby||0);
+  const kisi = yet + coc + beb;
+
   if(d===1){
-    sonuc.innerHTML='<span style="color:var(--green);">✓ '+p.name+' ('+kisi+' kişi) — Geldi</span>';
+    sonuc.innerHTML='<span style="color:var(--green);">✓ '+escapeHTML(p.name)+' ('+kisi+' kişi) — Geldi</span>';
   } else {
-    sonuc.innerHTML='<span style="color:var(--blue);">👤 '+p.name+' · Kabin '+kabin+' · '+kisi+' kişi — <b>Henüz işaretlenmedi</b></span>';
+    sonuc.innerHTML='<span style="color:var(--blue);">👤 '+escapeHTML(p.name)+' · Kabin '+escapeHTML(kabin)+' · '+kisi+' kişi — <b>Henüz işaretlenmedi</b></span>';
   }
 }
 
@@ -9343,10 +9395,37 @@ async function kabinHizliGeldi(){
   if(!kabin) return;
   const tid = document.getElementById('kontrol-tur-sel')?.value;
   const sid = document.getElementById('kontrol-sefer-sel')?.value;
-  if(!tid||!sid){showToast('Önce tur seçin.');return;}
-  const p = passengers.find(px=>px.kabin===kabin&&px.sefer===sid&&px.joinedTours.includes(tid));
-  if(!p){showToast('Kabin '+kabin+' bu turda kayıtlı değil!');return;}
-  const key = kabin+'_'+sid+'_'+tid;
+  if(!sid){showToast('Önce sefer seçin.');return;}
+  if(!tid || tid === 'hepsi'){
+    showToast('⚠️ "Geldi" basmak için önce bir tur seçin');
+    return;
+  }
+
+  // Kabin'i temizle (boşluk kaldır, büyük harf)
+  const kabinTemiz = kabin.trim().toUpperCase();
+
+  // Yolcuyu esnek eşleştirmeyle bul
+  const p = passengers.find(px =>
+    px.sefer === sid && !px.arsivli && px.kabin &&
+    px.kabin.toString().trim().toUpperCase() === kabinTemiz &&
+    (px.joinedTours||[]).includes(tid)
+  );
+
+  if(!p){
+    // Yolcu var ama turda yoksa farklı mesaj
+    const yolcuBuKabin = passengers.find(px =>
+      px.sefer === sid && !px.arsivli && px.kabin &&
+      px.kabin.toString().trim().toUpperCase() === kabinTemiz
+    );
+    if(yolcuBuKabin){
+      showToast('⚠️ ' + yolcuBuKabin.name + ' bu turda kayıtlı değil');
+    } else {
+      showToast('❌ Kabin '+kabin+' bu seferde bulunamadı');
+    }
+    return;
+  }
+
+  const key = kabinTemiz+'_'+sid+'_'+tid;
   kontrolDurum[key] = 1; // Geldi
 
   // DB'ye yaz — kalıcı olsun
@@ -9360,7 +9439,7 @@ async function kabinHizliGeldi(){
 
   document.getElementById('kontrol-kabin-ara').value = '';
   document.getElementById('kontrol-kabin-sonuc').innerHTML = 
-    '<span style="color:var(--green);">✅ '+p.name+' geldi olarak işaretlendi!</span>';
+    '<span style="color:var(--green);">✅ '+escapeHTML(p.name)+' geldi olarak işaretlendi!</span>';
   renderKontrolListesi();
   // 2 saniye sonra temizle
   setTimeout(()=>{
@@ -10500,7 +10579,14 @@ function baslat() {
 
   // Loading mesajını yolcu adına göre kişiselleştir
   try {
-    const yolcuKayit = localStorage.getItem('voyago_yolcu');
+    let yolcuKayit = localStorage.getItem('voyago_yolcu');
+    // localStorage'da yoksa cookie'den oku
+    if(!yolcuKayit){
+      const m = document.cookie.match(/voyago_yolcu=([^;]+)/);
+      if(m){
+        try { yolcuKayit = decodeURIComponent(m[1]); } catch(e){}
+      }
+    }
     const adminKayit = localStorage.getItem('voyago_admin') || document.cookie.match(/voyago_admin=/);
     const mesajEl = document.getElementById('loading-mesaj');
     if(mesajEl){
@@ -10529,7 +10615,10 @@ function baslat() {
   }
 
   // Loading: kayıtlı kullanıcı varsa 2 saniye, yoksa 3 saniye
-  const kayitliKullanici = localStorage.getItem('voyago_yolcu') || localStorage.getItem('voyago_admin') || document.cookie.match(/voyago_admin=/);
+  const kayitliKullanici = localStorage.getItem('voyago_yolcu') 
+    || document.cookie.match(/voyago_yolcu=/)
+    || localStorage.getItem('voyago_admin') 
+    || document.cookie.match(/voyago_admin=/);
   let sayi = kayitliKullanici ? 2 : 3;
   const maxWait = setTimeout(()=>{ loadingDone=true; tryAutoLogin(); }, kayitliKullanici ? 2500 : 4000);
   const tick = setInterval(() => {
@@ -10732,8 +10821,9 @@ function doLogout() {
 // Yolcunun seferi tamamen bitirmesi — tüm kayıtları sil
 function yolculuguBitir() {
   if(!confirm('Yolculuğunuzu tamamen bitirmek istediğinize emin misiniz?\n\nBu işlem:\n• Kayıtlı bilgilerinizi temizler\n• Bir daha otomatik giriş yapamazsınız\n• Yeniden giriş için ad+kabin gerekir')) return;
-  // Tüm yolcu kayıtlarını temizle
+  // Tüm yolcu kayıtlarını temizle (localStorage + cookie)
   try { localStorage.removeItem('voyago_yolcu'); } catch(e){}
+  try { document.cookie = 'voyago_yolcu=; max-age=0; path=/'; } catch(e){}
   // Karşılama modal kayıtları da temizle
   try {
     Object.keys(localStorage).forEach(k => {
@@ -10757,21 +10847,42 @@ function yolculuguBitir() {
 let _hosgeldinTimer = null;
 let _hosgeldinTickTimer = null;
 
+// Yolcu kaydını localStorage'tan veya cookie'den al
+function yolcuKayitOku(){
+  // Önce localStorage'tan dene
+  try {
+    const ls = localStorage.getItem('voyago_yolcu');
+    if(ls) return JSON.parse(ls);
+  } catch(e){}
+  // localStorage çalışmazsa veya silindiyse cookie'den dene
+  try {
+    const m = document.cookie.match(/voyago_yolcu=([^;]+)/);
+    if(m){
+      const json = decodeURIComponent(m[1]);
+      const obj = JSON.parse(json);
+      // Cookie'den okurken localStorage'a da yaz (tazele)
+      try { localStorage.setItem('voyago_yolcu', json); } catch(e){}
+      return obj;
+    }
+  } catch(e){}
+  return null;
+}
+
 function checkHosgeldin() {
   try {
-    const kayit = localStorage.getItem('voyago_yolcu');
+    const p = yolcuKayitOku();
     const hosKarti = document.getElementById('hosgeldin-karti');
     const formKarti = document.getElementById('giris-form-karti');
-    if (!kayit || !hosKarti || !formKarti) return;
+    if (!p || !hosKarti || !formKarti) return;
 
-    const p = JSON.parse(kayit);
-    if (!p || !p.kabin || !p.sefer) return;
+    if (!p.kabin || !p.sefer) return;
 
     // Sefer hâlâ aktif mi?
     const v = VOYAGES.find(v => v.id === p.sefer && v.visible && v.status !== 'archived');
     if (!v) {
-      // Geçersiz sefer - localStorage'ı temizle
+      // Geçersiz sefer - kayıtları temizle
       try { localStorage.removeItem('voyago_yolcu'); } catch(e){}
+      try { document.cookie = 'voyago_yolcu=; max-age=0; path=/'; } catch(e){}
       return;
     }
 
@@ -10810,8 +10921,9 @@ async function devamEt() {
   if(_hosgeldinTimer){ clearTimeout(_hosgeldinTimer); _hosgeldinTimer = null; }
   if(_hosgeldinTickTimer){ clearInterval(_hosgeldinTickTimer); _hosgeldinTickTimer = null; }
   try {
-    const kayit = localStorage.getItem('voyago_yolcu');
-    if (!kayit) { yeniGiris(); return; }
+    // localStorage VEYA cookie'den oku
+    const p = yolcuKayitOku();
+    if (!p) { yeniGiris(); return; }
 
     // DB hazır değilse bekle (max 8 saniye, sonra yedekle devam)
     if(!DB_READY){
@@ -10822,7 +10934,6 @@ async function devamEt() {
       // Hâlâ hazır değilse arka planda devam, kullanıcıyı bekletme
     }
 
-    const p = JSON.parse(kayit);
     const v = VOYAGES.find(v => v.id === p.sefer && v.visible && v.status !== 'archived');
     if (!v) { yeniGiris(); return; }
 
@@ -10832,6 +10943,16 @@ async function devamEt() {
         adult:p.adult||1, child:p.child||0, baby:p.baby||0,
         checkedIn:true, checkinDone:true, joinedTours:[]};
       passengers.push(yolcu);
+      // DB'ye de kaydet
+      try { if(typeof saveYolcuDB === 'function') saveYolcuDB(yolcu); } catch(e){}
+    } else {
+      // Mevcut yolcu - check-in durumunu garantile
+      // (DB'den gelirken bazen checkinDone:false olabilir, kayıt varsa zaten check-in yapmış demektir)
+      if(!yolcu.checkinDone || !yolcu.checkedIn){
+        yolcu.checkedIn = true;
+        yolcu.checkinDone = true;
+        try { if(typeof saveYolcuDB === 'function') saveYolcuDB(yolcu); } catch(e){}
+      }
     }
     CP = yolcu;
 
@@ -10902,8 +11023,9 @@ function yeniGiris() {
   // Geri sayımı durdur (varsa)
   if(_hosgeldinTimer){ clearTimeout(_hosgeldinTimer); _hosgeldinTimer = null; }
   if(_hosgeldinTickTimer){ clearInterval(_hosgeldinTickTimer); _hosgeldinTickTimer = null; }
-  // Kayıtlı veriyi sil, formu göster
+  // Kayıtlı veriyi sil (hem localStorage hem cookie), formu göster
   try { localStorage.removeItem('voyago_yolcu'); } catch(e) {}
+  try { document.cookie = 'voyago_yolcu=; max-age=0; path=/'; } catch(e) {}
   const hosKarti = document.getElementById('hosgeldin-karti');
   const formKarti = document.getElementById('giris-form-karti');
   if(hosKarti) hosKarti.style.display = 'none';
