@@ -7571,6 +7571,87 @@ async function addToTour(kabin,sefer,tid){
 // ══ HIZLI TUR KAYIT SİSTEMİ ══
 let _htkSeciliYolcu = null;
 
+// ⚡ Hızlı yolcu ekleme - kabin no'ya yolcu yoksa otomatik ekle ve tura kaydet
+function hekEkIsimleriRender(){
+  const ekEl = document.getElementById('hek-ek-isimler');
+  if(!ekEl) return;
+  const y = parseInt(document.getElementById('hek-y')?.value || 0) || 0;
+  const c = parseInt(document.getElementById('hek-c')?.value || 0) || 0;
+  const b = parseInt(document.getElementById('hek-b')?.value || 0) || 0;
+  const toplam = y + c + b;
+  // 1 ana yolcu var, kalan kişiler için ek isim alanı (toplam-1)
+  const ekSayisi = Math.max(0, toplam - 1);
+  // Mevcut değerleri sakla
+  const mevcutDegerler = Array.from(document.querySelectorAll('#hek-ek-isimler input')).map(i => i.value);
+  ekEl.innerHTML = '';
+  for(let i = 0; i < ekSayisi && i < 8; i++){
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.placeholder = `Diğer yolcu #${i+2} (opsiyonel)`;
+    inp.autocomplete = 'off';
+    inp.style.cssText = 'padding:7px 9px;border:1.5px dashed #e5e7eb;border-radius:8px;font-size:12px;outline:none;font-family:"DM Sans",sans-serif;background:#fafafa;';
+    if(mevcutDegerler[i]) inp.value = mevcutDegerler[i];
+    ekEl.appendChild(inp);
+  }
+}
+
+async function hekHizliEkle(kabin, sefer){
+  const adEl = document.getElementById('hek-ad');
+  const ad = (adEl?.value || '').trim();
+  if(!ad){
+    showToast('⚠️ Lütfen yolcu adını yazın');
+    if(adEl) adEl.focus();
+    return;
+  }
+  const y = parseInt(document.getElementById('hek-y')?.value || 0) || 0;
+  const c = parseInt(document.getElementById('hek-c')?.value || 0) || 0;
+  const b = parseInt(document.getElementById('hek-b')?.value || 0) || 0;
+  if(y + c + b === 0){
+    showToast('⚠️ En az 1 kişi olmalı');
+    return;
+  }
+
+  // Ek isimleri topla
+  const ekIsimler = Array.from(document.querySelectorAll('#hek-ek-isimler input'))
+    .map(i => i.value.trim())
+    .filter(x => x);
+
+  // Yeni yolcu objesi
+  const yeniYolcu = {
+    name: ad,
+    kabin: kabin,
+    tel: '05527913900', // Rehberin varsayılan telefonu - sonra Yolcu sekmesinden düzeltilir
+    sefer: sefer,
+    adult: y, child: c, baby: b,
+    checkedIn: true, checkinDone: true,
+    joinedTours: [],
+    ekstra_isimler: ekIsimler,
+    tur_katilim_detay: {}
+  };
+
+  try {
+    // Önce bu kabin+sefer kombinasyonu var mı kontrol et
+    const mevcut = passengers.find(p => p.kabin === kabin && p.sefer === sefer);
+    if(mevcut){
+      showToast('⚠️ Bu kabin zaten kayıtlı: ' + mevcut.name);
+      htkYolcuSec(mevcut);
+      return;
+    }
+
+    // DB'ye kaydet
+    passengers.push(yeniYolcu);
+    if(typeof saveYolcuDB === 'function') await saveYolcuDB(yeniYolcu);
+
+    showToast('✓ ' + ad + ' eklendi (Kabin ' + kabin + ')');
+
+    // Yolcuyu seç → tur ekle modunda
+    htkYolcuSec(yeniYolcu);
+  } catch(e){
+    console.error('Hızlı ekle:', e);
+    showToast('⚠️ Eklenemedi: ' + (e.message || ''));
+  }
+}
+
 function htkAra(){
   const arama = (document.getElementById('htk-arama')?.value || '').trim();
   const sonuc = document.getElementById('htk-sonuc');
@@ -7613,7 +7694,59 @@ function htkAra(){
   }
 
   if(eslesenler.length === 0){
-    sonuc.innerHTML = '<div class="htk-bos">😶 Bu seferde bu kabin/isimle yolcu bulunamadı</div>';
+    // 🚀 BULUNAMAZSA HIZLI EKLEME KUTUSU GÖSTER (sadece kabin no aranmışsa)
+    if(sayisalMi){
+      sonuc.innerHTML = `
+        <div class="htk-bos" style="background:white;padding:14px;border:1.5px solid #f59e0b;border-radius:10px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <span style="font-size:20px;">➕</span>
+            <div>
+              <div style="font-size:13px;font-weight:600;color:#1a1a1a;">Kabin ${escapeHTML(arama)} kayıtlı değil</div>
+              <div style="font-size:11px;color:#666;margin-top:2px;">Hızlıca eklemek ister misiniz?</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">
+            <input type="text" id="hek-ad" placeholder="Yolcu adı soyadı (zorunlu)" autocomplete="off" 
+              style="padding:9px 11px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;font-family:'DM Sans',sans-serif;">
+            <div style="display:flex;gap:4px;">
+              <input type="number" id="hek-y" min="0" max="20" value="2" placeholder="Yetişkin"
+                style="flex:1;min-width:0;padding:8px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:12px;outline:none;text-align:center;font-family:'DM Sans',sans-serif;">
+              <input type="number" id="hek-c" min="0" max="20" value="0" placeholder="Çocuk"
+                style="flex:1;min-width:0;padding:8px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:12px;outline:none;text-align:center;font-family:'DM Sans',sans-serif;">
+              <input type="number" id="hek-b" min="0" max="20" value="0" placeholder="Bebek"
+                style="flex:1;min-width:0;padding:8px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:12px;outline:none;text-align:center;font-family:'DM Sans',sans-serif;">
+            </div>
+            <div style="font-size:10px;color:#888;display:flex;justify-content:space-around;">
+              <span>🧑 Yetişkin</span>
+              <span>🧒 Çocuk</span>
+              <span>👶 Bebek</span>
+            </div>
+            <div id="hek-ek-isimler" style="display:flex;flex-direction:column;gap:4px;"></div>
+          </div>
+          <button onclick="hekHizliEkle('${escapeHTML(arama).replace(/'/g, "&#39;")}', '${aktifSefer}')" 
+            style="width:100%;padding:11px;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+            ⚡ Yolcuyu Ekle ve Tura Kaydet
+          </button>
+          <div style="font-size:10px;color:#666;margin-top:6px;text-align:center;line-height:1.4;">
+            💡 Telefon, mail boş kalır — sonra Yolcu sekmesinden düzeltebilirsiniz
+          </div>
+        </div>
+      `;
+      // Ek isim alanlarını render et (Y+Ç+B - 1 ek isim)
+      setTimeout(()=>{
+        hekEkIsimleriRender();
+        // Y/Ç/B değişince ek isim sayısını güncelle
+        ['hek-y','hek-c','hek-b'].forEach(id => {
+          const el = document.getElementById(id);
+          if(el) el.addEventListener('input', hekEkIsimleriRender);
+        });
+        // Ad alanına otomatik focus
+        const adEl = document.getElementById('hek-ad');
+        if(adEl) adEl.focus();
+      }, 50);
+    } else {
+      sonuc.innerHTML = '<div class="htk-bos">😶 Bu isimle yolcu bulunamadı. Kabin numarası ile arayın.</div>';
+    }
     return;
   }
 
