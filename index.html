@@ -15839,14 +15839,48 @@ function escapeHTML(s){
 // Gemi başına bir link tutulur — tüm seferlerde aynı grup
 let WA_LINKS_GEMI = {}; // {gemi_adi: 'https://chat.whatsapp.com/...'}
 
+// ── Helper: Yolcunun seferine uygun WA linki bul ──
+function waLinkBul(){
+  if(!CP) return null;
+  const v = VOYAGES.find(x => x.id === CP.sefer);
+  const gemi = v?.ship || '';
+
+  // 1. Önce direkt eşleştir
+  let link = WA_LINKS_GEMI[gemi];
+
+  // 2. Eşleşmezse esnek (boşluk/büyük-küçük)
+  if(!link && gemi){
+    const gemiNorm = gemi.trim().toLowerCase();
+    for(const kayitliGemi of Object.keys(WA_LINKS_GEMI)){
+      if(kayitliGemi.trim().toLowerCase() === gemiNorm){
+        link = WA_LINKS_GEMI[kayitliGemi];
+        break;
+      }
+    }
+  }
+
+  // 3. Hâlâ yoksa ve tek kayıt varsa onu al
+  if(!link){
+    const kayitliGemiler = Object.keys(WA_LINKS_GEMI);
+    if(kayitliGemiler.length === 1){
+      link = WA_LINKS_GEMI[kayitliGemiler[0]];
+    }
+  }
+  return link;
+}
+
 // ── Yolcu: Topbar butonunu güncelle ──
 function waGrupButonGuncelle(){
   const btn = document.getElementById('wa-grup-btn');
   if(!btn || !CP) return;
-  // Yolcunun seferinin gemisini bul
-  const v = VOYAGES.find(x => x.id === CP.sefer);
-  const gemi = v?.ship || '';
-  const link = WA_LINKS_GEMI[gemi];
+  const link = waLinkBul();
+
+  console.log('[WA BUTON]', {
+    yolcuGemi: VOYAGES.find(x => x.id === CP.sefer)?.ship || '',
+    kayitliGemiler: Object.keys(WA_LINKS_GEMI),
+    bulunanLink: link ? 'VAR' : 'YOK'
+  });
+
   if(link){
     btn.style.display = 'flex';
     btn.classList.remove('devre-disi');
@@ -15859,9 +15893,7 @@ function waGrupButonGuncelle(){
 // ── Yolcu: Modal aç ──
 function waGrupModalAc(){
   if(!CP){ showToast('Lütfen önce giriş yapın'); return; }
-  const v = VOYAGES.find(x => x.id === CP.sefer);
-  const gemi = v?.ship || '';
-  const link = WA_LINKS_GEMI[gemi];
+  const link = waLinkBul();
   if(!link){
     showToast('Bu gemi için henüz grup linki tanımlanmamış');
     return;
@@ -15872,9 +15904,7 @@ function waGrupModalAc(){
 // ── Yolcu: Gruba katıl ──
 function waGrubaKatil(){
   if(!CP) return;
-  const v = VOYAGES.find(x => x.id === CP.sefer);
-  const gemi = v?.ship || '';
-  const link = WA_LINKS_GEMI[gemi];
+  const link = waLinkBul();
   if(!link){ showToast('Grup linki bulunamadı'); return; }
   window.open(link, '_blank');
   document.getElementById('wa-modal').classList.remove('active');
@@ -15896,9 +15926,14 @@ async function waLinkleriYukle(){
     (data||[]).forEach(s=>{
       if(s.wa_grup_link) WA_LINKS_GEMI[s.gemi] = s.wa_grup_link;
     });
+    console.log('[WA LINK YÜKLE]', { 
+      gemi_sayisi: Object.keys(WA_LINKS_GEMI).length, 
+      gemiler: Object.keys(WA_LINKS_GEMI),
+      kaynak: 'gemi_wa_linkleri tablosu'
+    });
     waGrupButonGuncelle();
   }catch(e){
-    console.log('WA gemi link yükleme:', e);
+    console.log('[WA LINK] gemi_wa_linkleri tablosu okunamadı, eski sistem deneniyor:', e.message);
     // Tablo yoksa eski sistemi dene (geçiş süresi için)
     try {
       const { data, error } = await sb.from('seferler').select('id, gemi, wa_grup_link');
@@ -15907,9 +15942,13 @@ async function waLinkleriYukle(){
         data.forEach(s=>{
           if(s.wa_grup_link && s.gemi) WA_LINKS_GEMI[s.gemi] = s.wa_grup_link;
         });
+        console.log('[WA LINK] Eski sistemden yüklendi:', { 
+          gemi_sayisi: Object.keys(WA_LINKS_GEMI).length, 
+          gemiler: Object.keys(WA_LINKS_GEMI)
+        });
         waGrupButonGuncelle();
       }
-    } catch(e2){}
+    } catch(e2){ console.log('[WA LINK] Eski sistem de okunamadı:', e2.message); }
   }
 }
 
