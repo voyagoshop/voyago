@@ -2252,7 +2252,7 @@ textarea.ai2{resize:none;}
   </div>
 </div>
 <div class="mo2" id="kat-modal">
-  <div class="md"><div class="mdt" id="kat-modal-title">Katilimcilar</div><div id="kat-modal-body"></div><div class="mdb" id="kat-modal-bottom"><div id="kat-modal-actions" style="display:flex;gap:6px;flex:1;flex-wrap:wrap;"></div><button class="mc" onclick="closeModal('kat-modal')" style="flex:none;padding:10px 20px;">Kapat</button></div></div>
+  <div class="md"><div class="mdt" id="kat-modal-title">Katilimcilar</div><div id="kat-modal-arama-wrap" style="padding:0 16px 10px;"></div><div id="kat-modal-body"></div><div class="mdb" id="kat-modal-bottom"><div id="kat-modal-actions" style="display:flex;gap:6px;flex:1;flex-wrap:wrap;"></div><button class="mc" onclick="closeModal('kat-modal')" style="flex:none;padding:10px 20px;">Kapat</button></div></div>
 </div>
 
 <!-- 🔍 ARAMA MODAL (yolcu için global arama) -->
@@ -6319,12 +6319,21 @@ function renderDashboard(){
   // Toplam kişi (Y+Ç+B)
   const toplamKisi = seferYolculari.reduce((a,p) => a + (p.adult||0) + (p.child||0) + (p.baby||0), 0);
 
-  // Aktif turlar (bu seferin turları)
-  const seferTurlari = TOURS.filter(t =>
-    t.aktif !== false && (
-      !t.seferler || t.seferler.length === 0 || t.seferler.includes(sid)
-    )
-  );
+  // Aktif turlar (bu seferin turları + katılımcısı olan turlar)
+  // Bu sefere atanmamış olsa bile katılımcı varsa rapora dahil et
+  const turIDleriKatilimciOlan = new Set();
+  seferYolculari.forEach(p => {
+    (p.joinedTours||[]).forEach(tid => turIDleriKatilimciOlan.add(tid));
+  });
+  const seferTurlari = TOURS.filter(t => {
+    if(t.aktif === false) return false;
+    // Bu sefere atanmış mı?
+    if(!t.seferler || !Array.isArray(t.seferler) || t.seferler.length === 0) return true;
+    if(t.seferler.includes(sid)) return true;
+    // Atanmamış ama katılımcısı varsa yine göster (Gold Paket bug fix)
+    if(turIDleriKatilimciOlan.has(t.id)) return true;
+    return false;
+  });
   const toplamTur = seferTurlari.length;
 
   // Tur katılımları + DETAYLI Y/Ç/B dağılımı
@@ -7529,7 +7538,11 @@ function turSefereEkle(){const tid=document.getElementById('tur-ekle-tur').value
 function turSeferdenCikar(){const tid=document.getElementById('tur-ekle-tur').value,sid=document.getElementById('tur-ekle-sefer').value;const t=TOURS.find(t=>t.id===tid);if(!t)return;const i=t.seferler.indexOf(sid);if(i<0){showToast('Bu seferde degil.');return;}t.seferler.splice(i,1);renderTA(CTSF);showToast('Seferden cikarildi.');}
 
 // ── KATILIMCILAR ──
+let _katModalAramaTimer = null;
+let _katModalTid = null;
+
 function showKatilimcilar(tid){
+  _katModalTid = tid;
   const t=TOURS.find(t=>t.id===tid);if(!t)return;
   // Sadece aktif sefer + arşivli olmayan yolcular
   const aktifSeferIds = VOYAGES.filter(v=>v.status!=='archived').map(v=>v.id);
@@ -7549,13 +7562,140 @@ function showKatilimcilar(tid){
     }
   }
 
-  const body=document.getElementById('kat-modal-body');
-  const iS=CU?.role==='super';const activeShip=iS?ACTIVE_SHIP:CU?.ship;
-  const mvi=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived').map(v=>v.id);
-  const notJoined=passengers.filter(p=>mvi.includes(p.sefer)&&!p.joinedTours.includes(tid));
-  body.innerHTML=(kat.length?kat.map(p=>`<div class="katilimci-card"><div><div class="katilimci-name">${p.name}</div><div class="katilimci-detail">Kabin ${p.kabin} · ${(p.tur_katilim_detay&&p.tur_katilim_detay[tid])?p.tur_katilim_detay[tid].kisi+' kişi · €'+p.tur_katilim_detay[tid].ucret:p.adult+'Y'+(p.child>0?' '+p.child+'C':'')+(p.baby>0?' '+p.baby+'B':'')}</div></div><div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;"><button class="tk-form-btn" onclick="tkFormYazdir('${p.kabin}','${p.sefer}','${tid}')">📄 Form</button><button class="tk-bilet-btn" onclick="tkBiletYazdir('${p.kabin}','${p.sefer}','${tid}')">🎫 Bilet</button><button class="tk-wa-btn" onclick="tkWhatsappGonder('${p.kabin}','${p.sefer}','${tid}')">📱 WhatsApp</button><button style="padding:3px 9px;border-radius:20px;font-size:11px;border:1.5px solid var(--red);color:var(--red);background:transparent;cursor:pointer;" onclick="removeFromTour('${p.kabin}','${p.sefer}','${tid}')">Cikar</button></div></div>`).join(''):'<div class="es">Katilan yok.</div>')+
-  (notJoined.length?`<div style="font-size:11px;font-weight:600;color:var(--t3);margin:12px 0 6px;text-transform:uppercase;">Katilmayan (${notJoined.length})</div>`+notJoined.map(p=>`<div class="katilimci-card" style="opacity:.6;"><div><div class="katilimci-name">${p.name}</div><div class="katilimci-detail">Kabin ${p.kabin}</div></div><button style="padding:3px 9px;border-radius:20px;font-size:11px;border:1.5px solid var(--green);color:var(--green);background:transparent;cursor:pointer;" onclick="addToTour('${p.kabin}','${p.sefer}','${tid}')">Ekle</button></div>`).join(''):'');
+  // Arama kutusunu modal başlığına ekle (renderKatModalListesi tarafından okunacak)
+  const aramaEl = document.getElementById('kat-modal-arama-wrap');
+  if(aramaEl){
+    aramaEl.innerHTML = `
+      <input type="text" id="kat-modal-arama" placeholder="🔍 Hızlı ekle: kabin no veya isim..." 
+        autocomplete="off"
+        style="width:100%;padding:9px 12px;border:1.5px solid #d1fae5;border-radius:10px;font-size:13px;outline:none;font-family:'DM Sans',sans-serif;background:#f0fdf4;"
+        oninput="katModalAramaDegisti()"
+        onkeydown="if(event.key==='Enter') katModalHizliEkle()">
+      <div id="kat-modal-arama-ipucu" style="font-size:10px;color:#666;margin-top:4px;text-align:center;"></div>
+    `;
+  }
+
+  // Listeyi render et
+  renderKatModalListesi();
   document.getElementById('kat-modal').classList.add('show');
+}
+
+// Arama değiştiğinde
+function katModalAramaDegisti(){
+  if(_katModalAramaTimer) clearTimeout(_katModalAramaTimer);
+  _katModalAramaTimer = setTimeout(renderKatModalListesi, 100);
+}
+
+// Enter ile direkt ekle (kabin no tek eşleşme varsa)
+async function katModalHizliEkle(){
+  const arama = (document.getElementById('kat-modal-arama')?.value || '').trim();
+  if(!arama || !_katModalTid) return;
+
+  // Sayısal mı? Kabin numarası ise direkt ekle
+  const sayisalMi = /^\d+$/.test(arama);
+  if(!sayisalMi){
+    showToast('💡 Enter ile sadece kabin numarası ile eklenebilir');
+    return;
+  }
+
+  const tid = _katModalTid;
+  const iS=CU?.role==='super';
+  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  const mvi=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived').map(v=>v.id);
+
+  // Bu kabinde yolcu var mı (bu turda olmayan)
+  const arananNorm = arama.trim().toUpperCase();
+  const aday = passengers.find(p =>
+    !p.arsivli &&
+    mvi.includes(p.sefer) &&
+    p.kabin && p.kabin.toString().trim().toUpperCase() === arananNorm &&
+    !(p.joinedTours||[]).includes(tid)
+  );
+
+  if(!aday){
+    showToast('❌ Kabin '+arama+' bulunamadı veya zaten ekli');
+    return;
+  }
+
+  await addToTour(aday.kabin, aday.sefer, tid);
+  // Arama kutusunu temizle ve odaklan
+  const ip = document.getElementById('kat-modal-arama');
+  if(ip){ ip.value = ''; ip.focus(); }
+}
+
+// Modal listesini (katılan + katılmayan) render et
+function renderKatModalListesi(){
+  const tid = _katModalTid;
+  if(!tid) return;
+  const t = TOURS.find(x=>x.id===tid);
+  if(!t) return;
+
+  const arama = (document.getElementById('kat-modal-arama')?.value || '').trim();
+  const aramaNorm = arama ? (typeof isimNormalize === 'function' ? isimNormalize(arama) : arama.toLowerCase()) : '';
+  const sayisalMi = arama && /^\d+$/.test(arama);
+
+  // Aktif sefer + arşivli olmayan
+  const aktifSeferIds = VOYAGES.filter(v=>v.status!=='archived').map(v=>v.id);
+  const kat=passengers.filter(p=>!p.arsivli && aktifSeferIds.includes(p.sefer) && p.joinedTours.includes(tid));
+
+  // Katılmayan: aktif gemi + arşivli olmayan + bu turda olmayan
+  const iS=CU?.role==='super';
+  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  const mvi=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived').map(v=>v.id);
+  let notJoined=passengers.filter(p =>
+    !p.arsivli && mvi.includes(p.sefer) && !p.joinedTours.includes(tid)
+  );
+
+  // Aramaya göre filtrele (sadece katılmayanlardan)
+  let katFiltered = kat;
+  if(arama){
+    if(sayisalMi){
+      // Kabin başlangıcı eşleşmesi
+      katFiltered = kat.filter(p => p.kabin && String(p.kabin).toUpperCase().startsWith(arama.toUpperCase()));
+      notJoined = notJoined.filter(p => p.kabin && String(p.kabin).toUpperCase().startsWith(arama.toUpperCase()));
+    } else {
+      // İsim eşleştirme
+      katFiltered = kat.filter(p => {
+        if(!p.name) return false;
+        return (typeof isimNormalize === 'function' ? isimNormalize(p.name) : p.name.toLowerCase()).includes(aramaNorm);
+      });
+      notJoined = notJoined.filter(p => {
+        if(!p.name) return false;
+        return (typeof isimNormalize === 'function' ? isimNormalize(p.name) : p.name.toLowerCase()).includes(aramaNorm);
+      });
+    }
+  }
+
+  // İpucu mesajı
+  const ipucu = document.getElementById('kat-modal-arama-ipucu');
+  if(ipucu){
+    if(arama && sayisalMi && notJoined.length === 1){
+      ipucu.innerHTML = '⌨️ Enter tuşuna bas → <b>' + escapeHTML(notJoined[0].name) + '</b> direkt eklenir';
+    } else if(arama && (katFiltered.length + notJoined.length) === 0){
+      ipucu.textContent = '😶 Eşleşme bulunamadı';
+    } else {
+      ipucu.textContent = '';
+    }
+  }
+
+  // Body'i doldur
+  const body=document.getElementById('kat-modal-body');
+  body.innerHTML = (
+    katFiltered.length ?
+      `<div style="font-size:11px;font-weight:600;color:#16a34a;margin:0 0 6px;text-transform:uppercase;">✓ Katılan (${katFiltered.length})</div>` +
+      katFiltered.map(p=>`<div class="katilimci-card"><div><div class="katilimci-name">${escapeHTML(p.name)}</div><div class="katilimci-detail">Kabin ${escapeHTML(p.kabin)} · ${(p.tur_katilim_detay&&p.tur_katilim_detay[tid])?p.tur_katilim_detay[tid].kisi+' kişi · €'+p.tur_katilim_detay[tid].ucret:(p.adult||0)+'Y'+(p.child>0?' '+p.child+'C':'')+(p.baby>0?' '+p.baby+'B':'')}</div></div><div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;"><button class="tk-form-btn" onclick="tkFormYazdir('${escapeHTML(p.kabin)}','${escapeHTML(p.sefer)}','${tid}')">📄 Form</button><button class="tk-bilet-btn" onclick="tkBiletYazdir('${escapeHTML(p.kabin)}','${escapeHTML(p.sefer)}','${tid}')">🎫 Bilet</button><button class="tk-wa-btn" onclick="tkWhatsappGonder('${escapeHTML(p.kabin)}','${escapeHTML(p.sefer)}','${tid}')">📱 WhatsApp</button><button style="padding:3px 9px;border-radius:20px;font-size:11px;border:1.5px solid var(--red);color:var(--red);background:transparent;cursor:pointer;" onclick="removeFromTour('${escapeHTML(p.kabin)}','${escapeHTML(p.sefer)}','${tid}')">Cikar</button></div></div>`).join('')
+    : (arama ? '' : '<div class="es">Katilan yok.</div>')
+  ) + (
+    notJoined.length ?
+      `<div style="font-size:11px;font-weight:600;color:var(--t3);margin:12px 0 6px;text-transform:uppercase;">Katilmayan (${notJoined.length})</div>` +
+      notJoined.map(p=>`<div class="katilimci-card" style="opacity:.7;"><div><div class="katilimci-name">${escapeHTML(p.name)}</div><div class="katilimci-detail">Kabin ${escapeHTML(p.kabin)}</div></div><button style="padding:5px 12px;border-radius:20px;font-size:12px;border:none;background:linear-gradient(135deg,#16a34a,#15803d);color:white;font-weight:600;cursor:pointer;" onclick="addToTour('${escapeHTML(p.kabin)}','${escapeHTML(p.sefer)}','${tid}')">+ Ekle</button></div>`).join('')
+    : ''
+  );
+
+  // Hiç sonuç yoksa
+  if(katFiltered.length === 0 && notJoined.length === 0 && arama){
+    body.innerHTML = '<div class="es" style="padding:20px;">😶 Bu arama ile yolcu bulunamadı</div>';
+  }
 }
 async function addToTour(kabin,sefer,tid){
   const p=passengers.find(p=>p.kabin===kabin&&p.sefer===sefer);
@@ -7977,9 +8117,13 @@ function htkRender(){
   const p = _htkSeciliYolcu;
 
   // Bu seferdeki tüm turları al — filtreleme esnek
+  // Bu yolcu zaten katılıyor olduğu tur, sefere atanmasa bile göster (Gold Paket bug fix)
+  const yolcuKatildigiTurlar = new Set(p.joinedTours || []);
   const turlar = TOURS.filter(t => {
     // Aktif olmayan turları gizle (sadece açıkça false ise)
     if(t.aktif === false) return false;
+    // Bu yolcu zaten katılıyorsa daima göster
+    if(yolcuKatildigiTurlar.has(t.id)) return true;
     // seferler boşsa veya undefined ise → tüm seferlere açık
     if(!t.seferler || !Array.isArray(t.seferler) || t.seferler.length === 0) return true;
     // Bu sefer listede var mı?
@@ -14536,7 +14680,19 @@ ${yolcuListesiHTML}
 async function topluBiletYazdir(tid){
   const t = TOURS.find(x=>x.id===tid);
   if(!t){ showToast('Tur bulunamadı'); return; }
-  const kat = passengers.filter(p=>p.joinedTours.includes(tid));
+
+  // Aktif sefer ID'sini bul (rehber filtresi veya ilk aktif)
+  const aktifSefer = (typeof CTSF !== 'undefined' && CTSF !== 'hepsi' && CTSF) 
+    ? CTSF 
+    : (VOYAGES.find(v => v.status !== 'archived')?.id);
+
+  // SADECE aktif sefer + arşivlenmemiş yolcular + bu tura katılanlar
+  const kat = passengers.filter(p =>
+    !p.arsivli &&
+    p.sefer === aktifSefer &&
+    (p.joinedTours||[]).includes(tid)
+  );
+
   if(!kat.length){ showToast('Bu tura katılan yok'); return; }
 
   if(!confirm(kat.length + ' bilet tek seferde yazdırılacak. Devam edelim mi?')) return;
