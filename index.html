@@ -7801,17 +7801,203 @@ function htkTemizle(){
   document.getElementById('htk-sonuc').innerHTML = '';
 }
 
+// ✏️ Yolcu bilgilerini hızlı düzenle modal
+function htkYolcuDuzenle(){
+  const p = _htkSeciliYolcu;
+  if(!p){ showToast('Önce yolcu seçin'); return; }
+
+  // Mevcut modal varsa kaldır
+  const eski = document.getElementById('htk-duzenle-modal');
+  if(eski) eski.remove();
+
+  // Modal oluştur
+  const modal = document.createElement('div');
+  modal.id = 'htk-duzenle-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e)=>{ if(e.target.id === 'htk-duzenle-modal') htkDuzenleKapat(); };
+  modal.innerHTML = `
+    <div style="background:white;border-radius:18px;padding:20px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div>
+          <div style="font-family:'DM Serif Display',serif;font-size:18px;color:#1a1a1a;">✏️ Yolcu Düzenle</div>
+          <div style="font-size:11px;color:#6b6b6b;margin-top:2px;">Kabin ${escapeHTML(p.kabin||'?')}</div>
+        </div>
+        <button onclick="htkDuzenleKapat()" style="background:transparent;border:none;color:#999;font-size:24px;cursor:pointer;line-height:1;">×</button>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <!-- Ad -->
+        <div>
+          <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;">👤 Ad Soyad</label>
+          <input type="text" id="htk-d-ad" value="${escapeHTML(p.name||'')}"
+            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;font-family:'DM Sans',sans-serif;">
+        </div>
+
+        <!-- Kabin -->
+        <div>
+          <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;">🚪 Kabin No</label>
+          <input type="text" id="htk-d-kabin" value="${escapeHTML(p.kabin||'')}"
+            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;font-family:'DM Sans',sans-serif;">
+        </div>
+
+        <!-- Telefon -->
+        <div>
+          <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;">📞 Telefon</label>
+          <input type="tel" id="htk-d-tel" value="${escapeHTML(p.tel||'')}" placeholder="05XXXXXXXXX"
+            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;font-family:'DM Sans',sans-serif;">
+        </div>
+
+        <!-- Y/Ç/B -->
+        <div>
+          <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;">👥 Kişi Sayısı</label>
+          <div style="display:flex;gap:6px;">
+            <div style="flex:1;">
+              <input type="number" id="htk-d-y" value="${p.adult||0}" min="0" max="20"
+                style="width:100%;padding:9px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;text-align:center;font-family:'DM Sans',sans-serif;">
+              <div style="font-size:10px;color:#888;text-align:center;margin-top:2px;">🧑 Yetişkin</div>
+            </div>
+            <div style="flex:1;">
+              <input type="number" id="htk-d-c" value="${p.child||0}" min="0" max="20"
+                style="width:100%;padding:9px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;text-align:center;font-family:'DM Sans',sans-serif;">
+              <div style="font-size:10px;color:#888;text-align:center;margin-top:2px;">🧒 Çocuk</div>
+            </div>
+            <div style="flex:1;">
+              <input type="number" id="htk-d-b" value="${p.baby||0}" min="0" max="20"
+                style="width:100%;padding:9px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;text-align:center;font-family:'DM Sans',sans-serif;">
+              <div style="font-size:10px;color:#888;text-align:center;margin-top:2px;">👶 Bebek</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ek isimler -->
+        <div>
+          <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;">👥 Diğer Yolcular (opsiyonel)</label>
+          <div id="htk-d-ek-isimler" style="display:flex;flex-direction:column;gap:4px;"></div>
+          <div style="font-size:10px;color:#888;margin-top:4px;">💡 Kişi sayısını değiştirdiğinizde alanlar otomatik güncellenir</div>
+        </div>
+      </div>
+
+      <!-- Aksiyonlar -->
+      <div style="display:flex;gap:8px;margin-top:18px;">
+        <button onclick="htkDuzenleKapat()"
+          style="flex:1;padding:11px;background:transparent;border:1.5px solid #e5e7eb;color:#666;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          İptal
+        </button>
+        <button onclick="htkYolcuKaydet()"
+          style="flex:2;padding:11px;background:linear-gradient(135deg,#0f6e56,#1D9E75);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          💾 Kaydet ve Devam
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  // Ek isim alanlarını oluştur
+  htkDEkIsimleriRender();
+  // Y/Ç/B değişince ek isim sayısını güncelle
+  ['htk-d-y','htk-d-c','htk-d-b'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('input', htkDEkIsimleriRender);
+  });
+}
+
+// Ek isim alanları (Düzenle modal için)
+function htkDEkIsimleriRender(){
+  const ekEl = document.getElementById('htk-d-ek-isimler');
+  if(!ekEl) return;
+  const p = _htkSeciliYolcu;
+  const y = parseInt(document.getElementById('htk-d-y')?.value || 0) || 0;
+  const c = parseInt(document.getElementById('htk-d-c')?.value || 0) || 0;
+  const b = parseInt(document.getElementById('htk-d-b')?.value || 0) || 0;
+  const toplam = y + c + b;
+  const ekSayisi = Math.max(0, toplam - 1);
+  // Mevcut değerleri sakla (input'tan veya yolcudan)
+  const mevcutInputs = Array.from(document.querySelectorAll('#htk-d-ek-isimler input')).map(i => i.value);
+  const eskiEk = p?.ekstra_isimler || [];
+  ekEl.innerHTML = '';
+  for(let i = 0; i < ekSayisi && i < 10; i++){
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.placeholder = `Yolcu #${i+2}`;
+    inp.autocomplete = 'off';
+    inp.style.cssText = 'padding:8px 10px;border:1.5px dashed #e5e7eb;border-radius:8px;font-size:12px;outline:none;font-family:"DM Sans",sans-serif;background:#fafafa;';
+    // Önce input'tan al, sonra eski yolcu kaydından
+    inp.value = mevcutInputs[i] !== undefined ? mevcutInputs[i] : (eskiEk[i] || '');
+    ekEl.appendChild(inp);
+  }
+}
+
+function htkDuzenleKapat(){
+  const m = document.getElementById('htk-duzenle-modal');
+  if(m) m.remove();
+}
+
+async function htkYolcuKaydet(){
+  const p = _htkSeciliYolcu;
+  if(!p){ showToast('Yolcu bulunamadı'); return; }
+
+  const ad = (document.getElementById('htk-d-ad')?.value || '').trim();
+  const kabin = (document.getElementById('htk-d-kabin')?.value || '').trim();
+  const tel = (document.getElementById('htk-d-tel')?.value || '').trim();
+  const y = parseInt(document.getElementById('htk-d-y')?.value || 0) || 0;
+  const c = parseInt(document.getElementById('htk-d-c')?.value || 0) || 0;
+  const b = parseInt(document.getElementById('htk-d-b')?.value || 0) || 0;
+
+  if(!ad){ showToast('⚠️ Ad zorunlu'); return; }
+  if(y + c + b === 0){ showToast('⚠️ En az 1 kişi olmalı'); return; }
+
+  // Ek isimleri topla
+  const ekIsimler = Array.from(document.querySelectorAll('#htk-d-ek-isimler input'))
+    .map(i => i.value.trim())
+    .filter(x => x);
+
+  // Yolcuyu güncelle
+  p.name = ad;
+  p.kabin = kabin;
+  p.tel = tel;
+  p.adult = y;
+  p.child = c;
+  p.baby = b;
+  p.ekstra_isimler = ekIsimler;
+
+  try {
+    if(typeof saveYolcuDB === 'function') await saveYolcuDB(p);
+    showToast('✓ ' + ad + ' güncellendi');
+    htkDuzenleKapat();
+    htkRender(); // Yolcu kartını yenile
+  } catch(e) {
+    console.error('htkYolcuKaydet:', e);
+    showToast('⚠️ Kaydetme hatası');
+  }
+}
+
 function htkRender(){
   const sonuc = document.getElementById('htk-sonuc');
   if(!sonuc || !_htkSeciliYolcu) return;
   const p = _htkSeciliYolcu;
 
-  // Bu seferdeki tüm turları al
-  const turlar = TOURS.filter(t => 
-    t.aktif !== false && (
-      !t.seferler || t.seferler.length === 0 || t.seferler.includes(p.sefer)
-    )
-  ).sort((a,b) => (a.sira != null ? a.sira : 999) - (b.sira != null ? b.sira : 999));
+  // Bu seferdeki tüm turları al — filtreleme esnek
+  const turlar = TOURS.filter(t => {
+    // Aktif olmayan turları gizle (sadece açıkça false ise)
+    if(t.aktif === false) return false;
+    // seferler boşsa veya undefined ise → tüm seferlere açık
+    if(!t.seferler || !Array.isArray(t.seferler) || t.seferler.length === 0) return true;
+    // Bu sefer listede var mı?
+    return t.seferler.includes(p.sefer);
+  }).sort((a,b) => (a.sira != null ? a.sira : 999) - (b.sira != null ? b.sira : 999));
+
+  // DEBUG: Eğer turlar TOURS'da var ama burada yoksa konsola yaz
+  if(TOURS.length > turlar.length){
+    const eksikler = TOURS.filter(t => !turlar.includes(t));
+    console.log('[HTK TUR FİLTRE] Bu yolcuya gösterilmeyen turlar:', 
+      eksikler.map(t => ({
+        ad: t.name, 
+        aktif: t.aktif, 
+        seferler: t.seferler,
+        yolcuSeferi: p.sefer
+      }))
+    );
+  }
 
   // Yolcunun katılım detayı (varsa, kim tarafından eklendiği)
   const detay = p.tur_katilim_detay || {};
@@ -7829,9 +8015,10 @@ function htkRender(){
           <span class="htk-yolcu-isim">${escapeHTML(p.name || '(İsimsiz)')}</span>
           ${p.kabin ? `<span class="htk-yolcu-kabin">Kabin ${escapeHTML(p.kabin)}</span>` : '<span class="htk-yolcu-kabin" style="background:#f59e0b;">Kabinsiz</span>'}
         </div>
+        <button onclick="htkYolcuDuzenle()" title="Yolcu bilgilerini düzenle" style="background:#f0f4ff;border:1.5px solid #c7d2fe;color:#4f46e5;border-radius:8px;padding:5px 9px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;margin-right:4px;">✏️ Düzenle</button>
         <button class="htk-yolcu-kapat" onclick="htkTemizle()" title="Yeni yolcu">✕</button>
       </div>
-      <div class="htk-yolcu-detay">${kisiDetay.join(' · ') || '0 kişi'} ${p.tel?'· 📞 '+escapeHTML(p.tel):''}</div>
+      <div class="htk-yolcu-detay">${kisiDetay.join(' · ') || '0 kişi'} ${p.tel?'· 📞 '+escapeHTML(p.tel):'<span style="color:#dc2626;">· 📞 Telefon eksik</span>'}</div>
 
       <div class="htk-tur-baslik">📍 Turlar (${turlar.length})</div>
 
