@@ -1909,22 +1909,27 @@ textarea.ai2{resize:none;}
       </div>
 
       <!-- QR KAMERA MODAL -->
-      <div id="qr-kamera-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:99999;flex-direction:column;align-items:center;justify-content:center;padding:16px;">
-        <div style="color:white;font-size:14px;margin-bottom:14px;text-align:center;">
+      <div id="qr-kamera-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:99999;flex-direction:column;align-items:center;justify-content:center;padding:8px;">
+        <div style="color:white;font-size:15px;margin-bottom:12px;text-align:center;font-weight:600;">
           📷 Bilet QR'ini kameraya gösterin<br>
-          <span style="font-size:11px;opacity:.7;">Otomatik okunacak</span>
+          <span style="font-size:11px;opacity:.7;font-weight:400;">Otomatik okunacak — kameraya yaklaştırın</span>
         </div>
-        <div id="qr-okuyucu" style="width:100%;max-width:340px;aspect-ratio:1;background:#111;border-radius:12px;overflow:hidden;border:2px solid #7c3aed;"></div>
-        <div id="qr-kamera-durum" style="color:white;font-size:12px;margin-top:10px;min-height:18px;text-align:center;"></div>
-        <button onclick="qrTaraKapat()" style="margin-top:14px;padding:11px 22px;background:transparent;color:white;border:1.5px solid white;border-radius:10px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">Kapat</button>
+        <div id="qr-okuyucu" style="width:100%;max-width:500px;aspect-ratio:1;background:#111;border-radius:14px;overflow:hidden;border:3px solid #7c3aed;box-shadow:0 0 0 4px rgba(124,58,237,.25),0 10px 40px rgba(0,0,0,.5);"></div>
+        <div id="qr-kamera-durum" style="color:white;font-size:13px;margin-top:10px;min-height:18px;text-align:center;font-weight:500;"></div>
+        <button onclick="qrTaraKapat()" style="margin-top:14px;padding:12px 28px;background:transparent;color:white;border:2px solid white;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">✗ Kapat</button>
       </div>
 
       <!-- Sayaç -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;" id="kontrol-stats">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;" id="kontrol-stats">
         <div class="sc2"><div class="sn" id="ks-toplam" style="font-size:20px;">0</div><div class="slb">Toplam Kişi</div></div>
         <div class="sc2" style="background:var(--gl);"><div class="sn" id="ks-geldi" style="font-size:20px;color:var(--green);">0</div><div class="slb" style="color:var(--green);">Geldi ✓</div></div>
         <div class="sc2" style="background:var(--rl);"><div class="sn" id="ks-gelmedi" style="font-size:20px;color:var(--red);">0</div><div class="slb" style="color:var(--red);">Gelmedi ✗</div></div>
       </div>
+
+      <!-- TÜM ONAYLARI SIFIRLA (yeni gün, yeni yoklama) -->
+      <button onclick="tumOnaylariSifirla()" style="width:100%;padding:9px;background:white;border:1.5px solid #e5e7eb;color:#666;border-radius:10px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:6px;">
+        🔄 <span>Tüm Onayları Sıfırla</span> <span style="color:#999;font-size:10px;">(yeni yoklama için)</span>
+      </button>
 
       <!-- Liste -->
       <div class="pl2" id="kontrol-list-wrap">
@@ -9453,6 +9458,111 @@ function turAlmayanWhatsapp(){
   window.open('https://wa.me/?text='+encoded, '_blank');
 }
 
+// 🔄 Tüm onayları sıfırla — yeni gün, yeni yoklama için
+async function tumOnaylariSifirla(){
+  const sid = document.getElementById('kontrol-sefer-sel')?.value;
+  const tid = document.getElementById('kontrol-tur-sel')?.value;
+  if(!sid){ showToast('Önce sefer seçin'); return; }
+
+  // Hangi onayları sileceğiz?
+  const tekTur = tid && tid !== 'hepsi';
+  const t = tekTur ? TOURS.find(x=>x.id===tid) : null;
+  const onayMesaji = tekTur
+    ? `"${t?.name || 'Bu tur'}" için tüm "Geldi" onaylarını sıfırlamak istediğinize emin misiniz?\n\n• Tüm yolcular tekrar "Gelmedi" durumuna döner\n• Yoklamayı baştan alabilirsiniz`
+    : `BU SEFERDEKİ TÜM TURLAR için onayları sıfırlamak istediğinize emin misiniz?\n\n• Tüm yolcular tüm turlarda tekrar "Gelmedi" durumuna döner\n• Bu işlem geri alınamaz`;
+
+  if(!confirm(onayMesaji)) return;
+
+  // Etkilenen yolcuları topla
+  const etkilenenler = passengers.filter(p =>
+    p.sefer === sid && !p.arsivli && p.tur_katilim_detay
+  );
+
+  let sifirlanan = 0;
+  for(const p of etkilenenler){
+    let degisti = false;
+    if(tekTur){
+      // Sadece bu tur
+      if(p.tur_katilim_detay[tid] && p.tur_katilim_detay[tid].geldi === 1){
+        p.tur_katilim_detay[tid].geldi = 0;
+        delete p.tur_katilim_detay[tid].kontrol_zamani;
+        const kbn = p.kabin.toString().trim().toUpperCase();
+        const key = kbn+'_'+sid+'_'+tid;
+        kontrolDurum[key] = 0;
+        degisti = true;
+        sifirlanan++;
+      }
+    } else {
+      // Tüm turlar
+      Object.keys(p.tur_katilim_detay).forEach(turId => {
+        if(p.tur_katilim_detay[turId].geldi === 1){
+          p.tur_katilim_detay[turId].geldi = 0;
+          delete p.tur_katilim_detay[turId].kontrol_zamani;
+          const kbn = p.kabin.toString().trim().toUpperCase();
+          const key = kbn+'_'+sid+'_'+turId;
+          kontrolDurum[key] = 0;
+          degisti = true;
+          sifirlanan++;
+        }
+      });
+    }
+    if(degisti){
+      try { if(typeof saveYolcuDB === 'function') await saveYolcuDB(p); } catch(e){ console.error('Sıfırla:', e); }
+    }
+  }
+
+  if(sifirlanan === 0){
+    showToast('ℹ️ Sıfırlanacak onay bulunamadı');
+  } else {
+    showToast('✓ ' + sifirlanan + ' onay sıfırlandı — yeni yoklama hazır');
+  }
+  renderKontrolListesi();
+}
+
+// ⚡ Tek tur onayı (Hepsi modunda kabin yazınca her tur için ayrı buton)
+async function kabinTurOnayla(kabin, sid, tid){
+  const p = passengers.find(px =>
+    px.sefer === sid && !px.arsivli && px.kabin &&
+    px.kabin.toString().trim().toUpperCase() === kabin
+  );
+  if(!p){ showToast('Yolcu bulunamadı'); return; }
+  if(!(p.joinedTours||[]).includes(tid)){ showToast('Yolcu bu turda kayıtlı değil'); return; }
+
+  const key = kabin+'_'+sid+'_'+tid;
+  kontrolDurum[key] = 1;
+  if(!p.tur_katilim_detay) p.tur_katilim_detay = {};
+  if(!p.tur_katilim_detay[tid]) p.tur_katilim_detay[tid] = {};
+  p.tur_katilim_detay[tid].geldi = 1;
+  p.tur_katilim_detay[tid].kontrol_zamani = new Date().toISOString();
+  try { if(typeof saveYolcuDB === 'function') await saveYolcuDB(p); } catch(e){ console.error(e); }
+
+  const t = TOURS.find(x=>x.id===tid);
+  showToast('✓ ' + p.name + ' → ' + (t?.name || 'Tur') + ' geldi olarak işaretlendi');
+  // Yeniden render et — buton yeşil olsun
+  kabinHizliAra();
+  renderKontrolListesi();
+}
+
+async function kabinTurOnayKaldir(kabin, sid, tid){
+  const p = passengers.find(px =>
+    px.sefer === sid && !px.arsivli && px.kabin &&
+    px.kabin.toString().trim().toUpperCase() === kabin
+  );
+  if(!p){ showToast('Yolcu bulunamadı'); return; }
+
+  const key = kabin+'_'+sid+'_'+tid;
+  kontrolDurum[key] = 0;
+  if(p.tur_katilim_detay && p.tur_katilim_detay[tid]) {
+    p.tur_katilim_detay[tid].geldi = 0;
+    delete p.tur_katilim_detay[tid].kontrol_zamani;
+  }
+  try { if(typeof saveYolcuDB === 'function') await saveYolcuDB(p); } catch(e){ console.error(e); }
+
+  showToast('🔄 Onay iptal edildi');
+  kabinHizliAra();
+  renderKontrolListesi();
+}
+
 function kabinHizliAra(){
   const kabin = document.getElementById('kontrol-kabin-ara')?.value.trim();
   const sonuc = document.getElementById('kontrol-kabin-sonuc');
@@ -9481,17 +9591,63 @@ function kabinHizliAra(){
 
   // Tur seçimine göre dallandır
   if(!tid || tid === 'hepsi'){
-    // Tur seçilmemiş veya "Hepsi" modunda — yolcuyu göster, hangi turlara katıldığını listele
-    const katilanTurlar = (p.joinedTours||[]).map(turId => {
-      const t = TOURS.find(x=>x.id===turId);
-      return t ? t.name : '';
-    }).filter(Boolean);
+    // Tur seçilmemiş veya "Hepsi" modunda — yolcuyu göster + her turun yanına ✓ butonu
+    const katilanTurIDleri = (p.joinedTours||[]).filter(turId => TOURS.find(x=>x.id===turId));
 
-    if(katilanTurlar.length === 0){
+    if(katilanTurIDleri.length === 0){
       sonuc.innerHTML='<span style="color:var(--amber);">⚠️ '+escapeHTML(p.name)+' (Kabin '+escapeHTML(kabin)+') — Hiç tura katılmıyor</span>';
-    } else {
-      sonuc.innerHTML='<span style="color:var(--blue);">👤 '+escapeHTML(p.name)+' (Kabin '+escapeHTML(kabin)+') — Turlar: <b>'+katilanTurlar.join(', ')+'</b><br><span style="font-size:11px;">Bir turu seçip "Geldi" basın</span></span>';
+      return;
     }
+
+    // Bugünkü liman ile eşleşen turu bul (varsa daha vurgulu göster)
+    let bugunkuLiman = '';
+    try {
+      if(typeof getDailyForSefer === 'function'){
+        const d = getDailyForSefer(sid);
+        bugunkuLiman = (d?.port?.name || '').toLowerCase().trim();
+      }
+    } catch(e){}
+
+    // Her tur için onay butonu HTML'i oluştur
+    const turlarHTML = katilanTurIDleri.map(turId => {
+      const t = TOURS.find(x=>x.id===turId);
+      if(!t) return '';
+      const turKey = kabinTemiz+'_'+sid+'_'+turId;
+      const turGelmis = (kontrolDurum[turKey]||0) === 1;
+      // Bu tur bugünkü liman ile eşleşiyor mu? (otomatik öneri için)
+      const turLimani = (t.liman || '').toLowerCase().trim();
+      const bugunkuTur = bugunkuLiman && turLimani && (
+        turLimani.includes(bugunkuLiman.split(',')[0]) || 
+        bugunkuLiman.includes(turLimani.split(',')[0])
+      );
+      // Tur kişi sayısı
+      const det = p.tur_katilim_detay?.[turId];
+      const tY = det ? (det.yetiskin||0) : (p.adult||0);
+      const tC = det ? (det.cocuk||0) : (p.child||0);
+      const tB = det ? (det.bebek||0) : (p.baby||0);
+      const tKisi = tY + tC + tB;
+
+      return `
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 9px;background:${turGelmis ? '#dcfce7' : (bugunkuTur ? '#fef3c7' : '#f9fafb')};border-radius:8px;margin-top:5px;border:1.5px solid ${turGelmis ? '#16a34a' : (bugunkuTur ? '#f59e0b' : '#e5e7eb')};">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12.5px;font-weight:600;color:#1a1a1a;line-height:1.2;${turGelmis ? 'text-decoration:line-through;opacity:.7;' : ''}">${bugunkuTur && !turGelmis ? '⭐ ' : ''}${escapeHTML(t.name)}</div>
+            <div style="font-size:10px;color:#666;margin-top:1px;">${tKisi} kişi${bugunkuTur ? ' · 📍 Bugünkü liman' : ''}</div>
+          </div>
+          ${turGelmis 
+            ? `<button onclick="kabinTurOnayKaldir('${kabinTemiz}','${sid}','${turId}')" style="padding:6px 10px;background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">✗ İptal</button>`
+            : `<button onclick="kabinTurOnayla('${kabinTemiz}','${sid}','${turId}')" style="padding:7px 12px;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:0 2px 6px rgba(22,163,74,.3);">✓ Geldi</button>`
+          }
+        </div>
+      `;
+    }).join('');
+
+    sonuc.innerHTML = `
+      <div style="color:#1a1a1a;">
+        <div style="font-size:13px;margin-bottom:4px;">👤 <b>${escapeHTML(p.name)}</b> · Kabin ${escapeHTML(kabin)}</div>
+        <div style="font-size:10.5px;color:#666;margin-bottom:6px;">Aşağıdaki turlardan birini ✓ ile onaylayın:</div>
+        ${turlarHTML}
+      </div>
+    `;
     return;
   }
 
@@ -9643,8 +9799,8 @@ function qrKameraAc(){
     _qrTarayici.start(
       { facingMode: 'environment' },
       {
-        fps: 10,
-        qrbox: { width: 240, height: 240 },
+        fps: 15,
+        qrbox: { width: 320, height: 320 },
         aspectRatio: 1.0
       },
       qrSonucIsle,
@@ -9657,7 +9813,7 @@ function qrKameraAc(){
       // Eğer arka kamera olmazsa ön kamerayı dene
       _qrTarayici.start(
         true, // herhangi bir kamera
-        { fps: 10, qrbox: { width: 240, height: 240 } },
+        { fps: 15, qrbox: { width: 320, height: 320 } },
         qrSonucIsle,
         () => {}
       ).catch(()=>{
