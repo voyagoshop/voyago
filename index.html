@@ -6506,8 +6506,9 @@ function renderDashboard(){
     ${turDetaylari.length ? `
     <!-- 👥 Tur Katılım Detayı (Y/Ç/B) -->
     <div style="background:white;border-radius:14px;padding:14px;border:1px solid #f0f0f0;">
-      <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
-        👥 <span>Tur Katılım Detayı</span>
+      <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:10px;display:flex;align-items:center;gap:6px;justify-content:space-between;">
+        <span style="display:flex;align-items:center;gap:6px;">👥 <span>Tur Katılım Detayı</span></span>
+        <button onclick="dashboardTurDetayDuzelt('${sid}')" title="Eski kayıtlardaki eksik kişi/ücret bilgilerini otomatik tamamlar" style="padding:5px 9px;background:#f0f4ff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:8px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;">🔧 Eksikleri Tamamla</button>
       </div>
       <div style="font-size:11px;color:#666;margin-bottom:10px;">
         Yetişkin · Çocuk · Bebek dağılımı (kişi sayısına göre sırala)
@@ -7701,6 +7702,34 @@ async function addToTour(kabin,sefer,tid){
   const p=passengers.find(p=>p.kabin===kabin&&p.sefer===sefer);
   if(p&&!p.joinedTours.includes(tid)){
     p.joinedTours.push(tid);
+
+    // 🔥 tur_katilim_detay'ı OTOMATİK DOLDUR (yoksa)
+    // Bu kritik — yoksa dashboard'da kişi/ücret 0 görünür
+    const t = TOURS.find(x=>x.id===tid);
+    if(t && (!p.tur_katilim_detay || !p.tur_katilim_detay[tid])){
+      if(!p.tur_katilim_detay) p.tur_katilim_detay = {};
+      const y = p.adult || 0;
+      const c = p.child || 0;
+      const b = p.baby || 0;
+      const kisi = y + c + b;
+      // Ücret hesapla - paket fiyatı varsa onu kullan, yoksa kişi başına
+      let ucret = 0;
+      if(t.paketFiyat && t.paketFiyat > 0){
+        ucret = t.paketFiyat;
+      } else if(kisi > 0){
+        ucret = (y * (t.ap||0)) + (c * (t.cp||0)) + (b * (t.bp||0));
+      }
+      p.tur_katilim_detay[tid] = {
+        yetiskin: y,
+        cocuk: c,
+        bebek: b,
+        kisi: kisi,
+        ucret: ucret,
+        e_imza: 'Rehber ekledi',
+        zaman: new Date().toISOString()
+      };
+    }
+
     showKatilimcilar(tid);
     renderTA(CTSF);
     // DB'ye kaydet — yoksa yolcular silinince kaybolur
@@ -7711,6 +7740,73 @@ async function addToTour(kabin,sefer,tid){
       showToast('⚠️ Kayıt başarısız: ' + (e.message||''));
     }
   }
+}
+
+// 🔧 Dashboard düzeltme butonu - eski katılımları kişi/ücretle doldur
+async function dashboardTurDetayDuzelt(sid){
+  if(!confirm('Eski tur katılımlarının kişi sayısı ve ücretlerini otomatik dolduracağız.\n\n• Mevcut detaylar değişmez\n• Sadece eksikler tamamlanır\n• Birkaç saniye sürebilir\n\nDevam edelim mi?')) return;
+  showToast('⏳ Eksikler tamamlanıyor...');
+  try {
+    const adet = await turKatilimDetayDuzelt(sid);
+    if(adet > 0){
+      showToast('✓ ' + adet + ' kayıt güncellendi. Dashboard yenileniyor...');
+      setTimeout(()=>{
+        if(typeof renderDashboard === 'function') renderDashboard();
+      }, 500);
+    } else {
+      showToast('ℹ️ Eksik kayıt bulunamadı, her şey güncel.');
+    }
+  } catch(e){
+    console.error('dashboardTurDetayDuzelt:', e);
+    showToast('⚠️ Düzeltme sırasında hata oluştu');
+  }
+}
+
+// 🔧 Mevcut yolcuların tur_katilim_detay eksiklerini otomatik düzelt
+// Bu fonksiyon dashboard yüklenirken çağrılır, eski kayıtları düzeltir
+async function turKatilimDetayDuzelt(sid){
+  const seferYolculari = passengers.filter(p => p.sefer === sid && !p.arsivli);
+  let duzeltildi = 0;
+  for(const p of seferYolculari){
+    if(!p.joinedTours || !p.joinedTours.length) continue;
+    let degisti = false;
+    if(!p.tur_katilim_detay) p.tur_katilim_detay = {};
+    for(const tid of p.joinedTours){
+      const t = TOURS.find(x=>x.id===tid);
+      if(!t) continue;
+      // Detay var mı?
+      const det = p.tur_katilim_detay[tid];
+      // Eksik mi? (yoksa veya ucret/kisi 0 ise)
+      const eksik = !det || (det.kisi === undefined && det.yetiskin === undefined);
+      if(eksik){
+        const y = p.adult || 0;
+        const c = p.child || 0;
+        const b = p.baby || 0;
+        const kisi = y + c + b;
+        let ucret = 0;
+        if(t.paketFiyat && t.paketFiyat > 0){
+          ucret = t.paketFiyat;
+        } else if(kisi > 0){
+          ucret = (y * (t.ap||0)) + (c * (t.cp||0)) + (b * (t.bp||0));
+        }
+        p.tur_katilim_detay[tid] = {
+          yetiskin: y, cocuk: c, bebek: b,
+          kisi: kisi, ucret: ucret,
+          e_imza: det?.e_imza || 'Otomatik düzeltme',
+          zaman: det?.zaman || new Date().toISOString()
+        };
+        degisti = true;
+        duzeltildi++;
+      }
+    }
+    if(degisti){
+      try { await saveYolcuDB(p); } catch(e){ console.error('turKatilimDetayDuzelt:', e); }
+    }
+  }
+  if(duzeltildi > 0){
+    console.log('[TUR DETAY DÜZELT]', duzeltildi, 'kayıt güncellendi');
+  }
+  return duzeltildi;
 }
 
 // ══ HIZLI TUR KAYIT SİSTEMİ ══
