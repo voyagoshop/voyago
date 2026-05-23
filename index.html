@@ -10118,10 +10118,86 @@ function renderOtobusPaneli(){
   if(hepsiMod){
     const bugunkuTurIDs = bugunkuTurlariBul(sid);
     if(!bugunkuTurIDs.length){
-      // Hepsi seçili ama bugün liman yok
+      // Hepsi seçili ama bugün liman yok (deniz günü veya tarih dışı)
+      // Sefere ait TÜM limanları liste olarak göster - rehber önceden tüm günler için kursun
+      const seferTurlari = TOURS.filter(t => {
+        if(t.aktif === false) return false;
+        if(!t.seferler || t.seferler.length === 0) return true;
+        return t.seferler.includes(sid);
+      });
+      // Limanları grupla (aynı liman = bir kart)
+      const limanGrup = {};
+      seferTurlari.forEach(t => {
+        const liman = (t.liman || '').trim();
+        if(!liman) return;
+        const key = liman.toLowerCase().split(',')[0].trim();
+        if(!limanGrup[key]){
+          limanGrup[key] = { ad: liman.split(',')[0].trim(), turlar: [], otobusler: [] };
+        }
+        limanGrup[key].turlar.push(t);
+        // Eğer bu turda otobüs varsa kaydet
+        if(Array.isArray(t.otobusler) && t.otobusler.length){
+          limanGrup[key].otobusler = t.otobusler;
+        }
+      });
+
+      const limanlar = Object.values(limanGrup);
+
+      if(!limanlar.length){
+        el.innerHTML = `
+          <div style="background:#f9fafb;border-radius:14px;padding:12px;border:1.5px dashed #e5e7eb;text-align:center;">
+            <div style="font-size:12px;color:#666;">🚌 Bu seferde tur yok veya turların limanı tanımlı değil</div>
+          </div>
+        `;
+        return;
+      }
+
+      // Liman kartlarını göster
+      const limanKartlari = limanlar.map(l => {
+        // Bu limanın referans turu (otobüs kurulumu için ilk turu kullan)
+        const refTur = l.turlar[0];
+        const sahip = l.otobusler.length > 0;
+        // Doluluk hesabı
+        let toplamDolu = 0;
+        let toplamKap = 0;
+        if(sahip){
+          toplamKap = l.otobusler.reduce((a,o)=>a+o.kapasite,0);
+          toplamDolu = l.otobusler.reduce((a,o)=>a+otobusDolulukHesapla(refTur.id, sid, o.no),0);
+        }
+        const oran = toplamKap > 0 ? Math.round(toplamDolu/toplamKap*100) : 0;
+        const renk = !sahip ? '#f59e0b' : (oran >= 90 ? '#dc2626' : oran >= 70 ? '#eab308' : '#16a34a');
+
+        return `
+          <div style="background:white;border:1.5px solid ${sahip ? '#e5e7eb' : '#fde68a'};border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:transform .15s;"
+            onclick="otobusKurulumAc('${refTur.id}')"
+            onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,.08)'"
+            onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
+            <div style="font-size:24px;">📍</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:700;color:#1a1a1a;">${escapeHTML(l.ad)}</div>
+              <div style="font-size:11px;color:#666;margin-top:1px;">
+                ${l.turlar.length} tur paketi
+                ${sahip ? ` · ${l.otobusler.length} otobüs (${toplamDolu}/${toplamKap})` : ' · <span style="color:#d97706;font-weight:600;">otobüs ayarlanmamış</span>'}
+              </div>
+            </div>
+            <div style="padding:6px 12px;background:${sahip ? '#f0f4ff' : 'linear-gradient(135deg,#f59e0b,#d97706)'};color:${sahip ? '#4f46e5' : 'white'};border:${sahip ? '1.5px solid #c7d2fe' : 'none'};border-radius:8px;font-size:11px;font-weight:700;white-space:nowrap;">
+              ${sahip ? '✏️ Düzenle' : '🚌 Kur'}
+            </div>
+          </div>
+        `;
+      }).join('');
+
       el.innerHTML = `
-        <div style="background:#f9fafb;border-radius:14px;padding:12px;border:1.5px dashed #e5e7eb;text-align:center;">
-          <div style="font-size:12px;color:#666;">🚌 Bir tur seçin veya bugünkü liman için otobüs ayarlayın</div>
+        <div style="background:white;border-radius:14px;padding:12px 14px;border:1px solid #f0f0f0;">
+          <div style="font-size:13px;font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+            🚌 <span>Liman Bazlı Otobüs Kurulumu</span>
+          </div>
+          <div style="font-size:11px;color:#666;margin-bottom:10px;">
+            ${limanlar.length} farklı liman. Her birine ayrı otobüs düzeni kurun (sefer boyunca kalır).
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            ${limanKartlari}
+          </div>
         </div>
       `;
       return;
