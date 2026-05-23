@@ -1030,6 +1030,8 @@ textarea.ai2{resize:none;}
     <div id="tab-program" class="tp active">
       <!-- 🌅 Akıllı Karşılama Banner -->
       <div id="akilli-karsilama"></div>
+      <!-- 🚌 Yolcu Otobüs Bilgisi -->
+      <div id="yolcu-otobus-karti"></div>
       <!-- 🗺️ Sefer Haritası -->
       <div id="sefer-haritasi"></div>
       <div id="meeting-area"></div>
@@ -1801,6 +1803,7 @@ textarea.ai2{resize:none;}
           <button onclick="waLinkSil()" style="flex:1;padding:11px;background:transparent;color:#a32d2d;border:1.5px solid #a32d2d;border-radius:12px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">Sil</button>
         </div>
         <div id="wa-link-durum" style="font-size:11px;margin-top:8px;color:#0d4d2a;"></div>
+        <button onclick="waTaniYap()" style="margin-top:8px;width:100%;padding:9px;background:transparent;border:1.5px dashed #c7d2fe;color:#4f46e5;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">🔍 Tanı Yap (link neden çıkmıyor?)</button>
       </div>
     </div>
 
@@ -1927,9 +1930,12 @@ textarea.ai2{resize:none;}
       </div>
 
       <!-- TÜM ONAYLARI SIFIRLA (yeni gün, yeni yoklama) -->
-      <button onclick="tumOnaylariSifirla()" style="width:100%;padding:9px;background:white;border:1.5px solid #e5e7eb;color:#666;border-radius:10px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:6px;">
+      <button onclick="tumOnaylariSifirla()" style="width:100%;padding:9px;background:white;border:1.5px solid #e5e7eb;color:#666;border-radius:10px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:6px;">
         🔄 <span>Tüm Onayları Sıfırla</span> <span style="color:#999;font-size:10px;">(yeni yoklama için)</span>
       </button>
+
+      <!-- 🚌 OTOBÜS DÜZENİ PANELİ -->
+      <div id="otobus-paneli" style="margin-bottom:14px;"></div>
 
       <!-- Liste -->
       <div class="pl2" id="kontrol-list-wrap">
@@ -3452,6 +3458,8 @@ function renderProgramPage(sv){
   // 🌅 Akıllı karşılama + 🗺️ Sefer haritası render et
   try { if(typeof renderAkilliKarsilama === 'function') renderAkilliKarsilama(sv); } catch(e){}
   try { if(typeof renderSeferHaritasi === 'function') renderSeferHaritasi(sv); } catch(e){}
+  // 🚌 Yolcu otobüs bilgisi
+  try { if(typeof renderYolcuOtobus === 'function') renderYolcuOtobus(sv); } catch(e){}
 
   // Toplanti
   const ma=document.getElementById('meeting-area');
@@ -5105,6 +5113,57 @@ function geceMesaji(sv, v){
 }
 
 // ══ 🗺️ SEFER HARİTASI ══
+
+// 🚌 Yolcu Otobüs Bilgi Kartı (yolcu Program sekmesinde)
+function renderYolcuOtobus(sv){
+  const el = document.getElementById('yolcu-otobus-karti');
+  if(!el || !CP) { if(el) el.innerHTML = ''; return; }
+
+  // Bugünkü liman bul
+  const d = (typeof getDailyForSefer === 'function') ? getDailyForSefer(sv) : null;
+  const bugunkuLiman = (d?.port?.name || '').toLowerCase().trim();
+
+  // Yolcunun bugün katıldığı tur(lar) ve atanmış otobüs(ler)
+  const otobusKayitlari = [];
+  (CP.joinedTours || []).forEach(tid => {
+    const t = TOURS.find(x => x.id === tid);
+    if(!t) return;
+    // Sadece bugün için: turun limanı bugünkü liman mı?
+    const turLimani = (t.liman || '').toLowerCase().trim();
+    const bugunkuTur = bugunkuLiman && turLimani && (
+      turLimani.includes(bugunkuLiman.split(',')[0]) ||
+      bugunkuLiman.includes(turLimani.split(',')[0])
+    );
+    if(!bugunkuTur) return;
+    // Otobüs no atanmış mı?
+    const otobusNo = CP.tur_katilim_detay?.[tid]?.otobus_no;
+    if(otobusNo){
+      otobusKayitlari.push({ tur: t, otobusNo });
+    }
+  });
+
+  if(!otobusKayitlari.length){
+    el.innerHTML = '';
+    return;
+  }
+
+  // Tek tur ise tek kart, birden çok ise her biri ayrı
+  el.innerHTML = otobusKayitlari.map(({tur, otobusNo}) => `
+    <div style="background:linear-gradient(135deg,#1a5fa8,#2563eb);border-radius:18px;padding:16px 18px;color:white;margin-bottom:12px;box-shadow:0 8px 24px rgba(26,95,168,.25);position:relative;overflow:hidden;">
+      <div style="position:absolute;top:-15px;right:-10px;font-size:90px;opacity:.12;pointer-events:none;">🚌</div>
+      <div style="position:relative;">
+        <div style="font-size:11px;opacity:.92;font-weight:600;letter-spacing:.5px;margin-bottom:2px;">BUGÜNKÜ OTOBÜSÜNÜZ</div>
+        <div style="display:flex;align-items:center;gap:14px;margin-top:6px;">
+          <div style="background:white;color:#1a5fa8;font-family:'DM Serif Display',serif;font-size:48px;line-height:1;padding:8px 18px;border-radius:14px;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,.15);">${otobusNo}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:15px;font-weight:600;line-height:1.2;">${escapeHTML(tur.name)}</div>
+            <div style="font-size:11px;opacity:.85;margin-top:3px;">🚌 Otobüs ${otobusNo}'e binin</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
 
 function renderSeferHaritasi(sv){
   const el = document.getElementById('sefer-haritasi');
@@ -9671,6 +9730,8 @@ function renderKontrolListesi(){
   const sid=sSel.value;
   // Her render'da QR sayacını güncelle (DB'den hesapla)
   if(typeof qrSayaciGuncelle === 'function') qrSayaciGuncelle();
+  // 🚌 Otobüs panelini de güncelle
+  if(typeof renderOtobusPaneli === 'function') renderOtobusPaneli();
   if(!sid){
     document.getElementById('kontrol-list').innerHTML='<div class="es">Sefer seçin.</div>';
     renderTurAlmayanlar();
@@ -9821,6 +9882,14 @@ async function setKontrol(key, val, tid, sid){
     p.tur_katilim_detay[tid].geldi = yeniDurum; // 0/1/2
     p.tur_katilim_detay[tid].kontrol_zamani = new Date().toISOString();
 
+    // 🚌 Geldi=1 ise ve otobüs düzeni varsa otomatik ata
+    if(yeniDurum === 1){
+      const otobusler = turOtobusleriAl(tid);
+      if(otobusler.length > 0){
+        yolcuOtomatikOtobusAta(p, tid);
+      }
+    }
+
     // DB'ye kaydet
     try {
       if(typeof saveYolcuDB === 'function') await saveYolcuDB(p);
@@ -9829,6 +9898,7 @@ async function setKontrol(key, val, tid, sid){
 
   renderKontrolListesi();
   renderTurAlmayanlar();
+  renderOtobusPaneli();
 }
 
 function renderTurAlmayanlar(){
@@ -9883,6 +9953,385 @@ function turAlmayanWhatsapp(){
   // WhatsApp'ta mesajı aç
   const encoded = encodeURIComponent(mesaj);
   window.open('https://wa.me/?text='+encoded, '_blank');
+}
+
+// ═══════════════════════════════════════════════
+// 🚌 OTOBÜS YÖNETİM SİSTEMİ
+// ═══════════════════════════════════════════════
+
+// Tur için otobüs düzenini al (yoksa varsayılan döner)
+function turOtobusleriAl(tid){
+  const t = TOURS.find(x => x.id === tid);
+  if(!t) return [];
+  return Array.isArray(t.otobusler) ? t.otobusler : [];
+}
+
+// Tur için otobüs düzenini kaydet
+async function turOtobusleriKaydet(tid, otobusler){
+  const t = TOURS.find(x => x.id === tid);
+  if(!t) return false;
+  t.otobusler = otobusler;
+  // localStorage'a yedek
+  try { localStorage.setItem('voyago_TOURS', JSON.stringify(TOURS)); } catch(e){}
+  // DB'ye yaz
+  try {
+    if(typeof sb !== 'undefined'){
+      await sb.from('turlar').update({ otobus_duzeni: { otobusler } }).eq('id', tid);
+    }
+  } catch(e){ console.log('Otobüs DB kayıt:', e); }
+  return true;
+}
+
+// Bir otobüsün mevcut doluluk durumunu hesapla (tid + sid bazlı)
+function otobusDolulukHesapla(tid, sid, otobusNo){
+  // Bu otobüse atanmış yolcuların toplam kişi sayısı
+  let toplam = 0;
+  passengers.forEach(p => {
+    if(p.sefer !== sid || p.arsivli) return;
+    const det = p.tur_katilim_detay?.[tid];
+    if(!det || det.otobus_no !== otobusNo) return;
+    const k = (det.yetiskin||0) + (det.cocuk||0) + (det.bebek||0);
+    if(k === 0){
+      toplam += (p.adult||0) + (p.child||0) + (p.baby||0);
+    } else {
+      toplam += k;
+    }
+  });
+  return toplam;
+}
+
+// En boş otobüsü bul (otomatik atama için)
+function enBosOtobusBul(tid, sid, gerekenKisi){
+  const otobusler = turOtobusleriAl(tid);
+  if(!otobusler.length) return null;
+  // Her otobüsün boş kapasitesini hesapla
+  const adaylar = otobusler.map(o => ({
+    no: o.no,
+    kapasite: o.kapasite,
+    dolu: otobusDolulukHesapla(tid, sid, o.no),
+    bos: o.kapasite - otobusDolulukHesapla(tid, sid, o.no)
+  })).filter(o => o.bos >= gerekenKisi);
+
+  if(!adaylar.length){
+    // Hiçbir otobüste yer yok — en boş olanı dön (yine de kaydetsin)
+    const tum = otobusler.map(o => ({
+      no: o.no,
+      kapasite: o.kapasite,
+      dolu: otobusDolulukHesapla(tid, sid, o.no),
+      bos: o.kapasite - otobusDolulukHesapla(tid, sid, o.no)
+    })).sort((a,b) => b.bos - a.bos);
+    return tum[0]?.no || null;
+  }
+  // En boş otobüsü dön (en az dolu)
+  adaylar.sort((a,b) => b.bos - a.bos);
+  return adaylar[0].no;
+}
+
+// 🚌 OTOBÜS PANELİNİ RENDER ET (sayaçların altında)
+function renderOtobusPaneli(){
+  const el = document.getElementById('otobus-paneli');
+  if(!el) return;
+  const tid = document.getElementById('kontrol-tur-sel')?.value;
+  const sid = document.getElementById('kontrol-sefer-sel')?.value;
+
+  // Tur seçili değilse panel yok
+  if(!tid || tid === 'hepsi' || !sid){
+    el.innerHTML = '';
+    return;
+  }
+
+  const t = TOURS.find(x => x.id === tid);
+  if(!t){ el.innerHTML = ''; return; }
+
+  const otobusler = turOtobusleriAl(tid);
+
+  if(!otobusler.length){
+    // Henüz otobüs düzeni yok — kurulum CTA'sı göster
+    el.innerHTML = `
+      <div style="background:white;border-radius:14px;padding:14px;border:1.5px dashed #f59e0b;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <span style="font-size:24px;">🚌</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#1a1a1a;">Otobüs Düzeni Tanımlı Değil</div>
+            <div style="font-size:11px;color:#666;margin-top:1px;">Yolcuları otobüslere otomatik dağıtmak için düzen kurun</div>
+          </div>
+        </div>
+        <button onclick="otobusKurulumAc('${tid}')" style="width:100%;padding:10px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          🚌 Otobüs Düzenini Kur
+        </button>
+      </div>
+    `;
+    return;
+  }
+
+  // Otobüsleri görsel olarak göster
+  const otobuslerHTML = otobusler.map(o => {
+    const dolu = otobusDolulukHesapla(tid, sid, o.no);
+    const oran = o.kapasite > 0 ? Math.round((dolu / o.kapasite) * 100) : 0;
+    const renk = oran >= 100 ? '#dc2626' : oran >= 90 ? '#f59e0b' : oran >= 70 ? '#eab308' : '#16a34a';
+    const ikon = oran >= 100 ? '🔴' : oran >= 90 ? '⚠️' : oran >= 70 ? '🟡' : '🟢';
+    return `
+      <div style="flex:1;min-width:90px;background:white;border:2px solid ${renk};border-radius:10px;padding:8px 6px;text-align:center;">
+        <div style="font-size:10px;color:#666;font-weight:600;">${ikon} OTOBÜS</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:22px;color:${renk};line-height:1;margin:2px 0;">${o.no}</div>
+        <div style="font-size:11px;color:#1a1a1a;font-weight:700;">${dolu}/${o.kapasite}</div>
+        <div style="font-size:9px;color:${renk};font-weight:600;">${oran}%</div>
+      </div>
+    `;
+  }).join('');
+
+  // Toplam doluluk
+  const toplamDolu = otobusler.reduce((a,o)=>a+otobusDolulukHesapla(tid,sid,o.no),0);
+  const toplamKap = otobusler.reduce((a,o)=>a+o.kapasite,0);
+
+  el.innerHTML = `
+    <div style="background:white;border-radius:14px;padding:12px 14px;border:1px solid #f0f0f0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-size:13px;font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:6px;">
+          🚌 <span>Otobüs Düzeni</span>
+          <span style="font-size:11px;color:#666;font-weight:400;">· ${toplamDolu}/${toplamKap} (${toplamKap?Math.round(toplamDolu/toplamKap*100):0}%)</span>
+        </div>
+        <button onclick="otobusKurulumAc('${tid}')" style="padding:5px 10px;background:#f0f4ff;border:1.5px solid #c7d2fe;color:#4f46e5;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">✏️ Düzenle</button>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">${otobuslerHTML}</div>
+      <div style="margin-top:8px;padding:8px;background:#f0f9ff;border-radius:8px;font-size:10px;color:#0d3b6e;line-height:1.5;">
+        💡 Yolcular "✓ Geldi" deyince otomatik en boş otobüse atanır. Manuel değiştirmek için yolcu üzerindeki 🚌 badge'ine tıklayın.
+      </div>
+    </div>
+  `;
+}
+
+// 🚌 OTOBÜS KURULUM MODAL
+function otobusKurulumAc(tid){
+  const t = TOURS.find(x => x.id === tid);
+  if(!t){ showToast('Tur bulunamadı'); return; }
+
+  // Mevcut otobüsleri al (yoksa varsayılan 1 otobüs)
+  let otobusler = turOtobusleriAl(tid);
+  if(!otobusler.length){
+    otobusler = [{ no: 1, kapasite: 50 }];
+  }
+
+  // Modal varsa kaldır
+  const eski = document.getElementById('otobus-kurulum-modal');
+  if(eski) eski.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'otobus-kurulum-modal';
+  modal.dataset.tid = tid;
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e)=>{ if(e.target.id === 'otobus-kurulum-modal') otobusKurulumKapat(); };
+
+  modal.innerHTML = `
+    <div style="background:white;border-radius:18px;padding:20px;max-width:460px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div>
+          <div style="font-family:'DM Serif Display',serif;font-size:18px;color:#1a1a1a;">🚌 Otobüs Düzeni</div>
+          <div style="font-size:11px;color:#6b6b6b;margin-top:2px;">${escapeHTML(t.name)}</div>
+        </div>
+        <button onclick="otobusKurulumKapat()" style="background:transparent;border:none;color:#999;font-size:24px;cursor:pointer;line-height:1;">×</button>
+      </div>
+
+      <div style="font-size:12px;color:#666;margin-bottom:10px;line-height:1.5;">
+        Her satır bir otobüs. Kapasite = o otobüse kaç kişi sığar.
+        <br>
+        <span style="font-size:10px;color:#888;">Örnek: 50/50/30 → 130 kişilik tur (3 otobüs)</span>
+      </div>
+
+      <!-- Otobüs listesi -->
+      <div id="otobus-liste" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;"></div>
+
+      <!-- Otobüs ekle/çıkar butonları -->
+      <div style="display:flex;gap:6px;">
+        <button onclick="otobusEkle()" style="flex:1;padding:9px;background:#dcfce7;color:#15803d;border:1.5px solid #16a34a;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Otobüs Ekle</button>
+        <button onclick="otobusSonuncuyuSil()" style="flex:1;padding:9px;background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">− Son Otobüsü Sil</button>
+      </div>
+
+      <!-- Aksiyonlar -->
+      <div style="display:flex;gap:8px;margin-top:18px;">
+        <button onclick="otobusKurulumKapat()"
+          style="flex:1;padding:11px;background:transparent;border:1.5px solid #e5e7eb;color:#666;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          İptal
+        </button>
+        <button onclick="otobusKurulumKaydet()"
+          style="flex:2;padding:11px;background:linear-gradient(135deg,#0f6e56,#1D9E75);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          💾 Kaydet
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  // Otobüsleri input olarak göster
+  _otobusKurulumTemp = JSON.parse(JSON.stringify(otobusler));
+  otobusKurulumListele();
+}
+
+let _otobusKurulumTemp = [];
+
+function otobusKurulumListele(){
+  const el = document.getElementById('otobus-liste');
+  if(!el) return;
+  el.innerHTML = _otobusKurulumTemp.map((o, idx) => `
+    <div style="display:flex;align-items:center;gap:8px;background:#fafafa;border:1px solid #e5e7eb;border-radius:10px;padding:8px 10px;">
+      <div style="background:linear-gradient(135deg,#1a5fa8,#2563eb);color:white;border-radius:8px;padding:5px 10px;font-weight:700;font-size:13px;min-width:32px;text-align:center;">${o.no}</div>
+      <span style="font-size:11px;color:#666;flex:1;">Kapasite:</span>
+      <input type="number" min="1" max="100" value="${o.kapasite}" 
+        onchange="otobusKapasiteDegistir(${idx}, this.value)"
+        style="width:70px;padding:6px 8px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;text-align:center;font-family:'DM Sans',sans-serif;outline:none;">
+      <span style="font-size:11px;color:#666;">kişi</span>
+    </div>
+  `).join('');
+}
+
+function otobusKapasiteDegistir(idx, deger){
+  const k = parseInt(deger) || 0;
+  if(_otobusKurulumTemp[idx]){
+    _otobusKurulumTemp[idx].kapasite = k;
+  }
+}
+
+function otobusEkle(){
+  const sonNo = _otobusKurulumTemp.length ? Math.max(..._otobusKurulumTemp.map(o=>o.no)) : 0;
+  _otobusKurulumTemp.push({ no: sonNo + 1, kapasite: 50 });
+  otobusKurulumListele();
+}
+
+function otobusSonuncuyuSil(){
+  if(_otobusKurulumTemp.length <= 1){
+    showToast('⚠️ En az 1 otobüs olmalı');
+    return;
+  }
+  _otobusKurulumTemp.pop();
+  otobusKurulumListele();
+}
+
+async function otobusKurulumKaydet(){
+  const modal = document.getElementById('otobus-kurulum-modal');
+  if(!modal) return;
+  const tid = modal.dataset.tid;
+  // Geçersiz kapasiteleri kontrol et
+  const gecersiz = _otobusKurulumTemp.find(o => !o.kapasite || o.kapasite < 1);
+  if(gecersiz){
+    showToast('⚠️ Tüm otobüslerin kapasitesi en az 1 olmalı');
+    return;
+  }
+  // Numaraları normalize et (1'den başla)
+  _otobusKurulumTemp.forEach((o, idx) => { o.no = idx + 1; });
+
+  await turOtobusleriKaydet(tid, _otobusKurulumTemp);
+  showToast('✓ Otobüs düzeni kaydedildi');
+  otobusKurulumKapat();
+  renderOtobusPaneli();
+  if(typeof renderKontrolListesi === 'function') renderKontrolListesi();
+}
+
+function otobusKurulumKapat(){
+  const m = document.getElementById('otobus-kurulum-modal');
+  if(m) m.remove();
+}
+
+// Yolcunun otobüs numarasını al (yoksa null)
+function yolcuOtobusunuAl(p, tid){
+  return p?.tur_katilim_detay?.[tid]?.otobus_no || null;
+}
+
+// Yolcuya otomatik otobüs ata (boş atanmamışsa)
+function yolcuOtomatikOtobusAta(p, tid){
+  if(!p || !p.sefer) return null;
+  const otobusler = turOtobusleriAl(tid);
+  if(!otobusler.length) return null;
+  // Zaten atanmışsa değiştirme
+  const mevcut = yolcuOtobusunuAl(p, tid);
+  if(mevcut) return mevcut;
+
+  // Aynı kabindeki diğer yolcular hangi otobüste? (aile birliği)
+  // Bu durumda kabin tek yolcu olur ama yine de mantık var
+  const det = p.tur_katilim_detay?.[tid];
+  const kisi = det ? ((det.yetiskin||0)+(det.cocuk||0)+(det.bebek||0)) : ((p.adult||0)+(p.child||0)+(p.baby||0));
+
+  // En boş otobüsü bul
+  const otobusNo = enBosOtobusBul(tid, p.sefer, kisi);
+  if(otobusNo){
+    if(!p.tur_katilim_detay) p.tur_katilim_detay = {};
+    if(!p.tur_katilim_detay[tid]) p.tur_katilim_detay[tid] = {};
+    p.tur_katilim_detay[tid].otobus_no = otobusNo;
+  }
+  return otobusNo;
+}
+
+// Yolcuyu manuel olarak başka otobüse taşı
+async function yolcuOtobusDegistir(kabin, sid, tid, yeniOtobusNo){
+  const p = passengers.find(px =>
+    px.sefer === sid && !px.arsivli && px.kabin &&
+    px.kabin.toString().trim().toUpperCase() === kabin.toString().trim().toUpperCase()
+  );
+  if(!p){ showToast('Yolcu bulunamadı'); return; }
+  if(!p.tur_katilim_detay) p.tur_katilim_detay = {};
+  if(!p.tur_katilim_detay[tid]) p.tur_katilim_detay[tid] = {};
+  p.tur_katilim_detay[tid].otobus_no = yeniOtobusNo;
+  try { if(typeof saveYolcuDB === 'function') await saveYolcuDB(p); } catch(e){ console.error(e); }
+  showToast('✓ Otobüs ' + yeniOtobusNo + '\'e taşındı');
+  // Panelleri yenile
+  renderOtobusPaneli();
+  if(typeof renderKontrolListesi === 'function') renderKontrolListesi();
+  // Kabin arama açık ise yeniden render
+  if(typeof kabinHizliAra === 'function') kabinHizliAra();
+}
+
+// 🚌 Otobüs seçim modal (manuel taşıma için)
+function otobusSecmeAc(kabin, sid, tid){
+  const otobusler = turOtobusleriAl(tid);
+  if(!otobusler.length){
+    showToast('Önce otobüs düzeni kurun');
+    return;
+  }
+  const p = passengers.find(px =>
+    px.sefer === sid && !px.arsivli && px.kabin &&
+    px.kabin.toString().trim().toUpperCase() === kabin.toString().trim().toUpperCase()
+  );
+  if(!p) return;
+  const mevcutOtobus = yolcuOtobusunuAl(p, tid);
+
+  const eski = document.getElementById('otobus-secme-modal');
+  if(eski) eski.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'otobus-secme-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e)=>{ if(e.target.id === 'otobus-secme-modal') modal.remove(); };
+
+  const optHTML = otobusler.map(o => {
+    const dolu = otobusDolulukHesapla(tid, sid, o.no);
+    const oran = o.kapasite > 0 ? Math.round((dolu / o.kapasite) * 100) : 0;
+    const renk = oran >= 100 ? '#dc2626' : oran >= 90 ? '#f59e0b' : '#16a34a';
+    const aktif = mevcutOtobus === o.no;
+    return `
+      <button onclick="yolcuOtobusDegistir('${escapeHTML(kabin)}','${sid}','${tid}',${o.no});document.getElementById('otobus-secme-modal').remove();"
+        style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:${aktif?'#dcfce7':'white'};border:2px solid ${aktif?'#16a34a':renk};border-radius:12px;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%;text-align:left;">
+        <div style="background:${renk};color:white;border-radius:8px;padding:6px 12px;font-weight:700;font-size:14px;min-width:36px;text-align:center;">${o.no}</div>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:600;color:#1a1a1a;">Otobüs ${o.no}${aktif?' ✓ (mevcut)':''}</div>
+          <div style="font-size:11px;color:#666;">${dolu}/${o.kapasite} dolu (${oran}%)</div>
+        </div>
+        ${oran >= 100 ? '<div style="font-size:10px;color:#dc2626;font-weight:600;">DOLU!</div>' : ''}
+      </button>
+    `;
+  }).join('');
+
+  modal.innerHTML = `
+    <div style="background:white;border-radius:18px;padding:20px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div>
+          <div style="font-family:'DM Serif Display',serif;font-size:18px;color:#1a1a1a;">🚌 Otobüs Seç</div>
+          <div style="font-size:11px;color:#6b6b6b;margin-top:2px;">${escapeHTML(p.name)} · Kabin ${escapeHTML(kabin)}</div>
+        </div>
+        <button onclick="document.getElementById('otobus-secme-modal').remove()" style="background:transparent;border:none;color:#999;font-size:24px;cursor:pointer;line-height:1;">×</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">${optHTML}</div>
+    </div>
+  `;
+  document.body.appendChild(modal);
 }
 
 // 🔄 Tüm onayları sıfırla — yeni gün, yeni yoklama için
@@ -9946,6 +10395,191 @@ async function tumOnaylariSifirla(){
   renderKontrolListesi();
 }
 
+// ✏️ Tur Kontrol - yolcu düzenleme modal
+function kontrolYolcuDuzenle(kabinTemiz, sid){
+  const p = passengers.find(px =>
+    px.sefer === sid && !px.arsivli && px.kabin &&
+    px.kabin.toString().trim().toUpperCase() === kabinTemiz
+  );
+  if(!p){ showToast('Yolcu bulunamadı'); return; }
+
+  // Mevcut modal varsa kaldır
+  const eski = document.getElementById('kontrol-duzenle-modal');
+  if(eski) eski.remove();
+
+  // Modal oluştur (htkYolcuDuzenle ile aynı mantık)
+  const modal = document.createElement('div');
+  modal.id = 'kontrol-duzenle-modal';
+  modal.dataset.kabin = kabinTemiz;
+  modal.dataset.sefer = sid;
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e)=>{ if(e.target.id === 'kontrol-duzenle-modal') kontrolDuzenleKapat(); };
+  modal.innerHTML = `
+    <div style="background:white;border-radius:18px;padding:20px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div>
+          <div style="font-family:'DM Serif Display',serif;font-size:18px;color:#1a1a1a;">✏️ Yolcu Düzenle</div>
+          <div style="font-size:11px;color:#6b6b6b;margin-top:2px;">Kabin ${escapeHTML(p.kabin||'?')}</div>
+        </div>
+        <button onclick="kontrolDuzenleKapat()" style="background:transparent;border:none;color:#999;font-size:24px;cursor:pointer;line-height:1;">×</button>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <!-- Ad -->
+        <div>
+          <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;">👤 Ad Soyad</label>
+          <input type="text" id="kd-ad" value="${escapeHTML(p.name||'')}"
+            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;font-family:'DM Sans',sans-serif;">
+        </div>
+
+        <!-- Kabin -->
+        <div>
+          <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;">🚪 Kabin No</label>
+          <input type="text" id="kd-kabin" value="${escapeHTML(p.kabin||'')}"
+            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;font-family:'DM Sans',sans-serif;">
+        </div>
+
+        <!-- Telefon -->
+        <div>
+          <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;">📞 Telefon</label>
+          <input type="tel" id="kd-tel" value="${escapeHTML(p.tel||'')}" placeholder="05XXXXXXXXX"
+            style="width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;font-family:'DM Sans',sans-serif;">
+        </div>
+
+        <!-- Y/Ç/B -->
+        <div>
+          <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;">👥 Kişi Sayısı</label>
+          <div style="display:flex;gap:6px;">
+            <div style="flex:1;">
+              <input type="number" id="kd-y" value="${p.adult||0}" min="0" max="20"
+                style="width:100%;padding:9px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;text-align:center;font-family:'DM Sans',sans-serif;">
+              <div style="font-size:10px;color:#888;text-align:center;margin-top:2px;">🧑 Yetişkin</div>
+            </div>
+            <div style="flex:1;">
+              <input type="number" id="kd-c" value="${p.child||0}" min="0" max="20"
+                style="width:100%;padding:9px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;text-align:center;font-family:'DM Sans',sans-serif;">
+              <div style="font-size:10px;color:#888;text-align:center;margin-top:2px;">🧒 Çocuk</div>
+            </div>
+            <div style="flex:1;">
+              <input type="number" id="kd-b" value="${p.baby||0}" min="0" max="20"
+                style="width:100%;padding:9px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;text-align:center;font-family:'DM Sans',sans-serif;">
+              <div style="font-size:10px;color:#888;text-align:center;margin-top:2px;">👶 Bebek</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ek isimler -->
+        <div>
+          <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;">👥 Diğer Yolcular (opsiyonel)</label>
+          <div id="kd-ek-isimler" style="display:flex;flex-direction:column;gap:4px;"></div>
+          <div style="font-size:10px;color:#888;margin-top:4px;">💡 Kişi sayısını değiştirdiğinizde alanlar otomatik güncellenir</div>
+        </div>
+      </div>
+
+      <!-- Aksiyonlar -->
+      <div style="display:flex;gap:8px;margin-top:18px;">
+        <button onclick="kontrolDuzenleKapat()"
+          style="flex:1;padding:11px;background:transparent;border:1.5px solid #e5e7eb;color:#666;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          İptal
+        </button>
+        <button onclick="kontrolYolcuKaydet()"
+          style="flex:2;padding:11px;background:linear-gradient(135deg,#0f6e56,#1D9E75);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          💾 Kaydet
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  // Ek isim alanlarını oluştur
+  kontrolDEkIsimleriRender(p);
+  // Y/Ç/B değişince ek isim sayısını güncelle
+  ['kd-y','kd-c','kd-b'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('input', ()=>kontrolDEkIsimleriRender(p));
+  });
+}
+
+// Ek isim alanları (Tur Kontrol düzenle için)
+function kontrolDEkIsimleriRender(p){
+  const ekEl = document.getElementById('kd-ek-isimler');
+  if(!ekEl) return;
+  const y = parseInt(document.getElementById('kd-y')?.value || 0) || 0;
+  const c = parseInt(document.getElementById('kd-c')?.value || 0) || 0;
+  const b = parseInt(document.getElementById('kd-b')?.value || 0) || 0;
+  const toplam = y + c + b;
+  const ekSayisi = Math.max(0, toplam - 1);
+  // Mevcut değerleri sakla (input'tan veya yolcudan)
+  const mevcutInputs = Array.from(document.querySelectorAll('#kd-ek-isimler input')).map(i => i.value);
+  const eskiEk = p?.ekstra_isimler || [];
+  ekEl.innerHTML = '';
+  for(let i = 0; i < ekSayisi && i < 10; i++){
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.placeholder = `Yolcu #${i+2}`;
+    inp.autocomplete = 'off';
+    inp.style.cssText = 'padding:8px 10px;border:1.5px dashed #e5e7eb;border-radius:8px;font-size:12px;outline:none;font-family:"DM Sans",sans-serif;background:#fafafa;';
+    inp.value = mevcutInputs[i] !== undefined ? mevcutInputs[i] : (eskiEk[i] || '');
+    ekEl.appendChild(inp);
+  }
+}
+
+function kontrolDuzenleKapat(){
+  const m = document.getElementById('kontrol-duzenle-modal');
+  if(m) m.remove();
+}
+
+async function kontrolYolcuKaydet(){
+  const modal = document.getElementById('kontrol-duzenle-modal');
+  if(!modal) return;
+  const kabinTemiz = modal.dataset.kabin;
+  const sid = modal.dataset.sefer;
+  const p = passengers.find(px =>
+    px.sefer === sid && !px.arsivli && px.kabin &&
+    px.kabin.toString().trim().toUpperCase() === kabinTemiz
+  );
+  if(!p){ showToast('Yolcu bulunamadı'); return; }
+
+  const ad = (document.getElementById('kd-ad')?.value || '').trim();
+  const kabin = (document.getElementById('kd-kabin')?.value || '').trim();
+  const tel = (document.getElementById('kd-tel')?.value || '').trim();
+  const y = parseInt(document.getElementById('kd-y')?.value || 0) || 0;
+  const c = parseInt(document.getElementById('kd-c')?.value || 0) || 0;
+  const b = parseInt(document.getElementById('kd-b')?.value || 0) || 0;
+
+  if(!ad){ showToast('⚠️ Ad zorunlu'); return; }
+  if(y + c + b === 0){ showToast('⚠️ En az 1 kişi olmalı'); return; }
+
+  // Ek isimleri topla
+  const ekIsimler = Array.from(document.querySelectorAll('#kd-ek-isimler input'))
+    .map(i => i.value.trim())
+    .filter(x => x);
+
+  // Yolcuyu güncelle
+  p.name = ad;
+  p.kabin = kabin;
+  p.tel = tel;
+  p.adult = y;
+  p.child = c;
+  p.baby = b;
+  p.ekstra_isimler = ekIsimler;
+
+  try {
+    if(typeof saveYolcuDB === 'function') await saveYolcuDB(p);
+    showToast('✓ ' + ad + ' güncellendi');
+    kontrolDuzenleKapat();
+    // Tur Kontrol arama sonucunu yenile (yeni kabin no ile)
+    const aramaEl = document.getElementById('kontrol-kabin-ara');
+    if(aramaEl) aramaEl.value = kabin;
+    kabinHizliAra();
+    // Listeyi de yenile
+    if(typeof renderKontrolListesi === 'function') renderKontrolListesi();
+  } catch(e) {
+    console.error('kontrolYolcuKaydet:', e);
+    showToast('⚠️ Kaydetme hatası');
+  }
+}
+
 // ⚡ Tek tur onayı (Hepsi modunda kabin yazınca her tur için ayrı buton)
 async function kabinTurOnayla(kabin, sid, tid){
   const p = passengers.find(px =>
@@ -9961,13 +10595,23 @@ async function kabinTurOnayla(kabin, sid, tid){
   if(!p.tur_katilim_detay[tid]) p.tur_katilim_detay[tid] = {};
   p.tur_katilim_detay[tid].geldi = 1;
   p.tur_katilim_detay[tid].kontrol_zamani = new Date().toISOString();
+
+  // 🚌 Otomatik otobüs ata (otobüs düzeni varsa)
+  const otobusler = turOtobusleriAl(tid);
+  let atananOtobus = null;
+  if(otobusler.length > 0){
+    atananOtobus = yolcuOtomatikOtobusAta(p, tid);
+  }
+
   try { if(typeof saveYolcuDB === 'function') await saveYolcuDB(p); } catch(e){ console.error(e); }
 
   const t = TOURS.find(x=>x.id===tid);
-  showToast('✓ ' + p.name + ' → ' + (t?.name || 'Tur') + ' geldi olarak işaretlendi');
-  // Yeniden render et — buton yeşil olsun
+  const otoMsg = atananOtobus ? ' → 🚌 Otobüs ' + atananOtobus : '';
+  showToast('✓ ' + p.name + otoMsg + ' (' + (t?.name || 'Tur') + ')');
+  // Yeniden render et
   kabinHizliAra();
   renderKontrolListesi();
+  renderOtobusPaneli();
 }
 
 async function kabinTurOnayKaldir(kabin, sid, tid){
@@ -10053,6 +10697,12 @@ function kabinHizliAra(){
       const tC = det ? (det.cocuk||0) : (p.child||0);
       const tB = det ? (det.bebek||0) : (p.baby||0);
       const tKisi = tY + tC + tB;
+      // 🚌 Bu yolcunun otobüs no'su (varsa)
+      const otobusNo = det?.otobus_no;
+      const otobusVar = turOtobusleriAl(turId).length > 0;
+      const otobusBadge = otobusVar && turGelmis && otobusNo 
+        ? `<button onclick="otobusSecmeAc('${kabinTemiz}','${sid}','${turId}')" title="Otobüsünü değiştir" style="padding:4px 9px;background:linear-gradient(135deg,#1a5fa8,#2563eb);color:white;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;margin-right:4px;">🚌 ${otobusNo}</button>`
+        : '';
 
       return `
         <div style="display:flex;align-items:center;gap:8px;padding:7px 9px;background:${turGelmis ? '#dcfce7' : (bugunkuTur ? '#fef3c7' : '#f9fafb')};border-radius:8px;margin-top:5px;border:1.5px solid ${turGelmis ? '#16a34a' : (bugunkuTur ? '#f59e0b' : '#e5e7eb')};">
@@ -10060,6 +10710,7 @@ function kabinHizliAra(){
             <div style="font-size:12.5px;font-weight:600;color:#1a1a1a;line-height:1.2;${turGelmis ? 'text-decoration:line-through;opacity:.7;' : ''}">${bugunkuTur && !turGelmis ? '⭐ ' : ''}${escapeHTML(t.name)}</div>
             <div style="font-size:10px;color:#666;margin-top:1px;">${tKisi} kişi${bugunkuTur ? ' · 📍 Bugünkü liman' : ''}</div>
           </div>
+          ${otobusBadge}
           ${turGelmis 
             ? `<button onclick="kabinTurOnayKaldir('${kabinTemiz}','${sid}','${turId}')" style="padding:6px 10px;background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">✗ İptal</button>`
             : `<button onclick="kabinTurOnayla('${kabinTemiz}','${sid}','${turId}')" style="padding:7px 12px;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:0 2px 6px rgba(22,163,74,.3);">✓ Geldi</button>`
@@ -10070,7 +10721,10 @@ function kabinHizliAra(){
 
     sonuc.innerHTML = `
       <div style="color:#1a1a1a;">
-        <div style="font-size:13px;margin-bottom:4px;">👤 <b>${escapeHTML(p.name)}</b> · Kabin ${escapeHTML(kabin)}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;">
+          <div style="font-size:13px;flex:1;min-width:0;">👤 <b>${escapeHTML(p.name)}</b> · Kabin ${escapeHTML(kabin)}</div>
+          <button onclick="kontrolYolcuDuzenle('${kabinTemiz}','${sid}')" title="Yolcu bilgilerini düzenle" style="padding:5px 9px;background:#f0f4ff;border:1.5px solid #c7d2fe;color:#4f46e5;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;flex-shrink:0;">✏️ Düzenle</button>
+        </div>
         <div style="font-size:10.5px;color:#666;margin-bottom:6px;">Aşağıdaki turlardan birini ✓ ile onaylayın:</div>
         ${turlarHTML}
       </div>
@@ -10149,19 +10803,29 @@ async function kabinHizliGeldi(){
   if(!p.tur_katilim_detay[tid]) p.tur_katilim_detay[tid] = {};
   p.tur_katilim_detay[tid].geldi = 1;
   p.tur_katilim_detay[tid].kontrol_zamani = new Date().toISOString();
+
+  // 🚌 Otomatik otobüs ata (otobüs düzeni varsa)
+  const otobusler = turOtobusleriAl(tid);
+  let atananOtobus = null;
+  if(otobusler.length > 0){
+    atananOtobus = yolcuOtomatikOtobusAta(p, tid);
+  }
+
   try {
     if(typeof saveYolcuDB === 'function') await saveYolcuDB(p);
   } catch(e){ console.error('Hızlı geldi:', e); }
 
   document.getElementById('kontrol-kabin-ara').value = '';
+  const otoMsg = atananOtobus ? ' → 🚌 Otobüs <b>' + atananOtobus + '</b>' : '';
   document.getElementById('kontrol-kabin-sonuc').innerHTML = 
-    '<span style="color:var(--green);">✅ '+escapeHTML(p.name)+' geldi olarak işaretlendi!</span>';
+    '<span style="color:var(--green);">✅ '+escapeHTML(p.name)+' geldi olarak işaretlendi!' + otoMsg + '</span>';
   renderKontrolListesi();
-  // 2 saniye sonra temizle
+  renderOtobusPaneli();
+  // 3 saniye sonra temizle
   setTimeout(()=>{
     const el=document.getElementById('kontrol-kabin-sonuc');
     if(el)el.innerHTML='';
-  }, 2000);
+  }, 3000);
 }
 
 // ══ QR KOD TARAMA — REHBER TARAFI ══
@@ -16595,6 +17259,148 @@ function waLinkBul(){
     }
   }
   return link;
+}
+
+// 🔍 WhatsApp link sorununu tanı et
+async function waTaniYap(){
+  const rapor = [];
+  rapor.push('🔍 WhatsApp Link Tanı Raporu');
+  rapor.push('═══════════════════════════════');
+
+  // 1. SQL tablosu var mı kontrol et
+  let tabloVar = false;
+  let dbKayitlari = [];
+  try {
+    const { data, error } = await sb.from('gemi_wa_linkleri').select('*');
+    if(error){
+      rapor.push('');
+      rapor.push('❌ 1. SQL TABLOSU YOK!');
+      rapor.push('   Hata: ' + (error.message || 'bilinmeyen'));
+      rapor.push('');
+      rapor.push('💡 ÇÖZÜM: Supabase SQL Editor\'da çalıştırın:');
+      rapor.push('CREATE TABLE gemi_wa_linkleri (');
+      rapor.push('  gemi TEXT PRIMARY KEY,');
+      rapor.push('  wa_grup_link TEXT,');
+      rapor.push('  guncelleme TIMESTAMP DEFAULT NOW()');
+      rapor.push(');');
+      rapor.push('ALTER TABLE gemi_wa_linkleri ENABLE ROW LEVEL SECURITY;');
+      rapor.push('CREATE POLICY "x" ON gemi_wa_linkleri FOR ALL USING (true);');
+    } else {
+      tabloVar = true;
+      dbKayitlari = data || [];
+      rapor.push('');
+      rapor.push('✅ 1. SQL tablosu MEVCUT');
+      rapor.push('   Kayıt sayısı: ' + dbKayitlari.length);
+    }
+  } catch(e){
+    rapor.push('❌ DB hatası: ' + e.message);
+  }
+
+  // 2. DB'deki kayıtlar
+  if(tabloVar){
+    rapor.push('');
+    rapor.push('📋 2. DB\'deki link kayıtları:');
+    if(dbKayitlari.length === 0){
+      rapor.push('   ⚠️ Hiç kayıt yok — önce link kaydedin!');
+    } else {
+      dbKayitlari.forEach((k,i) => {
+        const link = k.wa_grup_link || '(boş)';
+        const linkKisa = link.length > 40 ? link.substring(0,40)+'...' : link;
+        rapor.push('   ' + (i+1) + '. Gemi: "' + (k.gemi||'?') + '"');
+        rapor.push('      Link: ' + linkKisa);
+      });
+    }
+  }
+
+  // 3. Bellekteki WA_LINKS_GEMI durumu
+  rapor.push('');
+  rapor.push('💾 3. Bellekte (WA_LINKS_GEMI):');
+  const bellekKayit = Object.keys(WA_LINKS_GEMI);
+  if(bellekKayit.length === 0){
+    rapor.push('   ⚠️ Bellekte de kayıt yok!');
+    rapor.push('   💡 Sayfayı yenileyin (F5)');
+  } else {
+    bellekKayit.forEach(g => {
+      const lnk = WA_LINKS_GEMI[g] || '';
+      rapor.push('   • "' + g + '" → ' + (lnk.substring(0,40) + (lnk.length>40?'...':'')));
+    });
+  }
+
+  // 4. Bu uygulamadaki gemiler
+  rapor.push('');
+  rapor.push('🚢 4. Uygulamadaki gemiler:');
+  const gemilerSet = new Set();
+  VOYAGES.forEach(v => { if(v.ship) gemilerSet.add(v.ship); });
+  if(typeof SHIPS !== 'undefined' && Array.isArray(SHIPS)){
+    SHIPS.forEach(s => { if(s) gemilerSet.add(s); });
+  }
+  const tumGemiler = [...gemilerSet];
+  if(tumGemiler.length === 0){
+    rapor.push('   ⚠️ Hiç gemi yok!');
+  } else {
+    tumGemiler.forEach(g => rapor.push('   • "' + g + '"'));
+  }
+
+  // 5. Aktif gemi (admin tarafı)
+  rapor.push('');
+  rapor.push('🎯 5. Şu an seçili gemi (admin):');
+  rapor.push('   "' + (WA_ADMIN_AKTIF_GEMI || '(seçili değil)') + '"');
+
+  // 6. Eşleşme kontrolü
+  rapor.push('');
+  rapor.push('🔗 6. Eşleşme kontrolü:');
+  if(bellekKayit.length === 0){
+    rapor.push('   ⚠️ Eşleşme yok çünkü bellekte link yok');
+  } else {
+    tumGemiler.forEach(g => {
+      const direkEslesme = WA_LINKS_GEMI[g];
+      let esnekEslesme = null;
+      if(!direkEslesme){
+        const gNorm = g.trim().toLowerCase();
+        for(const k of bellekKayit){
+          if(k.trim().toLowerCase() === gNorm){
+            esnekEslesme = WA_LINKS_GEMI[k];
+            break;
+          }
+        }
+      }
+      if(direkEslesme){
+        rapor.push('   ✅ "' + g + '" → direkt eşleşti');
+      } else if(esnekEslesme){
+        rapor.push('   ⚠️ "' + g + '" → esnek eşleşme (boşluk/büyük-küçük farkı)');
+      } else {
+        rapor.push('   ❌ "' + g + '" → eşleşme YOK!');
+      }
+    });
+  }
+
+  // Sonucu modal ile göster
+  const sonuc = rapor.join('\n');
+  console.log(sonuc);
+
+  // Modal göster
+  const eski = document.getElementById('wa-tani-modal');
+  if(eski) eski.remove();
+  const modal = document.createElement('div');
+  modal.id = 'wa-tani-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;';
+  modal.onclick = (e)=>{ if(e.target.id === 'wa-tani-modal') modal.remove(); };
+  modal.innerHTML = `
+    <div style="background:white;border-radius:18px;padding:20px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);font-family:'DM Sans',sans-serif;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div style="font-family:'DM Serif Display',serif;font-size:20px;">🔍 Tanı Sonucu</div>
+        <button onclick="document.getElementById('wa-tani-modal').remove()" style="background:transparent;border:none;color:#999;font-size:24px;cursor:pointer;line-height:1;">×</button>
+      </div>
+      <pre style="background:#f9fafb;padding:14px;border-radius:10px;font-size:11.5px;font-family:'Courier New',monospace;white-space:pre-wrap;word-wrap:break-word;line-height:1.5;border:1px solid #e5e7eb;color:#111;max-height:60vh;overflow:auto;">${escapeHTML(sonuc)}</pre>
+      <div style="display:flex;gap:8px;margin-top:14px;">
+        <button onclick="navigator.clipboard.writeText(${JSON.stringify(sonuc)});showToast('📋 Rapor kopyalandı')"
+          style="flex:1;padding:11px;background:#1a5fa8;color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;">📋 Kopyala</button>
+        <button onclick="document.getElementById('wa-tani-modal').remove()"
+          style="flex:1;padding:11px;background:transparent;border:1.5px solid #e5e7eb;color:#666;border-radius:10px;font-size:13px;cursor:pointer;">Kapat</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
 }
 
 // ── Yolcu: Topbar butonunu güncelle ──
