@@ -2571,7 +2571,9 @@ async function initDB() {
       id: s.id, label: s.etiket, route: s.guzergah || '',
       ship: s.gemi || '', guide: s.rehber_adi || '',
       status: s.durum || 'active', visible: s.gorunur !== false,
-      startDate: s.baslangic || '', endDate: s.bitis || ''
+      startDate: s.baslangic || '', endDate: s.bitis || '',
+      // 🚌 Otobüs düzeni (sefer altında)
+      otobusler: (s.otobus_duzeni?.otobusler) || []
     }));
 
     // Yolcuları yükle (arşivli olanlar da DB'de durur — rapor için)
@@ -2586,7 +2588,8 @@ async function initDB() {
       arsivli: y.arsivli === true,  // Arşivlenmiş seferin yolcuları
       email: y.email || '',
       pazarlama_izni: y.pazarlama_izni || false,
-      ekstra_isimler: y.ekstra_isimler || []  // Diğer yolcular (ek isimler)
+      ekstra_isimler: y.ekstra_isimler || [],  // Diğer yolcular (ek isimler)
+      otobus_no: y.otobus_no || null  // 🚌 Sefer bazlı otobüs numarası
     }));
 
     // 🔥 kontrolDurum'u DB'den geri yükle (sayfa yenilense bile QR/kontrol işaretleri kaybolmasın)
@@ -2773,7 +2776,8 @@ async function saveYolcuDB(p) {
         tur_katilim_detay: p.tur_katilim_detay || {},
         email: p.email || null,
         pazarlama_izni: p.pazarlama_izni || false,
-        ekstra_isimler: p.ekstra_isimler || []
+        ekstra_isimler: p.ekstra_isimler || [],
+        otobus_no: p.otobus_no || null
       });
     } else {
       // Kabinsiz — id ile güncelle (ilk eşleşeni)
@@ -2787,7 +2791,8 @@ async function saveYolcuDB(p) {
           tur_katilim_detay: p.tur_katilim_detay || {},
           email: p.email || null,
           pazarlama_izni: p.pazarlama_izni || false,
-          ekstra_isimler: p.ekstra_isimler || []
+          ekstra_isimler: p.ekstra_isimler || [],
+          otobus_no: p.otobus_no || null
         });
       }
     }
@@ -2801,7 +2806,8 @@ async function saveYolcuDB(p) {
       tur_katilim_detay: p.tur_katilim_detay || {},
       email: p.email || null,
       pazarlama_izni: p.pazarlama_izni || false,
-      ekstra_isimler: p.ekstra_isimler || []
+      ekstra_isimler: p.ekstra_isimler || [],
+      otobus_no: p.otobus_no || null
     });
   }
 }
@@ -5119,53 +5125,35 @@ function renderYolcuOtobus(sv){
   const el = document.getElementById('yolcu-otobus-karti');
   if(!el || !CP) { if(el) el.innerHTML = ''; return; }
 
-  // Bugünkü liman bul
+  // Yolcunun sefer bazlı otobüsü (p.otobus_no)
+  const otobusNo = CP.otobus_no;
+  if(!otobusNo){ el.innerHTML = ''; return; }
+
+  const otobusObj = otobusBulSefer(sv, otobusNo);
+  if(!otobusObj){ el.innerHTML = ''; return; }
+  const otobusAdi = otobusAdiAl(otobusObj);
+  const etiketVar = otobusObj.etiket && otobusObj.etiket.trim();
+
+  // Bugünkü liman bul (alt yazı için)
   const d = (typeof getDailyForSefer === 'function') ? getDailyForSefer(sv) : null;
-  const bugunkuLiman = (d?.port?.name || '').toLowerCase().trim();
+  const bugunLiman = d?.port?.name || '';
 
-  // Yolcunun bugün katıldığı tur(lar) ve atanmış otobüs(ler)
-  const otobusKayitlari = [];
-  (CP.joinedTours || []).forEach(tid => {
-    const t = TOURS.find(x => x.id === tid);
-    if(!t) return;
-    // Sadece bugün için: turun limanı bugünkü liman mı?
-    const turLimani = (t.liman || '').toLowerCase().trim();
-    const bugunkuTur = bugunkuLiman && turLimani && (
-      turLimani.includes(bugunkuLiman.split(',')[0]) ||
-      bugunkuLiman.includes(turLimani.split(',')[0])
-    );
-    if(!bugunkuTur) return;
-    // Otobüs no atanmış mı?
-    const otobusNo = CP.tur_katilim_detay?.[tid]?.otobus_no;
-    if(otobusNo){
-      const otobusObj = otobusBul(tid, otobusNo);
-      const otobusAdi = otobusObj ? otobusAdiAl(otobusObj) : 'Otobüs ' + otobusNo;
-      const etiketVar = otobusObj?.etiket && otobusObj.etiket.trim();
-      otobusKayitlari.push({ tur: t, otobusNo, otobusAdi, etiketVar });
-    }
-  });
-
-  if(!otobusKayitlari.length){
-    el.innerHTML = '';
-    return;
-  }
-
-  // Tek tur ise tek kart, birden çok ise her biri ayrı
-  el.innerHTML = otobusKayitlari.map(({tur, otobusNo, otobusAdi, etiketVar}) => `
+  el.innerHTML = `
     <div style="background:linear-gradient(135deg,#1a5fa8,#2563eb);border-radius:18px;padding:16px 18px;color:white;margin-bottom:12px;box-shadow:0 8px 24px rgba(26,95,168,.25);position:relative;overflow:hidden;">
       <div style="position:absolute;top:-15px;right:-10px;font-size:90px;opacity:.12;pointer-events:none;">🚌</div>
       <div style="position:relative;">
-        <div style="font-size:11px;opacity:.92;font-weight:600;letter-spacing:.5px;margin-bottom:2px;">BUGÜNKÜ OTOBÜSÜNÜZ</div>
+        <div style="font-size:11px;opacity:.92;font-weight:600;letter-spacing:.5px;margin-bottom:2px;">OTOBÜSÜNÜZ${bugunLiman?' · '+escapeHTML(bugunLiman.split(',')[0]):''}</div>
         <div style="display:flex;align-items:center;gap:14px;margin-top:6px;">
           <div style="background:white;color:#1a5fa8;font-family:'DM Serif Display',serif;font-size:${etiketVar?'24px':'48px'};line-height:1.1;padding:${etiketVar?'12px 16px':'8px 18px'};border-radius:14px;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,.15);max-width:60%;text-align:center;word-break:break-word;">${escapeHTML(otobusAdi)}</div>
           <div style="flex:1;min-width:0;">
-            <div style="font-size:15px;font-weight:600;line-height:1.2;">${escapeHTML(tur.name)}</div>
-            <div style="font-size:11px;opacity:.85;margin-top:3px;">🚌 ${etiketVar ? '"'+escapeHTML(otobusAdi)+'" otobüsüne' : 'Otobüs '+otobusNo+'\'e'} binin</div>
+            <div style="font-size:15px;font-weight:600;line-height:1.2;">🚌 ${etiketVar ? '"'+escapeHTML(otobusAdi)+'"' : 'Otobüs '+otobusNo}</div>
+            <div style="font-size:11px;opacity:.9;margin-top:3px;">otobüsüne binin</div>
+            ${otobusObj.not ? `<div style="font-size:10px;opacity:.8;margin-top:4px;font-style:italic;">📝 ${escapeHTML(otobusObj.not)}</div>` : ''}
           </div>
         </div>
       </div>
     </div>
-  `).join('');
+  `;
 }
 
 function renderSeferHaritasi(sv){
@@ -9885,12 +9873,15 @@ async function setKontrol(key, val, tid, sid){
     p.tur_katilim_detay[tid].geldi = yeniDurum; // 0/1/2
     p.tur_katilim_detay[tid].kontrol_zamani = new Date().toISOString();
 
-    // 🚌 Geldi=1 ise ve otobüs düzeni varsa otomatik ata
+    // 🚌 Geldi=1 ise ve sefer otobüsleri varsa otomatik ata
     if(yeniDurum === 1){
-      const otobusler = turOtobusleriAl(tid);
-      if(otobusler.length > 0){
-        yolcuOtomatikOtobusAta(p, tid);
+      const seferOtobusleri = seferOtobusleriAl(sid);
+      if(seferOtobusleri.length > 0){
+        yolcuOtomatikOtobusAtaSefer(p);
       }
+    } else {
+      // Geldi=0 (iptal) ise otobüsten çıkar (eğer hiçbir turda geldi değilse)
+      yolcuOtobustenCikarKontrol(p);
     }
 
     // DB'ye kaydet
@@ -9959,137 +9950,70 @@ function turAlmayanWhatsapp(){
 }
 
 // ═══════════════════════════════════════════════
-// 🚌 OTOBÜS YÖNETİM SİSTEMİ (Liman-Bazlı)
+// 🚌 OTOBÜS YÖNETİM SİSTEMİ (Sade · Sefer Bazlı · Rehber Yönetir)
 // ═══════════════════════════════════════════════
-// Aynı limana giden tüm turlar (farklı paketler) aynı otobüs havuzunu paylaşır.
-// Bu sayede "Atina Klasikleri" + "Atina Premium" + "Gold Paket" hep aynı otobüse biner.
+// Otobüsler sefer altında saklanır, turdan/limandan bağımsız.
+// Rehber kendisi tanımlar (numara, etiket, not).
+// Yolcu ✓ Geldi → otomatik en boş otobüse + sayaç artar
+// Yolcu ✗ İptal → otomatik otobüsten silinir + sayaç düşer (BUG FIX)
+// Manuel taşıma: rehber yolcu kartına tıklayıp başka otobüse atar.
 
-// Bir turun limanını al (normalize edilmiş)
-function turLimaniAl(tid){
-  const t = TOURS.find(x => x.id === tid);
-  if(!t) return '';
-  return (t.liman || '').toLowerCase().trim().split(',')[0].trim();
+// Sefer için otobüs düzenini al
+function seferOtobusleriAl(sid){
+  const v = VOYAGES.find(x => x.id === sid);
+  if(!v) return [];
+  return Array.isArray(v.otobusler) ? v.otobusler : [];
 }
 
-// Aynı limana giden tüm turları bul (kapasite ortak)
-function ayniLimandakiTurlar(tid){
-  const liman = turLimaniAl(tid);
-  if(!liman) return [tid];
-  return TOURS.filter(t => {
-    const tl = (t.liman || '').toLowerCase().trim().split(',')[0].trim();
-    return tl === liman;
-  }).map(t => t.id);
-}
-
-// Bugünkü liman ile eşleşen turları bul (Hepsi modu için)
-function bugunkuTurlariBul(sid){
-  if(!sid) return [];
-  const d = (typeof getDailyForSefer === 'function') ? getDailyForSefer(sid) : null;
-  const bugunkuLiman = (d?.port?.name || '').toLowerCase().trim().split(',')[0].trim();
-  if(!bugunkuLiman) return [];
-  return TOURS.filter(t => {
-    const tl = (t.liman || '').toLowerCase().trim().split(',')[0].trim();
-    return tl && (tl.includes(bugunkuLiman) || bugunkuLiman.includes(tl));
-  }).map(t => t.id);
-}
-
-// Bir otobüsün gösterilecek adını al — etiket varsa o, yoksa numara
-function otobusAdiAl(o){
-  if(!o) return '?';
-  if(o.etiket && o.etiket.trim()) return o.etiket.trim();
-  return 'Otobüs ' + o.no;
-}
-
-// Bir tid + otobüs no için otobüs objesini bul
-function otobusBul(tid, otobusNo){
-  const otobusler = turOtobusleriAl(tid);
-  return otobusler.find(o => o.no === otobusNo) || null;
-}
-
-// Tur için otobüs düzenini al — LİMAN bazlı (aynı limandaki turlar paylaşır)
-function turOtobusleriAl(tid){
-  const t = TOURS.find(x => x.id === tid);
-  if(!t) return [];
-  // Önce kendi otobusler alanına bak
-  if(Array.isArray(t.otobusler) && t.otobusler.length > 0){
-    return t.otobusler;
-  }
-  // Yoksa aynı limandaki başka bir turdan al
-  const liman = turLimaniAl(tid);
-  if(!liman) return [];
-  const ayniLimandakiTur = TOURS.find(x => {
-    if(x.id === tid) return false;
-    const xLiman = (x.liman || '').toLowerCase().trim().split(',')[0].trim();
-    return xLiman === liman && Array.isArray(x.otobusler) && x.otobusler.length > 0;
-  });
-  return ayniLimandakiTur ? ayniLimandakiTur.otobusler : [];
-}
-
-// Tur için otobüs düzenini kaydet — LİMAN bazlı (tüm aynı liman turlarına yaz)
-async function turOtobusleriKaydet(tid, otobusler){
-  const t = TOURS.find(x => x.id === tid);
-  if(!t) return false;
-
-  // Aynı limandaki tüm turlara aynı otobüs düzenini ver
-  const ayniLimanTurlari = ayniLimandakiTurlar(tid);
-
-  for(const ttid of ayniLimanTurlari){
-    const tt = TOURS.find(x => x.id === ttid);
-    if(tt){
-      tt.otobusler = otobusler;
-      // DB'ye yaz
-      try {
-        if(typeof sb !== 'undefined'){
-          await sb.from('turlar').update({ otobus_duzeni: { otobusler } }).eq('id', ttid);
-        }
-      } catch(e){ console.log('Otobüs DB kayıt:', e); }
-    }
-  }
-
+// Sefer için otobüs düzenini kaydet
+async function seferOtobusleriKaydet(sid, otobusler){
+  const v = VOYAGES.find(x => x.id === sid);
+  if(!v) return false;
+  v.otobusler = otobusler;
   // localStorage yedek
-  try { localStorage.setItem('voyago_TOURS', JSON.stringify(TOURS)); } catch(e){}
+  try { localStorage.setItem('voyago_VOYAGES', JSON.stringify(VOYAGES)); } catch(e){}
+  // DB'ye yaz
+  try {
+    if(typeof sb !== 'undefined'){
+      await sb.from('seferler').update({ otobus_duzeni: { otobusler } }).eq('id', sid);
+    }
+  } catch(e){ console.log('Otobüs DB kayıt:', e.message); }
   return true;
 }
 
-// Bir otobüsün mevcut doluluk durumunu hesapla
-// LİMAN bazlı — aynı limandaki tüm turlardan sayar (Atina Paketi + Atina Klasikleri = ortak)
-function otobusDolulukHesapla(tid, sid, otobusNo){
-  const ayniLimanTurlari = ayniLimandakiTurlar(tid);
+// Bir otobüsün doluluk durumunu hesapla — sefer bazlı, geldi=1 olan yolcular sayılır
+function otobusDolulukHesaplaSefer(sid, otobusNo){
   let toplam = 0;
   passengers.forEach(p => {
     if(p.sefer !== sid || p.arsivli) return;
-    // Bu yolcunun aynı limandaki herhangi bir turuna bakıyor muyuz?
-    for(const ttid of ayniLimanTurlari){
-      const det = p.tur_katilim_detay?.[ttid];
-      if(!det || det.otobus_no !== otobusNo) continue;
-      // Aynı yolcu birden çok turda olsa bile bir kez say (kabin başına)
-      const k = (det.yetiskin||0) + (det.cocuk||0) + (det.bebek||0);
-      toplam += k > 0 ? k : ((p.adult||0) + (p.child||0) + (p.baby||0));
-      break; // Bu yolcu zaten sayıldı
-    }
+    if(p.otobus_no !== otobusNo) return;
+    // SADECE en az 1 turda "geldi=1" olan yolcular sayılır
+    // (Geldi denmediyse otobüse atanmamış sayılır)
+    const det = p.tur_katilim_detay || {};
+    const geldiVar = Object.values(det).some(d => d?.geldi === 1);
+    if(!geldiVar) return;
+    toplam += (p.adult||0) + (p.child||0) + (p.baby||0);
   });
   return toplam;
 }
 
 // En boş otobüsü bul
-function enBosOtobusBul(tid, sid, gerekenKisi){
-  const otobusler = turOtobusleriAl(tid);
+function enBosOtobusBulSefer(sid, gerekenKisi){
+  const otobusler = seferOtobusleriAl(sid);
   if(!otobusler.length) return null;
-  // Aile birliği: bu yolcu aynı limanda başka bir tura kayıtlıysa o otobüse koy
-  // Bu kontrol yolcuOtomatikOtobusAta'da yapılıyor
   const adaylar = otobusler.map(o => ({
     no: o.no,
     kapasite: o.kapasite,
-    dolu: otobusDolulukHesapla(tid, sid, o.no),
-    bos: o.kapasite - otobusDolulukHesapla(tid, sid, o.no)
+    dolu: otobusDolulukHesaplaSefer(sid, o.no),
+    bos: o.kapasite - otobusDolulukHesaplaSefer(sid, o.no)
   })).filter(o => o.bos >= gerekenKisi);
 
   if(!adaylar.length){
+    // Hiç yer yok — en boş olanı dön
     const tum = otobusler.map(o => ({
       no: o.no,
       kapasite: o.kapasite,
-      dolu: otobusDolulukHesapla(tid, sid, o.no),
-      bos: o.kapasite - otobusDolulukHesapla(tid, sid, o.no)
+      bos: o.kapasite - otobusDolulukHesaplaSefer(sid, o.no)
     })).sort((a,b) => b.bos - a.bos);
     return tum[0]?.no || null;
   }
@@ -10097,11 +10021,86 @@ function enBosOtobusBul(tid, sid, gerekenKisi){
   return adaylar[0].no;
 }
 
-// 🚌 OTOBÜS PANELİNİ RENDER ET (Hepsi modunda BUGÜNKÜ LİMANI gösterir)
+// Otobüs adını al (etiket varsa o, yoksa "Otobüs N")
+function otobusAdiAl(o){
+  if(!o) return '?';
+  if(o.etiket && o.etiket.trim()) return o.etiket.trim();
+  return 'Otobüs ' + o.no;
+}
+
+// Bir sefer + otobüs no için otobüs objesini bul
+function otobusBulSefer(sid, otobusNo){
+  const otobusler = seferOtobusleriAl(sid);
+  return otobusler.find(o => o.no === otobusNo) || null;
+}
+
+// Yolcunun otobüs numarasını al
+function yolcuOtobusunuAl(p){
+  return p?.otobus_no || null;
+}
+
+// Yolcuya otomatik otobüs ata (en boş otobüse) - sefer bazlı
+function yolcuOtomatikOtobusAtaSefer(p){
+  if(!p || !p.sefer) return null;
+  // Zaten atanmışsa değiştirme
+  if(p.otobus_no) return p.otobus_no;
+  const otobusler = seferOtobusleriAl(p.sefer);
+  if(!otobusler.length) return null;
+  const kisi = (p.adult||0) + (p.child||0) + (p.baby||0);
+  const otobusNo = enBosOtobusBulSefer(p.sefer, kisi);
+  if(otobusNo){
+    p.otobus_no = otobusNo;
+  }
+  return otobusNo;
+}
+
+// Yolcuyu otobüsten çıkar - eğer hiçbir turda geldi=1 yoksa
+function yolcuOtobustenCikarKontrol(p){
+  if(!p || !p.otobus_no) return false;
+  const det = p.tur_katilim_detay || {};
+  const geldiVar = Object.values(det).some(d => d?.geldi === 1);
+  if(!geldiVar){
+    // Hiçbir turda geldi değil → otobüsten çıkar
+    delete p.otobus_no;
+    return true;
+  }
+  return false;
+}
+
+// Manuel olarak yolcuyu başka otobüse taşı
+async function yolcuOtobusDegistirSefer(kabin, sid, yeniOtobusNo){
+  const p = passengers.find(px =>
+    px.sefer === sid && !px.arsivli && px.kabin &&
+    px.kabin.toString().trim().toUpperCase() === kabin.toString().trim().toUpperCase()
+  );
+  if(!p){ showToast('Yolcu bulunamadı'); return; }
+  p.otobus_no = yeniOtobusNo;
+  try { if(typeof saveYolcuDB === 'function') await saveYolcuDB(p); } catch(e){ console.error(e); }
+  const otobus = otobusBulSefer(sid, yeniOtobusNo);
+  showToast('✓ ' + (otobus ? otobusAdiAl(otobus) : 'Otobüs '+yeniOtobusNo) + '\'e taşındı');
+  renderOtobusPaneli();
+  if(typeof renderKontrolListesi === 'function') renderKontrolListesi();
+  if(typeof kabinHizliAra === 'function') kabinHizliAra();
+}
+
+// Yolcuyu hiçbir otobüse atanmamış hale getir
+async function yolcuOtobustenCikar(kabin, sid){
+  const p = passengers.find(px =>
+    px.sefer === sid && !px.arsivli && px.kabin &&
+    px.kabin.toString().trim().toUpperCase() === kabin.toString().trim().toUpperCase()
+  );
+  if(!p){ return; }
+  delete p.otobus_no;
+  try { if(typeof saveYolcuDB === 'function') await saveYolcuDB(p); } catch(e){ console.error(e); }
+  renderOtobusPaneli();
+}
+
+// ═══════════════════════════════════════════════
+// 🚌 RENDER: Otobüs Paneli (Tur Kontrol sekmesinde)
+// ═══════════════════════════════════════════════
 function renderOtobusPaneli(){
   const el = document.getElementById('otobus-paneli');
   if(!el) return;
-  const tid = document.getElementById('kontrol-tur-sel')?.value;
   const sid = document.getElementById('kontrol-sefer-sel')?.value;
 
   if(!sid){
@@ -10109,129 +10108,21 @@ function renderOtobusPaneli(){
     return;
   }
 
-  // Hepsi modunda: bugünkü limana giden turları bul, ilkini referans al
-  let referansTid = tid;
-  let limanAdi = '';
-  let bugunkuTurAdlari = [];
-  const hepsiMod = !tid || tid === 'hepsi';
-
-  if(hepsiMod){
-    const bugunkuTurIDs = bugunkuTurlariBul(sid);
-    if(!bugunkuTurIDs.length){
-      // Hepsi seçili ama bugün liman yok (deniz günü veya tarih dışı)
-      // Sefere ait TÜM limanları liste olarak göster - rehber önceden tüm günler için kursun
-      const seferTurlari = TOURS.filter(t => {
-        if(t.aktif === false) return false;
-        if(!t.seferler || t.seferler.length === 0) return true;
-        return t.seferler.includes(sid);
-      });
-      // Limanları grupla (aynı liman = bir kart)
-      const limanGrup = {};
-      seferTurlari.forEach(t => {
-        const liman = (t.liman || '').trim();
-        if(!liman) return;
-        const key = liman.toLowerCase().split(',')[0].trim();
-        if(!limanGrup[key]){
-          limanGrup[key] = { ad: liman.split(',')[0].trim(), turlar: [], otobusler: [] };
-        }
-        limanGrup[key].turlar.push(t);
-        // Eğer bu turda otobüs varsa kaydet
-        if(Array.isArray(t.otobusler) && t.otobusler.length){
-          limanGrup[key].otobusler = t.otobusler;
-        }
-      });
-
-      const limanlar = Object.values(limanGrup);
-
-      if(!limanlar.length){
-        el.innerHTML = `
-          <div style="background:#f9fafb;border-radius:14px;padding:12px;border:1.5px dashed #e5e7eb;text-align:center;">
-            <div style="font-size:12px;color:#666;">🚌 Bu seferde tur yok veya turların limanı tanımlı değil</div>
-          </div>
-        `;
-        return;
-      }
-
-      // Liman kartlarını göster
-      const limanKartlari = limanlar.map(l => {
-        // Bu limanın referans turu (otobüs kurulumu için ilk turu kullan)
-        const refTur = l.turlar[0];
-        const sahip = l.otobusler.length > 0;
-        // Doluluk hesabı
-        let toplamDolu = 0;
-        let toplamKap = 0;
-        if(sahip){
-          toplamKap = l.otobusler.reduce((a,o)=>a+o.kapasite,0);
-          toplamDolu = l.otobusler.reduce((a,o)=>a+otobusDolulukHesapla(refTur.id, sid, o.no),0);
-        }
-        const oran = toplamKap > 0 ? Math.round(toplamDolu/toplamKap*100) : 0;
-        const renk = !sahip ? '#f59e0b' : (oran >= 90 ? '#dc2626' : oran >= 70 ? '#eab308' : '#16a34a');
-
-        return `
-          <div style="background:white;border:1.5px solid ${sahip ? '#e5e7eb' : '#fde68a'};border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:transform .15s;"
-            onclick="otobusKurulumAc('${refTur.id}')"
-            onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,.08)'"
-            onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
-            <div style="font-size:24px;">📍</div>
-            <div style="flex:1;min-width:0;">
-              <div style="font-size:13px;font-weight:700;color:#1a1a1a;">${escapeHTML(l.ad)}</div>
-              <div style="font-size:11px;color:#666;margin-top:1px;">
-                ${l.turlar.length} tur paketi
-                ${sahip ? ` · ${l.otobusler.length} otobüs (${toplamDolu}/${toplamKap})` : ' · <span style="color:#d97706;font-weight:600;">otobüs ayarlanmamış</span>'}
-              </div>
-            </div>
-            <div style="padding:6px 12px;background:${sahip ? '#f0f4ff' : 'linear-gradient(135deg,#f59e0b,#d97706)'};color:${sahip ? '#4f46e5' : 'white'};border:${sahip ? '1.5px solid #c7d2fe' : 'none'};border-radius:8px;font-size:11px;font-weight:700;white-space:nowrap;">
-              ${sahip ? '✏️ Düzenle' : '🚌 Kur'}
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      el.innerHTML = `
-        <div style="background:white;border-radius:14px;padding:12px 14px;border:1px solid #f0f0f0;">
-          <div style="font-size:13px;font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:6px;margin-bottom:4px;">
-            🚌 <span>Liman Bazlı Otobüs Kurulumu</span>
-          </div>
-          <div style="font-size:11px;color:#666;margin-bottom:10px;">
-            ${limanlar.length} farklı liman. Her birine ayrı otobüs düzeni kurun (sefer boyunca kalır).
-          </div>
-          <div style="display:flex;flex-direction:column;gap:6px;">
-            ${limanKartlari}
-          </div>
-        </div>
-      `;
-      return;
-    }
-    referansTid = bugunkuTurIDs[0];
-    bugunkuTurAdlari = bugunkuTurIDs.map(id => TOURS.find(t=>t.id===id)?.name).filter(Boolean);
-    limanAdi = TOURS.find(t=>t.id===referansTid)?.liman || '';
-  } else {
-    const t = TOURS.find(x => x.id === tid);
-    if(!t){ el.innerHTML = ''; return; }
-    limanAdi = t.liman || '';
-    // Aynı limandaki tüm turları topla (ortak otobüs havuzunu göstermek için)
-    const ayni = ayniLimandakiTurlar(tid);
-    bugunkuTurAdlari = ayni.map(id => TOURS.find(t=>t.id===id)?.name).filter(Boolean);
-  }
-
-  const otobusler = turOtobusleriAl(referansTid);
+  const otobusler = seferOtobusleriAl(sid);
 
   if(!otobusler.length){
     // Henüz otobüs düzeni yok
-    const baslik = hepsiMod 
-      ? `Bugün ${limanAdi ? '<b>'+escapeHTML(limanAdi.split(',')[0])+'</b>' : 'bu liman'} için otobüs düzeni yok` 
-      : 'Otobüs Düzeni Tanımlı Değil';
     el.innerHTML = `
       <div style="background:white;border-radius:14px;padding:14px;border:1.5px dashed #f59e0b;">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
           <span style="font-size:24px;">🚌</span>
           <div style="flex:1;min-width:0;">
-            <div style="font-size:13px;font-weight:600;color:#1a1a1a;">${baslik}</div>
-            <div style="font-size:11px;color:#666;margin-top:2px;">${bugunkuTurAdlari.length > 1 ? bugunkuTurAdlari.length+' tur ortak otobüsleri paylaşır' : 'Yolcuları otobüslere otomatik dağıtmak için düzen kurun'}</div>
+            <div style="font-size:13px;font-weight:600;color:#1a1a1a;">Otobüs Düzeni Tanımlı Değil</div>
+            <div style="font-size:11px;color:#666;margin-top:1px;">Bu sefer için otobüsleri tanımlayın. Numara/etiket/notlar size kalmış.</div>
           </div>
         </div>
-        <button onclick="otobusKurulumAc('${referansTid}')" style="width:100%;padding:10px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
-          🚌 Otobüs Düzenini Kur
+        <button onclick="otobusKurulumAc('${sid}')" style="width:100%;padding:10px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          🚌 Otobüsleri Tanımla
         </button>
       </div>
     `;
@@ -10240,178 +10131,94 @@ function renderOtobusPaneli(){
 
   // Otobüsleri görsel olarak göster
   const otobuslerHTML = otobusler.map(o => {
-    const dolu = otobusDolulukHesapla(referansTid, sid, o.no);
+    const dolu = otobusDolulukHesaplaSefer(sid, o.no);
     const oran = o.kapasite > 0 ? Math.round((dolu / o.kapasite) * 100) : 0;
     const renk = oran >= 100 ? '#dc2626' : oran >= 90 ? '#f59e0b' : oran >= 70 ? '#eab308' : '#16a34a';
     const ikon = oran >= 100 ? '🔴' : oran >= 90 ? '⚠️' : oran >= 70 ? '🟡' : '🟢';
     const adi = otobusAdiAl(o);
     const etiketVar = o.etiket && o.etiket.trim();
+    const notKisa = o.not ? (o.not.length > 20 ? o.not.substring(0,20)+'...' : o.not) : '';
     return `
-      <div onclick="otobusYolculariGoster('${referansTid}','${sid}',${o.no})" 
-        style="flex:1;min-width:90px;background:white;border:2px solid ${renk};border-radius:10px;padding:8px 6px;text-align:center;cursor:pointer;transition:transform .15s;"
+      <div onclick="otobusYolculariGoster('${sid}',${o.no})" 
+        style="flex:1;min-width:110px;background:white;border:2px solid ${renk};border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer;transition:transform .15s;"
         onmouseover="this.style.transform='translateY(-2px)'"
         onmouseout="this.style.transform='translateY(0)'">
-        <div style="font-size:10px;color:#666;font-weight:600;">${ikon} ${etiketVar ? 'OTOBÜS' : ''}</div>
-        <div style="font-family:'DM Serif Display',serif;font-size:${etiketVar ? '14px' : '22px'};color:${renk};line-height:1.1;margin:2px 0;font-weight:700;word-break:break-word;">${escapeHTML(adi)}</div>
-        <div style="font-size:11px;color:#1a1a1a;font-weight:700;">${dolu}/${o.kapasite}</div>
-        <div style="font-size:9px;color:${renk};font-weight:600;">${oran}% • 👥 detay</div>
+        <div style="font-size:10px;color:#666;font-weight:600;">${ikon} OTOBÜS</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:${etiketVar && adi.length>4 ? '14px' : '22px'};color:${renk};line-height:1.1;margin:3px 0;font-weight:700;word-break:break-word;">${escapeHTML(adi)}</div>
+        <div style="font-size:12px;color:#1a1a1a;font-weight:700;">${dolu}/${o.kapasite}</div>
+        <div style="font-size:9px;color:${renk};font-weight:600;">${oran}%</div>
+        ${notKisa ? `<div style="font-size:9px;color:#666;margin-top:4px;font-style:italic;border-top:1px dashed #e5e7eb;padding-top:3px;">${escapeHTML(notKisa)}</div>` : ''}
+        <div style="font-size:9px;color:#4f46e5;margin-top:3px;font-weight:600;">👥 yolculara bak</div>
       </div>
     `;
   }).join('');
 
-  const toplamDolu = otobusler.reduce((a,o)=>a+otobusDolulukHesapla(referansTid,sid,o.no),0);
+  const toplamDolu = otobusler.reduce((a,o)=>a+otobusDolulukHesaplaSefer(sid,o.no),0);
   const toplamKap = otobusler.reduce((a,o)=>a+o.kapasite,0);
-
-  const altYazi = hepsiMod && limanAdi
-    ? `📍 Bugün: <b>${escapeHTML(limanAdi.split(',')[0])}</b>${bugunkuTurAdlari.length > 1 ? ' · ' + bugunkuTurAdlari.length + ' farklı paket aynı otobüsleri kullanır' : ''}`
-    : bugunkuTurAdlari.length > 1
-    ? `Aynı limandaki <b>${bugunkuTurAdlari.length}</b> tur paketi ortak otobüs kullanır`
-    : `💡 Yolcular "✓ Geldi" deyince otomatik en boş otobüse atanır`;
 
   el.innerHTML = `
     <div style="background:white;border-radius:14px;padding:12px 14px;border:1px solid #f0f0f0;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
         <div style="font-size:13px;font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:6px;">
-          🚌 <span>Otobüs Düzeni</span>
+          🚌 <span>Sefer Otobüsleri</span>
           <span style="font-size:11px;color:#666;font-weight:400;">· ${toplamDolu}/${toplamKap} (${toplamKap?Math.round(toplamDolu/toplamKap*100):0}%)</span>
         </div>
-        <button onclick="otobusKurulumAc('${referansTid}')" style="padding:5px 10px;background:#f0f4ff;border:1.5px solid #c7d2fe;color:#4f46e5;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">✏️ Düzenle</button>
+        <button onclick="otobusKurulumAc('${sid}')" style="padding:5px 10px;background:#f0f4ff;border:1.5px solid #c7d2fe;color:#4f46e5;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">✏️ Düzenle</button>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;">${otobuslerHTML}</div>
       <div style="margin-top:8px;padding:8px;background:#f0f9ff;border-radius:8px;font-size:10px;color:#0d3b6e;line-height:1.5;">
-        ${altYazi}
+        💡 Yolcu "✓ Geldi" diyince otomatik en boş otobüse atanır. "✗ İptal" deyince otobüsten çıkar. Manuel taşımak için yolcu kartındaki 🚌 badge'ine tıklayın.
       </div>
     </div>
   `;
 }
 
-// Yolcunun otobüs numarasını al — aynı limandaki turlarda paylaşımlı
-function yolcuOtobusunuAl(p, tid){
-  if(!p?.tur_katilim_detay) return null;
-  // Önce bu tura bak
-  if(p.tur_katilim_detay[tid]?.otobus_no) return p.tur_katilim_detay[tid].otobus_no;
-  // Aynı limandaki diğer turlara bak (aile birliği — aynı yolcu farklı pakette de aynı otobüs)
-  const ayni = ayniLimandakiTurlar(tid);
-  for(const ttid of ayni){
-    if(ttid !== tid && p.tur_katilim_detay[ttid]?.otobus_no){
-      return p.tur_katilim_detay[ttid].otobus_no;
-    }
-  }
-  return null;
-}
+// ═══════════════════════════════════════════════
+// 🚌 KURULUM MODAL
+// ═══════════════════════════════════════════════
+let _otobusKurulumTemp = [];
+let _otobusKurulumSid = null;
 
-// Yolcuya otomatik otobüs ata — aynı limandaki başka turla aynı otobüse yerleştir
-function yolcuOtomatikOtobusAta(p, tid){
-  if(!p || !p.sefer) return null;
-  const otobusler = turOtobusleriAl(tid);
-  if(!otobusler.length) return null;
-
-  // Zaten atanmışsa değiştirme
-  let mevcut = p.tur_katilim_detay?.[tid]?.otobus_no;
-  if(mevcut) return mevcut;
-
-  // 🎯 AKILLI: Bu yolcu aynı limanda başka bir tura kayıtlıysa, aynı otobüse koy
-  const ayni = ayniLimandakiTurlar(tid);
-  for(const ttid of ayni){
-    if(ttid !== tid && p.tur_katilim_detay?.[ttid]?.otobus_no){
-      // Aynı otobüse koy (aile birliği — paket karışıklığı önlenir)
-      const ayniOtobus = p.tur_katilim_detay[ttid].otobus_no;
-      if(!p.tur_katilim_detay) p.tur_katilim_detay = {};
-      if(!p.tur_katilim_detay[tid]) p.tur_katilim_detay[tid] = {};
-      p.tur_katilim_detay[tid].otobus_no = ayniOtobus;
-      return ayniOtobus;
-    }
-  }
-
-  // Yeni yolcu — en boş otobüsü bul
-  const det = p.tur_katilim_detay?.[tid];
-  const kisi = det ? ((det.yetiskin||0)+(det.cocuk||0)+(det.bebek||0)) : ((p.adult||0)+(p.child||0)+(p.baby||0));
-  const otobusNo = enBosOtobusBul(tid, p.sefer, kisi);
-  if(otobusNo){
-    if(!p.tur_katilim_detay) p.tur_katilim_detay = {};
-    if(!p.tur_katilim_detay[tid]) p.tur_katilim_detay[tid] = {};
-    p.tur_katilim_detay[tid].otobus_no = otobusNo;
-  }
-  return otobusNo;
-}
-
-// Yolcuyu manuel olarak başka otobüse taşı — aynı limandaki tüm turlarda güncelle
-async function yolcuOtobusDegistir(kabin, sid, tid, yeniOtobusNo){
-  const p = passengers.find(px =>
-    px.sefer === sid && !px.arsivli && px.kabin &&
-    px.kabin.toString().trim().toUpperCase() === kabin.toString().trim().toUpperCase()
-  );
-  if(!p){ showToast('Yolcu bulunamadı'); return; }
-  if(!p.tur_katilim_detay) p.tur_katilim_detay = {};
-
-  // Aynı limandaki TÜM turlarda güncelle (paket karışıklığı önlenir)
-  const ayni = ayniLimandakiTurlar(tid);
-  for(const ttid of ayni){
-    // Sadece yolcunun zaten katıldığı veya bu tur'daysa güncelle
-    if(ttid === tid || (p.joinedTours||[]).includes(ttid)){
-      if(!p.tur_katilim_detay[ttid]) p.tur_katilim_detay[ttid] = {};
-      p.tur_katilim_detay[ttid].otobus_no = yeniOtobusNo;
-    }
-  }
-
-  try { if(typeof saveYolcuDB === 'function') await saveYolcuDB(p); } catch(e){ console.error(e); }
-  showToast('✓ Otobüs ' + yeniOtobusNo + '\'e taşındı');
-  renderOtobusPaneli();
-  if(typeof renderKontrolListesi === 'function') renderKontrolListesi();
-  if(typeof kabinHizliAra === 'function') kabinHizliAra();
-}
-
-// 🚌 OTOBÜS KURULUM MODAL
-function otobusKurulumAc(tid){
-  const t = TOURS.find(x => x.id === tid);
-  if(!t){ showToast('Tur bulunamadı'); return; }
-
-  // Mevcut otobüsleri al (yoksa varsayılan 1 otobüs)
-  let otobusler = turOtobusleriAl(tid);
+function otobusKurulumAc(sid){
+  _otobusKurulumSid = sid;
+  let otobusler = seferOtobusleriAl(sid);
   if(!otobusler.length){
-    otobusler = [{ no: 1, kapasite: 50, etiket: '' }];
+    otobusler = [{ no: 1, kapasite: 50, etiket: '', not: '' }];
   }
-
-  // Aynı limandaki diğer turlar
-  const ayniLimanTurlari = ayniLimandakiTurlar(tid);
-  const limanAdi = t.liman || '';
+  _otobusKurulumTemp = JSON.parse(JSON.stringify(otobusler));
 
   // Modal varsa kaldır
   const eski = document.getElementById('otobus-kurulum-modal');
   if(eski) eski.remove();
 
+  const v = VOYAGES.find(x => x.id === sid);
+  const seferAdi = v?.label || sid;
+
   const modal = document.createElement('div');
   modal.id = 'otobus-kurulum-modal';
-  modal.dataset.tid = tid;
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"DM Sans",sans-serif;';
   modal.onclick = (e)=>{ if(e.target.id === 'otobus-kurulum-modal') otobusKurulumKapat(); };
 
   modal.innerHTML = `
-    <div style="background:white;border-radius:18px;padding:20px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="background:white;border-radius:18px;padding:20px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
         <div style="flex:1;min-width:0;">
-          <div style="font-family:'DM Serif Display',serif;font-size:18px;color:#1a1a1a;">🚌 Otobüs Düzeni</div>
-          <div style="font-size:11px;color:#6b6b6b;margin-top:2px;">${limanAdi ? '📍 '+escapeHTML(limanAdi.split(',')[0]) : escapeHTML(t.name)}</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:18px;color:#1a1a1a;">🚌 Sefer Otobüsleri</div>
+          <div style="font-size:11px;color:#6b6b6b;margin-top:2px;">${escapeHTML(seferAdi)}</div>
         </div>
         <button onclick="otobusKurulumKapat()" style="background:transparent;border:none;color:#999;font-size:24px;cursor:pointer;line-height:1;flex-shrink:0;">×</button>
       </div>
 
-      ${ayniLimanTurlari.length > 1 ? `
-        <div style="background:#dbeafe;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:11px;color:#1e40af;line-height:1.5;">
-          ℹ️ <b>${ayniLimanTurlari.length} farklı paket</b> bu limana gidiyor (Klasik, Premium, Gold vb.)<br>
-          Hepsi <b>aynı otobüsleri paylaşır</b> — bir kere kur, hepsinde geçerli olur.
-        </div>
-      ` : ''}
-
-      <div style="font-size:12px;color:#666;margin-bottom:10px;line-height:1.5;">
-        Her satır bir otobüs. <b>Etiket</b> opsiyonel (örn: "Mavi", "Atina-A", "VIP"). Boş bırakırsanız "Otobüs 1, 2, 3..." olarak gözükür.
+      <div style="background:#f0f9ff;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:11px;color:#0d3b6e;line-height:1.5;">
+        💡 Otobüsleri kendi planınıza göre tanımlayın. Tüm turlar/limanlar bu otobüsleri kullanır.
+        <br><b>Etiket:</b> "Mavi", "VIP" gibi (opsiyonel) · <b>Not:</b> "Rehber Ahmet" gibi (opsiyonel)
       </div>
 
       <!-- Otobüs listesi -->
       <div id="otobus-liste" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
 
       <!-- Otobüs ekle butonu -->
-      <button onclick="otobusEkle()" style="width:100%;padding:9px;background:#dcfce7;color:#15803d;border:1.5px solid #16a34a;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Otobüs Ekle</button>
+      <button onclick="otobusEkle()" style="width:100%;padding:10px;background:#dcfce7;color:#15803d;border:1.5px solid #16a34a;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Otobüs Ekle</button>
 
       <!-- Aksiyonlar -->
       <div style="display:flex;gap:8px;margin-top:18px;">
@@ -10427,13 +10234,8 @@ function otobusKurulumAc(tid){
     </div>
   `;
   document.body.appendChild(modal);
-
-  // Otobüsleri input olarak göster
-  _otobusKurulumTemp = JSON.parse(JSON.stringify(otobusler));
   otobusKurulumListele();
 }
-
-let _otobusKurulumTemp = [];
 
 function otobusKurulumListele(){
   const el = document.getElementById('otobus-liste');
@@ -10441,29 +10243,53 @@ function otobusKurulumListele(){
   el.innerHTML = _otobusKurulumTemp.map((o, idx) => `
     <div style="background:#fafafa;border:1px solid #e5e7eb;border-radius:10px;padding:10px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-        <div style="background:linear-gradient(135deg,#1a5fa8,#2563eb);color:white;border-radius:8px;padding:5px 10px;font-weight:700;font-size:13px;min-width:32px;text-align:center;">${o.no}</div>
-        <input type="text" placeholder="Etiket (örn: Mavi, Atina-A, VIP) — opsiyonel" 
+        <input type="number" min="1" max="100" value="${o.no}" 
+          onchange="otobusNoDegistir(${idx}, this.value)"
+          style="width:50px;padding:6px 8px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;text-align:center;font-weight:700;color:#1a5fa8;font-family:'DM Sans',sans-serif;outline:none;"
+          title="Otobüs numarası">
+        <input type="text" placeholder="Etiket (örn: Mavi, VIP) — opsiyonel" 
           value="${escapeHTML(o.etiket||'')}"
           maxlength="20"
           onchange="otobusEtiketDegistir(${idx}, this.value)"
           style="flex:1;padding:7px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;">
       </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:11px;color:#666;flex:1;">Kapasite:</span>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span style="font-size:11px;color:#666;flex-shrink:0;">Kapasite:</span>
         <input type="number" min="1" max="100" value="${o.kapasite}" 
           onchange="otobusKapasiteDegistir(${idx}, this.value)"
-          style="width:70px;padding:6px 8px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;text-align:center;font-family:'DM Sans',sans-serif;outline:none;">
-        <span style="font-size:11px;color:#666;">kişi</span>
+          style="width:65px;padding:6px 8px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;text-align:center;font-family:'DM Sans',sans-serif;outline:none;">
+        <span style="font-size:11px;color:#666;flex:1;">kişi</span>
         ${_otobusKurulumTemp.length > 1 ? `<button onclick="otobusBelirliSil(${idx})" style="padding:5px 8px;background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;border-radius:8px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;" title="Bu otobüsü sil">🗑️</button>` : ''}
       </div>
+      <input type="text" placeholder="Not (örn: Rehber Ahmet, Şoför Mehmet, Plaka 34 XX) — opsiyonel" 
+        value="${escapeHTML(o.not||'')}"
+        maxlength="60"
+        onchange="otobusNotDegistir(${idx}, this.value)"
+        style="width:100%;padding:7px 10px;border:1.5px dashed #d1d5db;border-radius:8px;font-size:11px;font-family:'DM Sans',sans-serif;outline:none;background:white;">
     </div>
   `).join('');
 }
 
+function otobusNoDegistir(idx, deger){
+  const n = parseInt(deger) || 0;
+  if(_otobusKurulumTemp[idx]) _otobusKurulumTemp[idx].no = n;
+}
 function otobusEtiketDegistir(idx, deger){
-  if(_otobusKurulumTemp[idx]){
-    _otobusKurulumTemp[idx].etiket = (deger||'').trim();
-  }
+  if(_otobusKurulumTemp[idx]) _otobusKurulumTemp[idx].etiket = (deger||'').trim();
+}
+function otobusKapasiteDegistir(idx, deger){
+  const k = parseInt(deger) || 0;
+  if(_otobusKurulumTemp[idx]) _otobusKurulumTemp[idx].kapasite = k;
+}
+function otobusNotDegistir(idx, deger){
+  if(_otobusKurulumTemp[idx]) _otobusKurulumTemp[idx].not = (deger||'').trim();
+}
+
+function otobusEkle(){
+  // Mevcut maksimum no + 1
+  const sonNo = _otobusKurulumTemp.length ? Math.max(..._otobusKurulumTemp.map(o=>o.no)) : 0;
+  _otobusKurulumTemp.push({ no: sonNo + 1, kapasite: 50, etiket: '', not: '' });
+  otobusKurulumListele();
 }
 
 function otobusBelirliSil(idx){
@@ -10472,47 +10298,25 @@ function otobusBelirliSil(idx){
     return;
   }
   _otobusKurulumTemp.splice(idx, 1);
-  // Numaraları yeniden düzenle
-  _otobusKurulumTemp.forEach((o, i) => { o.no = i + 1; });
-  otobusKurulumListele();
-}
-
-function otobusKapasiteDegistir(idx, deger){
-  const k = parseInt(deger) || 0;
-  if(_otobusKurulumTemp[idx]){
-    _otobusKurulumTemp[idx].kapasite = k;
-  }
-}
-
-function otobusEkle(){
-  const sonNo = _otobusKurulumTemp.length ? Math.max(..._otobusKurulumTemp.map(o=>o.no)) : 0;
-  _otobusKurulumTemp.push({ no: sonNo + 1, kapasite: 50, etiket: '' });
-  otobusKurulumListele();
-}
-
-function otobusSonuncuyuSil(){
-  if(_otobusKurulumTemp.length <= 1){
-    showToast('⚠️ En az 1 otobüs olmalı');
-    return;
-  }
-  _otobusKurulumTemp.pop();
   otobusKurulumListele();
 }
 
 async function otobusKurulumKaydet(){
-  const modal = document.getElementById('otobus-kurulum-modal');
-  if(!modal) return;
-  const tid = modal.dataset.tid;
-  // Geçersiz kapasiteleri kontrol et
+  if(!_otobusKurulumSid){ showToast('Sefer bulunamadı'); return; }
+  // Validasyon
   const gecersiz = _otobusKurulumTemp.find(o => !o.kapasite || o.kapasite < 1);
-  if(gecersiz){
-    showToast('⚠️ Tüm otobüslerin kapasitesi en az 1 olmalı');
-    return;
+  if(gecersiz){ showToast('⚠️ Tüm otobüslerin kapasitesi en az 1 olmalı'); return; }
+  // No tekrar kontrol
+  const noSet = new Set();
+  for(const o of _otobusKurulumTemp){
+    if(!o.no || o.no < 1){ showToast('⚠️ Otobüs numaraları 1\'den büyük olmalı'); return; }
+    if(noSet.has(o.no)){ showToast('⚠️ Aynı numaradan iki otobüs olamaz: '+o.no); return; }
+    noSet.add(o.no);
   }
-  // Numaraları normalize et (1'den başla)
-  _otobusKurulumTemp.forEach((o, idx) => { o.no = idx + 1; });
+  // No'ya göre sırala
+  _otobusKurulumTemp.sort((a,b) => a.no - b.no);
 
-  await turOtobusleriKaydet(tid, _otobusKurulumTemp);
+  await seferOtobusleriKaydet(_otobusKurulumSid, _otobusKurulumTemp);
   showToast('✓ Otobüs düzeni kaydedildi');
   otobusKurulumKapat();
   renderOtobusPaneli();
@@ -10522,124 +10326,44 @@ async function otobusKurulumKaydet(){
 function otobusKurulumKapat(){
   const m = document.getElementById('otobus-kurulum-modal');
   if(m) m.remove();
+  _otobusKurulumSid = null;
 }
 
-// 🚌 Otobüs seçim modal (manuel taşıma için)
-function otobusSecmeAc(kabin, sid, tid){
-  const otobusler = turOtobusleriAl(tid);
-  if(!otobusler.length){
-    showToast('Önce otobüs düzeni kurun');
-    return;
-  }
-  const p = passengers.find(px =>
-    px.sefer === sid && !px.arsivli && px.kabin &&
-    px.kabin.toString().trim().toUpperCase() === kabin.toString().trim().toUpperCase()
-  );
-  if(!p) return;
-  const mevcutOtobus = yolcuOtobusunuAl(p, tid);
-
-  const eski = document.getElementById('otobus-secme-modal');
-  if(eski) eski.remove();
-
-  const modal = document.createElement('div');
-  modal.id = 'otobus-secme-modal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"DM Sans",sans-serif;';
-  modal.onclick = (e)=>{ if(e.target.id === 'otobus-secme-modal') modal.remove(); };
-
-  const optHTML = otobusler.map(o => {
-    const dolu = otobusDolulukHesapla(tid, sid, o.no);
-    const oran = o.kapasite > 0 ? Math.round((dolu / o.kapasite) * 100) : 0;
-    const renk = oran >= 100 ? '#dc2626' : oran >= 90 ? '#f59e0b' : '#16a34a';
-    const aktif = mevcutOtobus === o.no;
-    const adi = otobusAdiAl(o);
-    return `
-      <button onclick="yolcuOtobusDegistir('${escapeHTML(kabin)}','${sid}','${tid}',${o.no});document.getElementById('otobus-secme-modal').remove();"
-        style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:${aktif?'#dcfce7':'white'};border:2px solid ${aktif?'#16a34a':renk};border-radius:12px;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%;text-align:left;">
-        <div style="background:${renk};color:white;border-radius:8px;padding:6px 12px;font-weight:700;font-size:13px;min-width:36px;text-align:center;line-height:1.1;">${escapeHTML(adi)}</div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:600;color:#1a1a1a;">${escapeHTML(adi)}${aktif?' ✓ (mevcut)':''}</div>
-          <div style="font-size:11px;color:#666;">${dolu}/${o.kapasite} dolu (${oran}%)</div>
-        </div>
-        ${oran >= 100 ? '<div style="font-size:10px;color:#dc2626;font-weight:600;">DOLU!</div>' : ''}
-      </button>
-    `;
-  }).join('');
-
-  modal.innerHTML = `
-    <div style="background:white;border-radius:18px;padding:20px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-        <div>
-          <div style="font-family:'DM Serif Display',serif;font-size:18px;color:#1a1a1a;">🚌 Otobüs Seç</div>
-          <div style="font-size:11px;color:#6b6b6b;margin-top:2px;">${escapeHTML(p.name)} · Kabin ${escapeHTML(kabin)}</div>
-        </div>
-        <button onclick="document.getElementById('otobus-secme-modal').remove()" style="background:transparent;border:none;color:#999;font-size:24px;cursor:pointer;line-height:1;">×</button>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:8px;">${optHTML}</div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-}
-
-// 👥 Otobüs yolcu listesi modal — şoföre vermek için
-function otobusYolculariGoster(tid, sid, otobusNo){
-  const otobus = otobusBul(tid, otobusNo);
+// ═══════════════════════════════════════════════
+// 🚌 YOLCU LİSTESİ (otobüse tıklayınca)
+// ═══════════════════════════════════════════════
+function otobusYolculariGoster(sid, otobusNo){
+  const otobus = otobusBulSefer(sid, otobusNo);
   if(!otobus){ showToast('Otobüs bulunamadı'); return; }
   const otobusAdi = otobusAdiAl(otobus);
 
-  // Aynı limandaki tüm turlarda bu otobüse atanmış yolcuları topla
-  const ayniLimanTurlari = ayniLimandakiTurlar(tid);
+  // Bu otobüse atanmış yolcuları topla — geldi=1 olanlar
   const yolcular = [];
-  const yolcuMap = {}; // Aynı yolcuyu birden çok kez ekleme
-
   passengers.forEach(p => {
     if(p.sefer !== sid || p.arsivli) return;
-    for(const ttid of ayniLimanTurlari){
-      const det = p.tur_katilim_detay?.[ttid];
-      if(det && det.otobus_no === otobusNo){
-        // Bu yolcu bu otobüse atanmış
-        const key = (p.kabin||'') + '|' + (p.name||'');
-        if(yolcuMap[key]) continue; // Zaten eklenmiş
-        yolcuMap[key] = true;
-        const y = det.yetiskin || p.adult || 0;
-        const c = det.cocuk || p.child || 0;
-        const b = det.bebek || p.baby || 0;
-        const turAdlari = [];
-        // Yolcunun hangi turlara katıldığını (aynı limandaki) topla
-        for(const ttid2 of ayniLimanTurlari){
-          if(p.tur_katilim_detay?.[ttid2]?.otobus_no === otobusNo){
-            const tt = TOURS.find(t => t.id === ttid2);
-            if(tt) turAdlari.push(tt.name);
-          }
-        }
-        // Geldi mi?
-        const geldi = ayniLimanTurlari.some(ttid2 => p.tur_katilim_detay?.[ttid2]?.geldi === 1);
-        yolcular.push({
-          kabin: p.kabin || '?',
-          name: p.name || '(İsimsiz)',
-          y, c, b,
-          toplam: y + c + b,
-          tel: p.tel || '',
-          ekstra_isimler: p.ekstra_isimler || [],
-          turlar: turAdlari,
-          geldi
-        });
-        break;
-      }
-    }
+    if(p.otobus_no !== otobusNo) return;
+    const det = p.tur_katilim_detay || {};
+    const geldiTurlari = Object.keys(det).filter(tid => det[tid]?.geldi === 1);
+    if(!geldiTurlari.length) return; // Geldi denmediyse listeye alma
+    const turAdlari = geldiTurlari.map(tid => TOURS.find(t=>t.id===tid)?.name).filter(Boolean);
+    const kisi = (p.adult||0) + (p.child||0) + (p.baby||0);
+    yolcular.push({
+      kabin: p.kabin || '?',
+      name: p.name || '(İsimsiz)',
+      y: p.adult||0, c: p.child||0, b: p.baby||0,
+      toplam: kisi,
+      tel: p.tel || '',
+      ekstra_isimler: p.ekstra_isimler || [],
+      turlar: turAdlari
+    });
   });
 
-  // Kabin numarasına göre sırala
   yolcular.sort((a,b) => String(a.kabin).localeCompare(String(b.kabin), undefined, {numeric: true}));
-
   const toplamKisi = yolcular.reduce((s,y) => s + y.toplam, 0);
-  const geldiSayisi = yolcular.filter(y => y.geldi).length;
 
-  // Yolcu satırları HTML
   const yolcularHTML = yolcular.length ? yolcular.map((y, i) => {
     const ekIsimlerStr = y.ekstra_isimler.length ? '<div style="font-size:10px;color:#666;margin-top:1px;">+ ' + y.ekstra_isimler.map(escapeHTML).join(', ') + '</div>' : '';
-    const rozet = y.geldi 
-      ? '<span style="background:#dcfce7;color:#15803d;padding:2px 6px;border-radius:5px;font-size:10px;font-weight:600;">✓ Geldi</span>'
-      : '<span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:5px;font-size:10px;font-weight:600;">⏳ Bekleniyor</span>';
+    const turlarStr = y.turlar.length ? '<div style="font-size:9px;color:#4f46e5;margin-top:2px;font-weight:500;">📍 ' + y.turlar.map(escapeHTML).join(' · ') + '</div>' : '';
     return `
       <div style="padding:9px 11px;background:white;border:1px solid #e5e7eb;border-radius:8px;display:flex;align-items:center;gap:10px;">
         <div style="width:26px;height:26px;border-radius:50%;background:#f0f4ff;color:#4f46e5;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;flex-shrink:0;">${i+1}</div>
@@ -10647,16 +10371,18 @@ function otobusYolculariGoster(tid, sid, otobusNo){
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <div style="font-size:13px;font-weight:700;color:#1a1a1a;">Kabin ${escapeHTML(y.kabin)}</div>
             <div style="font-size:13px;color:#1a1a1a;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHTML(y.name)}</div>
-            ${rozet}
           </div>
           ${ekIsimlerStr}
           <div style="font-size:10px;color:#666;margin-top:2px;">${y.toplam} kişi (${y.y}Y${y.c>0?' '+y.c+'Ç':''}${y.b>0?' '+y.b+'B':''})${y.tel?' · '+escapeHTML(y.tel):''}</div>
+          ${turlarStr}
         </div>
+        <button onclick="otobusSecmeAcSefer('${escapeHTML(y.kabin)}','${sid}')" 
+          title="Başka otobüse taşı"
+          style="padding:5px 9px;background:#f0f4ff;border:1.5px solid #c7d2fe;color:#4f46e5;border-radius:8px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0;">🔄 Taşı</button>
       </div>
     `;
   }).join('') : '<div style="padding:20px;text-align:center;color:#999;font-size:13px;">Henüz bu otobüse atanmış yolcu yok</div>';
 
-  // Mevcut modal varsa kaldır
   const eski = document.getElementById('otobus-yolcular-modal');
   if(eski) eski.remove();
 
@@ -10666,26 +10392,36 @@ function otobusYolculariGoster(tid, sid, otobusNo){
   modal.onclick = (e)=>{ if(e.target.id === 'otobus-yolcular-modal') modal.remove(); };
 
   modal.innerHTML = `
-    <div style="background:white;border-radius:18px;padding:18px 20px;max-width:520px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="background:white;border-radius:18px;padding:18px 20px;max-width:560px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
-        <div>
+        <div style="flex:1;min-width:0;">
           <div style="font-family:'DM Serif Display',serif;font-size:20px;color:#1a1a1a;">🚌 ${escapeHTML(otobusAdi)}</div>
-          <div style="font-size:11px;color:#6b6b6b;margin-top:2px;">
-            ${yolcular.length} yolcu (${yolcular.length} kabin) · ${toplamKisi}/${otobus.kapasite} kişi · ✓ ${geldiSayisi} geldi
-          </div>
+          <div style="font-size:11px;color:#6b6b6b;margin-top:2px;">${yolcular.length} kabin · ${toplamKisi}/${otobus.kapasite} kişi${otobus.not ? ' · <span style="color:#4f46e5;font-weight:500;">📝 '+escapeHTML(otobus.not)+'</span>' : ''}</div>
         </div>
         <button onclick="document.getElementById('otobus-yolcular-modal').remove()" style="background:transparent;border:none;color:#999;font-size:24px;cursor:pointer;line-height:1;padding:0 4px;">×</button>
       </div>
 
-      <!-- Liste -->
+      <!-- Yolcu ekleme alanı -->
+      <div style="background:#f0fdf4;border:1.5px dashed #86efac;border-radius:10px;padding:10px;margin-bottom:10px;">
+        <div style="font-size:11px;color:#15803d;font-weight:600;margin-bottom:5px;">+ Bu otobüse yolcu ekle (kabin numarası ile)</div>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="otobus-yolcu-ekle-kabin" placeholder="Kabin no..." autocomplete="off"
+            onkeydown="if(event.key==='Enter') otobusYolcuEkleManuel('${sid}', ${otobusNo})"
+            style="flex:1;padding:8px 10px;border:1.5px solid #86efac;border-radius:8px;font-size:13px;outline:none;font-family:'DM Sans',sans-serif;">
+          <button onclick="otobusYolcuEkleManuel('${sid}', ${otobusNo})"
+            style="padding:8px 14px;background:#16a34a;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Ekle</button>
+        </div>
+      </div>
+
+      <!-- Yolcu listesi -->
       <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-right:2px;margin-bottom:12px;">
         ${yolcularHTML}
       </div>
 
-      <!-- Aksiyon butonları -->
+      <!-- Aksiyonlar -->
       <div style="display:flex;gap:8px;">
         ${yolcular.length ? `
-          <button onclick="otobusYolcuListesiYazdir('${tid}','${sid}',${otobusNo})"
+          <button onclick="otobusYolcuListesiYazdir('${sid}',${otobusNo})"
             style="flex:1;padding:11px;background:linear-gradient(135deg,#1a5fa8,#2563eb);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
             🖨️ Şoförün Listesi
           </button>
@@ -10698,52 +10434,74 @@ function otobusYolculariGoster(tid, sid, otobusNo){
     </div>
   `;
   document.body.appendChild(modal);
+  // Otomatik focus
+  setTimeout(()=>{ document.getElementById('otobus-yolcu-ekle-kabin')?.focus(); }, 100);
 }
 
-// 🖨️ Şoför için yolcu listesi yazdır
-function otobusYolcuListesiYazdir(tid, sid, otobusNo){
-  const otobus = otobusBul(tid, otobusNo);
+// Manuel yolcu ekleme — modal içindeki yeşil alandan
+async function otobusYolcuEkleManuel(sid, otobusNo){
+  const inp = document.getElementById('otobus-yolcu-ekle-kabin');
+  const kabin = (inp?.value || '').trim();
+  if(!kabin){ showToast('⚠️ Kabin no yazın'); return; }
+  const p = passengers.find(px =>
+    px.sefer === sid && !px.arsivli && px.kabin &&
+    px.kabin.toString().trim().toUpperCase() === kabin.toUpperCase()
+  );
+  if(!p){ showToast('❌ Kabin '+kabin+' bulunamadı'); return; }
+  // Bu yolcunun en az 1 turda geldi=1 olmalı, yoksa atanmış sayılmaz
+  if(!p.tur_katilim_detay) p.tur_katilim_detay = {};
+  const geldiVar = Object.values(p.tur_katilim_detay).some(d => d?.geldi === 1);
+  if(!geldiVar){
+    // Hiçbir tura kayıtlı değilse uyar
+    if(!(p.joinedTours||[]).length){
+      showToast('⚠️ Bu yolcu hiçbir tura kayıtlı değil. Önce tura kaydedin.');
+      return;
+    }
+    // En az 1 tura kayıt → ilkini "geldi" yap
+    const ilkTur = p.joinedTours[0];
+    if(!p.tur_katilim_detay[ilkTur]) p.tur_katilim_detay[ilkTur] = {};
+    p.tur_katilim_detay[ilkTur].geldi = 1;
+    p.tur_katilim_detay[ilkTur].kontrol_zamani = new Date().toISOString();
+  }
+  p.otobus_no = otobusNo;
+  try { if(typeof saveYolcuDB === 'function') await saveYolcuDB(p); } catch(e){ console.error(e); }
+  showToast('✓ '+p.name+' eklendi');
+  if(inp){ inp.value = ''; inp.focus(); }
+  // Modalı yenile
+  otobusYolculariGoster(sid, otobusNo);
+  renderOtobusPaneli();
+  if(typeof renderKontrolListesi === 'function') renderKontrolListesi();
+}
+
+// Şoför için yolcu listesi yazdır
+function otobusYolcuListesiYazdir(sid, otobusNo){
+  const otobus = otobusBulSefer(sid, otobusNo);
   if(!otobus) return;
   const otobusAdi = otobusAdiAl(otobus);
   const v = VOYAGES.find(x => x.id === sid);
   const seferAdi = v?.label || sid;
   const gemi = v?.ship || '';
 
-  // Aynı limandaki tüm turlarda bu otobüse atanmış yolcuları topla
-  const ayniLimanTurlari = ayniLimandakiTurlar(tid);
   const yolcular = [];
-  const yolcuMap = {};
-
   passengers.forEach(p => {
     if(p.sefer !== sid || p.arsivli) return;
-    for(const ttid of ayniLimanTurlari){
-      const det = p.tur_katilim_detay?.[ttid];
-      if(det && det.otobus_no === otobusNo){
-        const key = (p.kabin||'') + '|' + (p.name||'');
-        if(yolcuMap[key]) continue;
-        yolcuMap[key] = true;
-        const y = det.yetiskin || p.adult || 0;
-        const c = det.cocuk || p.child || 0;
-        const b = det.bebek || p.baby || 0;
-        yolcular.push({
-          kabin: p.kabin || '?',
-          name: p.name || '(İsimsiz)',
-          y, c, b,
-          toplam: y + c + b,
-          tel: p.tel || '',
-          ekstra_isimler: p.ekstra_isimler || []
-        });
-        break;
-      }
-    }
+    if(p.otobus_no !== otobusNo) return;
+    const det = p.tur_katilim_detay || {};
+    const geldiTurlari = Object.keys(det).filter(tid => det[tid]?.geldi === 1);
+    if(!geldiTurlari.length) return;
+    yolcular.push({
+      kabin: p.kabin || '?',
+      name: p.name || '(İsimsiz)',
+      y: p.adult||0, c: p.child||0, b: p.baby||0,
+      toplam: (p.adult||0)+(p.child||0)+(p.baby||0),
+      tel: p.tel || '',
+      ekstra_isimler: p.ekstra_isimler || [],
+      turlar: geldiTurlari.map(tid => TOURS.find(t=>t.id===tid)?.name).filter(Boolean)
+    });
   });
-
   yolcular.sort((a,b) => String(a.kabin).localeCompare(String(b.kabin), undefined, {numeric: true}));
-
   const toplamKisi = yolcular.reduce((s,y) => s + y.toplam, 0);
   const bugun = new Date().toLocaleDateString('tr-TR');
-  const t = TOURS.find(x => x.id === tid);
-  const limanAdi = t?.liman || 'Liman';
 
   const html = `<!DOCTYPE html>
 <html lang="tr">
@@ -10753,65 +10511,22 @@ function otobusYolcuListesiYazdir(tid, sid, otobusNo){
 <style>
   @page { size: A4; margin: 12mm; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'Helvetica', 'Arial', sans-serif;
-    color: #111;
-    background: white;
-    font-size: 11pt;
-    line-height: 1.4;
-  }
-  .header {
-    border-bottom: 2px solid #1a5fa8;
-    padding-bottom: 10px;
-    margin-bottom: 14px;
-  }
-  .baslik { font-size: 22pt; font-weight: 700; color: #1a5fa8; line-height: 1.1; }
+  body { font-family: Helvetica, Arial, sans-serif; color: #111; font-size: 11pt; line-height: 1.4; }
+  .header { border-bottom: 2px solid #1a5fa8; padding-bottom: 10px; margin-bottom: 14px; }
+  .baslik { font-size: 22pt; font-weight: 700; color: #1a5fa8; }
   .alt-baslik { font-size: 11pt; color: #555; margin-top: 4px; }
-  .info-row { display: flex; gap: 16px; margin-top: 6px; font-size: 10pt; color: #666; }
+  .info-row { display: flex; gap: 16px; margin-top: 6px; font-size: 10pt; color: #666; flex-wrap: wrap; }
   .info-row span b { color: #111; }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 6px;
-  }
-  th {
-    background: #f0f4ff;
-    color: #1a5fa8;
-    padding: 8px;
-    text-align: left;
-    font-size: 10pt;
-    border-bottom: 2px solid #1a5fa8;
-  }
-  td {
-    padding: 7px 8px;
-    border-bottom: 1px solid #e5e7eb;
-    font-size: 10.5pt;
-    vertical-align: top;
-  }
+  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  th { background: #f0f4ff; color: #1a5fa8; padding: 8px; text-align: left; font-size: 10pt; border-bottom: 2px solid #1a5fa8; }
+  td { padding: 7px 8px; border-bottom: 1px solid #e5e7eb; font-size: 10.5pt; vertical-align: top; }
   tr:nth-child(even) td { background: #fafafa; }
   .kabin-no { font-weight: 700; color: #1a5fa8; }
-  .kisi-detay { color: #666; font-size: 9.5pt; }
   .ek-isim { color: #666; font-size: 9pt; margin-top: 2px; }
   .tik-kutu { display: inline-block; width: 14px; height: 14px; border: 1.5px solid #999; border-radius: 3px; vertical-align: middle; }
-  .footer {
-    margin-top: 20px;
-    padding-top: 10px;
-    border-top: 1px solid #e5e7eb;
-    font-size: 9pt;
-    color: #666;
-    display: flex;
-    justify-content: space-between;
-  }
-  .yazdir-btn {
-    position: fixed; top: 10px; right: 10px;
-    padding: 10px 20px; background: #1a5fa8; color: white;
-    border: none; border-radius: 8px; font-size: 13px; cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0,0,0,.2);
-    z-index: 9999;
-  }
-  @media print {
-    .yazdir-btn { display: none; }
-  }
+  .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #e5e7eb; font-size: 9pt; color: #666; display: flex; justify-content: space-between; }
+  .yazdir-btn { position: fixed; top: 10px; right: 10px; padding: 10px 20px; background: #1a5fa8; color: white; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.2); z-index: 9999; }
+  @media print { .yazdir-btn { display: none; } }
 </style>
 </head>
 <body>
@@ -10821,13 +10536,14 @@ function otobusYolcuListesiYazdir(tid, sid, otobusNo){
   <div class="baslik">🚌 ${escapeHTML(otobusAdi)}</div>
   <div class="alt-baslik">Şoför için Yolcu Listesi</div>
   <div class="info-row">
-    <span><b>📍 Liman:</b> ${escapeHTML(limanAdi)}</span>
     <span><b>📅 Tarih:</b> ${bugun}</span>
     <span><b>🚢 Gemi:</b> ${escapeHTML(gemi)}</span>
+    <span><b>🛳️ Sefer:</b> ${escapeHTML(seferAdi)}</span>
   </div>
   <div class="info-row">
-    <span><b>👥 Toplam Yolcu:</b> ${yolcular.length} kabin / ${toplamKisi} kişi</span>
+    <span><b>👥 Yolcu:</b> ${yolcular.length} kabin / ${toplamKisi} kişi</span>
     <span><b>📊 Kapasite:</b> ${toplamKisi}/${otobus.kapasite}</span>
+    ${otobus.not ? `<span><b>📝 Not:</b> ${escapeHTML(otobus.not)}</span>` : ''}
   </div>
 </div>
 
@@ -10838,7 +10554,7 @@ function otobusYolcuListesiYazdir(tid, sid, otobusNo){
       <th style="width:55px;">✓</th>
       <th style="width:75px;">Kabin</th>
       <th>Ad Soyad (Diğer Yolcular)</th>
-      <th style="width:75px;text-align:center;">Kişi</th>
+      <th style="width:65px;text-align:center;">Kişi</th>
       <th style="width:110px;">Telefon</th>
     </tr>
   </thead>
@@ -10852,10 +10568,7 @@ function otobusYolcuListesiYazdir(tid, sid, otobusNo){
           <div><b>${escapeHTML(y.name)}</b></div>
           ${y.ekstra_isimler.length ? `<div class="ek-isim">+ ${y.ekstra_isimler.map(escapeHTML).join(', ')}</div>` : ''}
         </td>
-        <td style="text-align:center;">
-          <b>${y.toplam}</b>
-          <div class="kisi-detay">${y.y}Y${y.c>0?' '+y.c+'Ç':''}${y.b>0?' '+y.b+'B':''}</div>
-        </td>
+        <td style="text-align:center;"><b>${y.toplam}</b><div style="font-size:9pt;color:#666;">${y.y}Y${y.c>0?' '+y.c+'Ç':''}${y.b>0?' '+y.b+'B':''}</div></td>
         <td>${escapeHTML(y.tel)}</td>
       </tr>
     `).join('')}
@@ -10871,28 +10584,20 @@ function otobusYolcuListesiYazdir(tid, sid, otobusNo){
 </html>`;
 
   const w = window.open('', '_blank');
-  if(w){
-    w.document.write(html);
-    w.document.close();
-    setTimeout(()=>{ try { w.print(); } catch(e){} }, 500);
-  } else {
-    showToast('⚠️ Pop-up engellendi — tarayıcı ayarlarından izin verin');
-  }
+  if(w){ w.document.write(html); w.document.close(); setTimeout(()=>{ try { w.print(); } catch(e){} }, 500); }
+  else { showToast('⚠️ Pop-up engellendi'); }
 }
 
-// 🚌 Otobüs seçim modal (manuel taşıma için)
-function otobusSecmeAc(kabin, sid, tid){
-  const otobusler = turOtobusleriAl(tid);
-  if(!otobusler.length){
-    showToast('Önce otobüs düzeni kurun');
-    return;
-  }
+// Otobüs seçim modal — manuel taşıma (sefer bazlı)
+function otobusSecmeAcSefer(kabin, sid){
+  const otobusler = seferOtobusleriAl(sid);
+  if(!otobusler.length){ showToast('Önce otobüs düzeni kurun'); return; }
   const p = passengers.find(px =>
     px.sefer === sid && !px.arsivli && px.kabin &&
     px.kabin.toString().trim().toUpperCase() === kabin.toString().trim().toUpperCase()
   );
   if(!p) return;
-  const mevcutOtobus = yolcuOtobusunuAl(p, tid);
+  const mevcutOtobus = p.otobus_no;
 
   const eski = document.getElementById('otobus-secme-modal');
   if(eski) eski.remove();
@@ -10903,17 +10608,18 @@ function otobusSecmeAc(kabin, sid, tid){
   modal.onclick = (e)=>{ if(e.target.id === 'otobus-secme-modal') modal.remove(); };
 
   const optHTML = otobusler.map(o => {
-    const dolu = otobusDolulukHesapla(tid, sid, o.no);
+    const dolu = otobusDolulukHesaplaSefer(sid, o.no);
     const oran = o.kapasite > 0 ? Math.round((dolu / o.kapasite) * 100) : 0;
     const renk = oran >= 100 ? '#dc2626' : oran >= 90 ? '#f59e0b' : '#16a34a';
     const aktif = mevcutOtobus === o.no;
+    const adi = otobusAdiAl(o);
     return `
-      <button onclick="yolcuOtobusDegistir('${escapeHTML(kabin)}','${sid}','${tid}',${o.no});document.getElementById('otobus-secme-modal').remove();"
+      <button onclick="yolcuOtobusDegistirSefer('${escapeHTML(kabin)}','${sid}',${o.no});document.getElementById('otobus-secme-modal').remove();"
         style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:${aktif?'#dcfce7':'white'};border:2px solid ${aktif?'#16a34a':renk};border-radius:12px;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%;text-align:left;">
-        <div style="background:${renk};color:white;border-radius:8px;padding:6px 12px;font-weight:700;font-size:14px;min-width:36px;text-align:center;">${o.no}</div>
-        <div style="flex:1;">
-          <div style="font-size:13px;font-weight:600;color:#1a1a1a;">Otobüs ${o.no}${aktif?' ✓ (mevcut)':''}</div>
-          <div style="font-size:11px;color:#666;">${dolu}/${o.kapasite} dolu (${oran}%)</div>
+        <div style="background:${renk};color:white;border-radius:8px;padding:6px 12px;font-weight:700;font-size:13px;min-width:50px;text-align:center;">${escapeHTML(adi)}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;color:#1a1a1a;">${escapeHTML(adi)}${aktif?' ✓ (mevcut)':''}</div>
+          <div style="font-size:11px;color:#666;">${dolu}/${o.kapasite} dolu (${oran}%)${o.not?' · '+escapeHTML(o.not):''}</div>
         </div>
         ${oran >= 100 ? '<div style="font-size:10px;color:#dc2626;font-weight:600;">DOLU!</div>' : ''}
       </button>
@@ -10934,6 +10640,7 @@ function otobusSecmeAc(kabin, sid, tid){
   `;
   document.body.appendChild(modal);
 }
+
 
 // 🔄 Tüm onayları sıfırla — yeni gün, yeni yoklama için
 async function tumOnaylariSifirla(){
@@ -11197,14 +10904,14 @@ async function kabinTurOnayla(kabin, sid, tid){
   p.tur_katilim_detay[tid].geldi = 1;
   p.tur_katilim_detay[tid].kontrol_zamani = new Date().toISOString();
 
-  // 🚌 Otomatik otobüs ata (otobüs düzeni varsa)
-  const otobusler = turOtobusleriAl(tid);
+  // 🚌 Sefer otobüsleri varsa OTOMATİK en boş otobüse ata
   let atananOtobus = null;
   let atananOtobusAdi = '';
-  if(otobusler.length > 0){
-    atananOtobus = yolcuOtomatikOtobusAta(p, tid);
+  const seferOtobusleri = seferOtobusleriAl(sid);
+  if(seferOtobusleri.length > 0){
+    atananOtobus = yolcuOtomatikOtobusAtaSefer(p);
     if(atananOtobus){
-      const ob = otobusBul(tid, atananOtobus);
+      const ob = otobusBulSefer(sid, atananOtobus);
       atananOtobusAdi = ob ? otobusAdiAl(ob) : 'Otobüs ' + atananOtobus;
     }
   }
@@ -11233,11 +10940,16 @@ async function kabinTurOnayKaldir(kabin, sid, tid){
     p.tur_katilim_detay[tid].geldi = 0;
     delete p.tur_katilim_detay[tid].kontrol_zamani;
   }
+
+  // 🚌 BUG FIX: Yolcu artık hiçbir turda geldi=1 değilse otobüsten çıkar
+  yolcuOtobustenCikarKontrol(p);
+
   try { if(typeof saveYolcuDB === 'function') await saveYolcuDB(p); } catch(e){ console.error(e); }
 
   showToast('🔄 Onay iptal edildi');
   kabinHizliAra();
   renderKontrolListesi();
+  renderOtobusPaneli();
 }
 
 function kabinHizliAra(){
@@ -11303,12 +11015,12 @@ function kabinHizliAra(){
       const tC = det ? (det.cocuk||0) : (p.child||0);
       const tB = det ? (det.bebek||0) : (p.baby||0);
       const tKisi = tY + tC + tB;
-      // 🚌 Bu yolcunun otobüs no'su (varsa)
-      const otobusNo = det?.otobus_no;
-      const otobusObj = otobusNo ? otobusBul(turId, otobusNo) : null;
-      const otobusVar = turOtobusleriAl(turId).length > 0;
-      const otobusBadge = otobusVar && turGelmis && otobusNo 
-        ? `<button onclick="otobusSecmeAc('${kabinTemiz}','${sid}','${turId}')" title="Otobüsünü değiştir" style="padding:4px 9px;background:linear-gradient(135deg,#1a5fa8,#2563eb);color:white;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;margin-right:4px;">🚌 ${escapeHTML(otobusObj ? otobusAdiAl(otobusObj) : 'Otobüs '+otobusNo)}</button>`
+      // 🚌 Yolcunun otobüs no'su (sefer bazlı, p.otobus_no'da)
+      const otobusNo = p.otobus_no;
+      const otobusObj = otobusNo ? otobusBulSefer(sid, otobusNo) : null;
+      const seferOtobusVar = seferOtobusleriAl(sid).length > 0;
+      const otobusBadge = seferOtobusVar && turGelmis && otobusNo 
+        ? `<button onclick="otobusSecmeAcSefer('${kabinTemiz}','${sid}')" title="Otobüsünü değiştir" style="padding:4px 9px;background:linear-gradient(135deg,#1a5fa8,#2563eb);color:white;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;margin-right:4px;">🚌 ${escapeHTML(otobusObj ? otobusAdiAl(otobusObj) : 'Otobüs '+otobusNo)}</button>`
         : '';
 
       return `
@@ -11411,14 +11123,14 @@ async function kabinHizliGeldi(){
   p.tur_katilim_detay[tid].geldi = 1;
   p.tur_katilim_detay[tid].kontrol_zamani = new Date().toISOString();
 
-  // 🚌 Otomatik otobüs ata (otobüs düzeni varsa)
-  const otobusler = turOtobusleriAl(tid);
+  // 🚌 Sefer otobüsleri varsa otomatik en boş otobüse ata
   let atananOtobus = null;
   let atananOtobusAdi = '';
-  if(otobusler.length > 0){
-    atananOtobus = yolcuOtomatikOtobusAta(p, tid);
+  const seferOtobusleri = seferOtobusleriAl(sid);
+  if(seferOtobusleri.length > 0){
+    atananOtobus = yolcuOtomatikOtobusAtaSefer(p);
     if(atananOtobus){
-      const ob = otobusBul(tid, atananOtobus);
+      const ob = otobusBulSefer(sid, atananOtobus);
       atananOtobusAdi = ob ? otobusAdiAl(ob) : 'Otobüs ' + atananOtobus;
     }
   }
