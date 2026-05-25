@@ -1,15 +1,114 @@
-// VOYAGO Service Worker — Push Notifications
-const CACHE_NAME = 'voyago-v1';
+// VOYAGO Service Worker — Offline Cache + Push Notifications
+const CACHE_NAME = 'voyago-v2-offline';
 
+// Cache'lenecek temel dosyalar (uygulama iskeleti)
+const STATIC_FILES = [
+  './',
+  './index.html',
+  './sw.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
+  'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js',
+];
+
+// ── INSTALL: Temel dosyaları cache'le ──
 self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      // Hata durumlarına toleranslı — bazıları başarısız olsa bile devam et
+      return Promise.all(
+        STATIC_FILES.map((url) =>
+          cache.add(url).catch((err) => {
+            console.warn('[SW] Cache eklenemedi:', url, err.message);
+          })
+        )
+      );
+    })
+  );
   self.skipWaiting();
 });
 
+// ── ACTIVATE: Eski cache'leri sil ──
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    Promise.all([
+      caches.keys().then((cacheNames) =>
+        Promise.all(
+          cacheNames
+            .filter((name) => name !== CACHE_NAME)
+            .map((name) => caches.delete(name))
+        )
+      ),
+      self.clients.claim(),
+    ])
+  );
 });
 
-// Push event — sunucudan bildirim geldiğinde
+// ── FETCH: Akıllı önbellek stratejisi ──
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  const url = new URL(req.url);
+
+  // Sadece GET isteklerini cache'le
+  if (req.method !== 'GET') return;
+
+  // Supabase API çağrıları → network-only (online gerekir)
+  if (
+    url.hostname.includes('supabase.co') ||
+    url.hostname.includes('api.openai.com') ||
+    url.hostname.includes('vercel.app') && url.pathname.includes('/api/')
+  ) {
+    return; // Browser'ın varsayılan davranışını kullan (cache yok)
+  }
+
+  // Push bildirim API'leri için aynı
+  if (url.pathname.includes('/push') || url.pathname.includes('send-push')) {
+    return;
+  }
+
+  // HTML / JS / CSS / Resim → Cache-first, network fallback
+  event.respondWith(
+    caches.match(req).then((cached) => {
+      // Cache'te varsa — döndür + arkaplanda güncelle
+      if (cached) {
+        // Background refresh (network varsa cache'i tazele)
+        fetch(req)
+          .then((freshResp) => {
+            if (freshResp && freshResp.status === 200) {
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(req, freshResp).catch(() => {});
+              });
+            }
+          })
+          .catch(() => {});
+        return cached;
+      }
+
+      // Cache'te yok — network'ten al ve cache'le
+      return fetch(req)
+        .then((resp) => {
+          // Sadece başarılı yanıtları cache'le
+          if (resp && resp.status === 200) {
+            const respClone = resp.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(req, respClone).catch(() => {});
+            });
+          }
+          return resp;
+        })
+        .catch(() => {
+          // Network yok, cache de yok
+          // HTML isteği ise → index.html dön
+          if (req.headers.get('accept')?.includes('text/html')) {
+            return caches.match('./index.html').then((html) => html || new Response('Çevrimdışı', { status: 503 }));
+          }
+          return new Response('Çevrimdışı', { status: 503 });
+        });
+    })
+  );
+});
+
+// ── PUSH: Bildirim al ──
 self.addEventListener('push', (event) => {
   let data = {};
   try {
@@ -30,29 +129,26 @@ self.addEventListener('push', (event) => {
     timestamp: data.timestamp || Date.now(),
     data: {
       click_action: data.click_action || '/',
-      tag: data.tag || ''
-    }
+      tag: data.tag || '',
+    },
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// Bildirime tıklayınca
+// ── BİLDİRİME TIKLAYINCA ──
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = (event.notification.data && event.notification.data.click_action) || '/';
-
+  const targetUrl = event.notification.data?.click_action || '/';
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Açık bir VOYAGO penceresi var mı?
+      // Açık pencere varsa odakla
       for (const client of clientList) {
-        if ('focus' in client) {
-          // Hash ile yönlendir
-          client.postMessage({ type: 'voyago-notification-click', target: targetUrl, tag: event.notification.data?.tag });
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
           return client.focus();
         }
       }
-      // Açık pencere yoksa yenisini aç
+      // Yoksa yeni pencere aç
       if (self.clients.openWindow) {
         return self.clients.openWindow(targetUrl);
       }
@@ -60,7 +156,9 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// Push subscription değişirse (silindi/yenilendi) — ileride eklenebilir
-self.addEventListener('pushsubscriptionchange', (event) => {
-  // Şimdilik bir şey yapmıyoruz
+// ── SKIP_WAITING MESAJI (manuel update) ──
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });

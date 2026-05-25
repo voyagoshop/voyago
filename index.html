@@ -986,6 +986,11 @@ textarea.ai2{resize:none;}
 
 <!-- YOLCU UYGULAMASI -->
 <div id="sa" class="screen">
+  <!-- 📡 ÇEVRİMDIŞI GÖSTERGESİ (offline iken görünür) -->
+  <div id="offline-indicator" style="display:none;background:linear-gradient(90deg,#f59e0b,#d97706);color:white;text-align:center;padding:6px 12px;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;position:sticky;top:0;z-index:200;display:none;">
+    📡 Çevrimdışısınız — Daha önce yüklenen bilgiler gösteriliyor
+  </div>
+
   <div class="topbar" style="padding-bottom:8px;">
     <div class="tbi" style="position:relative;">
       <!-- WhatsApp Bildirim Grubu Butonu (ortada) -->
@@ -2706,6 +2711,8 @@ async function initDB() {
 
     DB_READY = true;
     console.log('Veritabani hazir!');
+    // 💾 Başarıyla yüklendi → offline cache'i güncelle
+    try{ if(typeof offlineDataKaydet === 'function') offlineDataKaydet(); }catch(e){}
     // Tur görsellerini arka planda yükle (lazy load)
     // Ana veriler hazır → kullanıcı turları görüyor → görseller arkadan gelir
     setTimeout(loadTurGorselleri, 800);
@@ -2716,6 +2723,23 @@ async function initDB() {
     populateSeferler();
   } catch(e) {
     console.error('DB init hatasi:', e);
+    // 📡 OFFLINE FALLBACK: Bağlantı yoksa cache'ten yükle
+    let offlineYuklendi = false;
+    try {
+      if(typeof offlineDataUygula === 'function'){
+        offlineYuklendi = offlineDataUygula();
+        if(offlineYuklendi){
+          console.log('[OFFLINE] DB yüklenemedi → cache\'ten yüklendi');
+          // Toast 1 saniye sonra göster (UI hazır olunca)
+          setTimeout(() => {
+            if(typeof showToast === 'function'){
+              showToast('📡 Çevrimdışı modda — kayıtlı veriler gösteriliyor');
+            }
+          }, 1500);
+        }
+      }
+    } catch(err){ console.log('Offline yükleme hata:', err); }
+
     DB_READY = true;
     populateSeferler();
   }
@@ -3454,6 +3478,8 @@ function doPL(){
   try{ if(typeof ydRealtimeBaslat==='function') ydRealtimeBaslat(); }catch(e){console.log('yd realtime:', e);}
   // WhatsApp grup butonunu güncelle
   try{ if(typeof waLinkleriYukle==='function') waLinkleriYukle(); }catch(e){console.log('wa:', e);}
+  // 💾 Offline veri olarak kaydet — sayfa yenilense de erişebilsin
+  try{ offlineDataKaydet(); }catch(e){console.log('offline cache:', e);}
   // Veritabanına kaydet
   saveYolcuDB(p);
   // Tarayıcıya kaydet — bir sonraki ziyarette otomatik giriş
@@ -12752,7 +12778,123 @@ function startLoadingAnimation(callback) {
 }
 
 // ── BAŞLATICI ──
+// ═══════════════════════════════════════════════
+// 📡 OFFLINE / ONLINE SİSTEM
+// ═══════════════════════════════════════════════
+let _isOffline = !navigator.onLine;
+
+function offlineSistemKur(){
+  // Online/Offline event listener'ları
+  window.addEventListener('online', () => {
+    _isOffline = false;
+    offlineIndikatoruGuncelle();
+    console.log('[NET] Tekrar online');
+    // Toast göster (sayfa yüklendikten sonra)
+    if(typeof showToast === 'function'){
+      setTimeout(() => showToast('🌐 İnternet bağlantısı geri geldi'), 500);
+    }
+    // Verileri tazele (yolcu giriş yapmışsa)
+    if(typeof CP !== 'undefined' && CP){
+      // Sessizce arkaplanda DB'den güncel veri çek
+      if(typeof loadFromDB === 'function') loadFromDB().catch(()=>{});
+    }
+  });
+
+  window.addEventListener('offline', () => {
+    _isOffline = true;
+    offlineIndikatoruGuncelle();
+    console.log('[NET] Offline moduna geçildi');
+    if(typeof showToast === 'function'){
+      showToast('📡 Çevrimdışı — kayıtlı veriler gösteriliyor');
+    }
+  });
+
+  // Periyodik cache güncelleme — yolcu giriş yapmışken her 60 sn kaydet
+  setInterval(() => {
+    if(typeof CP !== 'undefined' && CP && !_isOffline){
+      try { offlineDataKaydet(); } catch(e){}
+    }
+  }, 60 * 1000);
+
+  // Başlangıç durumu
+  offlineIndikatoruGuncelle();
+}
+
+function offlineIndikatoruGuncelle(){
+  const ind = document.getElementById('offline-indicator');
+  if(!ind) return;
+  if(_isOffline){
+    ind.style.display = 'block';
+  } else {
+    ind.style.display = 'none';
+  }
+}
+
+// 💾 Yolcu verilerini localStorage'a kaydet (offline erişim için)
+function offlineDataKaydet(){
+  try {
+    const data = {
+      CP: typeof CP !== 'undefined' ? CP : null,
+      VOYAGES: typeof VOYAGES !== 'undefined' ? VOYAGES : [],
+      TOURS: typeof TOURS !== 'undefined' ? TOURS : [],
+      DAILY: typeof DAILY !== 'undefined' ? DAILY : {},
+      passengers: typeof passengers !== 'undefined' ? passengers.filter(p => p.sefer === CP?.sefer) : [],
+      // CP'nin seferi için gerekli ek veriler
+      lastSync: new Date().toISOString()
+    };
+    localStorage.setItem('voyago_offline_data', JSON.stringify(data));
+    console.log('[OFFLINE] Veri kaydedildi (' + (JSON.stringify(data).length/1024).toFixed(1) + ' KB)');
+  } catch(e) {
+    console.log('[OFFLINE] Kaydetme hatası:', e.message);
+  }
+}
+
+// 📥 LocalStorage'tan offline veriyi yükle
+function offlineDataYukle(){
+  try {
+    const raw = localStorage.getItem('voyago_offline_data');
+    if(!raw) return null;
+    const data = JSON.parse(raw);
+    return data;
+  } catch(e) {
+    return null;
+  }
+}
+
+// 🔄 Offline veriyi uygulamaya yükle (DB bağlantısı yoksa)
+function offlineDataUygula(){
+  const data = offlineDataYukle();
+  if(!data) return false;
+
+  try {
+    if(data.CP && typeof CP !== 'undefined') CP = data.CP;
+    if(data.VOYAGES?.length && typeof VOYAGES !== 'undefined') VOYAGES = data.VOYAGES;
+    if(data.TOURS?.length && typeof TOURS !== 'undefined') TOURS = data.TOURS;
+    if(data.DAILY && typeof DAILY !== 'undefined') DAILY = data.DAILY;
+    if(data.passengers?.length && typeof passengers !== 'undefined') passengers = data.passengers;
+
+    const yas = data.lastSync ? new Date(data.lastSync) : null;
+    console.log('[OFFLINE] Veri yüklendi, son senkron:', yas?.toLocaleString('tr-TR'));
+    return true;
+  } catch(e) {
+    console.log('[OFFLINE] Yükleme hatası:', e);
+    return false;
+  }
+}
+
+// Offline gerektiren işlemlerde toast göster
+function offlineGerekir(islemAd){
+  if(_isOffline){
+    showToast('📡 Bu işlem internet bağlantısı gerektirir' + (islemAd ? ' (' + islemAd + ')' : ''));
+    return true;
+  }
+  return false;
+}
+
 function baslat() {
+  // 📡 OFFLINE/ONLINE Sistem başlat
+  try { offlineSistemKur(); } catch(e){ console.log('Offline sistem:', e); }
+
   // Dil algıla
   dilAlgila();
   dilMenuleriOlustur();
