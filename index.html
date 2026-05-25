@@ -856,8 +856,13 @@ textarea.ai2{resize:none;}
           <input class="fi" type="tel" id="lp" placeholder="5xx xxx xx xx" style="flex:1;margin:0;">
         </div>
       </div>
-      <div class="fg"><label class="fl" data-t="kabin_no">Kabin numaranız</label><input class="fi" type="text" id="lk" placeholder="Örn: 214"></div>
-      <div class="fg"><label class="fl" data-t="sefer_tarihi">Sefer tarihiniz</label><select class="fs" id="lsf"></select></div>
+      <div class="fg">
+        <label class="fl" data-t="kabin_no">Kabin numaranız</label>
+        <input class="fi" type="text" id="lk" placeholder="Örn: 214" oninput="yolcuKabinKontrol()" autocomplete="off">
+        <!-- 📋 Manifest'ten bulundu ipucu (gizli, JS açar) -->
+        <div id="yolcu-manifest-ipucu" style="display:none;background:#dcfce7;border:1.5px solid #16a34a;border-radius:10px;padding:9px 11px;margin-top:6px;font-size:12px;color:#15803d;line-height:1.4;"></div>
+      </div>
+      <div class="fg"><label class="fl" data-t="sefer_tarihi">Sefer tarihiniz</label><select class="fs" id="lsf" onchange="yolcuKabinKontrol()"></select></div>
 
       <!-- E-posta (opsiyonel) -->
       <div class="fg">
@@ -1294,6 +1299,20 @@ textarea.ai2{resize:none;}
 
     <!-- CHECK-IN -->
     <div id="admin-ci" class="apg">
+      <!-- 📋 EMBARKATION LİSTESİ YÜKLE (AI ile otomatik tara) -->
+      <div style="background:linear-gradient(135deg,#0f6e56,#1D9E75);border-radius:14px;padding:14px;margin-bottom:12px;color:white;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+          <span style="font-size:24px;">📋</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-family:'DM Serif Display',serif;font-size:16px;line-height:1.1;">Embarkation Listesi Yükle</div>
+            <div style="font-size:11px;opacity:.9;margin-top:2px;">Celestyal'dan aldığın PDF/JPEG manifest'i AI okur, kabin başına yolcuları çıkarır</div>
+          </div>
+        </div>
+        <button onclick="manifestYukleAc()" style="width:100%;padding:11px;background:white;color:#0f6e56;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:8px;">
+          📷 Manifest Yükle ve Tara
+        </button>
+      </div>
+
       <!-- TOPLU WHATSAPP DUYURU -->
       <div style="background:linear-gradient(135deg,#075e54,#128c7e);border-radius:14px;padding:12px 14px;margin-bottom:12px;">
         <div style="font-size:13px;font-weight:600;color:white;margin-bottom:8px;">📢 Tüm Yolculara WhatsApp Duyurusu</div>
@@ -1322,17 +1341,19 @@ textarea.ai2{resize:none;}
       </div>
       <div class="yolcu-ekle-form">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-          <div class="yolcu-ekle-title" style="margin-bottom:0;">Yolcu ekle</div>
+          <div class="yolcu-ekle-title" style="margin-bottom:0;">Yolcu ekle / Check-in</div>
           <button onclick="celestyalQROkuyucuAc()" style="padding:6px 14px;background:var(--blue);color:white;border:none;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">📷 QR ile Ekle</button>
         </div>
-        <div class="two"><div><input class="ai2" type="text" id="ye-name" placeholder="Ad Soyad" style="margin:0;"></div><div><input class="ai2" type="text" id="ye-kabin" placeholder="Kabin No" style="margin:0;"></div></div>
+        <!-- 💡 İpucu: Kabin yazınca manifest'ten otomatik gelir -->
+        <div id="ye-manifest-ipucu" style="display:none;background:#dcfce7;border:1.5px solid #16a34a;border-radius:10px;padding:8px 11px;margin-bottom:8px;font-size:12px;color:#15803d;line-height:1.4;"></div>
+        <div class="two"><div><input class="ai2" type="text" id="ye-name" placeholder="Ad Soyad" style="margin:0;"></div><div><input class="ai2" type="text" id="ye-kabin" placeholder="Kabin No" oninput="yeKabinDegisti()" style="margin:0;"></div></div>
         <div class="two" style="margin-top:8px;"><div><input class="ai2" type="tel" id="ye-tel" placeholder="WhatsApp" style="margin:0;"></div><div><select class="fs" id="ye-sefer" style="height:40px;"></select></div></div>
         <div style="display:flex;gap:8px;margin-top:8px;">
           <div style="flex:1;text-align:center;background:white;border-radius:8px;padding:6px;border:1.5px solid var(--border);"><div style="font-size:9px;color:var(--t3);margin-bottom:3px;">YETİŞKİN</div><div style="display:flex;align-items:center;justify-content:center;gap:5px;"><button class="kisi-btn" onclick="changeKisiAdmin('ya',-1)" style="width:22px;height:22px;font-size:13px;">-</button><span id="ya-num" style="font-size:15px;font-weight:600;color:var(--blue);">1</span><button class="kisi-btn" onclick="changeKisiAdmin('ya',1)" style="width:22px;height:22px;font-size:13px;">+</button></div></div>
           <div style="flex:1;text-align:center;background:white;border-radius:8px;padding:6px;border:1.5px solid var(--border);"><div style="font-size:9px;color:var(--t3);margin-bottom:3px;">ÇOCUK 2-12</div><div style="display:flex;align-items:center;justify-content:center;gap:5px;"><button class="kisi-btn" onclick="changeKisiAdmin('yc',-1)" style="width:22px;height:22px;font-size:13px;">-</button><span id="yc-num" style="font-size:15px;font-weight:600;color:var(--blue);">0</span><button class="kisi-btn" onclick="changeKisiAdmin('yc',1)" style="width:22px;height:22px;font-size:13px;">+</button></div></div>
           <div style="flex:1;text-align:center;background:white;border-radius:8px;padding:6px;border:1.5px solid var(--border);"><div style="font-size:9px;color:var(--t3);margin-bottom:3px;">BEBEK 0-2</div><div style="display:flex;align-items:center;justify-content:center;gap:5px;"><button class="kisi-btn" onclick="changeKisiAdmin('yb',-1)" style="width:22px;height:22px;font-size:13px;">-</button><span id="yb-num" style="font-size:15px;font-weight:600;color:var(--blue);">0</span><button class="kisi-btn" onclick="changeKisiAdmin('yb',1)" style="width:22px;height:22px;font-size:13px;">+</button></div></div>
         </div>
-        <button class="bp" onclick="addPassenger()" style="margin-top:10px;padding:9px;">Yolcu Ekle</button>
+        <button class="bp" onclick="addPassenger()" style="margin-top:10px;padding:9px;">Yolcu Ekle / Check-in Tamamla</button>
       </div>
       <div class="uz" onclick="document.getElementById('ef').click()">
         <div class="uic">📊</div><h3>Excel ile Yolcu Listesi Yükle</h3><p>Şablonu doldurup tıklayın</p>
@@ -7117,18 +7138,54 @@ function deletePassenger(kabin,sefer,isim){
     renderPS(CASF);showToast('Silindi.');
   }
 }
-function addPassenger(){
+async function addPassenger(){
   const name=document.getElementById('ye-name').value.trim();
   const kabin=document.getElementById('ye-kabin').value.trim();
   const tel=document.getElementById('ye-tel').value.trim();
   const sefer=document.getElementById('ye-sefer').value;
   if(!name||!kabin){showToast('Ad ve kabin gereklidir.');return;}
-  if(passengers.find(p=>p.kabin===kabin&&p.sefer===sefer)){showToast('Bu kabin zaten kayitli.');return;}
-  passengers.push({name,kabin,tel,sefer,adult:adminKisi.ya,child:adminKisi.yc,baby:adminKisi.yb,checkedIn:false,checkinDone:false,joinedTours:[]});
-  document.getElementById('ye-name').value='';document.getElementById('ye-kabin').value='';document.getElementById('ye-tel').value='';
+
+  // Mevcut kayıt var mı? (Manifest'ten gelmiş olabilir - check-in yapılmamış)
+  const mevcut = passengers.find(p => p.kabin === kabin && p.sefer === sefer);
+
+  if(mevcut){
+    // Eğer check-in yapılmışsa hata
+    if(mevcut.checkinDone){
+      showToast('Bu kabin zaten check-in yapmış: ' + mevcut.name);
+      return;
+    }
+    // Manifest'ten gelen — check-in'i tamamla
+    mevcut.name = name; // İsim güncellenebilir
+    if(tel) mevcut.tel = tel;
+    mevcut.adult = adminKisi.ya;
+    mevcut.child = adminKisi.yc;
+    mevcut.baby = adminKisi.yb;
+    mevcut.checkedIn = true;
+    mevcut.checkinDone = true;
+
+    try { await saveYolcuDB(mevcut); } catch(e){ console.error(e); }
+    showToast('✓ ' + name + ' check-in tamamlandı!');
+  } else {
+    // Yeni yolcu — manifest'te yoktu
+    const yeni = {name,kabin,tel,sefer,adult:adminKisi.ya,child:adminKisi.yc,baby:adminKisi.yb,checkedIn:true,checkinDone:true,joinedTours:[]};
+    passengers.push(yeni);
+    try { await saveYolcuDB(yeni); } catch(e){ console.error(e); }
+    showToast(name+' eklendi ve check-in yapıldı!');
+  }
+
+  // Formu temizle
+  document.getElementById('ye-name').value='';
+  document.getElementById('ye-kabin').value='';
+  document.getElementById('ye-tel').value='';
+  const ipucu = document.getElementById('ye-manifest-ipucu');
+  if(ipucu) ipucu.style.display = 'none';
+  // Y/Ç/B'yi sıfırla
+  adminKisi.ya = 1; adminKisi.yc = 0; adminKisi.yb = 0;
+  const yaEl=document.getElementById('ya-num'); if(yaEl) yaEl.textContent = '1';
+  const ycEl=document.getElementById('yc-num'); if(ycEl) ycEl.textContent = '0';
+  const ybEl=document.getElementById('yb-num'); if(ybEl) ybEl.textContent = '0';
+
   renderPS(CASF);
-  saveYolcuDB(passengers[passengers.length-1]);
-  showToast(name+' eklendi!');
 }
 
 // ── EXCEL ──
@@ -10641,6 +10698,432 @@ function otobusSecmeAcSefer(kabin, sid){
   document.body.appendChild(modal);
 }
 
+
+// ⚡ Check-in formunda kabin yazılınca manifest'ten otomatik doldur
+let _yeKabinTimer = null;
+function yeKabinDegisti(){
+  if(_yeKabinTimer) clearTimeout(_yeKabinTimer);
+  _yeKabinTimer = setTimeout(yeKabinKontrol, 200);
+}
+
+function yeKabinKontrol(){
+  const kabinInp = document.getElementById('ye-kabin');
+  const ipucu = document.getElementById('ye-manifest-ipucu');
+  if(!kabinInp || !ipucu) return;
+
+  const kabin = (kabinInp.value || '').trim();
+  if(!kabin){ ipucu.style.display = 'none'; return; }
+
+  // Aktif seferi al (formdaki sefer seçimi)
+  const seferSel = document.getElementById('ye-sefer');
+  const sid = seferSel?.value;
+  if(!sid){ ipucu.style.display = 'none'; return; }
+
+  // Bu kabinde + bu seferde + check-in yapmamış yolcu var mı?
+  const aday = passengers.find(p =>
+    p.kabin && p.kabin.toString().trim().toUpperCase() === kabin.toUpperCase() &&
+    p.sefer === sid &&
+    !p.arsivli &&
+    !p.checkinDone
+  );
+
+  if(!aday){
+    // Belki check-in yapmış var
+    const yapmis = passengers.find(p =>
+      p.kabin && p.kabin.toString().trim().toUpperCase() === kabin.toUpperCase() &&
+      p.sefer === sid && !p.arsivli && p.checkinDone
+    );
+    if(yapmis){
+      ipucu.style.display = 'block';
+      ipucu.style.background = '#fef3c7';
+      ipucu.style.borderColor = '#f59e0b';
+      ipucu.style.color = '#92400e';
+      ipucu.innerHTML = `⚠️ Kabin ${escapeHTML(kabin)} <b>zaten check-in yapmış</b>: ${escapeHTML(yapmis.name)}`;
+      return;
+    }
+    ipucu.style.display = 'none';
+    return;
+  }
+
+  // Manifest'ten gelen yolcu — formu doldur
+  ipucu.style.display = 'block';
+  ipucu.style.background = '#dcfce7';
+  ipucu.style.borderColor = '#16a34a';
+  ipucu.style.color = '#15803d';
+  const ekStr = aday.ekstra_isimler?.length ? ' + ' + aday.ekstra_isimler.map(escapeHTML).join(', ') : '';
+  const kisiOzet = `${aday.adult||0}Y${aday.child>0?' '+aday.child+'Ç':''}${aday.baby>0?' '+aday.baby+'B':''}`;
+  ipucu.innerHTML = `📋 <b>Manifest'ten bulundu:</b> ${escapeHTML(aday.name)}${ekStr}<br><span style="font-size:11px;">${kisiOzet} · Sadece telefon ve tur tercihlerini girip "Check-in Tamamla" basın</span>`;
+
+  // Formu doldur (kullanıcının yazdığı kabini değiştirme!)
+  const nameInp = document.getElementById('ye-name');
+  if(nameInp && !nameInp.value.trim()) nameInp.value = aday.name || '';
+
+  // Y/Ç/B sayılarını set et
+  const yaEl = document.getElementById('ya-num');
+  const ycEl = document.getElementById('yc-num');
+  const ybEl = document.getElementById('yb-num');
+  if(yaEl) yaEl.textContent = aday.adult || 1;
+  if(ycEl) ycEl.textContent = aday.child || 0;
+  if(ybEl) ybEl.textContent = aday.baby || 0;
+}
+
+// ═══════════════════════════════════════════════
+// 📋 EMBARKATION MANİFEST YÜKLEME (AI ile)
+// ═══════════════════════════════════════════════
+let _manifestResults = []; // OCR sonuçları
+let _manifestSefer = ''; // Seçilen sefer
+
+function manifestYukleAc(){
+  // Aktif seferi belirle
+  const aktifSeferler = VOYAGES.filter(v => v.status !== 'archived');
+  if(!aktifSeferler.length){
+    showToast('⚠️ Aktif sefer yok');
+    return;
+  }
+  _manifestSefer = aktifSeferler[0].id;
+
+  const eski = document.getElementById('manifest-modal');
+  if(eski) eski.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'manifest-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e)=>{ if(e.target.id === 'manifest-modal') manifestKapat(); };
+
+  modal.innerHTML = `
+    <div style="background:white;border-radius:18px;padding:20px;max-width:560px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+        <div>
+          <div style="font-family:'DM Serif Display',serif;font-size:20px;color:#1a1a1a;">📋 Manifest Yükle</div>
+          <div style="font-size:11px;color:#6b6b6b;margin-top:2px;">Celestyal/cruise embarkation listesini AI ile okuyalım</div>
+        </div>
+        <button onclick="manifestKapat()" style="background:transparent;border:none;color:#999;font-size:24px;cursor:pointer;line-height:1;">×</button>
+      </div>
+
+      <!-- Sefer seçici -->
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;">📅 Hangi sefere ekleniyor?</label>
+        <select id="manifest-sefer-sel" style="width:100%;padding:10px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif;">
+          ${aktifSeferler.map(v => `<option value="${v.id}">${escapeHTML(v.label || v.id)}${v.ship ? ' · '+escapeHTML(v.ship) : ''}</option>`).join('')}
+        </select>
+      </div>
+
+      <!-- Adım 1: Dosya yükle -->
+      <div id="manifest-adim1" style="background:#f0fdf4;border:1.5px dashed #86efac;border-radius:12px;padding:16px;text-align:center;margin-bottom:12px;">
+        <div style="font-size:36px;margin-bottom:8px;">📷</div>
+        <div style="font-size:13px;font-weight:600;color:#15803d;margin-bottom:4px;">Liste fotoğrafını seçin</div>
+        <div style="font-size:11px;color:#666;margin-bottom:10px;line-height:1.5;">
+          • 1 veya daha fazla sayfa yükleyebilirsiniz<br>
+          • Telefonun kamerası ile yeni çekim de yapabilirsiniz<br>
+          • JPG, PNG, WEBP destekli
+        </div>
+        <input type="file" id="manifest-file" accept="image/*" multiple capture="environment"
+          style="width:100%;padding:8px;border:1.5px solid #16a34a;border-radius:8px;font-size:12px;background:white;cursor:pointer;">
+        <button onclick="manifestTara()" style="width:100%;margin-top:10px;padding:11px;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          🤖 AI ile Tara (~10 saniye)
+        </button>
+        <div style="font-size:10px;color:#888;margin-top:8px;">💡 Maliyet: ~5 cent per sayfa (gpt-4o-mini)</div>
+      </div>
+
+      <!-- Adım 2: Yükleniyor (gizli) -->
+      <div id="manifest-adim2" style="display:none;background:#fef3c7;border-radius:12px;padding:16px;text-align:center;margin-bottom:12px;">
+        <div style="font-size:36px;margin-bottom:8px;animation:pulse 1.5s infinite;">🤖</div>
+        <div id="manifest-yukleniyor-mesaj" style="font-size:13px;font-weight:600;color:#92400e;">AI sayfaları okuyor...</div>
+        <div id="manifest-yukleniyor-ilerleme" style="font-size:11px;color:#92400e;margin-top:4px;">0 / 0 sayfa</div>
+      </div>
+
+      <!-- Adım 3: Sonuçlar (gizli) -->
+      <div id="manifest-adim3" style="display:none;"></div>
+
+      <!-- Aksiyonlar -->
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button onclick="manifestKapat()" style="flex:1;padding:11px;background:transparent;border:1.5px solid #e5e7eb;color:#666;border-radius:10px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          Kapat
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function manifestKapat(){
+  const m = document.getElementById('manifest-modal');
+  if(m) m.remove();
+  _manifestResults = [];
+}
+
+// Görseli base64'e çevir
+async function _manifestB64(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result); // data:image/jpeg;base64,...
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Tek bir sayfayı AI ile tara
+async function _manifestTaraSayfa(b64){
+  const key = _aiOkAc();
+  if(!key) throw new Error('OpenAI key yok');
+
+  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + key
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: `Bu bir gemi yolcu manifest listesi. Tabloyu satır satır oku ve JSON array olarak döndür. Her satır için:
+- soyad (LAST NAME)
+- ad (FIRST NAME)
+- kabin (CABIN NO - sadece numara)
+- cinsiyet (SEX - M veya F)
+- dogum (DATE OF BIRTH varsa - eğer doğum yılı 2010'dan sonraysa "cocuk", 2024'ten sonraysa "bebek", yoksa "yetiskin" olarak yas_grubu döndür)
+
+ÖNEMLİ:
+- Sadece JSON dön, başka açıklama yok
+- Türkçe karakterler düzgün olsun (Ç, Ş, Ğ, Ü, Ö, İ)
+- Boş satırları atla
+- Eğer doğum tarihi okunamıyorsa yas_grubu: "yetiskin" yaz
+
+Format:
+[
+  {"soyad":"KARA","ad":"ESIN","kabin":"4158","cinsiyet":"F","yas_grubu":"yetiskin"},
+  ...
+]`
+          },
+          {
+            type: 'image_url',
+            image_url: { url: b64, detail: 'high' }
+          }
+        ]
+      }],
+      max_tokens: 4000
+    })
+  });
+
+  if(!resp.ok){
+    const errTxt = await resp.text();
+    throw new Error('OpenAI hatası: ' + errTxt.substring(0, 200));
+  }
+
+  const data = await resp.json();
+  let content = data.choices?.[0]?.message?.content || '';
+  // Markdown code fence temizle
+  content = content.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
+
+  try {
+    return JSON.parse(content);
+  } catch(e){
+    console.error('JSON parse hata:', content);
+    throw new Error('AI yanıtı parse edilemedi');
+  }
+}
+
+// Ana tarama akışı
+async function manifestTara(){
+  const seferSel = document.getElementById('manifest-sefer-sel');
+  if(seferSel) _manifestSefer = seferSel.value;
+
+  const inp = document.getElementById('manifest-file');
+  const files = Array.from(inp?.files || []);
+  if(!files.length){
+    showToast('⚠️ Lütfen en az bir görsel seçin');
+    return;
+  }
+
+  document.getElementById('manifest-adim1').style.display = 'none';
+  document.getElementById('manifest-adim2').style.display = 'block';
+  const ilerleme = document.getElementById('manifest-yukleniyor-ilerleme');
+  ilerleme.textContent = '0 / ' + files.length + ' sayfa';
+
+  _manifestResults = [];
+  let hataSayisi = 0;
+
+  for(let i = 0; i < files.length; i++){
+    try {
+      ilerleme.textContent = (i+1) + ' / ' + files.length + ' sayfa işleniyor...';
+      const b64 = await _manifestB64(files[i]);
+      const satirlar = await _manifestTaraSayfa(b64);
+      if(Array.isArray(satirlar)){
+        _manifestResults.push(...satirlar);
+      }
+    } catch(e){
+      console.error('Sayfa hata:', e);
+      hataSayisi++;
+    }
+  }
+
+  document.getElementById('manifest-adim2').style.display = 'none';
+
+  if(!_manifestResults.length){
+    showToast('❌ Hiçbir kayıt çıkarılamadı');
+    document.getElementById('manifest-adim1').style.display = 'block';
+    return;
+  }
+
+  if(hataSayisi > 0){
+    showToast('⚠️ ' + hataSayisi + ' sayfa atlandı, ' + _manifestResults.length + ' kayıt çıkarıldı');
+  } else {
+    showToast('✓ ' + _manifestResults.length + ' yolcu bulundu');
+  }
+
+  manifestSonucGoster();
+}
+
+// Sonuçları kabin bazlı grupla ve göster
+function manifestSonucGoster(){
+  // Kabin bazlı grupla
+  const kabinGrup = {};
+  _manifestResults.forEach(s => {
+    if(!s.kabin) return;
+    const k = s.kabin.toString().trim();
+    if(!k) return;
+    if(!kabinGrup[k]) kabinGrup[k] = [];
+    kabinGrup[k].push(s);
+  });
+
+  const kabinSayisi = Object.keys(kabinGrup).length;
+  const kisiSayisi = _manifestResults.length;
+
+  // Kabin bazlı satırları oluştur
+  const kabinListesi = Object.entries(kabinGrup)
+    .sort((a,b) => String(a[0]).localeCompare(String(b[0]), undefined, {numeric: true}))
+    .map(([kabin, kisiler]) => {
+      // Yaş grupları
+      let y = 0, c = 0, b = 0;
+      kisiler.forEach(k => {
+        if(k.yas_grubu === 'bebek') b++;
+        else if(k.yas_grubu === 'cocuk') c++;
+        else y++;
+      });
+      const tumIsimler = kisiler.map(k => `${k.ad||''} ${k.soyad||''}`.trim()).join(', ');
+      const ozet = `${y}Y${c>0?' '+c+'Ç':''}${b>0?' '+b+'B':''}`;
+      return `
+        <div style="padding:8px 10px;background:white;border:1px solid #e5e7eb;border-radius:8px;display:flex;align-items:center;gap:10px;">
+          <div style="background:#dbeafe;color:#1a5fa8;border-radius:6px;padding:4px 8px;font-weight:700;font-size:12px;min-width:55px;text-align:center;">${escapeHTML(kabin)}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;color:#1a1a1a;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(tumIsimler)}</div>
+            <div style="font-size:10px;color:#666;margin-top:1px;">${kisiler.length} kişi · ${ozet}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+  document.getElementById('manifest-adim3').style.display = 'block';
+  document.getElementById('manifest-adim3').innerHTML = `
+    <div style="background:#dcfce7;border-radius:12px;padding:12px;margin-bottom:10px;">
+      <div style="font-size:13px;font-weight:700;color:#15803d;margin-bottom:4px;">✓ ${kabinSayisi} kabin · ${kisiSayisi} kişi</div>
+      <div style="font-size:11px;color:#15803d;line-height:1.5;">
+        Aşağıdaki yolcular sisteme eklenecek (henüz <b>check-in yapmamış</b> olarak). Check-in günü kabin yazınca otomatik gelir.
+      </div>
+    </div>
+
+    <div style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;margin-bottom:12px;padding-right:2px;">
+      ${kabinListesi}
+    </div>
+
+    <div style="display:flex;gap:8px;">
+      <button onclick="manifestTekrarTara()" style="flex:1;padding:11px;background:transparent;border:1.5px solid #e5e7eb;color:#666;border-radius:10px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">
+        🔄 Tekrar Tara
+      </button>
+      <button onclick="manifestKaydet()" style="flex:2;padding:11px;background:linear-gradient(135deg,#0f6e56,#1D9E75);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+        💾 ${kabinSayisi} Kabini Sisteme Ekle
+      </button>
+    </div>
+  `;
+}
+
+function manifestTekrarTara(){
+  document.getElementById('manifest-adim3').style.display = 'none';
+  document.getElementById('manifest-adim1').style.display = 'block';
+  _manifestResults = [];
+  const inp = document.getElementById('manifest-file');
+  if(inp) inp.value = '';
+}
+
+// Kabinleri sisteme ekle
+async function manifestKaydet(){
+  if(!_manifestResults.length){ showToast('Veri yok'); return; }
+  if(!_manifestSefer){ showToast('Sefer seçilmemiş'); return; }
+
+  // Kabin bazlı grupla
+  const kabinGrup = {};
+  _manifestResults.forEach(s => {
+    if(!s.kabin) return;
+    const k = s.kabin.toString().trim();
+    if(!k) return;
+    if(!kabinGrup[k]) kabinGrup[k] = [];
+    kabinGrup[k].push(s);
+  });
+
+  const kabinler = Object.entries(kabinGrup);
+  let eklendi = 0, atlandi = 0, hata = 0;
+
+  showToast('⏳ Kabinler ekleniyor...');
+
+  for(const [kabin, kisiler] of kabinler){
+    try {
+      // Bu kabin + sefer zaten var mı?
+      const mevcut = passengers.find(p => p.kabin === kabin && p.sefer === _manifestSefer);
+      if(mevcut){
+        atlandi++;
+        continue;
+      }
+
+      // İlk kişi ana yolcu, diğerleri ek isim
+      const ana = kisiler[0];
+      const ekler = kisiler.slice(1).map(k => `${k.ad||''} ${k.soyad||''}`.trim()).filter(x => x);
+
+      // Y/Ç/B hesapla
+      let y = 0, c = 0, b = 0;
+      kisiler.forEach(k => {
+        if(k.yas_grubu === 'bebek') b++;
+        else if(k.yas_grubu === 'cocuk') c++;
+        else y++;
+      });
+
+      const yeniYolcu = {
+        name: `${ana.ad||''} ${ana.soyad||''}`.trim(),
+        kabin: kabin,
+        tel: '', // Boş — check-in'de doldurulacak
+        email: '',
+        sefer: _manifestSefer,
+        adult: y, child: c, baby: b,
+        checkedIn: false,
+        checkinDone: false,
+        joinedTours: [],
+        ekstra_isimler: ekler,
+        tur_katilim_detay: {}
+      };
+
+      passengers.push(yeniYolcu);
+      if(typeof saveYolcuDB === 'function'){
+        await saveYolcuDB(yeniYolcu);
+      }
+      eklendi++;
+    } catch(e){
+      console.error('Kabin kayıt hata:', kabin, e);
+      hata++;
+    }
+  }
+
+  let msg = '✓ ' + eklendi + ' kabin eklendi';
+  if(atlandi > 0) msg += ' · ' + atlandi + ' zaten vardı';
+  if(hata > 0) msg += ' · ' + hata + ' hata';
+  showToast(msg);
+
+  manifestKapat();
+  if(typeof renderTabloYolcular === 'function') renderTabloYolcular();
+  if(typeof renderDashboard === 'function') renderDashboard();
+}
 
 // 🔄 Tüm onayları sıfırla — yeni gün, yeni yoklama için
 async function tumOnaylariSifirla(){
@@ -18084,6 +18567,101 @@ function kvkkToggle(e){
 
 // ══ PAZARLAMA İZNİ (E-POSTA) ══
 let _pazarlamaIzni = false;
+
+// ⚡ Yolcu giriş ekranında kabin yazılınca manifest kontrolü
+let _yolcuKabinTimer = null;
+function yolcuKabinKontrol(){
+  if(_yolcuKabinTimer) clearTimeout(_yolcuKabinTimer);
+  _yolcuKabinTimer = setTimeout(_yolcuKabinKontrolUygula, 250);
+}
+
+function _yolcuKabinKontrolUygula(){
+  const kabinInp = document.getElementById('lk');
+  const ipucu = document.getElementById('yolcu-manifest-ipucu');
+  const seferSel = document.getElementById('lsf');
+  if(!kabinInp || !ipucu) return;
+
+  const kabin = (kabinInp.value || '').trim();
+  if(!kabin || kabin.length < 2){ ipucu.style.display = 'none'; return; }
+
+  const sid = seferSel?.value;
+  if(!sid){ ipucu.style.display = 'none'; return; }
+
+  // Bu kabin + bu seferde manifest'ten gelen ama check-in yapmamış yolcu var mı?
+  const aday = passengers.find(p =>
+    p.kabin && p.kabin.toString().trim().toUpperCase() === kabin.toUpperCase() &&
+    p.sefer === sid &&
+    !p.arsivli &&
+    !p.checkinDone
+  );
+
+  // Zaten check-in yapmış mı?
+  const yapmis = passengers.find(p =>
+    p.kabin && p.kabin.toString().trim().toUpperCase() === kabin.toUpperCase() &&
+    p.sefer === sid && !p.arsivli && p.checkinDone
+  );
+
+  if(yapmis){
+    // Bu kabin zaten check-in yapmış (başka biri tarafından)
+    ipucu.style.display = 'block';
+    ipucu.style.background = '#fef3c7';
+    ipucu.style.borderColor = '#f59e0b';
+    ipucu.style.color = '#92400e';
+    ipucu.innerHTML = `⚠️ Bu kabin önceden giriş yaptı. Sizseniz aynı bilgilerle devam edin, değilseniz rehbere danışın.`;
+    return;
+  }
+
+  if(!aday){
+    ipucu.style.display = 'none';
+    return;
+  }
+
+  // Manifest'ten bulundu — formu otomatik doldur
+  ipucu.style.display = 'block';
+  ipucu.style.background = '#dcfce7';
+  ipucu.style.borderColor = '#16a34a';
+  ipucu.style.color = '#15803d';
+  const ekStr = aday.ekstra_isimler?.length ? ' + ' + aday.ekstra_isimler.map(escapeHTML).join(', ') : '';
+  const kisiOzet = `${aday.adult||0} yetişkin${aday.child>0?', '+aday.child+' çocuk':''}${aday.baby>0?', '+aday.baby+' bebek':''}`;
+  ipucu.innerHTML = `
+    ✅ <b>Hoş geldiniz, ${escapeHTML(aday.name)}!</b>${ekStr ? '<br><span style="font-size:11px;">'+ekStr+'</span>' : ''}<br>
+    <span style="font-size:11px;">Kayıtlı: ${kisiOzet}. Lütfen WhatsApp ve e-posta bilgilerinizi girip giriş yapın.</span>
+  `;
+
+  // Form alanlarını otomatik doldur (sadece boşları)
+  const nameInp = document.getElementById('ln');
+  if(nameInp && !nameInp.value.trim()) nameInp.value = aday.name || '';
+
+  // Y/Ç/B sayılarını otomatik set et
+  if(typeof loginKisi !== 'undefined'){
+    loginKisi.adult = aday.adult || 1;
+    loginKisi.child = aday.child || 0;
+    loginKisi.baby = aday.baby || 0;
+    const ya = document.getElementById('k-adult');
+    const yc = document.getElementById('k-child');
+    const yb = document.getElementById('k-baby');
+    if(ya) ya.textContent = loginKisi.adult;
+    if(yc) yc.textContent = loginKisi.child;
+    if(yb) yb.textContent = loginKisi.baby;
+  }
+
+  // Ek yolcu isim alanlarını oluştur ve manifest'tekilerle doldur
+  if(typeof updateEkYolcuFields === 'function'){
+    updateEkYolcuFields();
+    // Manifest'teki ek isimleri ek alanlara yerleştir
+    setTimeout(() => {
+      if(aday.ekstra_isimler && aday.ekstra_isimler.length){
+        const ekInputs = document.querySelectorAll('#ek-yolcu-isimleri input[type="text"]');
+        aday.ekstra_isimler.forEach((isim, idx) => {
+          if(ekInputs[idx] && !ekInputs[idx].value.trim()) ekInputs[idx].value = isim;
+        });
+      }
+    }, 100);
+  }
+
+  // Giriş butonu kontrolünü tetikle (Ad zaten dolu olduğu için diğer alanları kontrol etsin)
+  if(typeof checkFormFilled === 'function') checkFormFilled();
+}
 
 function emailKontrol(){
   // E-posta yazıldıysa pazarlama izni satırını göster, yoksa gizle
