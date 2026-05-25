@@ -16610,6 +16610,9 @@ function tkWhatsappGonder(kabin, sefer, tid){
   const rehberAdi = (CU && CU.name) ? CU.name : 
                     (v && v.guide && USERS[v.guide]) ? USERS[v.guide].name : 
                     'Rehberiniz';
+  // Rehber telefonu (acil iletişim için)
+  const rehberTel = (CU && CU.tel) ? CU.tel :
+                    (v && v.guide && USERS[v.guide]?.tel) ? USERS[v.guide].tel : '';
   
   // Yolcunun ilk adı (samimi hitap için)
   const ilkAd = (p.name || '').split(' ')[0] || p.name || '';
@@ -16628,10 +16631,26 @@ function tkWhatsappGonder(kabin, sefer, tid){
   satirlar.push('• Tur: ' + t.name);
   if(t.liman) satirlar.push('• 📍 Liman / Toplanma Noktası: ' + t.liman);
   if(t.saat) satirlar.push('• ⏰ Toplanma Saati: ' + t.saat);
-  if(t.gun) satirlar.push('• 📅 Gün: ' + t.gun + '. Gün');
   satirlar.push('');
   satirlar.push('🛏️ *Kabin No:* ' + (p.kabin || '—'));
+  satirlar.push('👥 *Kişi Sayısı:* ' + toplam + ' kişi');
   satirlar.push('');
+  satirlar.push('━━━━━━━━━━━━━━━━━━');
+  satirlar.push('');
+  satirlar.push('📱 *QR Biletinize Erişim*');
+  satirlar.push('Uygulamada turunuzu açın → QR biletinizi gösterin');
+  satirlar.push('Rehber kontrol için QR\'yi tarayacak.');
+  satirlar.push('');
+  satirlar.push('🌐 *Uygulamaya Gir*');
+  satirlar.push('👉 https://voyago-ebon.vercel.app');
+  satirlar.push('Kabin no ile giriş yapın.');
+  satirlar.push('');
+  if(rehberTel){
+    satirlar.push('📞 *Acil İletişim*');
+    satirlar.push('Tur günü herhangi bir sorun olursa:');
+    satirlar.push(rehberTel);
+    satirlar.push('');
+  }
   satirlar.push('━━━━━━━━━━━━━━━━━━');
   satirlar.push('');
   satirlar.push('⚠️ Tura katılmama durumunda ücret iadesi yapılmaz.');
@@ -17173,14 +17192,16 @@ function turAlmayanMesajOlustur(p){
   satirlar.push('📍 Henüz herhangi bir tura katılmadığınızı gördüm.');
   satirlar.push('Uğradığımız limanlarda *kaçırılmaması gereken* deneyimler var:');
   satirlar.push('');
-  satirlar.push('🏛️ Tarihi turlar (Atina, Efes, Mikonos antik kenti...)');
-  satirlar.push('🏖️ Ada turları (Santorini, Mikonos, Rodos...)');
+  satirlar.push('🏛️ Tarihi turlar (Atina, Rodos, Girit)');
+  satirlar.push('🏖️ Ada turları (Santorini, Mikonos)');
   satirlar.push('🍷 Şarap & gastronomi turları');
-  satirlar.push('🚌 Konforlu otobüs + uzman rehber eşliğinde');
   satirlar.push('');
-  satirlar.push('✨ Detaylı bilgi ve rezervasyon için');
-  satirlar.push('bana yazabilir veya uygulamadan tur listesine');
-  satirlar.push('göz atabilirsiniz.');
+  satirlar.push('✨ Detaylı bilgi için bana yazabilir veya');
+  satirlar.push('uygulamadan tur listesine göz atabilirsiniz.');
+  satirlar.push('');
+  satirlar.push('🎟️ Direkt yer ayırtmak istiyorsanız');
+  satirlar.push('uygulamadan hemen rezervasyon yapabilirsiniz:');
+  satirlar.push('👉 https://voyago-ebon.vercel.app');
   satirlar.push('');
   satirlar.push('⏰ Bazı turlar limitli kontenjanlı,');
   satirlar.push('yer ayırtmak için acele edin!');
@@ -17333,12 +17354,16 @@ async function turAlmayanTopluWA(){
   lines.push('📍 Henüz herhangi bir tura katılmadığınızı gördüm.');
   lines.push('Uğradığımız limanlarda *kaçırılmaması gereken* deneyimler var:');
   lines.push('');
-  lines.push('🏛️ Tarihi turlar (Atina, Efes, Mikonos antik kenti...)');
-  lines.push('🏖️ Ada turları (Santorini, Mikonos, Rodos...)');
+  lines.push('🏛️ Tarihi turlar (Atina, Rodos, Girit)');
+  lines.push('🏖️ Ada turları (Santorini, Mikonos)');
   lines.push('🍷 Şarap & gastronomi turları');
   lines.push('');
   lines.push('✨ Detaylı bilgi için bana yazabilir veya');
   lines.push('uygulamadan tur listesine göz atabilirsiniz.');
+  lines.push('');
+  lines.push('🎟️ Direkt yer ayırtmak istiyorsanız');
+  lines.push('uygulamadan hemen rezervasyon yapabilirsiniz:');
+  lines.push('👉 https://voyago-ebon.vercel.app');
   lines.push('');
   lines.push('⏰ Bazı turlar limitli kontenjanlı,');
   lines.push('yer ayırtmak için acele edin!');
