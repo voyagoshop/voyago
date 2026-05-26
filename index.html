@@ -10837,31 +10837,45 @@ function manifestYukleAc(){
       <!-- Adım 1: Dosya yükle -->
       <div id="manifest-adim1" style="background:#f0fdf4;border:1.5px dashed #86efac;border-radius:12px;padding:16px;text-align:center;margin-bottom:12px;">
         <div style="font-size:36px;margin-bottom:8px;">📷</div>
-        <div style="font-size:13px;font-weight:600;color:#15803d;margin-bottom:4px;">Liste fotoğrafını seçin</div>
+        <div style="font-size:13px;font-weight:600;color:#15803d;margin-bottom:4px;">Yolcu listesini yükleyin</div>
         <div style="font-size:11px;color:#666;margin-bottom:10px;line-height:1.5;">
-          • 1 veya daha fazla sayfa yükleyebilirsiniz<br>
-          • Galeriden seçebilir veya kamerayla çekebilirsiniz<br>
-          • JPG, PNG, WEBP, PDF destekli
+          • <b>Excel (önerilen)</b> — anında, ücretsiz, %100 doğru<br>
+          • Galeri/Fotoğraf — AI tarar (~5 cent/sayfa)<br>
+          • Kamera — yeni çekim (AI tarar)
         </div>
 
-        <!-- Gizli input — galeriden / dosyadan seçim -->
+        <!-- Gizli inputlar -->
         <input type="file" id="manifest-file" accept="image/*" multiple style="display:none;"
           onchange="manifestDosyaSecildi()">
-        <!-- Gizli input — kameradan çekim -->
         <input type="file" id="manifest-file-kamera" accept="image/*" multiple capture="environment" style="display:none;"
           onchange="manifestKameraSecildi()">
+        <input type="file" id="manifest-file-excel" accept=".xlsx,.xls,.csv" style="display:none;"
+          onchange="manifestExcelSecildi()">
 
-        <!-- 2 büyük buton -->
+        <!-- 3 büyük buton -->
         <div style="display:flex;gap:6px;">
+          <button onclick="document.getElementById('manifest-file-excel').click()" 
+            style="flex:1;padding:14px 8px;background:linear-gradient(135deg,#0f6e56,#1D9E75);color:white;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;position:relative;">
+            <div style="position:absolute;top:-7px;right:-4px;background:#fbbf24;color:#1a1a1a;font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px;">ÖNERİLEN</div>
+            <span style="font-size:24px;">📊</span>
+            <span>Excel<br>Yükle</span>
+          </button>
           <button onclick="document.getElementById('manifest-file').click()" 
-            style="flex:1;padding:14px 10px;background:white;color:#16a34a;border:1.5px solid #16a34a;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;">
+            style="flex:1;padding:14px 8px;background:white;color:#16a34a;border:1.5px solid #16a34a;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;">
             <span style="font-size:24px;">🖼️</span>
-            <span>Galeri / Dosya</span>
+            <span>Galeri /<br>Fotoğraf</span>
           </button>
           <button onclick="document.getElementById('manifest-file-kamera').click()" 
-            style="flex:1;padding:14px 10px;background:white;color:#16a34a;border:1.5px solid #16a34a;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;">
+            style="flex:1;padding:14px 8px;background:white;color:#16a34a;border:1.5px solid #16a34a;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;">
             <span style="font-size:24px;">📷</span>
-            <span>Kamera ile Çek</span>
+            <span>Kamera<br>ile Çek</span>
+          </button>
+        </div>
+
+        <!-- Şablon indir -->
+        <div style="text-align:center;margin-top:8px;">
+          <button onclick="manifestSablonIndir()" style="background:transparent;border:none;color:#0f6e56;font-size:11px;font-weight:600;cursor:pointer;text-decoration:underline;font-family:'DM Sans',sans-serif;">
+            📥 Excel şablonu indir
           </button>
         </div>
 
@@ -10870,9 +10884,9 @@ function manifestYukleAc(){
 
         <button onclick="manifestTara()" id="manifest-tara-btn" disabled
           style="width:100%;margin-top:10px;padding:11px;background:#d1d5db;color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:not-allowed;font-family:'DM Sans',sans-serif;">
-          🤖 AI ile Tara (~10 saniye)
+          📋 Listeyi İşle
         </button>
-        <div style="font-size:10px;color:#888;margin-top:8px;">💡 Maliyet: ~5 cent per sayfa (gpt-4o-mini)</div>
+        <div id="manifest-tara-not" style="font-size:10px;color:#888;margin-top:8px;display:none;">💡 Maliyet: ~5 cent per sayfa (AI ile tarama)</div>
       </div>
 
       <!-- Adım 2: Yükleniyor (gizli) -->
@@ -10980,11 +10994,15 @@ Format:
 
 // Seçilen dosyaları sakla (galeri + kamera birleştirilebilir)
 let _manifestSecilenDosyalar = [];
+let _manifestExcelFile = null;
+let _manifestMod = 'gorsel'; // 'gorsel' veya 'excel'
 
 function manifestDosyaSecildi(){
   const inp = document.getElementById('manifest-file');
   const yeniler = Array.from(inp?.files || []);
   if(yeniler.length){
+    _manifestMod = 'gorsel';
+    _manifestExcelFile = null;
     _manifestSecilenDosyalar = _manifestSecilenDosyalar.concat(yeniler);
     manifestDosyaListesiGuncelle();
   }
@@ -10994,39 +11012,88 @@ function manifestKameraSecildi(){
   const inp = document.getElementById('manifest-file-kamera');
   const yeniler = Array.from(inp?.files || []);
   if(yeniler.length){
+    _manifestMod = 'gorsel';
+    _manifestExcelFile = null;
     _manifestSecilenDosyalar = _manifestSecilenDosyalar.concat(yeniler);
     manifestDosyaListesiGuncelle();
   }
 }
 
+// 📊 EXCEL DOSYASI SEÇİLDİ
+function manifestExcelSecildi(){
+  const inp = document.getElementById('manifest-file-excel');
+  const file = inp?.files?.[0];
+  if(!file) return;
+
+  _manifestMod = 'excel';
+  _manifestSecilenDosyalar = []; // Görsel listeyi temizle
+  _manifestExcelFile = file;
+  manifestDosyaListesiGuncelle();
+}
+
 function manifestDosyaListesiGuncelle(){
   const el = document.getElementById('manifest-secilen-dosyalar');
   const btn = document.getElementById('manifest-tara-btn');
+  const not = document.getElementById('manifest-tara-not');
   if(!el) return;
-  if(!_manifestSecilenDosyalar.length){
+
+  const var_mi = _manifestMod === 'excel' ? !!_manifestExcelFile : _manifestSecilenDosyalar.length > 0;
+
+  if(!var_mi){
     el.style.display = 'none';
     if(btn){
       btn.disabled = true;
       btn.style.background = '#d1d5db';
       btn.style.cursor = 'not-allowed';
+      btn.innerHTML = '📋 Listeyi İşle';
     }
+    if(not) not.style.display = 'none';
     return;
   }
+
   el.style.display = 'block';
-  el.innerHTML = `
-    <div style="font-weight:600;margin-bottom:6px;">📎 ${_manifestSecilenDosyalar.length} dosya seçildi:</div>
-    ${_manifestSecilenDosyalar.map((f, i) => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:white;border:1px solid #e5e7eb;border-radius:6px;margin-bottom:3px;">
-        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;color:#1a1a1a;">${escapeHTML(f.name)} <span style="color:#999;">(${(f.size/1024).toFixed(0)} KB)</span></span>
-        <button onclick="manifestDosyaSil(${i})" title="Bu dosyayı kaldır" style="background:transparent;border:none;color:#dc2626;cursor:pointer;padding:2px 6px;font-size:14px;">✕</button>
+
+  if(_manifestMod === 'excel'){
+    // Excel modu
+    const f = _manifestExcelFile;
+    el.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:#dcfce7;border:1.5px solid #16a34a;border-radius:8px;">
+        <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
+          <span style="font-size:20px;">📊</span>
+          <div style="min-width:0;flex:1;">
+            <div style="font-weight:700;color:#15803d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(f.name)}</div>
+            <div style="color:#666;font-size:10px;">${(f.size/1024).toFixed(0)} KB · Excel/CSV</div>
+          </div>
+        </div>
+        <button onclick="manifestDosyalariTemizle()" title="Kaldır" style="background:transparent;border:none;color:#dc2626;cursor:pointer;padding:4px 8px;font-size:16px;">✕</button>
       </div>
-    `).join('')}
-    <button onclick="manifestDosyalariTemizle()" style="margin-top:4px;background:transparent;border:none;color:#dc2626;font-size:11px;cursor:pointer;text-decoration:underline;font-family:'DM Sans',sans-serif;">Hepsini temizle</button>
-  `;
-  if(btn){
-    btn.disabled = false;
-    btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
-    btn.style.cursor = 'pointer';
+    `;
+    if(btn){
+      btn.disabled = false;
+      btn.style.background = 'linear-gradient(135deg,#0f6e56,#1D9E75)';
+      btn.style.cursor = 'pointer';
+      btn.innerHTML = '📊 Excel\'i İşle';
+    }
+    if(not) not.style.display = 'none';
+  } else {
+    // Görsel modu
+    el.innerHTML = `
+      <div style="font-weight:600;margin-bottom:6px;">📎 ${_manifestSecilenDosyalar.length} dosya seçildi:</div>
+      ${_manifestSecilenDosyalar.map((f, i) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:white;border:1px solid #e5e7eb;border-radius:6px;margin-bottom:3px;">
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;color:#1a1a1a;">${escapeHTML(f.name)} <span style="color:#999;">(${(f.size/1024).toFixed(0)} KB)</span></span>
+          <button onclick="manifestDosyaSil(${i})" title="Bu dosyayı kaldır" style="background:transparent;border:none;color:#dc2626;cursor:pointer;padding:2px 6px;font-size:14px;">✕</button>
+        </div>
+      `).join('')}
+      <button onclick="manifestDosyalariTemizle()" style="margin-top:4px;background:transparent;border:none;color:#dc2626;font-size:11px;cursor:pointer;text-decoration:underline;font-family:'DM Sans',sans-serif;">Hepsini temizle</button>
+    `;
+    if(btn){
+      btn.disabled = false;
+      btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
+      btn.style.cursor = 'pointer';
+      btn.innerHTML = '🤖 AI ile Tara (~10 saniye)';
+    }
+    if(not) not.style.display = 'block';
   }
 }
 
@@ -11037,11 +11104,125 @@ function manifestDosyaSil(idx){
 
 function manifestDosyalariTemizle(){
   _manifestSecilenDosyalar = [];
+  _manifestExcelFile = null;
   const inp1 = document.getElementById('manifest-file');
   const inp2 = document.getElementById('manifest-file-kamera');
+  const inp3 = document.getElementById('manifest-file-excel');
   if(inp1) inp1.value = '';
   if(inp2) inp2.value = '';
+  if(inp3) inp3.value = '';
   manifestDosyaListesiGuncelle();
+}
+
+// 📥 EXCEL ŞABLON İNDİR
+function manifestSablonIndir(){
+  if(typeof XLSX === 'undefined'){
+    showToast('⚠️ XLSX kütüphanesi yüklenmemiş');
+    return;
+  }
+  const data = [
+    ['SOYAD', 'AD', 'KABİN', 'CİNSİYET', 'DOĞUM TARİHİ', 'TELEFON'],
+    ['KARA', 'ESIN', '4158', 'F', '06/08/1985', ''],
+    ['KARA', 'MUSTAFA EFE', '4158', 'M', '04/09/2015', ''],
+    ['KOCER', 'AYKUT', '4250', 'M', '11/12/1990', ''],
+    ['OZCETIN', 'BIRBEN', '4250', 'F', '10/11/1992', ''],
+    ['', '', '', '', '', ''],
+    ['', '', '', '', '', ''],
+    ['NOT: SOYAD, AD ve KABİN zorunludur. Diğerleri opsiyonel.', '', '', '', '', ''],
+    ['Aynı kabinde birden fazla kişi olabilir (aile)', '', '', '', '', ''],
+    ['Cinsiyet: M veya F. Doğum tarihi: GG/AA/YYYY veya boş', '', '', '', '', ''],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  // Kolon genişlikleri
+  ws['!cols'] = [
+    { wch: 20 }, // SOYAD
+    { wch: 25 }, // AD
+    { wch: 12 }, // KABİN
+    { wch: 10 }, // CİNSİYET
+    { wch: 15 }, // DOĞUM
+    { wch: 18 }, // TELEFON
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Yolcular');
+  XLSX.writeFile(wb, 'VOYAGO_Manifest_Sablon.xlsx');
+  showToast('✓ Şablon indirildi');
+}
+
+// 📊 EXCEL DOSYASINI OKU
+async function _manifestExcelOku(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        resolve(rows);
+      } catch(err) {
+        reject(err);
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// Kolon başlıklarını otomatik eşleştir (Türkçe + İngilizce)
+function _manifestKolonEslestir(basliklar){
+  const map = {
+    soyad: -1,
+    ad: -1,
+    kabin: -1,
+    cinsiyet: -1,
+    dogum: -1,
+    tel: -1
+  };
+  basliklar.forEach((h, idx) => {
+    const t = String(h || '').toLowerCase().trim()
+      .replace(/[İıi̇]/g, 'i').replace(/[şŞ]/g, 's').replace(/[ğĞ]/g, 'g')
+      .replace(/[üÜ]/g, 'u').replace(/[öÖ]/g, 'o').replace(/[çÇ]/g, 'c');
+
+    if(map.soyad < 0 && (t.includes('soyad') || t.includes('last') || t === 'surname')) map.soyad = idx;
+    else if(map.ad < 0 && (t === 'ad' || t === 'isim' || t === 'ısım' || t.includes('first') || t.includes('name') && !t.includes('last') && !t.includes('soyad'))) map.ad = idx;
+    else if(map.kabin < 0 && (t.includes('kabin') || t.includes('kabın') || t.includes('cabin') || t === 'oda' || t === 'room')) map.kabin = idx;
+    else if(map.cinsiyet < 0 && (t.includes('cinsiyet') || t === 'sex' || t === 'gender' || t === 'c' || t === 'cins')) map.cinsiyet = idx;
+    else if(map.dogum < 0 && (t.includes('dogum') || t.includes('birth') || t === 'dob' || t.includes('tarih'))) map.dogum = idx;
+    else if(map.tel < 0 && (t.includes('telefon') || t.includes('phone') || t.includes('tel') || t.includes('whatsapp'))) map.tel = idx;
+  });
+  return map;
+}
+
+// Yaş grubunu doğum tarihinden hesapla
+function _manifestYasGrubu(dogumStr){
+  if(!dogumStr) return 'yetiskin';
+  const s = String(dogumStr).trim();
+  if(!s) return 'yetiskin';
+  // Excel date number olabilir
+  let yil = null;
+  if(/^\d{5}$/.test(s)){
+    // Excel serial date
+    const ms = (parseInt(s) - 25569) * 86400 * 1000;
+    yil = new Date(ms).getFullYear();
+  } else {
+    // GG/AA/YYYY veya YYYY-MM-DD veya benzeri
+    const yilMatch = s.match(/(\d{4})/);
+    if(yilMatch){
+      yil = parseInt(yilMatch[1]);
+    } else {
+      // 06/08/19 → 2-haneli yıl
+      const son = s.match(/(\d{2})$/);
+      if(son){
+        let y = parseInt(son[1]);
+        yil = y > 30 ? 1900 + y : 2000 + y;
+      }
+    }
+  }
+  if(!yil || yil < 1900 || yil > 2030) return 'yetiskin';
+  const yas = new Date().getFullYear() - yil;
+  if(yas < 2) return 'bebek';
+  if(yas < 18) return 'cocuk';
+  return 'yetiskin';
 }
 
 // Ana tarama akışı
@@ -11049,19 +11230,107 @@ async function manifestTara(){
   const seferSel = document.getElementById('manifest-sefer-sel');
   if(seferSel) _manifestSefer = seferSel.value;
 
-  // Galeri ve kamera input'larından gelenleri birleştir
-  const files = _manifestSecilenDosyalar;
-  if(!files.length){
-    showToast('⚠️ Lütfen en az bir görsel seçin');
+  document.getElementById('manifest-adim1').style.display = 'none';
+  document.getElementById('manifest-adim2').style.display = 'block';
+  const yukleniyorMesaj = document.getElementById('manifest-yukleniyor-mesaj');
+  const ilerleme = document.getElementById('manifest-yukleniyor-ilerleme');
+
+  _manifestResults = [];
+
+  // === EXCEL MODU ===
+  if(_manifestMod === 'excel'){
+    if(!_manifestExcelFile){
+      showToast('⚠️ Excel dosyası seçilmedi');
+      document.getElementById('manifest-adim1').style.display = 'block';
+      document.getElementById('manifest-adim2').style.display = 'none';
+      return;
+    }
+    if(typeof XLSX === 'undefined'){
+      showToast('⚠️ XLSX kütüphanesi yüklenemedi');
+      document.getElementById('manifest-adim1').style.display = 'block';
+      document.getElementById('manifest-adim2').style.display = 'none';
+      return;
+    }
+
+    if(yukleniyorMesaj) yukleniyorMesaj.textContent = '📊 Excel okunuyor...';
+    if(ilerleme) ilerleme.textContent = '';
+
+    try {
+      const rows = await _manifestExcelOku(_manifestExcelFile);
+      if(!rows.length){ throw new Error('Excel boş'); }
+
+      // İlk satır başlık (kolonları otomatik tespit et)
+      const basliklar = rows[0];
+      const kolonMap = _manifestKolonEslestir(basliklar);
+
+      // Eğer kolonlar tespit edilemedi → uyarı
+      if(kolonMap.kabin < 0){
+        throw new Error('KABİN kolonu bulunamadı. Başlık satırında "KABİN" veya "CABIN" olmalı.');
+      }
+
+      console.log('[EXCEL] Kolon eşlemesi:', kolonMap);
+
+      // Diğer satırları işle
+      for(let i = 1; i < rows.length; i++){
+        const r = rows[i];
+        if(!r || r.every(c => !c)) continue; // Boş satır atla
+
+        const kabin = String(r[kolonMap.kabin] || '').trim();
+        if(!kabin) continue; // Kabin yoksa atla
+        if(kabin.toLowerCase().includes('not:') || kabin.toLowerCase().includes('aynı kabinde')) continue; // Not satırları
+
+        const soyad = kolonMap.soyad >= 0 ? String(r[kolonMap.soyad] || '').trim() : '';
+        const ad = kolonMap.ad >= 0 ? String(r[kolonMap.ad] || '').trim() : '';
+        const cinsiyet = kolonMap.cinsiyet >= 0 ? String(r[kolonMap.cinsiyet] || '').trim().toUpperCase().charAt(0) : '';
+        const dogum = kolonMap.dogum >= 0 ? String(r[kolonMap.dogum] || '').trim() : '';
+        const tel = kolonMap.tel >= 0 ? String(r[kolonMap.tel] || '').trim() : '';
+
+        // Ad veya soyad yoksa atla
+        if(!ad && !soyad) continue;
+
+        _manifestResults.push({
+          soyad: soyad,
+          ad: ad,
+          kabin: kabin,
+          cinsiyet: cinsiyet || '',
+          dogum: dogum,
+          yas_grubu: _manifestYasGrubu(dogum),
+          tel: tel
+        });
+      }
+    } catch(e) {
+      console.error('Excel okuma hata:', e);
+      showToast('⚠️ Excel okunamadı: ' + e.message);
+      document.getElementById('manifest-adim1').style.display = 'block';
+      document.getElementById('manifest-adim2').style.display = 'none';
+      return;
+    }
+
+    document.getElementById('manifest-adim2').style.display = 'none';
+
+    if(!_manifestResults.length){
+      showToast('❌ Excel\'den kayıt çıkarılamadı. Şablon ile karşılaştırın.');
+      document.getElementById('manifest-adim1').style.display = 'block';
+      return;
+    }
+
+    showToast('✓ ' + _manifestResults.length + ' yolcu bulundu');
+    manifestSonucGoster();
     return;
   }
 
-  document.getElementById('manifest-adim1').style.display = 'none';
-  document.getElementById('manifest-adim2').style.display = 'block';
-  const ilerleme = document.getElementById('manifest-yukleniyor-ilerleme');
-  ilerleme.textContent = '0 / ' + files.length + ' sayfa';
+  // === GÖRSEL MODU (AI) ===
+  const files = _manifestSecilenDosyalar;
+  if(!files.length){
+    showToast('⚠️ Lütfen en az bir dosya seçin');
+    document.getElementById('manifest-adim1').style.display = 'block';
+    document.getElementById('manifest-adim2').style.display = 'none';
+    return;
+  }
 
-  _manifestResults = [];
+  if(yukleniyorMesaj) yukleniyorMesaj.textContent = '🤖 AI sayfaları okuyor...';
+  if(ilerleme) ilerleme.textContent = '0 / ' + files.length + ' sayfa';
+
   let hataSayisi = 0;
 
   for(let i = 0; i < files.length; i++){
@@ -11163,11 +11432,14 @@ function manifestTekrarTara(){
   document.getElementById('manifest-adim1').style.display = 'block';
   _manifestResults = [];
   _manifestSecilenDosyalar = [];
+  _manifestExcelFile = null;
   manifestDosyaListesiGuncelle();
   const inp1 = document.getElementById('manifest-file');
   const inp2 = document.getElementById('manifest-file-kamera');
+  const inp3 = document.getElementById('manifest-file-excel');
   if(inp1) inp1.value = '';
   if(inp2) inp2.value = '';
+  if(inp3) inp3.value = '';
 }
 
 // Kabinleri sisteme ekle
@@ -11214,7 +11486,8 @@ async function manifestKaydet(){
       const yeniYolcu = {
         name: `${ana.ad||''} ${ana.soyad||''}`.trim(),
         kabin: kabin,
-        tel: '', // Boş — check-in'de doldurulacak
+        // Excel'den telefon gelmişse kullan, yoksa boş (check-in'de doldurulacak)
+        tel: ana.tel || '',
         email: '',
         sefer: _manifestSefer,
         adult: y, child: c, baby: b,
