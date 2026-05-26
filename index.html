@@ -10840,12 +10840,36 @@ function manifestYukleAc(){
         <div style="font-size:13px;font-weight:600;color:#15803d;margin-bottom:4px;">Liste fotoğrafını seçin</div>
         <div style="font-size:11px;color:#666;margin-bottom:10px;line-height:1.5;">
           • 1 veya daha fazla sayfa yükleyebilirsiniz<br>
-          • Telefonun kamerası ile yeni çekim de yapabilirsiniz<br>
-          • JPG, PNG, WEBP destekli
+          • Galeriden seçebilir veya kamerayla çekebilirsiniz<br>
+          • JPG, PNG, WEBP, PDF destekli
         </div>
-        <input type="file" id="manifest-file" accept="image/*" multiple capture="environment"
-          style="width:100%;padding:8px;border:1.5px solid #16a34a;border-radius:8px;font-size:12px;background:white;cursor:pointer;">
-        <button onclick="manifestTara()" style="width:100%;margin-top:10px;padding:11px;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+
+        <!-- Gizli input — galeriden / dosyadan seçim -->
+        <input type="file" id="manifest-file" accept="image/*" multiple style="display:none;"
+          onchange="manifestDosyaSecildi()">
+        <!-- Gizli input — kameradan çekim -->
+        <input type="file" id="manifest-file-kamera" accept="image/*" multiple capture="environment" style="display:none;"
+          onchange="manifestKameraSecildi()">
+
+        <!-- 2 büyük buton -->
+        <div style="display:flex;gap:6px;">
+          <button onclick="document.getElementById('manifest-file').click()" 
+            style="flex:1;padding:14px 10px;background:white;color:#16a34a;border:1.5px solid #16a34a;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <span style="font-size:24px;">🖼️</span>
+            <span>Galeri / Dosya</span>
+          </button>
+          <button onclick="document.getElementById('manifest-file-kamera').click()" 
+            style="flex:1;padding:14px 10px;background:white;color:#16a34a;border:1.5px solid #16a34a;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <span style="font-size:24px;">📷</span>
+            <span>Kamera ile Çek</span>
+          </button>
+        </div>
+
+        <!-- Seçilen dosyalar gösterimi -->
+        <div id="manifest-secilen-dosyalar" style="margin-top:10px;font-size:11px;color:#15803d;text-align:left;display:none;"></div>
+
+        <button onclick="manifestTara()" id="manifest-tara-btn" disabled
+          style="width:100%;margin-top:10px;padding:11px;background:#d1d5db;color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:not-allowed;font-family:'DM Sans',sans-serif;">
           🤖 AI ile Tara (~10 saniye)
         </button>
         <div style="font-size:10px;color:#888;margin-top:8px;">💡 Maliyet: ~5 cent per sayfa (gpt-4o-mini)</div>
@@ -10876,6 +10900,7 @@ function manifestKapat(){
   const m = document.getElementById('manifest-modal');
   if(m) m.remove();
   _manifestResults = [];
+  _manifestSecilenDosyalar = [];
 }
 
 // Görseli base64'e çevir
@@ -10953,13 +10978,79 @@ Format:
   }
 }
 
+// Seçilen dosyaları sakla (galeri + kamera birleştirilebilir)
+let _manifestSecilenDosyalar = [];
+
+function manifestDosyaSecildi(){
+  const inp = document.getElementById('manifest-file');
+  const yeniler = Array.from(inp?.files || []);
+  if(yeniler.length){
+    _manifestSecilenDosyalar = _manifestSecilenDosyalar.concat(yeniler);
+    manifestDosyaListesiGuncelle();
+  }
+}
+
+function manifestKameraSecildi(){
+  const inp = document.getElementById('manifest-file-kamera');
+  const yeniler = Array.from(inp?.files || []);
+  if(yeniler.length){
+    _manifestSecilenDosyalar = _manifestSecilenDosyalar.concat(yeniler);
+    manifestDosyaListesiGuncelle();
+  }
+}
+
+function manifestDosyaListesiGuncelle(){
+  const el = document.getElementById('manifest-secilen-dosyalar');
+  const btn = document.getElementById('manifest-tara-btn');
+  if(!el) return;
+  if(!_manifestSecilenDosyalar.length){
+    el.style.display = 'none';
+    if(btn){
+      btn.disabled = true;
+      btn.style.background = '#d1d5db';
+      btn.style.cursor = 'not-allowed';
+    }
+    return;
+  }
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div style="font-weight:600;margin-bottom:6px;">📎 ${_manifestSecilenDosyalar.length} dosya seçildi:</div>
+    ${_manifestSecilenDosyalar.map((f, i) => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:white;border:1px solid #e5e7eb;border-radius:6px;margin-bottom:3px;">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;color:#1a1a1a;">${escapeHTML(f.name)} <span style="color:#999;">(${(f.size/1024).toFixed(0)} KB)</span></span>
+        <button onclick="manifestDosyaSil(${i})" title="Bu dosyayı kaldır" style="background:transparent;border:none;color:#dc2626;cursor:pointer;padding:2px 6px;font-size:14px;">✕</button>
+      </div>
+    `).join('')}
+    <button onclick="manifestDosyalariTemizle()" style="margin-top:4px;background:transparent;border:none;color:#dc2626;font-size:11px;cursor:pointer;text-decoration:underline;font-family:'DM Sans',sans-serif;">Hepsini temizle</button>
+  `;
+  if(btn){
+    btn.disabled = false;
+    btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
+    btn.style.cursor = 'pointer';
+  }
+}
+
+function manifestDosyaSil(idx){
+  _manifestSecilenDosyalar.splice(idx, 1);
+  manifestDosyaListesiGuncelle();
+}
+
+function manifestDosyalariTemizle(){
+  _manifestSecilenDosyalar = [];
+  const inp1 = document.getElementById('manifest-file');
+  const inp2 = document.getElementById('manifest-file-kamera');
+  if(inp1) inp1.value = '';
+  if(inp2) inp2.value = '';
+  manifestDosyaListesiGuncelle();
+}
+
 // Ana tarama akışı
 async function manifestTara(){
   const seferSel = document.getElementById('manifest-sefer-sel');
   if(seferSel) _manifestSefer = seferSel.value;
 
-  const inp = document.getElementById('manifest-file');
-  const files = Array.from(inp?.files || []);
+  // Galeri ve kamera input'larından gelenleri birleştir
+  const files = _manifestSecilenDosyalar;
   if(!files.length){
     showToast('⚠️ Lütfen en az bir görsel seçin');
     return;
@@ -11071,8 +11162,12 @@ function manifestTekrarTara(){
   document.getElementById('manifest-adim3').style.display = 'none';
   document.getElementById('manifest-adim1').style.display = 'block';
   _manifestResults = [];
-  const inp = document.getElementById('manifest-file');
-  if(inp) inp.value = '';
+  _manifestSecilenDosyalar = [];
+  manifestDosyaListesiGuncelle();
+  const inp1 = document.getElementById('manifest-file');
+  const inp2 = document.getElementById('manifest-file-kamera');
+  if(inp1) inp1.value = '';
+  if(inp2) inp2.value = '';
 }
 
 // Kabinleri sisteme ekle
