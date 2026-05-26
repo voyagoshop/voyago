@@ -3517,19 +3517,9 @@ function populateSeferler(){
     return;
   }
 
-  // Seferleri etiketle: AKTİF / YAKLAŞAN
+  // Seferleri listele — sadece sefer adı (sıralama akıllı kalır)
   s.innerHTML = visible.map(v => {
-    const bas = _seferBaslangicDate(v);
-    const bit = _seferBitisDate(v);
-    let etiket = '';
-    if(bas && bit){
-      if(bas <= bugun && bit >= bugun) etiket = '🟢 AKTİF · ';
-      else if(bas > bugun){
-        const gunFarki = Math.ceil((bas - bugun) / (1000*60*60*24));
-        if(gunFarki <= 7) etiket = '🟡 ' + gunFarki + ' gün sonra · ';
-      }
-    }
-    return `<option value="${v.id}">${etiket}${escapeHTML(v.label)} — ${escapeHTML(v.ship)}</option>`;
+    return `<option value="${v.id}">${escapeHTML(v.label)} — ${escapeHTML(v.ship)}</option>`;
   }).join('');
 }
 populateSeferler();
