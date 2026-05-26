@@ -11198,28 +11198,51 @@ function _manifestYasGrubu(dogumStr){
   if(!dogumStr) return 'yetiskin';
   const s = String(dogumStr).trim();
   if(!s) return 'yetiskin';
-  // Excel date number olabilir
-  let yil = null;
+
+  let dogumTarihi = null;
+
+  // Excel serial date number (5 haneli)
   if(/^\d{5}$/.test(s)){
-    // Excel serial date
     const ms = (parseInt(s) - 25569) * 86400 * 1000;
-    yil = new Date(ms).getFullYear();
+    dogumTarihi = new Date(ms);
   } else {
-    // GG/AA/YYYY veya YYYY-MM-DD veya benzeri
-    const yilMatch = s.match(/(\d{4})/);
-    if(yilMatch){
-      yil = parseInt(yilMatch[1]);
+    // DD/MM/YYYY (Türkçe/Celestyal formatı)
+    const ddMMyyyy = s.match(/^(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{4})$/);
+    // YYYY-MM-DD (ISO)
+    const yyyyMMdd = s.match(/^(\d{4})[\/\.\-](\d{1,2})[\/\.\-](\d{1,2})$/);
+    // DD/MM/YY (2-haneli yıl)
+    const ddMMyy = s.match(/^(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2})$/);
+
+    if(ddMMyyyy){
+      dogumTarihi = new Date(parseInt(ddMMyyyy[3]), parseInt(ddMMyyyy[2])-1, parseInt(ddMMyyyy[1]));
+    } else if(yyyyMMdd){
+      dogumTarihi = new Date(parseInt(yyyyMMdd[1]), parseInt(yyyyMMdd[2])-1, parseInt(yyyyMMdd[3]));
+    } else if(ddMMyy){
+      let y = parseInt(ddMMyy[3]);
+      y = y > 30 ? 1900 + y : 2000 + y;
+      dogumTarihi = new Date(y, parseInt(ddMMyy[2])-1, parseInt(ddMMyy[1]));
     } else {
-      // 06/08/19 → 2-haneli yıl
-      const son = s.match(/(\d{2})$/);
-      if(son){
-        let y = parseInt(son[1]);
-        yil = y > 30 ? 1900 + y : 2000 + y;
+      // Sadece yıl bulma fallback
+      const yilMatch = s.match(/(\d{4})/);
+      if(yilMatch){
+        dogumTarihi = new Date(parseInt(yilMatch[1]), 5, 15);
       }
     }
   }
-  if(!yil || yil < 1900 || yil > 2030) return 'yetiskin';
-  const yas = new Date().getFullYear() - yil;
+
+  if(!dogumTarihi || isNaN(dogumTarihi.getTime())) return 'yetiskin';
+
+  const yil = dogumTarihi.getFullYear();
+  if(yil < 1900 || yil > 2030) return 'yetiskin';
+
+  // Tam yaş hesabı (yıl + ay + gün)
+  const bugun = new Date();
+  let yas = bugun.getFullYear() - dogumTarihi.getFullYear();
+  const ayFarki = bugun.getMonth() - dogumTarihi.getMonth();
+  if(ayFarki < 0 || (ayFarki === 0 && bugun.getDate() < dogumTarihi.getDate())){
+    yas--;
+  }
+
   if(yas < 2) return 'bebek';
   if(yas < 18) return 'cocuk';
   return 'yetiskin';
@@ -11259,25 +11282,53 @@ async function manifestTara(){
       const rows = await _manifestExcelOku(_manifestExcelFile);
       if(!rows.length){ throw new Error('Excel boş'); }
 
-      // İlk satır başlık (kolonları otomatik tespit et)
-      const basliklar = rows[0];
-      const kolonMap = _manifestKolonEslestir(basliklar);
+      // 🧠 BAŞLIK SATIRINI OTOMATİK BUL
+      // İlk 20 satırı tara, en çok kolon eşleşen satır = başlık
+      let basliklarSatirIdx = -1;
+      let enIyiKolonMap = null;
+      let enIyiSkor = 0;
+      const aramaLimit = Math.min(20, rows.length);
 
-      // Eğer kolonlar tespit edilemedi → uyarı
-      if(kolonMap.kabin < 0){
-        throw new Error('KABİN kolonu bulunamadı. Başlık satırında "KABİN" veya "CABIN" olmalı.');
+      for(let i = 0; i < aramaLimit; i++){
+        const adayBasliklar = rows[i];
+        if(!adayBasliklar || adayBasliklar.every(c => !c)) continue;
+        const adayMap = _manifestKolonEslestir(adayBasliklar);
+        // Skor: tanınan kolon sayısı (kabin zorunlu)
+        let skor = 0;
+        if(adayMap.kabin >= 0) skor += 2; // Kabin zorunlu — fazla ağırlık
+        if(adayMap.soyad >= 0) skor += 1;
+        if(adayMap.ad >= 0) skor += 1;
+        if(adayMap.cinsiyet >= 0) skor += 1;
+        if(adayMap.dogum >= 0) skor += 1;
+        if(adayMap.tel >= 0) skor += 1;
+        if(skor > enIyiSkor){
+          enIyiSkor = skor;
+          enIyiKolonMap = adayMap;
+          basliklarSatirIdx = i;
+        }
       }
 
+      if(basliklarSatirIdx < 0 || !enIyiKolonMap || enIyiKolonMap.kabin < 0){
+        throw new Error('Başlık satırı bulunamadı. Excel\'de "KABİN" veya "CABIN" başlıklı kolon olmalı.');
+      }
+
+      const kolonMap = enIyiKolonMap;
+      console.log('[EXCEL] Başlık satır indeksi:', basliklarSatirIdx, '(skor:', enIyiSkor, ')');
+      console.log('[EXCEL] Başlıklar:', rows[basliklarSatirIdx]);
       console.log('[EXCEL] Kolon eşlemesi:', kolonMap);
 
-      // Diğer satırları işle
-      for(let i = 1; i < rows.length; i++){
+      // Başlık satırından SONRAKİ satırları işle
+      for(let i = basliklarSatirIdx + 1; i < rows.length; i++){
         const r = rows[i];
         if(!r || r.every(c => !c)) continue; // Boş satır atla
 
         const kabin = String(r[kolonMap.kabin] || '').trim();
         if(!kabin) continue; // Kabin yoksa atla
-        if(kabin.toLowerCase().includes('not:') || kabin.toLowerCase().includes('aynı kabinde')) continue; // Not satırları
+
+        // Kabin alanı sayı/numara olmalı — başlık veya not satırını atla
+        // "Cabin No", "KUS 26/05" gibi metinleri atla
+        if(!/^[A-Z0-9\-\.]+$/i.test(kabin)) continue;
+        if(kabin.toLowerCase().includes('cabin') || kabin.toLowerCase().includes('kabin')) continue;
 
         const soyad = kolonMap.soyad >= 0 ? String(r[kolonMap.soyad] || '').trim() : '';
         const ad = kolonMap.ad >= 0 ? String(r[kolonMap.ad] || '').trim() : '';
