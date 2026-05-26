@@ -3241,13 +3241,7 @@ const USERS = {
   elena:   {pass:'1234',role:'guide',name:'Elena Papadaki',ship:'Celestyal Discovery',initials:'EP',color:'#0f6e56',acente:'maviytur'},
 };
 
-let VOYAGES = [
-  {id:'29mar',label:'29 Mar - 5 Nis 2026',route:'Doha - Pire - Santorini - Safaga',ship:'Celestyal Journey',guide:'vasilis',status:'active',visible:true,startDate:'2026-03-29',endDate:'2026-04-05'},
-  {id:'5nis', label:'5 Nis - 12 Nis 2026', route:'Pire - Santorini - Rodos - Doha', ship:'Celestyal Journey',guide:'vasilis',status:'active',visible:false,startDate:'2026-04-05',endDate:'2026-04-12'},
-  {id:'12nis',label:'12 Nis - 19 Nis 2026',route:'Pire - Bari - Dubrovnik',         ship:'Celestyal Discovery',guide:'elena', status:'upcoming',visible:false,startDate:'2026-04-12',endDate:'2026-04-19'},
-  {id:'19nis',label:'19 Nis - 26 Nis 2026',route:'Doha - Muscat - Dubai',           ship:'Celestyal Discovery',guide:'elena', status:'upcoming',visible:false,startDate:'2026-04-19',endDate:'2026-04-26'},
-  {id:'jan26', label:'15 Oca - 22 Oca 2026',route:'Doha - Muscat - Dubai',          ship:'Celestyal Journey',guide:'vasilis',status:'archived',visible:false,startDate:'2026-01-15',endDate:'2026-01-22'},
-];
+let VOYAGES = [];
 
 let TOURS = [
   {id:'t1',name:'Atina Akropolis',liman:'Pire / Atina',saat:'09:00',gun:1,ap:72,cp:45,bp:0,ship:'Celestyal Journey',seferler:['29mar','5nis'],img:null},
@@ -3464,12 +3458,79 @@ function getDailyForSefer(sid){
 
 function populateSeferler(){
   const s=document.getElementById('lsf');
-  const visible=VOYAGES.filter(v=>v.visible===true&&v.status!=='archived');
+  if(!s) return;
+
+  // 🗓️ Tarih bazlı filtreleme + sıralama
+  const bugun = new Date();
+  bugun.setHours(0,0,0,0);
+
+  // Bitiş tarihinden Date objesi al (varsa)
+  function _seferBitisDate(v){
+    if(v.endDate){
+      const d = new Date(v.endDate);
+      if(!isNaN(d.getTime())) return d;
+    }
+    return null;
+  }
+  function _seferBaslangicDate(v){
+    if(v.startDate){
+      const d = new Date(v.startDate);
+      if(!isNaN(d.getTime())) return d;
+    }
+    return null;
+  }
+
+  // Görünür + arşivsiz tüm seferler
+  let visible = VOYAGES.filter(v => v.visible===true && v.status!=='archived');
+
+  // Eskileri filtrele (bitiş tarihi 3 günden eski olanlar)
+  const uzakGecmis = new Date(bugun);
+  uzakGecmis.setDate(uzakGecmis.getDate() - 3);
+
+  visible = visible.filter(v => {
+    const bitis = _seferBitisDate(v);
+    if(!bitis) return true; // Tarih bilgisi yoksa göster (eski test verisi olabilir, kullanıcı kararına bırak)
+    return bitis >= uzakGecmis; // Sadece 3 günden eski bitmiş olanları gizle
+  });
+
+  // Yaklaşan seferleri en üste, en yakın olanı ilk sıraya
+  visible.sort((a, b) => {
+    const aBas = _seferBaslangicDate(a);
+    const bBas = _seferBaslangicDate(b);
+    // Tarihsiz olanlar en sona
+    if(!aBas && !bBas) return 0;
+    if(!aBas) return 1;
+    if(!bBas) return -1;
+    // Şu an aktif olan sefer en üstte (başlangıç <= bugün <= bitiş)
+    const aAktif = aBas <= bugun && (_seferBitisDate(a) || aBas) >= bugun;
+    const bAktif = bBas <= bugun && (_seferBitisDate(b) || bBas) >= bugun;
+    if(aAktif && !bAktif) return -1;
+    if(!aAktif && bAktif) return 1;
+    // İkisi de aktif değilse: bugüne yakın olan üstte (geçmiş > gelecek)
+    const aGun = Math.abs(aBas - bugun);
+    const bGun = Math.abs(bBas - bugun);
+    return aGun - bGun;
+  });
+
   if(!visible.length){
-    s.innerHTML='<option value="">Simdilik aktif sefer yok</option>';
+    s.innerHTML='<option value="">Şimdilik aktif sefer yok</option>';
     return;
   }
-  s.innerHTML=visible.map(v=>`<option value="${v.id}">${v.label} — ${v.ship}</option>`).join('');
+
+  // Seferleri etiketle: AKTİF / YAKLAŞAN
+  s.innerHTML = visible.map(v => {
+    const bas = _seferBaslangicDate(v);
+    const bit = _seferBitisDate(v);
+    let etiket = '';
+    if(bas && bit){
+      if(bas <= bugun && bit >= bugun) etiket = '🟢 AKTİF · ';
+      else if(bas > bugun){
+        const gunFarki = Math.ceil((bas - bugun) / (1000*60*60*24));
+        if(gunFarki <= 7) etiket = '🟡 ' + gunFarki + ' gün sonra · ';
+      }
+    }
+    return `<option value="${v.id}">${etiket}${escapeHTML(v.label)} — ${escapeHTML(v.ship)}</option>`;
+  }).join('');
 }
 populateSeferler();
 
