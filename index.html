@@ -2531,18 +2531,151 @@ async function dbGet(tablo, filtre = {}) {
   return data || [];
 }
 
+// ═══════════════════════════════════════════════
+// 📋 YAZMA KUYRUĞU + RETRY SİSTEMİ
+// ═══════════════════════════════════════════════
+// Amaç: 200+ yolcu aynı anda check-in yapınca Supabase patlar.
+// Çözüm:
+//   1. Sleep helper — bekletme
+//   2. Retry + exponential backoff — hata → 3 kez dene
+//   3. Random delay — başlangıçta 0-3 sn rastgele bekle (yük dağıt)
+//   4. Failed queue — başarısızlar localStorage'a, sonra dene
+
+// Sleep yardımcı
+function _sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+// Exponential backoff ile yeniden deneme
+async function _dbRetry(fn, tag = '', maxAttempts = 3){
+  let lastError = null;
+  for(let attempt = 1; attempt <= maxAttempts; attempt++){
+    try {
+      const sonuc = await fn();
+      if(attempt > 1) console.log('[DB-RETRY] ✓ ' + tag + ' başarılı (' + attempt + '. denemede)');
+      return sonuc;
+    } catch(e) {
+      lastError = e;
+      // Rate limit veya 5xx hatası mı? Sadece bu durumlarda retry
+      const errStr = String(e?.message || e || '').toLowerCase();
+      const retryEdilebilir = errStr.includes('429') || errStr.includes('rate') ||
+                              errStr.includes('5') || errStr.includes('timeout') ||
+                              errStr.includes('network') || errStr.includes('fetch');
+
+      if(!retryEdilebilir || attempt >= maxAttempts){
+        console.warn('[DB-RETRY] ✗ ' + tag + ' başarısız (' + attempt + '/' + maxAttempts + '):', e?.message);
+        throw e;
+      }
+
+      // Exponential backoff: 1s, 2s, 4s + jitter
+      const bekleme = Math.min(8000, 1000 * Math.pow(2, attempt - 1)) + Math.random() * 500;
+      console.log('[DB-RETRY] ⏳ ' + tag + ' tekrar denenecek ' + Math.round(bekleme) + 'ms sonra...');
+      await _sleep(bekleme);
+    }
+  }
+  throw lastError;
+}
+
+// Başarısız yazmaları localStorage'a kaydet (sonra tekrar dene)
+function _dbKuyrugaEkle(islem){
+  try {
+    const kuyruk = JSON.parse(localStorage.getItem('voyago_db_kuyruk') || '[]');
+    kuyruk.push({
+      ...islem,
+      zaman: Date.now(),
+      deneme: 0
+    });
+    // Max 100 işlem — taşma önle
+    if(kuyruk.length > 100) kuyruk.shift();
+    localStorage.setItem('voyago_db_kuyruk', JSON.stringify(kuyruk));
+    console.log('[DB-KUYRUK] Başarısız işlem kuyruğa eklendi (' + kuyruk.length + ' bekleyen)');
+  } catch(e) { console.log('Kuyruk hata:', e); }
+}
+
+// Kuyruktaki işlemleri sırayla dene (online olunca veya periyodik)
+let _dbKuyrukIsleniyor = false;
+async function dbKuyruguIsle(){
+  if(_dbKuyrukIsleniyor) return;
+  if(typeof navigator !== 'undefined' && !navigator.onLine) return; // Offline ise atla
+
+  _dbKuyrukIsleniyor = true;
+  try {
+    let kuyruk = JSON.parse(localStorage.getItem('voyago_db_kuyruk') || '[]');
+    if(!kuyruk.length){ _dbKuyrukIsleniyor = false; return; }
+
+    console.log('[DB-KUYRUK] ' + kuyruk.length + ' bekleyen işlem deneniyor...');
+    const yeniKuyruk = [];
+
+    for(const islem of kuyruk){
+      try {
+        if(islem.tur === 'insert'){
+          await _dbRetry(() => sb.from(islem.tablo).insert(islem.veri).select(), 'kuyruk-insert ' + islem.tablo, 2);
+        } else if(islem.tur === 'update'){
+          let q = sb.from(islem.tablo).update(islem.veri);
+          Object.entries(islem.filtre || {}).forEach(([k,v]) => { q = q.eq(k, v); });
+          await _dbRetry(() => q, 'kuyruk-update ' + islem.tablo, 2);
+        }
+        console.log('[DB-KUYRUK] ✓ İşlendi:', islem.tur, islem.tablo);
+      } catch(e) {
+        islem.deneme = (islem.deneme || 0) + 1;
+        // Max 5 deneme — sonra at
+        if(islem.deneme < 5){
+          yeniKuyruk.push(islem);
+        } else {
+          console.warn('[DB-KUYRUK] ✗ Max deneme aşıldı, atlandı:', islem);
+        }
+      }
+      // Her işlem arası 200ms bekle (rate limit dostu)
+      await _sleep(200);
+    }
+
+    localStorage.setItem('voyago_db_kuyruk', JSON.stringify(yeniKuyruk));
+    if(yeniKuyruk.length){
+      console.log('[DB-KUYRUK] ' + yeniKuyruk.length + ' işlem hâlâ bekliyor');
+    } else {
+      console.log('[DB-KUYRUK] ✓ Tüm işlemler tamamlandı');
+    }
+  } catch(e) {
+    console.warn('Kuyruk işleme hata:', e);
+  } finally {
+    _dbKuyrukIsleniyor = false;
+  }
+}
+
+// Online olunca + periyodik olarak kuyruğu dene
+if(typeof window !== 'undefined'){
+  window.addEventListener('online', () => { setTimeout(dbKuyruguIsle, 1000); });
+  // Her 30 saniyede bekleyen işlemleri dene
+  setInterval(() => { if(navigator.onLine) dbKuyruguIsle(); }, 30000);
+}
+
 async function dbInsert(tablo, veri) {
-  const { data, error } = await sb.from(tablo).insert(veri).select();
-  if (error) { console.error('insert', tablo, error); return null; }
-  return data?.[0] || null;
+  try {
+    const sonuc = await _dbRetry(async () => {
+      const { data, error } = await sb.from(tablo).insert(veri).select();
+      if(error) throw error;
+      return data;
+    }, 'insert ' + tablo);
+    return sonuc?.[0] || null;
+  } catch(e) {
+    console.error('insert ' + tablo + ' (kuyruğa eklendi):', e?.message);
+    _dbKuyrugaEkle({ tur: 'insert', tablo, veri });
+    return null;
+  }
 }
 
 async function dbUpdate(tablo, filtre, veri) {
-  let q = sb.from(tablo).update(veri);
-  Object.entries(filtre).forEach(([k,v]) => { q = q.eq(k, v); });
-  const { error } = await q;
-  if (error) console.error('update', tablo, error);
-  return !error;
+  try {
+    await _dbRetry(async () => {
+      let q = sb.from(tablo).update(veri);
+      Object.entries(filtre).forEach(([k,v]) => { q = q.eq(k, v); });
+      const { error } = await q;
+      if(error) throw error;
+    }, 'update ' + tablo);
+    return true;
+  } catch(e) {
+    console.error('update ' + tablo + ' (kuyruğa eklendi):', e?.message);
+    _dbKuyrugaEkle({ tur: 'update', tablo, filtre, veri });
+    return false;
+  }
 }
 
 async function dbDelete(tablo, filtre) {
@@ -3472,16 +3605,27 @@ function doPL(){
   startClock();
   // Sesli anons kanalını başlat
   try{ sesAnonsKanaliBaslat(); }catch(e){console.log('ses kanal:', e);}
-  // Push bildirim sistemi başlat
-  try{ if(typeof pushYolcuBaslat==='function') pushYolcuBaslat(); }catch(e){console.log('push:', e);}
+  // Push bildirim sistemi başlat — RANDOM DELAY (200 yolcu birden açarsa Supabase patlar)
+  try{ 
+    if(typeof pushYolcuBaslat==='function'){
+      const _pushGecikme = 1500 + Math.random() * 4000; // 1.5-5.5 saniye
+      setTimeout(() => { pushYolcuBaslat().catch(e => console.log('push baslat hata:', e)); }, _pushGecikme);
+    }
+  }catch(e){console.log('push:', e);}
   // Yolcu güncelleme realtime kanalı
   try{ if(typeof ydRealtimeBaslat==='function') ydRealtimeBaslat(); }catch(e){console.log('yd realtime:', e);}
   // WhatsApp grup butonunu güncelle
   try{ if(typeof waLinkleriYukle==='function') waLinkleriYukle(); }catch(e){console.log('wa:', e);}
   // 💾 Offline veri olarak kaydet — sayfa yenilense de erişebilsin
   try{ offlineDataKaydet(); }catch(e){console.log('offline cache:', e);}
-  // Veritabanına kaydet
-  saveYolcuDB(p);
+  // 🚦 DB'ye yaz — RANDOM DELAY ile (yük dağıtma)
+  // 200 yolcu aynı anda check-in yaparsa Supabase patlar
+  // 0-3 saniye rastgele bekle, sonra kaydet
+  const _yolcuYazmaGecikme = Math.random() * 3000; // 0-3 saniye
+  setTimeout(() => { 
+    saveYolcuDB(p).catch(e => console.warn('Yolcu DB kayıt (geri planda):', e?.message)); 
+  }, _yolcuYazmaGecikme);
+  console.log('[YÜK-DAĞIT] DB kayıt ' + Math.round(_yolcuYazmaGecikme) + 'ms sonra yapılacak');
   // Tarayıcıya kaydet — bir sonraki ziyarette otomatik giriş
   const yolcuKayit = {
     name: p.name, kabin: p.kabin, tel: p.tel,
@@ -11554,6 +11698,15 @@ async function manifestKaydet(){
         await saveYolcuDB(yeniYolcu);
       }
       eklendi++;
+
+      // 🚦 Rate limit koruması: her 10 kayıttan sonra 500ms bekle
+      // 172 yolcu için: ~10 saniye toplam (güvenli)
+      if(eklendi % 10 === 0){
+        await _sleep(500);
+        // İlerleme göster
+        const toast = document.querySelector('.toast');
+        if(toast) toast.textContent = '⏳ ' + eklendi + '/' + kabinler.length + ' kabin kaydedildi...';
+      }
     } catch(e){
       console.error('Kabin kayıt hata:', kabin, e);
       hata++;
@@ -13233,7 +13386,9 @@ function offlineSistemKur(){
     if(typeof CP !== 'undefined' && CP && !_isOffline){
       try { offlineDataKaydet(); } catch(e){}
     }
-  }, 60 * 1000);
+    // İndikatörü de güncelle (kuyruk değişmiş olabilir)
+    offlineIndikatoruGuncelle();
+  }, 5 * 1000); // 5 saniyede bir indikatör kontrolü
 
   // Başlangıç durumu
   offlineIndikatoruGuncelle();
@@ -13242,8 +13397,24 @@ function offlineSistemKur(){
 function offlineIndikatoruGuncelle(){
   const ind = document.getElementById('offline-indicator');
   if(!ind) return;
+
+  // Kuyruktaki bekleyen işlem sayısı
+  let bekleyenSayisi = 0;
+  try {
+    const kuyruk = JSON.parse(localStorage.getItem('voyago_db_kuyruk') || '[]');
+    bekleyenSayisi = kuyruk.length;
+  } catch(e){}
+
   if(_isOffline){
     ind.style.display = 'block';
+    ind.style.background = 'linear-gradient(90deg,#f59e0b,#d97706)';
+    ind.innerHTML = '📡 Çevrimdışısınız — Daha önce yüklenen bilgiler gösteriliyor' + 
+                    (bekleyenSayisi > 0 ? ' · 📋 ' + bekleyenSayisi + ' işlem gönderim için bekliyor' : '');
+  } else if(bekleyenSayisi > 0){
+    // Online ama kuyrukta bekleyenler var
+    ind.style.display = 'block';
+    ind.style.background = 'linear-gradient(90deg,#3b82f6,#2563eb)';
+    ind.innerHTML = '🔄 ' + bekleyenSayisi + ' kayıt sunucuya gönderiliyor...';
   } else {
     ind.style.display = 'none';
   }
