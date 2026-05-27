@@ -1213,6 +1213,7 @@ textarea.ai2{resize:none;}
       <button class="att" id="ratab-gunluk" onclick="adminTab('gunluk')"><span class="aico">📅</span><span>Günlük</span></button>
       <button class="att" id="ratab-tur" onclick="adminTab('tur')"><span class="aico">🗺️</span><span>Turlar</span></button>
       <button class="att" id="ratab-gz" onclick="adminTab('gz')"><span class="aico">📰</span><span>Gazete</span></button>
+      <button class="att" id="ratab-flash" onclick="adminTab('flash')"><span class="aico">⭐</span><span>Günün Etkinliği</span></button>
       <button class="att" id="ratab-hikaye" onclick="adminTab('hikaye')"><span class="aico">📚</span><span>Hikayeler</span></button>
       <button class="att" id="ratab-mesaj" onclick="adminTab('mesaj')"><span class="aico">💬</span><span>Mesajlar</span></button>
       <button class="att" id="ratab-turanons" onclick="adminTab('turanons')"><span class="aico">📢</span><span>Tur Anonsu</span></button>
@@ -1234,6 +1235,7 @@ textarea.ai2{resize:none;}
       <button class="att" id="aatab-gunluk" onclick="adminTab('gunluk')"><span class="aico">📅</span><span>Günlük</span></button>
       <button class="att" id="aatab-tur" onclick="adminTab('tur')"><span class="aico">🗺️</span><span>Turlar</span></button>
       <button class="att" id="aatab-gz" onclick="adminTab('gz')"><span class="aico">📰</span><span>Gazete</span></button>
+      <button class="att" id="aatab-flash" onclick="adminTab('flash')"><span class="aico">⭐</span><span>Günün Etkinliği</span></button>
       <button class="att" id="aatab-reh" onclick="adminTab('reh')"><span class="aico">🧭</span><span>Rehberler</span></button>
       <button class="att" id="aatab-gemiler" onclick="adminTab('gemiler')"><span class="aico">⚓</span><span>Gemiler</span></button>
     </div>
@@ -1685,6 +1687,55 @@ textarea.ai2{resize:none;}
       </div>
       <!-- Mesaj listesi -->
       <div id="admin-mesaj-liste"></div>
+    </div>
+
+    <!-- ⭐ GÜNÜN ETKİNLİĞİ (Flash Event) -->
+    <div id="admin-flash" class="apg">
+      <div style="background:linear-gradient(135deg,#7c3aed,#5b21b6);border-radius:16px;padding:16px;margin-bottom:14px;color:white;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+          <span style="font-size:28px;">⭐</span>
+          <div style="flex:1;">
+            <div style="font-family:'DM Serif Display',serif;font-size:18px;">Günün Etkinliği</div>
+            <div style="font-size:11px;opacity:.85;margin-top:2px;">Yolcu uygulamayı açtığında popup olarak gösterilir</div>
+          </div>
+        </div>
+        <div style="font-size:12px;opacity:.9;line-height:1.5;background:rgba(255,255,255,.15);border-radius:8px;padding:8px 10px;margin-top:8px;">
+          💡 <b>Örnekler:</b> Kaptan Kokteyli · Havuz Partisi · Türk Gecesi · Folklör Gösterisi · Show Time · Özel Menü
+        </div>
+      </div>
+
+      <div class="fs2">
+        <div class="fst">📝 Etkinlik Bilgileri</div>
+
+        <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;">⭐ Başlık (kısa, dikkat çekici)</label>
+        <input class="ai2" type="text" id="flash-baslik" placeholder="Örn: Kaptan Kokteyli Bu Akşam!" maxlength="60" oninput="flashKarakterSay('baslik')">
+        <div style="text-align:right;font-size:10px;color:#999;margin-top:-4px;margin-bottom:8px;"><span id="flash-baslik-say">0</span>/60</div>
+
+        <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;">📄 Açıklama Metni</label>
+        <textarea id="flash-metin" placeholder="Bu akşam 19:00'da Captain's Lounge'da şampanya ikramı ile sizleri ağırlamaktan mutluluk duyuyoruz..." rows="4" maxlength="400" oninput="flashKarakterSay('metin')" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;resize:vertical;"></textarea>
+        <div style="text-align:right;font-size:10px;color:#999;margin-top:2px;margin-bottom:8px;"><span id="flash-metin-say">0</span>/400</div>
+
+        <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;">🖼️ Görsel (opsiyonel)</label>
+        <input type="file" id="flash-resim-file" accept="image/*" style="display:none;" onchange="flashResimSec(event)">
+        <div id="flash-resim-onizleme" style="margin-bottom:8px;display:none;">
+          <img id="flash-resim-img" style="width:100%;max-height:200px;object-fit:cover;border-radius:10px;border:1.5px solid var(--border);">
+          <button onclick="flashResimSil()" style="margin-top:4px;padding:5px 10px;background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;border-radius:8px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">🗑️ Görseli Kaldır</button>
+        </div>
+        <button onclick="document.getElementById('flash-resim-file').click()" style="width:100%;padding:10px;background:#f0fdf4;color:#15803d;border:1.5px dashed #86efac;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">📷 Görsel Seç (JPG, PNG)</button>
+
+        <!-- Etkinlik Saati (opsiyonel) -->
+        <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;margin-top:14px;">🕐 Etkinlik Saati (opsiyonel)</label>
+        <input class="ai2" type="text" id="flash-saat" placeholder="Örn: 19:00 — Captain's Lounge" maxlength="60">
+
+        <!-- Aksiyon butonları -->
+        <div style="display:flex;gap:8px;margin-top:16px;">
+          <button onclick="flashOnizleme()" style="flex:1;padding:11px;background:transparent;border:1.5px solid var(--border);color:var(--t);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">👁️ Önizleme</button>
+          <button onclick="flashKaydetVeYayinla()" style="flex:2;padding:11px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">📢 Yolculara Yayınla</button>
+        </div>
+      </div>
+
+      <!-- Mevcut durum -->
+      <div id="flash-mevcut-durum" style="margin-top:14px;"></div>
     </div>
 
     <!-- TUR ANONSU -->
@@ -2732,7 +2783,9 @@ async function initDB() {
       status: s.durum || 'active', visible: s.gorunur !== false,
       startDate: s.baslangic || '', endDate: s.bitis || '',
       // 🚌 Otobüs düzeni (sefer altında)
-      otobusler: (s.otobus_duzeni?.otobusler) || []
+      otobusler: (s.otobus_duzeni?.otobusler) || [],
+      // ⭐ Günün etkinliği (Flash event)
+      flash_etkinlik: s.flash_etkinlik || null
     }));
 
     // Yolcuları yükle (arşivli olanlar da DB'de durur — rapor için)
@@ -3660,6 +3713,8 @@ function doPL(){
   startClock();
   // 🌤️ Hava durumu yükle
   try{ if(typeof havaDurumBaslat==='function') havaDurumBaslat(sv); }catch(e){console.log('hava:', e);}
+  // ⭐ Flash etkinlik popup kontrolü (eğer rehber yayınladıysa)
+  try{ if(typeof flashYolcuKontrol==='function') flashYolcuKontrol(sv); }catch(e){console.log('flash:', e);}
   // Sesli anons kanalını başlat
   try{ sesAnonsKanaliBaslat(); }catch(e){console.log('ses kanal:', e);}
   // Push bildirim sistemi başlat — RANDOM DELAY (200 yolcu birden açarsa Supabase patlar)
@@ -9349,6 +9404,7 @@ function adminTab(name){
   if(name==='limanbilgi') setTimeout(()=>{ if(typeof renderLimanListesi === 'function') renderLimanListesi(); }, 100);
   if(name==='yarisma') setTimeout(()=>{ if(typeof renderYarismaAdmin === 'function') renderYarismaAdmin(); }, 100);
   if(name==='gz')renderGazeteAdmin();
+  if(name==='flash') setTimeout(()=>{ if(typeof flashFormaYukle === 'function') flashFormaYukle(); }, 100);
   if(name==='gunluk'){initDailyForms();setTimeout(renderGsAdmin,200);}
   if(name==='tur'){
     // Rapor sefer dropdown'unu güncelle
@@ -10479,8 +10535,312 @@ function turAlmayanWhatsapp(){
 }
 
 // ═══════════════════════════════════════════════
-// 🎂 DOĞUM GÜNÜ SİSTEMİ
+// ⭐ GÜNÜN ETKİNLİĞİ (FLASH EVENT) SİSTEMİ
 // ═══════════════════════════════════════════════
+// Rehber: başlık + metin + resim + saat ekler
+// Yolcu: uygulama açılınca popup gösterilir, X ile kapatır
+// Saklama: seferler.flash_etkinlik JSONB kolonu
+
+let _flashResimB64 = ''; // Geçici resim verisi
+
+function flashKarakterSay(alan){
+  const el = document.getElementById('flash-' + alan);
+  const sayEl = document.getElementById('flash-' + alan + '-say');
+  if(el && sayEl) sayEl.textContent = el.value.length;
+}
+
+function flashResimSec(event){
+  const file = event.target.files?.[0];
+  if(!file) return;
+
+  // Dosya boyutu kontrolü (max 2 MB)
+  if(file.size > 2 * 1024 * 1024){
+    showToast('⚠️ Görsel max 2 MB olabilir. Lütfen daha küçük bir görsel seçin.');
+    event.target.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    _flashResimB64 = e.target.result;
+    document.getElementById('flash-resim-img').src = _flashResimB64;
+    document.getElementById('flash-resim-onizleme').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function flashResimSil(){
+  _flashResimB64 = '';
+  document.getElementById('flash-resim-img').src = '';
+  document.getElementById('flash-resim-onizleme').style.display = 'none';
+  document.getElementById('flash-resim-file').value = '';
+}
+
+// Aktif sefer için flash event yükle (forma)
+function flashFormaYukle(){
+  const sid = (typeof getCurrentSeferId === 'function') ? getCurrentSeferId() : null;
+  if(!sid) return;
+  const v = VOYAGES.find(x => x.id === sid);
+  if(!v) return;
+
+  const flash = v.flash_etkinlik || null;
+  if(flash){
+    const baslikEl = document.getElementById('flash-baslik');
+    const metinEl = document.getElementById('flash-metin');
+    const saatEl = document.getElementById('flash-saat');
+    if(baslikEl) baslikEl.value = flash.baslik || '';
+    if(metinEl) metinEl.value = flash.metin || '';
+    if(saatEl) saatEl.value = flash.saat || '';
+    if(flash.resim){
+      _flashResimB64 = flash.resim;
+      document.getElementById('flash-resim-img').src = flash.resim;
+      document.getElementById('flash-resim-onizleme').style.display = 'block';
+    }
+    flashKarakterSay('baslik');
+    flashKarakterSay('metin');
+  }
+
+  flashMevcutDurumGoster();
+}
+
+function flashMevcutDurumGoster(){
+  const sid = getCurrentSeferId();
+  const v = VOYAGES.find(x => x.id === sid);
+  const flash = v?.flash_etkinlik;
+  const durumEl = document.getElementById('flash-mevcut-durum');
+  if(!durumEl) return;
+
+  if(!flash || !flash.aktif){
+    durumEl.innerHTML = `
+      <div style="background:#fafafa;border:1.5px dashed #d1d5db;border-radius:12px;padding:14px;text-align:center;">
+        <div style="font-size:24px;opacity:.4;margin-bottom:4px;">⭐</div>
+        <div style="font-size:12px;color:#666;">Henüz yayınlanmış etkinlik yok</div>
+        <div style="font-size:11px;color:#999;margin-top:2px;">Yukarıdaki formu doldurup "Yolculara Yayınla" basın</div>
+      </div>
+    `;
+    return;
+  }
+
+  const tarih = flash.yayinlanma ? new Date(flash.yayinlanma).toLocaleString('tr-TR', {dateStyle:'short', timeStyle:'short'}) : '';
+  durumEl.innerHTML = `
+    <div style="background:#dcfce7;border:1.5px solid #16a34a;border-radius:12px;padding:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#15803d;">✅ Aktif Yayında</div>
+          <div style="font-size:11px;color:#666;margin-top:2px;">${tarih}'de yayınlandı</div>
+        </div>
+        <button onclick="flashKaldir()" style="padding:6px 12px;background:#fee;color:#dc2626;border:1.5px solid #fecaca;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">🗑️ Yayından Kaldır</button>
+      </div>
+      <div style="background:white;border-radius:8px;padding:10px;">
+        <div style="font-size:13px;font-weight:700;color:#1a1a1a;">${escapeHTML(flash.baslik || '')}</div>
+        ${flash.saat ? `<div style="font-size:11px;color:#7c3aed;font-weight:600;margin-top:2px;">🕐 ${escapeHTML(flash.saat)}</div>` : ''}
+        <div style="font-size:12px;color:#666;margin-top:4px;line-height:1.4;white-space:pre-wrap;">${escapeHTML((flash.metin || '').substring(0, 200))}${(flash.metin || '').length > 200 ? '...' : ''}</div>
+      </div>
+    </div>
+  `;
+}
+
+// Önizleme — yolcuya nasıl gözükeceği
+function flashOnizleme(){
+  const baslik = document.getElementById('flash-baslik').value.trim();
+  const metin = document.getElementById('flash-metin').value.trim();
+  const saat = document.getElementById('flash-saat').value.trim();
+
+  if(!baslik && !metin){
+    showToast('⚠️ Başlık veya metin gerekli');
+    return;
+  }
+
+  // Geçici flash objesi ile popup göster
+  _flashOnizlemeModu = true;
+  _flashOnizlemeData = {
+    baslik, metin, saat,
+    resim: _flashResimB64,
+    aktif: true,
+    yayinlanma: new Date().toISOString()
+  };
+  flashPopupGoster(_flashOnizlemeData, true);
+}
+
+let _flashOnizlemeModu = false;
+let _flashOnizlemeData = null;
+
+// Yolcuya yayınla
+async function flashKaydetVeYayinla(){
+  const sid = getCurrentSeferId();
+  if(!sid){ showToast('Sefer bulunamadı'); return; }
+  const v = VOYAGES.find(x => x.id === sid);
+  if(!v){ showToast('Sefer bulunamadı'); return; }
+
+  const baslik = document.getElementById('flash-baslik').value.trim();
+  const metin = document.getElementById('flash-metin').value.trim();
+  const saat = document.getElementById('flash-saat').value.trim();
+
+  if(!baslik){ showToast('⚠️ Başlık gerekli'); return; }
+  if(!metin){ showToast('⚠️ Açıklama metni gerekli'); return; }
+
+  const flash = {
+    id: 'flash_' + Date.now(), // Yolcu tarafında "bu etkinliği gördüm mü" kontrolü için
+    baslik,
+    metin,
+    saat,
+    resim: _flashResimB64 || '',
+    aktif: true,
+    yayinlanma: new Date().toISOString()
+  };
+
+  v.flash_etkinlik = flash;
+
+  // DB'ye kaydet
+  try {
+    if(typeof sb !== 'undefined'){
+      await sb.from('seferler').update({ flash_etkinlik: flash }).eq('id', sid);
+    }
+    // LocalStorage yedek
+    try { localStorage.setItem('voyago_VOYAGES', JSON.stringify(VOYAGES)); } catch(e){}
+    showToast('✅ Etkinlik yayınlandı! Yolcular uygulamayı açtığında görecek.');
+    flashMevcutDurumGoster();
+  } catch(e) {
+    console.error('Flash kayıt:', e);
+    showToast('⚠️ Kaydetme hatası: ' + e.message);
+  }
+}
+
+// Yayından kaldır
+async function flashKaldir(){
+  if(!confirm('Yayından kaldırılsın mı? Yolcular artık görmeyecek.')) return;
+  const sid = getCurrentSeferId();
+  const v = VOYAGES.find(x => x.id === sid);
+  if(!v) return;
+
+  v.flash_etkinlik = null;
+
+  try {
+    if(typeof sb !== 'undefined'){
+      await sb.from('seferler').update({ flash_etkinlik: null }).eq('id', sid);
+    }
+    try { localStorage.setItem('voyago_VOYAGES', JSON.stringify(VOYAGES)); } catch(e){}
+    showToast('✓ Yayından kaldırıldı');
+
+    // Formu da temizle
+    document.getElementById('flash-baslik').value = '';
+    document.getElementById('flash-metin').value = '';
+    document.getElementById('flash-saat').value = '';
+    flashResimSil();
+    flashKarakterSay('baslik');
+    flashKarakterSay('metin');
+    flashMevcutDurumGoster();
+  } catch(e) {
+    console.error(e);
+    showToast('⚠️ Hata: ' + e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════
+// 🎉 YOLCU TARAFI — POPUP GÖSTER
+// ═══════════════════════════════════════════════
+function flashPopupGoster(flash, onizlemeModu){
+  if(!flash || !flash.aktif) return;
+  if(!flash.baslik && !flash.metin) return;
+
+  // Mevcut popup varsa kaldır
+  const eski = document.getElementById('flash-popup');
+  if(eski) eski.remove();
+
+  const popup = document.createElement('div');
+  popup.id = 'flash-popup';
+  popup.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"DM Sans",sans-serif;animation:flashFadeIn .3s ease-out;';
+
+  // CSS animation
+  if(!document.getElementById('flash-popup-style')){
+    const style = document.createElement('style');
+    style.id = 'flash-popup-style';
+    style.textContent = `
+      @keyframes flashFadeIn {
+        from { opacity: 0; transform: scale(0.9); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      @keyframes flashShine {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  const resimHTML = flash.resim ? `
+    <img src="${flash.resim}" alt="${escapeHTML(flash.baslik || '')}" style="width:100%;max-height:280px;object-fit:cover;border-radius:14px 14px 0 0;display:block;">
+  ` : `
+    <div style="background:linear-gradient(135deg,#7c3aed,#5b21b6,#ec4899);height:140px;border-radius:14px 14px 0 0;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;">
+      <div style="font-size:80px;animation:flashShine 2s ease-in-out infinite;">⭐</div>
+      <div style="position:absolute;top:14px;right:14px;font-size:18px;animation:flashShine 2.5s ease-in-out infinite;">✨</div>
+      <div style="position:absolute;bottom:14px;left:14px;font-size:18px;animation:flashShine 3s ease-in-out infinite;">✨</div>
+    </div>
+  `;
+
+  popup.innerHTML = `
+    <div style="background:white;border-radius:16px;max-width:430px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.4);overflow:hidden;">
+      <div style="position:relative;">
+        ${resimHTML}
+        <button onclick="flashPopupKapat()" style="position:absolute;top:10px;right:10px;width:32px;height:32px;background:rgba(255,255,255,.95);color:#1a1a1a;border:none;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.2);font-family:'DM Sans',sans-serif;font-weight:700;">✕</button>
+        <div style="position:absolute;top:10px;left:10px;background:rgba(124,58,237,.95);color:white;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:5px;">
+          <span>⭐</span><span>GÜNÜN ETKİNLİĞİ</span>
+        </div>
+      </div>
+
+      <div style="padding:18px 22px 20px;overflow-y:auto;flex:1;">
+        <div style="font-family:'DM Serif Display',serif;font-size:22px;color:#1a1a1a;line-height:1.2;margin-bottom:6px;">${escapeHTML(flash.baslik || '')}</div>
+        ${flash.saat ? `<div style="display:inline-block;background:#f3e8ff;color:#7c3aed;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;margin-bottom:10px;">🕐 ${escapeHTML(flash.saat)}</div>` : ''}
+        <div style="font-size:14px;color:#444;line-height:1.6;white-space:pre-wrap;margin-top:8px;">${escapeHTML(flash.metin || '')}</div>
+
+        ${onizlemeModu ? `
+          <div style="margin-top:14px;padding:8px 10px;background:#fef3c7;border-radius:8px;font-size:11px;color:#92400e;text-align:center;">
+            👁️ Önizleme modu — yolcular bu şekilde görecek
+          </div>
+        ` : ''}
+
+        <button onclick="flashPopupKapat()" style="width:100%;margin-top:16px;padding:13px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:white;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          ${onizlemeModu ? 'Önizlemeyi Kapat' : 'Anladım, Teşekkürler 🎉'}
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(popup);
+
+  // Önizleme değilse "gördüm" işareti
+  if(!onizlemeModu && flash.id){
+    try { localStorage.setItem('voyago_flash_gorulen_' + flash.id, '1'); } catch(e){}
+  }
+}
+
+function flashPopupKapat(){
+  const popup = document.getElementById('flash-popup');
+  if(popup){
+    popup.style.transition = 'opacity .25s';
+    popup.style.opacity = '0';
+    setTimeout(() => popup.remove(), 250);
+  }
+  _flashOnizlemeModu = false;
+}
+
+// Yolcu uygulamayı açtığında çağrılır
+function flashYolcuKontrol(sv){
+  if(!sv) return;
+  const v = VOYAGES.find(x => x.id === sv);
+  const flash = v?.flash_etkinlik;
+  if(!flash || !flash.aktif) return;
+  if(!flash.baslik && !flash.metin) return;
+
+  // Daha önce kapattıysa tekrar gösterme
+  try {
+    if(flash.id && localStorage.getItem('voyago_flash_gorulen_' + flash.id) === '1') return;
+  } catch(e){}
+
+  // 1 saniye bekle, sonra göster (sayfa yüklensin)
+  setTimeout(() => flashPopupGoster(flash, false), 1200);
+}
+
+
 
 // Doğum tarihi string'inden Date objesi al (DD/MM/YYYY veya YYYY-MM-DD)
 function _dogumTarihiParse(s){
