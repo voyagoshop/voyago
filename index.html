@@ -9991,6 +9991,188 @@ function initKontrolListesi(){
   initKontrolSelects();
 }
 
+// ═══════════════════════════════════════════════
+// ✏️ YOLCU DÜZENLEME MODAL (Tur Kontrol'den)
+// ═══════════════════════════════════════════════
+function yolcuDuzenleAc(kabin, sid){
+  const p = passengers.find(x => x.kabin === kabin && x.sefer === sid && !x.arsivli);
+  if(!p){ showToast('Yolcu bulunamadı'); return; }
+
+  const eski = document.getElementById('yolcu-duzenle-modal');
+  if(eski) eski.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'yolcu-duzenle-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e)=>{ if(e.target.id === 'yolcu-duzenle-modal') modal.remove(); };
+
+  const ekIsimlerHTML = (p.ekstra_isimler || []).map((isim, idx) => `
+    <div style="display:flex;gap:6px;margin-bottom:4px;">
+      <input type="text" value="${escapeHTML(isim)}" id="yd-ek-${idx}"
+        style="flex:1;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;">
+      <button onclick="yolcuDuzenleEkSil(${idx})" style="padding:6px 10px;background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;border-radius:8px;cursor:pointer;font-size:14px;">🗑️</button>
+    </div>
+  `).join('');
+
+  modal.innerHTML = `
+    <div style="background:white;border-radius:18px;padding:20px;max-width:480px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+        <div>
+          <div style="font-family:'DM Serif Display',serif;font-size:18px;color:#1a1a1a;">✏️ Yolcu Düzenle</div>
+          <div style="font-size:11px;color:#6b6b6b;margin-top:2px;">Kabin ${escapeHTML(kabin)}</div>
+        </div>
+        <button onclick="document.getElementById('yolcu-duzenle-modal').remove()" style="background:transparent;border:none;color:#999;font-size:24px;cursor:pointer;line-height:1;">×</button>
+      </div>
+
+      <!-- Ad -->
+      <div style="margin-bottom:10px;">
+        <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;">👤 Ana yolcu adı</label>
+        <input type="text" id="yd-name" value="${escapeHTML(p.name||'')}"
+          style="width:100%;padding:10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;">
+      </div>
+
+      <!-- Telefon -->
+      <div style="margin-bottom:10px;">
+        <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;">📞 WhatsApp / Telefon</label>
+        <input type="tel" id="yd-tel" value="${escapeHTML(p.tel||'')}" placeholder="0532 xxx xx xx"
+          style="width:100%;padding:10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;">
+      </div>
+
+      <!-- Ek yolcular -->
+      <div style="margin-bottom:10px;">
+        <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;">👥 Diğer yolcular (ek isimler)</label>
+        <div id="yd-ek-isimler" style="display:flex;flex-direction:column;gap:2px;">
+          ${ekIsimlerHTML || '<div style="font-size:11px;color:#999;font-style:italic;padding:4px;">Henüz ek yolcu yok</div>'}
+        </div>
+        <button onclick="yolcuDuzenleEkEkle()" style="margin-top:6px;padding:6px 12px;background:#f0fdf4;color:#15803d;border:1.5px solid #86efac;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Ek Yolcu Ekle</button>
+      </div>
+
+      <!-- Kişi sayısı -->
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:6px;">👨‍👩‍👧 Kişi Sayısı</label>
+        <div style="display:flex;gap:6px;">
+          <div style="flex:1;text-align:center;background:#fafafa;border:1.5px solid #e5e7eb;border-radius:8px;padding:8px;">
+            <div style="font-size:9px;color:#666;font-weight:600;margin-bottom:3px;">YETİŞKİN</div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
+              <button onclick="yolcuDuzenleSayi('y',-1)" style="width:24px;height:24px;background:#fee;border:none;border-radius:6px;font-size:14px;cursor:pointer;color:#dc2626;">−</button>
+              <span id="yd-y" style="font-size:17px;font-weight:700;color:#1a5fa8;min-width:20px;">${p.adult||0}</span>
+              <button onclick="yolcuDuzenleSayi('y',1)" style="width:24px;height:24px;background:#dcfce7;border:none;border-radius:6px;font-size:14px;cursor:pointer;color:#15803d;">+</button>
+            </div>
+          </div>
+          <div style="flex:1;text-align:center;background:#fafafa;border:1.5px solid #e5e7eb;border-radius:8px;padding:8px;">
+            <div style="font-size:9px;color:#666;font-weight:600;margin-bottom:3px;">ÇOCUK 2-12</div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
+              <button onclick="yolcuDuzenleSayi('c',-1)" style="width:24px;height:24px;background:#fee;border:none;border-radius:6px;font-size:14px;cursor:pointer;color:#dc2626;">−</button>
+              <span id="yd-c" style="font-size:17px;font-weight:700;color:#1a5fa8;min-width:20px;">${p.child||0}</span>
+              <button onclick="yolcuDuzenleSayi('c',1)" style="width:24px;height:24px;background:#dcfce7;border:none;border-radius:6px;font-size:14px;cursor:pointer;color:#15803d;">+</button>
+            </div>
+          </div>
+          <div style="flex:1;text-align:center;background:#fafafa;border:1.5px solid #e5e7eb;border-radius:8px;padding:8px;">
+            <div style="font-size:9px;color:#666;font-weight:600;margin-bottom:3px;">BEBEK 0-2</div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
+              <button onclick="yolcuDuzenleSayi('b',-1)" style="width:24px;height:24px;background:#fee;border:none;border-radius:6px;font-size:14px;cursor:pointer;color:#dc2626;">−</button>
+              <span id="yd-b" style="font-size:17px;font-weight:700;color:#1a5fa8;min-width:20px;">${p.baby||0}</span>
+              <button onclick="yolcuDuzenleSayi('b',1)" style="width:24px;height:24px;background:#dcfce7;border:none;border-radius:6px;font-size:14px;cursor:pointer;color:#15803d;">+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Aksiyonlar -->
+      <div style="display:flex;gap:8px;">
+        <button onclick="document.getElementById('yolcu-duzenle-modal').remove()" style="flex:1;padding:11px;background:transparent;border:1.5px solid #e5e7eb;color:#666;border-radius:10px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">İptal</button>
+        <button onclick="yolcuDuzenleKaydet('${escapeHTML(kabin)}','${sid}')" style="flex:2;padding:11px;background:linear-gradient(135deg,#0f6e56,#1D9E75);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">💾 Kaydet</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function yolcuDuzenleSayi(tip, delta){
+  const id = 'yd-' + tip;
+  const el = document.getElementById(id);
+  if(!el) return;
+  let yeniDeger = parseInt(el.textContent || '0') + delta;
+  if(yeniDeger < 0) yeniDeger = 0;
+  if(tip === 'y' && yeniDeger < 1) yeniDeger = 1; // En az 1 yetişkin
+  if(yeniDeger > 20) yeniDeger = 20;
+  el.textContent = yeniDeger;
+}
+
+function yolcuDuzenleEkEkle(){
+  const liste = document.getElementById('yd-ek-isimler');
+  if(!liste) return;
+  // Mevcut input'ları geçici tut
+  const mevcut = Array.from(liste.querySelectorAll('input[type="text"]')).map(i => i.value);
+  mevcut.push(''); // Yeni boş satır
+  // Yeniden render
+  liste.innerHTML = mevcut.map((isim, idx) => `
+    <div style="display:flex;gap:6px;margin-bottom:4px;">
+      <input type="text" value="${escapeHTML(isim)}" id="yd-ek-${idx}" placeholder="Ad Soyad"
+        style="flex:1;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;">
+      <button onclick="yolcuDuzenleEkSil(${idx})" style="padding:6px 10px;background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;border-radius:8px;cursor:pointer;font-size:14px;">🗑️</button>
+    </div>
+  `).join('');
+  // Yeni eklenen input'a focus
+  setTimeout(()=>{
+    const sonInput = document.getElementById('yd-ek-' + (mevcut.length - 1));
+    if(sonInput) sonInput.focus();
+  }, 50);
+}
+
+function yolcuDuzenleEkSil(idx){
+  const liste = document.getElementById('yd-ek-isimler');
+  if(!liste) return;
+  const mevcut = Array.from(liste.querySelectorAll('input[type="text"]')).map(i => i.value);
+  mevcut.splice(idx, 1);
+  if(!mevcut.length){
+    liste.innerHTML = '<div style="font-size:11px;color:#999;font-style:italic;padding:4px;">Henüz ek yolcu yok</div>';
+    return;
+  }
+  liste.innerHTML = mevcut.map((isim, i) => `
+    <div style="display:flex;gap:6px;margin-bottom:4px;">
+      <input type="text" value="${escapeHTML(isim)}" id="yd-ek-${i}" placeholder="Ad Soyad"
+        style="flex:1;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;">
+      <button onclick="yolcuDuzenleEkSil(${i})" style="padding:6px 10px;background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;border-radius:8px;cursor:pointer;font-size:14px;">🗑️</button>
+    </div>
+  `).join('');
+}
+
+async function yolcuDuzenleKaydet(kabin, sid){
+  const p = passengers.find(x => x.kabin === kabin && x.sefer === sid && !x.arsivli);
+  if(!p){ showToast('Yolcu bulunamadı'); return; }
+
+  const yeniName = (document.getElementById('yd-name')?.value || '').trim();
+  const yeniTel = (document.getElementById('yd-tel')?.value || '').trim();
+  const yeniY = parseInt(document.getElementById('yd-y')?.textContent || '1');
+  const yeniC = parseInt(document.getElementById('yd-c')?.textContent || '0');
+  const yeniB = parseInt(document.getElementById('yd-b')?.textContent || '0');
+
+  if(!yeniName){ showToast('⚠️ Ad boş olamaz'); return; }
+  if(yeniY < 1){ showToast('⚠️ En az 1 yetişkin olmalı'); return; }
+
+  // Ek isimler
+  const ekInputs = document.querySelectorAll('#yd-ek-isimler input[type="text"]');
+  const ekler = Array.from(ekInputs).map(i => (i.value || '').trim()).filter(x => x);
+
+  // Güncelle
+  p.name = yeniName;
+  p.tel = yeniTel;
+  p.adult = yeniY;
+  p.child = yeniC;
+  p.baby = yeniB;
+  p.ekstra_isimler = ekler;
+
+  try {
+    if(typeof saveYolcuDB === 'function') await saveYolcuDB(p);
+  } catch(e){ console.error(e); }
+
+  showToast('✓ Güncellendi');
+  document.getElementById('yolcu-duzenle-modal')?.remove();
+  if(typeof renderKontrolListesi === 'function') renderKontrolListesi();
+  if(typeof renderOtobusPaneli === 'function') renderOtobusPaneli();
+}
+
 function renderKontrolListesi(){
   const tSel=document.getElementById('kontrol-tur-sel');
   const sSel=document.getElementById('kontrol-sefer-sel');
@@ -10112,13 +10294,34 @@ function renderKontrolListesi(){
     const turEtiket = hepsiMod
       ? `<div style="display:inline-block;background:${d===1?'#e8f5ee':d===2?'#fee2e2':'#f0f6fb'};color:${d===1?'#15803d':d===2?'#a32d2d':'#0d3b6e'};padding:1px 8px;border-radius:10px;font-size:10px;font-weight:600;margin-bottom:3px;">📍 ${escapeHTML(t.name||'-')}</div>`
       : '';
+
+    // 📞 Telefon + uygulama durumu
+    const telVar = !!(p.tel && p.tel.trim());
+    const checkinYapildi = !!p.checkinDone;
+    let telGorunum = '';
+    if(telVar){
+      // Telefon var → uygulamaya kayıt olmuş demek
+      const ikon = checkinYapildi ? '✅' : '📞';
+      telGorunum = `<div style="font-size:11px;color:#15803d;margin-top:2px;display:flex;align-items:center;gap:4px;">
+        <span>${ikon}</span><span>${escapeHTML(p.tel)}</span>
+      </div>`;
+    } else {
+      // Telefon yok → uygulamaya kaydolmamış
+      telGorunum = `<div style="font-size:10px;color:#dc2626;margin-top:2px;font-style:italic;">
+        ⚠️ Uygulamaya kaydolmamış (telefon yok)
+      </div>`;
+    }
+
     return `<div style="padding:10px 14px;border-bottom:1px solid var(--gray);display:flex;align-items:center;gap:10px;" id="krow-${key}">
       <div style="flex:1;min-width:0;">
         ${turEtiket}
         <div style="font-size:13px;font-weight:500;color:var(--t);">${escapeHTML(p.name||'')}</div>
         <div style="font-size:11px;color:var(--t2);margin-top:2px;">Kabin ${escapeHTML(p.kabin||'?')} · ${kisiStr} · ${topKisiP} kişi</div>
+        ${telGorunum}
       </div>
-      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+      <div style="display:flex;gap:5px;align-items:center;flex-shrink:0;">
+        <button onclick="yolcuDuzenleAc('${escapeHTML(p.kabin||'')}','${sid}')" title="Yolcu bilgilerini düzenle"
+          style="width:30px;height:30px;border-radius:50%;border:1.5px solid #c7d2fe;background:#f0f4ff;color:#4f46e5;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✏️</button>
         <button onclick="setKontrol('${key}',1,'${rowTid}','${sid}')" style="width:36px;height:36px;border-radius:50%;border:2px solid ${d===1?'var(--green)':'var(--border)'};background:${d===1?'var(--green)':'white'};color:${d===1?'white':'var(--t3)'};font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;">✓</button>
         <button onclick="setKontrol('${key}',2,'${rowTid}','${sid}')" style="width:36px;height:36px;border-radius:50%;border:2px solid ${d===2?'var(--red)':'var(--border)'};background:${d===2?'var(--red)':'white'};color:${d===2?'white':'var(--t3)'};font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;">✗</button>
       </div>
@@ -12447,6 +12650,26 @@ async function qrSonucIsle(decodedText, decodedResult){
     p.tur_katilim_detay[tid].geldi = 1;
     p.tur_katilim_detay[tid].kontrol_zamani = new Date().toISOString();
     p.tur_katilim_detay[tid].qr_okundu = true;
+
+    // 🚌 Sefer otobüsleri varsa otomatik ata
+    let atananOtobus = null;
+    let atananOtobusAdi = '';
+    if(typeof seferOtobusleriAl === 'function'){
+      const seferOtobusleri = seferOtobusleriAl(sefer);
+      if(seferOtobusleri.length > 0 && !p.otobus_no){
+        atananOtobus = yolcuOtomatikOtobusAtaSefer(p);
+        if(atananOtobus){
+          const ob = otobusBulSefer(sefer, atananOtobus);
+          atananOtobusAdi = ob ? otobusAdiAl(ob) : 'Otobüs ' + atananOtobus;
+        }
+      } else if(p.otobus_no){
+        // Zaten atanmış
+        const ob = otobusBulSefer(sefer, p.otobus_no);
+        atananOtobusAdi = ob ? otobusAdiAl(ob) : 'Otobüs ' + p.otobus_no;
+      }
+    }
+    p._sonOtobusAdi = atananOtobusAdi; // Aşağıdaki sonuç ekranında kullanılacak
+
     try {
       if(typeof saveYolcuDB === 'function') await saveYolcuDB(p);
     } catch(e){ console.error('QR kayıt:', e); }
@@ -12460,14 +12683,18 @@ async function qrSonucIsle(decodedText, decodedResult){
   const det = (p.tur_katilim_detay && p.tur_katilim_detay[tid]) || null;
   const kisi = det ? det.kisi : ((p.adult||0)+(p.child||0)+(p.baby||0));
 
+  // 🚌 Otobüs adı eklensin (varsa)
+  const otobusEk = p._sonOtobusAdi ? '\n🚌 ' + p._sonOtobusAdi : '';
+
   if(oncedenGeldi){
-    qrSonucGoster('uyari', '⚠️ Zaten Geldi', p.name + '\nKabin '+kabin+' · '+kisi+' kişi\n'+t.name + (farkliTur ? '\n\n(Farklı turun bileti — bu tura ait değil)' : ''));
+    qrSonucGoster('uyari', '⚠️ Zaten Geldi', p.name + '\nKabin '+kabin+' · '+kisi+' kişi\n'+t.name + otobusEk + (farkliTur ? '\n\n(Farklı turun bileti — bu tura ait değil)' : ''));
   } else {
-    qrSonucGoster('basari', '✅ '+p.name, 'Kabin '+kabin+' · '+kisi+' kişi\n'+t.name + (farkliTur ? '\n\n⚠️ Farklı turun bileti! Yine de işaretlendi.' : ''));
+    qrSonucGoster('basari', '✅ '+p.name, 'Kabin '+kabin+' · '+kisi+' kişi\n'+t.name + otobusEk + (farkliTur ? '\n\n⚠️ Farklı turun bileti! Yine de işaretlendi.' : ''));
   }
 
-  // Render güncelle
+  // 🔄 Render güncelle - hem liste hem otobüs paneli
   renderKontrolListesi();
+  if(typeof renderOtobusPaneli === 'function') renderOtobusPaneli();
 }
 
 function qrSonucGoster(tip, baslik, icerik){
