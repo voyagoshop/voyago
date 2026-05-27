@@ -7413,7 +7413,17 @@ function yolcuDetayAc(kabin, sid, ev){
   if(!p){ showToast('Yolcu bulunamadı'); return; }
 
   const v = VOYAGES.find(x => x.id === sid);
-  const seferTurlari = TOURS.filter(t => t.seferler.includes(sid));
+  const seferTurlari = TOURS.filter(t => t.seferler && t.seferler.includes(sid));
+
+  // 🎯 ALINAN turlar — joinedTours'a göre (sefer filtresine bağımlı değil)
+  // Çünkü yolcu farklı sefer altındaki turu da almış olabilir
+  const alinanTurIds = p.joinedTours || [];
+  const alinanTurlar = alinanTurIds
+    .map(tid => TOURS.find(t => t.id === tid))
+    .filter(Boolean); // null'ları at (silinmiş turlar)
+
+  // Alınmamış turlar = bu seferin turlarından, alınmamış olanlar
+  const alinmayanTurlar = seferTurlari.filter(t => !alinanTurIds.includes(t.id));
 
   // Kabindeki tüm kişiler (ana + ek isimler)
   const tumKisiler = [
@@ -7431,9 +7441,7 @@ function yolcuDetayAc(kabin, sid, ev){
   const ini = p.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const toplamKisi = (p.adult||0) + (p.child||0) + (p.baby||0);
 
-  // Tur listesi (alınan/alınmayan)
-  const alinanTurlar = seferTurlari.filter(t => p.joinedTours?.includes(t.id));
-  const alinmayanTurlar = seferTurlari.filter(t => !p.joinedTours?.includes(t.id));
+  // Tur listesi yukarıda zaten tanımlı (alinanTurlar, alinmayanTurlar)
 
   // Toplam tur ücreti
   let toplamUcret = 0;
