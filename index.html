@@ -1013,7 +1013,7 @@ textarea.ai2{resize:none;}
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
           <div id="app-clock" style="font-family:'DM Serif Display',serif;font-size:28px;color:white;letter-spacing:1px;line-height:1;">00:00</div>
           <!-- Hava durumu -->
-          <div id="hava-pill" style="display:none;background:rgba(255,255,255,.2);border-radius:20px;padding:3px 10px;font-size:12px;color:white;cursor:pointer;flex-direction:row;gap:4px;" onclick="switchTab('program')">
+          <div id="hava-pill" style="display:none;background:rgba(255,255,255,.2);border-radius:20px;padding:3px 10px;font-size:12px;color:white;cursor:pointer;flex-direction:row;gap:4px;" onclick="havaModalAc()" title="Detaylı hava durumu">
             <span id="hava-icon" style="font-size:14px;">🌤️</span>
             <span id="hava-sicaklik"></span>
             <span id="hava-sehir" style="opacity:.8;font-size:11px;"></span>
@@ -2748,6 +2748,7 @@ async function initDB() {
       email: y.email || '',
       pazarlama_izni: y.pazarlama_izni || false,
       ekstra_isimler: y.ekstra_isimler || [],  // Diğer yolcular (ek isimler)
+      dogum_tarihleri: y.dogum_tarihleri || { ana: '', ekstra: [] }, // 🎂 Doğum günleri
       otobus_no: y.otobus_no || null  // 🚌 Sefer bazlı otobüs numarası
     }));
 
@@ -2955,6 +2956,7 @@ async function saveYolcuDB(p) {
         email: p.email || null,
         pazarlama_izni: p.pazarlama_izni || false,
         ekstra_isimler: p.ekstra_isimler || [],
+        dogum_tarihleri: p.dogum_tarihleri || null,
         otobus_no: p.otobus_no || null
       });
     } else {
@@ -2970,6 +2972,7 @@ async function saveYolcuDB(p) {
           email: p.email || null,
           pazarlama_izni: p.pazarlama_izni || false,
           ekstra_isimler: p.ekstra_isimler || [],
+        dogum_tarihleri: p.dogum_tarihleri || null,
           otobus_no: p.otobus_no || null
         });
       }
@@ -2985,6 +2988,7 @@ async function saveYolcuDB(p) {
       email: p.email || null,
       pazarlama_izni: p.pazarlama_izni || false,
       ekstra_isimler: p.ekstra_isimler || [],
+        dogum_tarihleri: p.dogum_tarihleri || null,
       otobus_no: p.otobus_no || null
     });
   }
@@ -3654,6 +3658,8 @@ function doPL(){
   renderGsSerit(sv);
   showScreen('sa');
   startClock();
+  // 🌤️ Hava durumu yükle
+  try{ if(typeof havaDurumBaslat==='function') havaDurumBaslat(sv); }catch(e){console.log('hava:', e);}
   // Sesli anons kanalını başlat
   try{ sesAnonsKanaliBaslat(); }catch(e){console.log('ses kanal:', e);}
   // Push bildirim sistemi başlat — RANDOM DELAY (200 yolcu birden açarsa Supabase patlar)
@@ -6899,6 +6905,76 @@ function renderDashboard(){
         <button onclick="adminTab('bil')" style="padding:10px;background:#1a5fa8;color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">🔔 Bildirim Gönder</button>
       </div>
     </div>
+
+    <!-- 🎂 DOĞUM GÜNÜ KARTI -->
+    ${(() => {
+      const dogumlar = (typeof dogumGunleriniGetir === 'function') ? dogumGunleriniGetir(sid, 7) : [];
+      if(!dogumlar.length) return '';
+      const bugun = dogumlar.filter(d => d.gun === 0);
+      const yarin = dogumlar.filter(d => d.gun === 1);
+      const ilerki = dogumlar.filter(d => d.gun > 1);
+      return `
+      <div style="background:linear-gradient(135deg,#ec4899,#be185d);border-radius:16px;padding:16px;color:white;box-shadow:0 8px 24px rgba(236,72,153,.25);">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <span style="font-size:28px;">🎂</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-family:'DM Serif Display',serif;font-size:16px;line-height:1.1;">Doğum Günleri</div>
+            <div style="font-size:11px;opacity:.9;margin-top:2px;">
+              ${bugun.length > 0 ? '🎉 ' + bugun.length + ' bugün' : ''}
+              ${yarin.length > 0 ? (bugun.length>0?' · ':'') + '🎁 ' + yarin.length + ' yarın' : ''}
+              ${ilerki.length > 0 ? ((bugun.length>0||yarin.length>0)?' · ':'') + '📅 ' + ilerki.length + ' bu hafta' : ''}
+            </div>
+          </div>
+        </div>
+
+        ${bugun.length > 0 ? `
+          <div style="background:rgba(255,255,255,.15);border-radius:10px;padding:10px;margin-bottom:8px;backdrop-filter:blur(8px);">
+            <div style="font-size:11px;font-weight:700;margin-bottom:6px;">🎉 BUGÜN DOĞUM GÜNÜ</div>
+            ${bugun.map(d => `
+              <div style="display:flex;align-items:center;gap:8px;padding:6px;background:rgba(255,255,255,.1);border-radius:8px;margin-bottom:4px;">
+                <span style="font-size:18px;">🎂</span>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:12px;font-weight:600;">${escapeHTML(d.name)} ${d.ekYolcu ? '<span style="opacity:.7;font-size:10px;">(ek)</span>' : ''}</div>
+                  <div style="font-size:10px;opacity:.9;">Kabin ${escapeHTML(d.kabin)} · ${d.yas_olacak} yaşında</div>
+                </div>
+                ${d.tel ? `<button onclick="dogumGunuWhatsappGonder(${JSON.stringify(d).replace(/"/g,'&quot;')})" style="padding:5px 10px;background:#25d366;color:white;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">💬 Kutla</button>` : '<span style="font-size:10px;opacity:.7;">(tel yok)</span>'}
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+
+        ${yarin.length > 0 ? `
+          <div style="background:rgba(255,255,255,.1);border-radius:10px;padding:10px;margin-bottom:8px;">
+            <div style="font-size:11px;font-weight:700;margin-bottom:6px;">🎁 YARIN</div>
+            ${yarin.map(d => `
+              <div style="display:flex;align-items:center;gap:8px;padding:4px 6px;font-size:11px;">
+                <span style="font-size:14px;">🎈</span>
+                <div style="flex:1;">${escapeHTML(d.name)} · Kabin ${escapeHTML(d.kabin)}${d.ekYolcu ? ' (ek)' : ''} · ${d.yas_olacak} yaşında olacak</div>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+
+        ${ilerki.length > 0 ? `
+          <details style="background:rgba(255,255,255,.1);border-radius:10px;padding:8px 10px;">
+            <summary style="font-size:11px;font-weight:700;cursor:pointer;">📅 Bu hafta (${ilerki.length})</summary>
+            <div style="margin-top:6px;">
+              ${ilerki.map(d => `
+                <div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:11px;">
+                  <span style="opacity:.7;">${d.gun} gün sonra</span>
+                  <div style="flex:1;">${escapeHTML(d.name)} · Kabin ${escapeHTML(d.kabin)}${d.ekYolcu ? ' (ek)' : ''}</div>
+                </div>
+              `).join('')}
+            </div>
+          </details>
+        ` : ''}
+
+        <div style="font-size:10px;opacity:.8;margin-top:8px;text-align:center;font-style:italic;">
+          💡 Doğum günleri manifest'ten otomatik tespit edildi
+        </div>
+      </div>
+      `;
+    })()}
 
     <!-- Footer info -->
     <div style="text-align:center;padding:8px;color:#aaa;font-size:11px;">
@@ -10431,6 +10507,180 @@ function turAlmayanWhatsapp(){
 }
 
 // ═══════════════════════════════════════════════
+// 🎂 DOĞUM GÜNÜ SİSTEMİ
+// ═══════════════════════════════════════════════
+
+// Doğum tarihi string'inden Date objesi al (DD/MM/YYYY veya YYYY-MM-DD)
+function _dogumTarihiParse(s){
+  if(!s) return null;
+  s = String(s).trim();
+  if(!s) return null;
+  // Excel serial date
+  if(/^\d{5}$/.test(s)){
+    const ms = (parseInt(s) - 25569) * 86400 * 1000;
+    return new Date(ms);
+  }
+  // DD/MM/YYYY
+  const ddMMyyyy = s.match(/^(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{4})$/);
+  if(ddMMyyyy){
+    return new Date(parseInt(ddMMyyyy[3]), parseInt(ddMMyyyy[2])-1, parseInt(ddMMyyyy[1]));
+  }
+  // YYYY-MM-DD
+  const yyyyMMdd = s.match(/^(\d{4})[\/\.\-](\d{1,2})[\/\.\-](\d{1,2})$/);
+  if(yyyyMMdd){
+    return new Date(parseInt(yyyyMMdd[1]), parseInt(yyyyMMdd[2])-1, parseInt(yyyyMMdd[3]));
+  }
+  return null;
+}
+
+// Bir tarih bugün doğum günü mü? (Aynı ay + aynı gün)
+function _bugunDogumGunuMu(dogumStr){
+  const d = _dogumTarihiParse(dogumStr);
+  if(!d) return false;
+  const bugun = new Date();
+  return d.getMonth() === bugun.getMonth() && d.getDate() === bugun.getDate();
+}
+
+// X gün sonra doğum günü mü?
+function _yaklasanDogumGunu(dogumStr, gunSayisi = 7){
+  const d = _dogumTarihiParse(dogumStr);
+  if(!d) return null;
+  const bugun = new Date();
+  // Bu yıla göre tarihi al
+  const buYil = new Date(bugun.getFullYear(), d.getMonth(), d.getDate());
+  let buYilSonraki = buYil;
+  if(buYil < bugun){
+    // Bu yıl geçmiş → gelecek yıl
+    buYilSonraki = new Date(bugun.getFullYear() + 1, d.getMonth(), d.getDate());
+  }
+  const fark = Math.floor((buYilSonraki - new Date(bugun.getFullYear(), bugun.getMonth(), bugun.getDate())) / (1000*60*60*24));
+  if(fark <= gunSayisi) return fark;
+  return null;
+}
+
+// Yaş hesabı
+function _yasHesapla(dogumStr){
+  const d = _dogumTarihiParse(dogumStr);
+  if(!d) return null;
+  const bugun = new Date();
+  let yas = bugun.getFullYear() - d.getFullYear();
+  const ayFarki = bugun.getMonth() - d.getMonth();
+  if(ayFarki < 0 || (ayFarki === 0 && bugun.getDate() < d.getDate())) yas--;
+  return yas;
+}
+
+// Aktif seferdeki tüm doğum günlerini topla
+// Dönen: [{ name, kabin, sefer, dogum, ne_zaman: 'bugün' | 'yarın' | 'X gün' | 'geçmiş', yas }]
+function dogumGunleriniGetir(sid, gelecekGunSayisi = 7){
+  const sonuc = [];
+  passengers.forEach(p => {
+    if(p.sefer !== sid || p.arsivli) return;
+
+    // Ana yolcu
+    const anaDogum = p.dogum_tarihleri?.ana;
+    if(anaDogum){
+      const yaklasan = _yaklasanDogumGunu(anaDogum, gelecekGunSayisi);
+      if(yaklasan !== null){
+        const yas = _yasHesapla(anaDogum);
+        sonuc.push({
+          name: p.name || '(İsimsiz)',
+          kabin: p.kabin || '?',
+          sefer: p.sefer,
+          tel: p.tel || '',
+          dogum: anaDogum,
+          gun: yaklasan, // 0 = bugün, 1 = yarın, vs.
+          yas_olacak: yas + (yaklasan === 0 ? 0 : 1) // Yaklaşan doğum gününde olacak yaş
+        });
+      }
+    }
+
+    // Ek yolcular
+    const ekler = p.ekstra_isimler || [];
+    const ekDogumlar = p.dogum_tarihleri?.ekstra || [];
+    ekler.forEach((isim, idx) => {
+      const dogum = ekDogumlar[idx];
+      if(!dogum) return;
+      const yaklasan = _yaklasanDogumGunu(dogum, gelecekGunSayisi);
+      if(yaklasan !== null){
+        const yas = _yasHesapla(dogum);
+        sonuc.push({
+          name: isim,
+          kabin: p.kabin || '?',
+          sefer: p.sefer,
+          tel: p.tel || '',
+          dogum: dogum,
+          gun: yaklasan,
+          yas_olacak: yas + (yaklasan === 0 ? 0 : 1),
+          ekYolcu: true // ek yolcu işareti
+        });
+      }
+    });
+  });
+  // Yaklaşana göre sırala
+  sonuc.sort((a, b) => a.gun - b.gun);
+  return sonuc;
+}
+
+// Doğum günü WhatsApp mesajı oluştur
+function dogumGunuMesajiOlustur(item){
+  const ilkAd = (item.name || '').split(' ')[0];
+  const rehberAdi = (CU && CU.name) ? CU.name : 'Rehberiniz';
+  const mesaj = [];
+
+  if(item.gun === 0){
+    // Bugün doğum günü
+    mesaj.push('🎂🎉 *Nice Yıllara, ' + ilkAd + ' Bey/Hanım!* 🎉🎂');
+    mesaj.push('');
+    mesaj.push('🥂 Bugün özel gününüz!');
+    mesaj.push('Sefer ekibimiz adına en içten dileklerimizi sunarız.');
+    mesaj.push('');
+    mesaj.push('🚢 Geminizde olduğumuz bu güzel günde');
+    mesaj.push('size unutulmaz bir doğum günü diliyoruz.');
+    mesaj.push('');
+    mesaj.push('🎁 Akşam gemideki restoranda');
+    mesaj.push('sizi küçük bir sürpriz bekliyor olabilir... 🤫');
+    mesaj.push('');
+    mesaj.push('Sevgilerle,');
+    mesaj.push('— Rehber ' + rehberAdi);
+  } else if(item.gun === 1){
+    // Yarın doğum günü
+    mesaj.push('🎂 *Sayın ' + ilkAd + ',*');
+    mesaj.push('');
+    mesaj.push('Yarın doğum gününüz, bunu unutmadık 😊');
+    mesaj.push('');
+    mesaj.push('🎉 Gemide hep birlikte kutlamak isteriz!');
+    mesaj.push('Daha fazla detay yarın gelecek...');
+    mesaj.push('');
+    mesaj.push('— Rehber ' + rehberAdi);
+  } else {
+    // İleri tarih
+    mesaj.push('🎂 Sayın ' + ilkAd + ',');
+    mesaj.push('');
+    mesaj.push(item.gun + ' gün sonra doğum gününüz olacak! Bunu kaçırmayız 🎁');
+    mesaj.push('');
+    mesaj.push('— Rehber ' + rehberAdi);
+  }
+
+  return mesaj.join('\n');
+}
+
+// Yolcuya WhatsApp ile doğum günü mesajı gönder
+function dogumGunuWhatsappGonder(item){
+  if(!item.tel){
+    showToast('⚠️ Yolcunun telefonu yok');
+    return;
+  }
+  let tel = item.tel.replace(/[^0-9+]/g, '');
+  if(tel.startsWith('0')) tel = '90' + tel.substring(1);
+  if(!tel.startsWith('90') && !tel.startsWith('+')) tel = '90' + tel;
+  tel = tel.replace('+', '');
+
+  const mesaj = dogumGunuMesajiOlustur(item);
+  const url = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(mesaj);
+  window.open(url, '_blank');
+}
+
+// ═══════════════════════════════════════════════
 // 🚌 OTOBÜS YÖNETİM SİSTEMİ (Sade · Sefer Bazlı · Rehber Yönetir)
 // ═══════════════════════════════════════════════
 // Otobüsler sefer altında saklanır, turdan/limandan bağımsız.
@@ -10835,6 +11085,7 @@ function otobusYolculariGoster(sid, otobusNo){
       toplam: kisi,
       tel: p.tel || '',
       ekstra_isimler: p.ekstra_isimler || [],
+        dogum_tarihleri: p.dogum_tarihleri || null,
       turlar: turAdlari
     });
   });
@@ -10977,6 +11228,7 @@ function otobusYolcuListesiYazdir(sid, otobusNo){
       toplam: (p.adult||0)+(p.child||0)+(p.baby||0),
       tel: p.tel || '',
       ekstra_isimler: p.ekstra_isimler || [],
+        dogum_tarihleri: p.dogum_tarihleri || null,
       turlar: geldiTurlari.map(tid => TOURS.find(t=>t.id===tid)?.name).filter(Boolean)
     });
   });
@@ -11932,6 +12184,13 @@ async function manifestKaydet(){
         else y++;
       });
 
+      // 🎂 Doğum tarihleri — ana + ekstra kişiler
+      // Format: { "ana": "DD/MM/YYYY", "ekstra": ["DD/MM/YYYY", ...] }
+      const dogumlar = {
+        ana: ana.dogum || '',
+        ekstra: kisiler.slice(1).map(k => k.dogum || '')
+      };
+
       const yeniYolcu = {
         name: `${ana.ad||''} ${ana.soyad||''}`.trim(),
         kabin: kabin,
@@ -11944,6 +12203,7 @@ async function manifestKaydet(){
         checkinDone: false,
         joinedTours: [],
         ekstra_isimler: ekler,
+        dogum_tarihleri: dogumlar, // 🎂 Doğum günü sistemi için
         tur_katilim_detay: {}
       };
 
@@ -15237,6 +15497,209 @@ async function havaDurumBaslat(sv){
     // Liman yoksa konumdan al
     havaDurumKonumdan();
   }
+}
+
+// ═══════════════════════════════════════════════
+// 🌤️ DETAYLI HAVA MODAL (Tur Önerisi ile)
+// ═══════════════════════════════════════════════
+async function havaModalAc(){
+  const sv = CP?.sefer;
+  if(!sv) { showToast('Sefer bilgisi yok'); return; }
+
+  // Loading modal göster
+  const eski = document.getElementById('hava-modal');
+  if(eski) eski.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'hava-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e)=>{ if(e.target.id === 'hava-modal') modal.remove(); };
+  modal.innerHTML = `
+    <div style="background:white;border-radius:18px;padding:30px;text-align:center;max-width:280px;">
+      <div style="font-size:32px;margin-bottom:10px;">🌤️</div>
+      <div style="font-size:13px;color:#666;">Hava durumu yükleniyor...</div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  // Bugünkü liman
+  const d = getDailyForSefer(sv);
+  const limanAdi = d?.port?.name || '';
+  const ulke = d?.port?.country || '';
+
+  // Yarınki liman (varsa)
+  let yarinkiLiman = '';
+  try {
+    const tumGunler = DAILY[sv] || [];
+    const bugun = d?.gunIdx ?? 0;
+    if(tumGunler[bugun + 1]?.port?.name){
+      yarinkiLiman = tumGunler[bugun + 1].port.name + ', ' + (tumGunler[bugun + 1].port.country || '');
+    }
+  } catch(e){}
+
+  // Hava verisi al (3 günlük)
+  let hava = null;
+  try {
+    const aramaYer = limanAdi ? (limanAdi + ', ' + ulke) : 'Istanbul';
+    const url = HAVA_API + encodeURIComponent(aramaYer) + '?format=j1&lang=tr';
+    const res = await fetch(url);
+    hava = await res.json();
+  } catch(e){
+    console.log('Hava modal hata:', e);
+  }
+
+  if(!hava || !hava.current_condition){
+    modal.innerHTML = `
+      <div style="background:white;border-radius:18px;padding:30px;text-align:center;max-width:280px;">
+        <div style="font-size:32px;margin-bottom:10px;">⚠️</div>
+        <div style="font-size:13px;color:#666;">Hava bilgisi şu anda alınamadı</div>
+        <button onclick="document.getElementById('hava-modal').remove()" style="margin-top:14px;padding:8px 20px;background:#1a5fa8;color:white;border:none;border-radius:8px;cursor:pointer;font-size:13px;">Kapat</button>
+      </div>
+    `;
+    return;
+  }
+
+  const current = hava.current_condition[0];
+  const weather = hava.weather || [];
+  const sicaklik = current.temp_C + '°C';
+  const kod = parseInt(current.weatherCode);
+  const icon = havaDurumIkon(kod);
+  const desc = current.lang_tr?.[0]?.value || current.weatherDesc?.[0]?.value || '';
+  const nem = current.humidity + '%';
+  const ruzgar = current.windspeedKmph + ' km/s';
+
+  // 3 günlük tahmin
+  const tahminHTML = weather.slice(0, 3).map((g, idx) => {
+    const tarih = new Date(g.date);
+    const gunAd = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'][tarih.getDay()];
+    const etiket = idx === 0 ? 'Bugün' : (idx === 1 ? 'Yarın' : gunAd);
+    const ortalama = g.hourly?.[4] || g.hourly?.[0]; // Öğlen
+    const kod = parseInt(ortalama?.weatherCode || 113);
+    const icon = havaDurumIkon(kod);
+    const desc = ortalama?.lang_tr?.[0]?.value || ortalama?.weatherDesc?.[0]?.value || '';
+    return `
+      <div style="flex:1;text-align:center;padding:10px 4px;background:#f9fafb;border-radius:10px;">
+        <div style="font-size:11px;color:#666;font-weight:600;margin-bottom:4px;">${etiket}</div>
+        <div style="font-size:24px;margin:4px 0;">${icon}</div>
+        <div style="font-size:14px;font-weight:700;color:#1a1a1a;">${g.maxtempC}° / ${g.mintempC}°</div>
+        <div style="font-size:9px;color:#666;margin-top:2px;line-height:1.2;">${escapeHTML(desc.substring(0,16))}</div>
+      </div>
+    `;
+  }).join('');
+
+  // 🎯 Akıllı tur önerisi (kod'a göre)
+  let oneri = '';
+  let oneriRengi = '#dbeafe';
+  let oneriYazi = '#1a5fa8';
+  let oneriIkon = '☀️';
+  let oneriBaslik = '';
+  if(kod >= 200 && kod <= 299){
+    // Yağmurlu/fırtınalı
+    oneriIkon = '☔';
+    oneriBaslik = 'Yağmurlu Hava';
+    oneri = 'Kapalı alan turlarını tercih edin: müzeler, kapalı çarşılar, restoranlar, gemideki etkinlikler.';
+    oneriRengi = '#dbeafe';
+    oneriYazi = '#1e40af';
+  } else if(kod >= 300 && kod <= 399){
+    oneriIkon = '❄️';
+    oneriBaslik = 'Karlı / Soğuk';
+    oneri = 'Sıcak giyinin, kapalı alan turlarına yönelin. Açık alan turlarında dikkatli olun.';
+    oneriRengi = '#e0e7ff';
+    oneriYazi = '#4338ca';
+  } else if(kod >= 100 && kod <= 199 && kod !== 113){
+    // Bulutlu/sisli
+    oneriIkon = '☁️';
+    oneriBaslik = 'Bulutlu Hava';
+    oneri = 'Açık ve kapalı turlar için uygun. Yağmurluk yedek almanız iyi olur.';
+    oneriRengi = '#f3f4f6';
+    oneriYazi = '#1f2937';
+  } else if(parseInt(current.temp_C) >= 30){
+    oneriIkon = '🥵';
+    oneriBaslik = 'Çok Sıcak Hava';
+    oneri = 'Sabah erken turları tercih edin. Bol su için, şapka takın. Plaj/deniz turları ideal!';
+    oneriRengi = '#fef3c7';
+    oneriYazi = '#92400e';
+  } else if(parseInt(current.temp_C) <= 12){
+    oneriIkon = '🧥';
+    oneriBaslik = 'Soğuk Hava';
+    oneri = 'Sıcak giyinin. Yürüyüş turlarında atkı + bere unutmayın.';
+    oneriRengi = '#e0e7ff';
+    oneriYazi = '#4338ca';
+  } else {
+    oneriIkon = '☀️';
+    oneriBaslik = 'Tur İçin İdeal Hava';
+    oneri = 'Mükemmel bir gün! Açık alan turları, plaj, antik şehirler — hepsi uygun. Güneş kremi unutmayın.';
+    oneriRengi = '#dcfce7';
+    oneriYazi = '#15803d';
+  }
+
+  // Yarınki liman bilgisi (yarın farklıysa)
+  let yarinkiBilgi = '';
+  if(yarinkiLiman && weather[1]){
+    const yarin = weather[1];
+    const yarinOrt = yarin.hourly?.[4] || yarin.hourly?.[0];
+    const yarinKod = parseInt(yarinOrt?.weatherCode || 113);
+    const yarinIcon = havaDurumIkon(yarinKod);
+    const yarinDesc = yarinOrt?.lang_tr?.[0]?.value || yarinOrt?.weatherDesc?.[0]?.value || '';
+    yarinkiBilgi = `
+      <div style="background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px;margin-bottom:10px;">
+        <div style="font-size:11px;color:#666;font-weight:600;margin-bottom:4px;">🌅 YARIN: ${escapeHTML(yarinkiLiman)}</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="font-size:28px;">${yarinIcon}</div>
+          <div style="flex:1;">
+            <div style="font-size:15px;font-weight:700;color:#1a1a1a;">${yarin.maxtempC}° / ${yarin.mintempC}°</div>
+            <div style="font-size:11px;color:#666;">${escapeHTML(yarinDesc)}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  modal.innerHTML = `
+    <div style="background:white;border-radius:18px;padding:18px 20px;max-width:420px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+        <div>
+          <div style="font-family:'DM Serif Display',serif;font-size:20px;color:#1a1a1a;">🌤️ Hava Durumu</div>
+          <div style="font-size:11px;color:#6b6b6b;margin-top:2px;">${escapeHTML(limanAdi || 'Mevcut konum')}</div>
+        </div>
+        <button onclick="document.getElementById('hava-modal').remove()" style="background:transparent;border:none;color:#999;font-size:24px;cursor:pointer;line-height:1;">×</button>
+      </div>
+
+      <!-- Şu an -->
+      <div style="background:linear-gradient(135deg,#3b82f6,#1e40af);border-radius:14px;padding:16px;color:white;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="font-size:54px;line-height:1;">${icon}</div>
+          <div style="flex:1;">
+            <div style="font-size:32px;font-weight:700;line-height:1;">${sicaklik}</div>
+            <div style="font-size:12px;opacity:.9;margin-top:4px;">${escapeHTML(desc)}</div>
+            <div style="font-size:11px;opacity:.8;margin-top:4px;display:flex;gap:10px;">
+              <span>💧 ${nem}</span>
+              <span>💨 ${ruzgar}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 günlük tahmin -->
+      <div style="font-size:11px;color:#666;font-weight:600;margin-bottom:6px;">📅 3 GÜNLÜK TAHMİN</div>
+      <div style="display:flex;gap:6px;margin-bottom:14px;">
+        ${tahminHTML}
+      </div>
+
+      ${yarinkiBilgi}
+
+      <!-- Tur önerisi -->
+      <div style="background:${oneriRengi};border-radius:12px;padding:12px 14px;color:${oneriYazi};">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span style="font-size:18px;">${oneriIkon}</span>
+          <span style="font-weight:700;font-size:13px;">${oneriBaslik}</span>
+        </div>
+        <div style="font-size:12px;line-height:1.5;">${oneri}</div>
+      </div>
+
+      <button onclick="document.getElementById('hava-modal').remove()" style="width:100%;margin-top:14px;padding:11px;background:#f3f4f6;color:#1a1a1a;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">Kapat</button>
+    </div>
+  `;
 }
 
 // ══ QR KOD ÜRETİCİ (Canvas ile) ══
