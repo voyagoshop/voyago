@@ -2574,12 +2574,45 @@ async function loadTurGorselleri(){
   }catch(e){ console.log('Gorsel yükleme hatası:', e); }
 }
 
+// ⚡ Hafif önbellek (RAM içi) — 504 hatalarına karşı dayanıklılık
+const _dbCache = {}; // { 'tablo:filtreKey': {data, ts} }
+const _DB_CACHE_TTL = 60000; // 1 dakika
+
 async function dbGet(tablo, filtre = {}) {
-  let q = sb.from(tablo).select('*');
-  Object.entries(filtre).forEach(([k,v]) => { q = q.eq(k, v); });
-  const { data, error } = await q;
-  if (error) { console.error(tablo, error); return []; }
-  return data || [];
+  const cacheKey = tablo + ':' + JSON.stringify(filtre);
+  // İlk önce taze cache var mı?
+  const cached = _dbCache[cacheKey];
+  const cacheTaze = cached && (Date.now() - cached.ts) < _DB_CACHE_TTL;
+
+  // 2 deneme yapalım (504/timeout'a karşı)
+  for(let deneme = 1; deneme <= 2; deneme++){
+    try {
+      let q = sb.from(tablo).select('*');
+      Object.entries(filtre).forEach(([k,v]) => { q = q.eq(k, v); });
+      const { data, error } = await q;
+      if (error) throw error;
+      const sonuc = data || [];
+      _dbCache[cacheKey] = { data: sonuc, ts: Date.now() };
+      return sonuc;
+    } catch(e) {
+      const msg = String(e?.message || e || '').toLowerCase();
+      const is504 = msg.includes('504') || msg.includes('timeout') || msg.includes('gateway');
+      // Son deneme veya 504 değilse hatayı yut
+      if(deneme === 2 || !is504){
+        // 504 veya bağlantı hatası → cache varsa onu döndür
+        if(cached){
+          console.log('[DB] ' + tablo + ' hata → cache döndü (yaş: ' + Math.round((Date.now()-cached.ts)/1000) + 's)');
+          return cached.data;
+        }
+        console.warn('[DB] ' + tablo + ' başarısız:', e?.message);
+        return [];
+      }
+      // 504 → kısa bekle, tekrar dene
+      console.log('[DB] ' + tablo + ' 504 timeout, tekrar deneniyor...');
+      await new Promise(r => setTimeout(r, 800));
+    }
+  }
+  return cached?.data || [];
 }
 
 // ═══════════════════════════════════════════════
@@ -3355,9 +3388,11 @@ function startClock(){
 
   // Geri sayım timer
   if(CP?.sefer) startGsTimer(CP.sefer);
-  // Her 30 saniyede bir anket ve günlük içerik güncelle
+  // ⚡ PERFORMANS: Polling 30sn → 5 dakika (Supabase yükünü azaltır)
+  // Realtime kanal zaten anlık update yapıyor, polling sadece backup
   setInterval(async ()=>{
     if(!CP||!CP.sefer)return;
+    if(_isOffline) return; // Offline ise atla
     try{
       const gunlukDB=await dbGet('gunluk',{sefer_id:CP.sefer});
       if(gunlukDB.length>0){
@@ -4202,6 +4237,21 @@ async function setupAdmin(){
   // VOYAGES boşsa DB'den yükle
   if(!VOYAGES.length){
     await loadVoyagesFromDB();
+  }
+
+  // 🔔 Rehber push + realtime dinleme başlat (yolcu kayıt bildirimleri)
+  if(isGuide || isAcente){
+    setTimeout(() => {
+      try { if(typeof rehberPushKaydet === 'function') rehberPushKaydet(); } catch(e){}
+      // Rehberin aktif seferi için realtime
+      const aktifV = VOYAGES.find(v =>
+        (v.guide === u.key || v.guide === u.name) &&
+        v.status !== 'archived' && v.visible
+      );
+      if(aktifV?.id){
+        try { if(typeof rehberRealtimeDinleBaslat === 'function') rehberRealtimeDinleBaslat(aktifV.id); } catch(e){}
+      }
+    }, 2000);
   }
 
   // Topbar rengi
@@ -14312,6 +14362,24 @@ function startLoadingAnimation(callback) {
 let _isOffline = !navigator.onLine;
 
 function offlineSistemKur(){
+  // ⚡ PERFORMANS: Sayfa kapatılırken realtime kanalları temizle (Supabase yükü)
+  window.addEventListener('beforeunload', () => {
+    try{ if(typeof sesAnonsKanaliKapat==='function') sesAnonsKanaliKapat(); }catch(e){}
+    try{ if(typeof ydRealtimeKapat==='function') ydRealtimeKapat(); }catch(e){}
+  });
+  // Tab arka plana gidince de kanalları kapat (mobilde özellikle önemli)
+  document.addEventListener('visibilitychange', () => {
+    if(document.hidden){
+      // Sayfa gizli — kanalları kapat (mobilde batarya + Supabase yükü)
+      try{ if(typeof sesAnonsKanaliKapat==='function') sesAnonsKanaliKapat(); }catch(e){}
+      try{ if(typeof ydRealtimeKapat==='function') ydRealtimeKapat(); }catch(e){}
+    } else if(CP) {
+      // Sayfa görünür oldu - kanalları geri aç
+      try{ if(typeof sesAnonsKanaliBaslat==='function') sesAnonsKanaliBaslat(); }catch(e){}
+      try{ if(typeof ydRealtimeBaslat==='function') ydRealtimeBaslat(); }catch(e){}
+    }
+  });
+
   // Online/Offline event listener'ları
   window.addEventListener('online', () => {
     _isOffline = false;
@@ -14666,6 +14734,13 @@ function doLogout() {
   // Tamamen çıkış için ilgili "Tam Çıkış" butonları var
   try{ if(typeof sesAnonsKanaliKapat==='function') sesAnonsKanaliKapat(); }catch(e){}
   try{ if(typeof ydRealtimeKapat==='function') ydRealtimeKapat(); }catch(e){}
+  try{ if(typeof rehberRealtimeDinleDurdur==='function') rehberRealtimeDinleDurdur(); }catch(e){}
+  // Yeni kayıt badge'i temizle
+  try{
+    const badge = document.getElementById('yeni-kayit-badge');
+    if(badge) badge.style.display = 'none';
+    _yeniTurKayitSayisi = 0;
+  }catch(e){}
   try{ const wb = document.getElementById('wa-grup-btn'); if(wb) wb.style.display = 'none'; }catch(e){}
 
   if(wasAdmin){
@@ -20797,14 +20872,28 @@ let _hikayeDuzenlenen = null;
 
 // Hikayeleri DB'den yükle
 async function hikayeleriYukle(){
-  try {
-    const { data, error } = await sb.from('liman_hikayeleri').select('*').order('liman').order('sira');
-    if(error) { console.error('Hikaye yükleme hatası:', error); return; }
-    HIKAYELER = data || [];
-    // Aktif sekmeleri yenile
-    if(typeof renderHikayelerYolcu === 'function') renderHikayelerYolcu();
-    if(typeof renderHikayelerAdmin === 'function') renderHikayelerAdmin();
-  } catch(e) { console.error('Hikaye yükleme:', e); }
+  // 504 toleranslı: 2 deneme
+  for(let deneme = 1; deneme <= 2; deneme++){
+    try {
+      const { data, error } = await sb.from('liman_hikayeleri').select('*').order('liman').order('sira');
+      if(error) throw error;
+      HIKAYELER = data || [];
+      // Aktif sekmeleri yenile
+      if(typeof renderHikayelerYolcu === 'function') renderHikayelerYolcu();
+      if(typeof renderHikayelerAdmin === 'function') renderHikayelerAdmin();
+      return;
+    } catch(e) {
+      const msg = String(e?.message || e || '').toLowerCase();
+      const is504 = msg.includes('504') || msg.includes('timeout');
+      if(deneme === 2 || !is504){
+        console.log('[HIKAYE] yüklenemedi:', e?.message);
+        // Boş bırak, kullanıcıya hata gösterme
+        if(!HIKAYELER) HIKAYELER = [];
+        return;
+      }
+      await new Promise(r => setTimeout(r, 800));
+    }
+  }
 }
 
 // ── YOLCU TARAFI: hikaye listesi ──
@@ -21980,6 +22069,204 @@ async function pushAboneliktenCik(){
       await sub.unsubscribe();
     }
   }catch(e){console.log('Unsub:', e);}
+}
+
+// ═══════════════════════════════════════════════
+// 🔔 REHBER PUSH SİSTEMİ (yolcu→rehber bildirimi)
+// ═══════════════════════════════════════════════
+
+// Rehber/Admin uygulamaya girince push subscription kaydet
+async function rehberPushKaydet(){
+  if(!CU) return;
+  if(!pushDestekVarMi()) return;
+
+  try {
+    await pushSwKaydet();
+    if(!pushSwReg) return;
+
+    // İzin yoksa modal göster (rehbere de)
+    const izin = pushIzinDurumu();
+    if(izin !== 'granted') {
+      if(izin === 'default'){
+        // 5 saniye sonra izin iste
+        setTimeout(() => {
+          if(Notification.requestPermission){
+            Notification.requestPermission().then(perm => {
+              if(perm === 'granted') rehberPushKaydet();
+            });
+          }
+        }, 5000);
+      }
+      return;
+    }
+
+    // Subscription al
+    let sub = await pushSwReg.pushManager.getSubscription();
+    if(!sub){
+      sub = await pushSwReg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    if(!sub) return;
+
+    // Aboneliği rehber için kaydet
+    const json = sub.toJSON();
+    const veri = {
+      yolcu_kabin: null, // Rehber için null
+      yolcu_sefer: null, // Tüm seferlerde aktif olmayabilir
+      yolcu_ad: CU.name || 'Rehber',
+      rol: 'rehber', // Önemli ayırıcı
+      rehber_key: CU.key || null, // Hangi rehber
+      endpoint: json.endpoint,
+      p256dh: json.keys.p256dh,
+      auth: json.keys.auth,
+      user_agent: navigator.userAgent.slice(0,200),
+      son_kullanim: new Date().toISOString()
+    };
+
+    await sb.from('push_subscriptions').upsert(veri, { onConflict: 'endpoint' });
+    console.log('[REHBER PUSH] Kayıt başarılı');
+  } catch(e){
+    console.log('[REHBER PUSH] Kayıt hatası:', e?.message);
+  }
+}
+
+// Yolcu tura kayıt olunca rehbere push gönder
+async function rehberPushGonder(seferId, mesaj){
+  if(!seferId || !mesaj) return;
+  try {
+    // Bu seferin rehberini bul
+    const v = VOYAGES.find(x => x.id === seferId);
+    if(!v) return;
+    const rehberKey = v.guide;
+    if(!rehberKey) {
+      console.log('[REHBER PUSH] Bu seferin rehberi yok');
+      return;
+    }
+
+    // Bu rehberin push subscription'larını al
+    const { data: subs, error } = await sb.from('push_subscriptions')
+      .select('*')
+      .eq('rol', 'rehber')
+      .eq('rehber_key', rehberKey);
+
+    if(error || !subs?.length) {
+      console.log('[REHBER PUSH] Rehber subscription bulunamadı');
+      return;
+    }
+
+    // Her subscription için push gönder (genellikle 1-2 cihaz)
+    for(const sub of subs){
+      try {
+        await sb.functions.invoke('send-push', {
+          body: {
+            subscription: {
+              endpoint: sub.endpoint,
+              keys: { p256dh: sub.p256dh, auth: sub.auth }
+            },
+            payload: {
+              title: mesaj.title || '🎉 Yeni Tur Kaydı',
+              body: mesaj.body || '',
+              tag: mesaj.tag || 'tur-kayit',
+              icon: '/icon-192.png',
+              badge: '/icon-72.png',
+              data: {
+                url: '/?sayfa=admin&sefer=' + seferId,
+                ...mesaj.data
+              }
+            }
+          }
+        });
+        console.log('[REHBER PUSH] Gönderildi:', mesaj.title);
+      } catch(pushErr){
+        console.log('[REHBER PUSH] Send hata:', pushErr?.message);
+      }
+    }
+  } catch(e){
+    console.log('[REHBER PUSH] Genel hata:', e?.message);
+  }
+}
+
+// Rehberin paneli açıkken realtime kanalı dinle
+let _rehberRealtimeKanal = null;
+function rehberRealtimeDinleBaslat(seferId){
+  if(!seferId) return;
+  // Önceki kanalı kapat
+  if(_rehberRealtimeKanal){
+    try { _rehberRealtimeKanal.unsubscribe(); } catch(e){}
+    _rehberRealtimeKanal = null;
+  }
+
+  try {
+    _rehberRealtimeKanal = sb.channel('voyago-tur-kayit-' + seferId);
+    _rehberRealtimeKanal.on('broadcast', { event: 'yeni_tur_kayit' }, (msg) => {
+      const p = msg.payload || {};
+      // Sesli bildirim
+      try {
+        if(typeof bildirimSesi === 'function') bildirimSesi('duyuru');
+      } catch(e){}
+      // Görsel toast
+      const mesajText = '🎉 Yeni tur kaydı!\n' + (p.yolcu || '') + ' (Kabin ' + (p.kabin || '?') + ')\n' + (p.tur || '') + ' · ' + (p.kisi || 0) + ' kişi · €' + (p.ucret || 0);
+      if(typeof showToast === 'function') showToast(mesajText);
+      // Dashboard sayacı güncelle
+      _yeniTurKayitSayisi = (_yeniTurKayitSayisi || 0) + 1;
+      rehberYeniKayitBadgeGuncelle();
+      // Eğer admin tur kontrol sayfasında ise listeyi yenile
+      try { 
+        if(typeof renderKontrolListesi === 'function') renderKontrolListesi(); 
+        if(typeof renderDashboard === 'function') renderDashboard();
+      } catch(e){}
+    });
+    _rehberRealtimeKanal.subscribe();
+    console.log('[REHBER REALTIME] Dinleme başladı:', seferId);
+  } catch(e){
+    console.log('[REHBER REALTIME] Hata:', e?.message);
+  }
+}
+
+function rehberRealtimeDinleDurdur(){
+  if(_rehberRealtimeKanal){
+    try { _rehberRealtimeKanal.unsubscribe(); } catch(e){}
+    _rehberRealtimeKanal = null;
+  }
+}
+
+// Yeni kayıt sayacı (rehber tarafı, oturum bazlı)
+let _yeniTurKayitSayisi = 0;
+function rehberYeniKayitBadgeGuncelle(){
+  // Header'da kırmızı badge
+  let badge = document.getElementById('yeni-kayit-badge');
+  if(!badge){
+    // İlk kez oluştur — topbar'a ekle
+    const topbar = document.querySelector('.acard') || document.querySelector('header');
+    if(topbar){
+      badge = document.createElement('div');
+      badge.id = 'yeni-kayit-badge';
+      badge.style.cssText = 'position:fixed;top:14px;right:14px;background:#dc2626;color:white;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;font-family:"DM Sans",sans-serif;cursor:pointer;z-index:9998;box-shadow:0 4px 12px rgba(220,38,38,.4);display:none;animation:badgePulse 1.5s ease-in-out infinite;';
+      badge.onclick = () => {
+        _yeniTurKayitSayisi = 0;
+        badge.style.display = 'none';
+        adminTab('kontrol');
+      };
+      // Animasyon
+      if(!document.getElementById('badge-pulse-style')){
+        const style = document.createElement('style');
+        style.id = 'badge-pulse-style';
+        style.textContent = '@keyframes badgePulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }';
+        document.head.appendChild(style);
+      }
+      document.body.appendChild(badge);
+    }
+  }
+  if(badge){
+    if(_yeniTurKayitSayisi > 0){
+      badge.style.display = 'block';
+      badge.innerHTML = '🎉 ' + _yeniTurKayitSayisi + ' yeni kayıt — Bak';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
 }
 
 // ── Push gönder (admin tetikleyicilerinden çağrılır) ──
