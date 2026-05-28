@@ -10351,7 +10351,7 @@ function yolcuDuzenleAc(kabin, sid){
 
   const ekIsimlerHTML = (p.ekstra_isimler || []).map((isim, idx) => `
     <div style="display:flex;gap:6px;margin-bottom:4px;">
-      <input type="text" value="${escapeHTML(isim)}" id="yd-ek-${idx}"
+      <input type="text" value="${escapeHTML(isim)}" id="ydt-ek-${idx}"
         style="flex:1;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;">
       <button onclick="yolcuDuzenleEkSil(${idx})" style="padding:6px 10px;background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;border-radius:8px;cursor:pointer;font-size:14px;">🗑️</button>
     </div>
@@ -10370,21 +10370,21 @@ function yolcuDuzenleAc(kabin, sid){
       <!-- Ad -->
       <div style="margin-bottom:10px;">
         <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;">👤 Ana yolcu adı</label>
-        <input type="text" id="yd-name" value="${escapeHTML(p.name||'')}"
+        <input type="text" id="ydt-name" value="${escapeHTML(p.name||'')}"
           style="width:100%;padding:10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;">
       </div>
 
       <!-- Telefon -->
       <div style="margin-bottom:10px;">
         <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;">📞 WhatsApp / Telefon</label>
-        <input type="tel" id="yd-tel" value="${escapeHTML(p.tel||'')}" placeholder="0532 xxx xx xx"
+        <input type="tel" id="ydt-tel" value="${escapeHTML(p.tel||'')}" placeholder="0532 xxx xx xx"
           style="width:100%;padding:10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;">
       </div>
 
       <!-- Ek yolcular -->
       <div style="margin-bottom:10px;">
         <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;">👥 Diğer yolcular (ek isimler)</label>
-        <div id="yd-ek-isimler" style="display:flex;flex-direction:column;gap:2px;">
+        <div id="ydt-ek-isimler" style="display:flex;flex-direction:column;gap:2px;">
           ${ekIsimlerHTML || '<div style="font-size:11px;color:#999;font-style:italic;padding:4px;">Henüz ek yolcu yok</div>'}
         </div>
         <button onclick="yolcuDuzenleEkEkle()" style="margin-top:6px;padding:6px 12px;background:#f0fdf4;color:#15803d;border:1.5px solid #86efac;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Ek Yolcu Ekle</button>
@@ -10398,7 +10398,7 @@ function yolcuDuzenleAc(kabin, sid){
             <div style="font-size:9px;color:#666;font-weight:600;margin-bottom:3px;">YETİŞKİN</div>
             <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
               <button onclick="yolcuDuzenleSayi('y',-1)" style="width:24px;height:24px;background:#fee;border:none;border-radius:6px;font-size:14px;cursor:pointer;color:#dc2626;">−</button>
-              <span id="yd-y" style="font-size:17px;font-weight:700;color:#1a5fa8;min-width:20px;">${p.adult||0}</span>
+              <span id="ydt-y" style="font-size:17px;font-weight:700;color:#1a5fa8;min-width:20px;">${p.adult||0}</span>
               <button onclick="yolcuDuzenleSayi('y',1)" style="width:24px;height:24px;background:#dcfce7;border:none;border-radius:6px;font-size:14px;cursor:pointer;color:#15803d;">+</button>
             </div>
           </div>
@@ -10406,7 +10406,7 @@ function yolcuDuzenleAc(kabin, sid){
             <div style="font-size:9px;color:#666;font-weight:600;margin-bottom:3px;">ÇOCUK 2-12</div>
             <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
               <button onclick="yolcuDuzenleSayi('c',-1)" style="width:24px;height:24px;background:#fee;border:none;border-radius:6px;font-size:14px;cursor:pointer;color:#dc2626;">−</button>
-              <span id="yd-c" style="font-size:17px;font-weight:700;color:#1a5fa8;min-width:20px;">${p.child||0}</span>
+              <span id="ydt-c" style="font-size:17px;font-weight:700;color:#1a5fa8;min-width:20px;">${p.child||0}</span>
               <button onclick="yolcuDuzenleSayi('c',1)" style="width:24px;height:24px;background:#dcfce7;border:none;border-radius:6px;font-size:14px;cursor:pointer;color:#15803d;">+</button>
             </div>
           </div>
@@ -10414,7 +10414,7 @@ function yolcuDuzenleAc(kabin, sid){
             <div style="font-size:9px;color:#666;font-weight:600;margin-bottom:3px;">BEBEK 0-2</div>
             <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
               <button onclick="yolcuDuzenleSayi('b',-1)" style="width:24px;height:24px;background:#fee;border:none;border-radius:6px;font-size:14px;cursor:pointer;color:#dc2626;">−</button>
-              <span id="yd-b" style="font-size:17px;font-weight:700;color:#1a5fa8;min-width:20px;">${p.baby||0}</span>
+              <span id="ydt-b" style="font-size:17px;font-weight:700;color:#1a5fa8;min-width:20px;">${p.baby||0}</span>
               <button onclick="yolcuDuzenleSayi('b',1)" style="width:24px;height:24px;background:#dcfce7;border:none;border-radius:6px;font-size:14px;cursor:pointer;color:#15803d;">+</button>
             </div>
           </div>
@@ -10432,7 +10432,7 @@ function yolcuDuzenleAc(kabin, sid){
 }
 
 function yolcuDuzenleSayi(tip, delta){
-  const id = 'yd-' + tip;
+  const id = 'ydt-' + tip;
   const el = document.getElementById(id);
   if(!el) return;
   let yeniDeger = parseInt(el.textContent || '0') + delta;
@@ -10443,7 +10443,7 @@ function yolcuDuzenleSayi(tip, delta){
 }
 
 function yolcuDuzenleEkEkle(){
-  const liste = document.getElementById('yd-ek-isimler');
+  const liste = document.getElementById('ydt-ek-isimler');
   if(!liste) return;
   // Mevcut input'ları geçici tut
   const mevcut = Array.from(liste.querySelectorAll('input[type="text"]')).map(i => i.value);
@@ -10451,20 +10451,20 @@ function yolcuDuzenleEkEkle(){
   // Yeniden render
   liste.innerHTML = mevcut.map((isim, idx) => `
     <div style="display:flex;gap:6px;margin-bottom:4px;">
-      <input type="text" value="${escapeHTML(isim)}" id="yd-ek-${idx}" placeholder="Ad Soyad"
+      <input type="text" value="${escapeHTML(isim)}" id="ydt-ek-${idx}" placeholder="Ad Soyad"
         style="flex:1;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;">
       <button onclick="yolcuDuzenleEkSil(${idx})" style="padding:6px 10px;background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;border-radius:8px;cursor:pointer;font-size:14px;">🗑️</button>
     </div>
   `).join('');
   // Yeni eklenen input'a focus
   setTimeout(()=>{
-    const sonInput = document.getElementById('yd-ek-' + (mevcut.length - 1));
+    const sonInput = document.getElementById('ydt-ek-' + (mevcut.length - 1));
     if(sonInput) sonInput.focus();
   }, 50);
 }
 
 function yolcuDuzenleEkSil(idx){
-  const liste = document.getElementById('yd-ek-isimler');
+  const liste = document.getElementById('ydt-ek-isimler');
   if(!liste) return;
   const mevcut = Array.from(liste.querySelectorAll('input[type="text"]')).map(i => i.value);
   mevcut.splice(idx, 1);
@@ -10474,7 +10474,7 @@ function yolcuDuzenleEkSil(idx){
   }
   liste.innerHTML = mevcut.map((isim, i) => `
     <div style="display:flex;gap:6px;margin-bottom:4px;">
-      <input type="text" value="${escapeHTML(isim)}" id="yd-ek-${i}" placeholder="Ad Soyad"
+      <input type="text" value="${escapeHTML(isim)}" id="ydt-ek-${i}" placeholder="Ad Soyad"
         style="flex:1;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;">
       <button onclick="yolcuDuzenleEkSil(${i})" style="padding:6px 10px;background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;border-radius:8px;cursor:pointer;font-size:14px;">🗑️</button>
     </div>
@@ -10485,17 +10485,17 @@ async function yolcuDuzenleKaydet(kabin, sid){
   const p = passengers.find(x => x.kabin === kabin && x.sefer === sid && !x.arsivli);
   if(!p){ showToast('Yolcu bulunamadı'); return; }
 
-  const yeniName = (document.getElementById('yd-name')?.value || '').trim();
-  const yeniTel = (document.getElementById('yd-tel')?.value || '').trim();
-  const yeniY = parseInt(document.getElementById('yd-y')?.textContent || '1');
-  const yeniC = parseInt(document.getElementById('yd-c')?.textContent || '0');
-  const yeniB = parseInt(document.getElementById('yd-b')?.textContent || '0');
+  const yeniName = (document.getElementById('ydt-name')?.value || '').trim();
+  const yeniTel = (document.getElementById('ydt-tel')?.value || '').trim();
+  const yeniY = parseInt(document.getElementById('ydt-y')?.textContent || '1');
+  const yeniC = parseInt(document.getElementById('ydt-c')?.textContent || '0');
+  const yeniB = parseInt(document.getElementById('ydt-b')?.textContent || '0');
 
   if(!yeniName){ showToast('⚠️ Ad boş olamaz'); return; }
   if(yeniY < 1){ showToast('⚠️ En az 1 yetişkin olmalı'); return; }
 
   // Ek isimler
-  const ekInputs = document.querySelectorAll('#yd-ek-isimler input[type="text"]');
+  const ekInputs = document.querySelectorAll('#ydt-ek-isimler input[type="text"]');
   const ekler = Array.from(ekInputs).map(i => (i.value || '').trim()).filter(x => x);
 
   // Güncelle
