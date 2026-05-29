@@ -2822,7 +2822,24 @@ async function initDB() {
     }));
 
     // Yolcuları yükle (arşivli olanlar da DB'de durur — rapor için)
-    const yolcularDB = await dbGet('yolcular');
+    let yolcularDB = [];
+    try {
+      yolcularDB = await dbGet('yolcular');
+    } catch(e){ console.log('Yolcular yükleme hatası:', e); }
+
+    // 📡 Offline fallback - DB'den boş geldiyse veya hata olduysa cache'i dene
+    if(!yolcularDB?.length){
+      const cached = _adminOfflineYukle('passengers_raw');
+      if(cached?.length){
+        console.log('[OFFLINE-ADMIN] ' + cached.length + ' yolcu cache\'ten yüklendi');
+        yolcularDB = cached;
+        showToast('📡 Çevrimdışı modda — Son verilerle çalışıyorsunuz');
+      }
+    } else {
+      // Başarılı yükleme → cache'le
+      _adminOfflineKaydet('passengers_raw', yolcularDB);
+    }
+
     passengers = yolcularDB.map(y => ({
       name: y.ad, kabin: y.kabin, tel: y.telefon || '',
       sefer: y.sefer_id || '', adult: y.yetiskin || 1,
@@ -4234,9 +4251,24 @@ async function setupAdmin(){
   const isAcente=u.role==='acente';
   const isGuide=u.role==='guide';
   const iS=isVoyago||isAcente;
+
+  // 📡 Önce localStorage'tan cache'i hızlıca yükle (offline destek)
+  try { 
+    if(typeof adminOfflineDataUygula === 'function') adminOfflineDataUygula(); 
+  } catch(e){}
+
   // VOYAGES boşsa DB'den yükle
   if(!VOYAGES.length){
     await loadVoyagesFromDB();
+  }
+
+  // 💾 Periyodik cache - her 60 sn admin verisini sakla
+  if(!window._adminCacheInterval){
+    window._adminCacheInterval = setInterval(() => {
+      if(navigator.onLine){
+        try { if(typeof adminOfflineDataKaydet === 'function') adminOfflineDataKaydet(); } catch(e){}
+      }
+    }, 60000);
   }
 
   // 🔔 Rehber push + realtime dinleme başlat (yolcu kayıt bildirimleri)
@@ -9120,6 +9152,18 @@ async function loadVoyagesAndRenderSef(){
 async function loadVoyagesFromDB(){
   try{
     const seferlerDB=await dbGet('seferler');
+
+    // 📡 Offline kontrolü: DB boş ve cache var ise cache'i kullan
+    if(!seferlerDB?.length){
+      const cached = _adminOfflineYukle('seferler');
+      if(cached?.length){
+        console.log('[OFFLINE-ADMIN] Seferler localStorage\'tan yüklendi');
+        VOYAGES.length = 0;
+        cached.forEach(v => VOYAGES.push(v));
+        return;
+      }
+    }
+
     // Listeyi tamamen sıfırla — her seferinde taze çek
     VOYAGES.length = 0;
     seferlerDB.forEach(s=>{
@@ -9132,7 +9176,76 @@ async function loadVoyagesFromDB(){
         yarisma_durumu: s.yarisma_durumu || 'aktif'
       });
     });
-  }catch(e){ console.error('Sefer yükleme hatası:', e); }
+
+    // 💾 Başarılı yüklemeden sonra localStorage'a cache'le
+    _adminOfflineKaydet('seferler', VOYAGES);
+  }catch(e){
+    console.error('Sefer yükleme hatası:', e);
+    // 📡 Hata aldıysak (offline veya 504) → cache'ten yükle
+    const cached = _adminOfflineYukle('seferler');
+    if(cached?.length){
+      console.log('[OFFLINE-ADMIN] DB hatası, cache kullanılıyor');
+      VOYAGES.length = 0;
+      cached.forEach(v => VOYAGES.push(v));
+      showToast('📡 Çevrimdışı modda — Son senkronize edilen veriler gösteriliyor');
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════
+// 📡 ADMIN OFFLINE CACHE (rehber için)
+// ═══════════════════════════════════════════════
+// Her DB yükleme başarılı olunca localStorage'a kaydet
+// Bağlantı yoksa veya 504 olursa cache'ten döndür
+
+function _adminOfflineKaydet(anahtar, veri){
+  try {
+    localStorage.setItem('voyago_admin_' + anahtar, JSON.stringify({
+      data: veri,
+      ts: Date.now()
+    }));
+  } catch(e){}
+}
+
+function _adminOfflineYukle(anahtar){
+  try {
+    const raw = localStorage.getItem('voyago_admin_' + anahtar);
+    if(!raw) return null;
+    const obj = JSON.parse(raw);
+    return obj.data || null;
+  } catch(e){ return null; }
+}
+
+// Admin offline modda — tüm yolcular/turlar cache'lensin
+function adminOfflineDataKaydet(){
+  try {
+    _adminOfflineKaydet('passengers', passengers);
+    _adminOfflineKaydet('tours', TOURS);
+    _adminOfflineKaydet('daily', DAILY);
+    console.log('[OFFLINE-ADMIN] Tüm admin verileri cache\'lendi');
+  } catch(e){ console.log('Admin offline cache hatası:', e); }
+}
+
+// Admin offline modda veriyi cache'ten getir
+function adminOfflineDataUygula(){
+  try {
+    const passCache = _adminOfflineYukle('passengers');
+    const toursCache = _adminOfflineYukle('tours');
+    const dailyCache = _adminOfflineYukle('daily');
+    if(passCache?.length){
+      passengers.length = 0;
+      passCache.forEach(p => passengers.push(p));
+      console.log('[OFFLINE-ADMIN] ' + passCache.length + ' yolcu cache\'ten yüklendi');
+    }
+    if(toursCache?.length){
+      TOURS.length = 0;
+      toursCache.forEach(t => TOURS.push(t));
+    }
+    if(dailyCache){
+      Object.assign(DAILY, dailyCache);
+    }
+    return true;
+  } catch(e){ return false; }
 }
 
 function renderSeferPanel(){
@@ -11435,11 +11548,72 @@ function yolcuOtomatikOtobusAtaSefer(p){
   const otobusler = seferOtobusleriAl(p.sefer);
   if(!otobusler.length) return null;
   const kisi = (p.adult||0) + (p.child||0) + (p.baby||0);
+
+  // 🎯 ÖNCELİK: Rehber bir otobüsü AKTİF olarak seçtiyse onu kullan
+  const aktifOtobus = _aktifOtobusAl(p.sefer);
+  if(aktifOtobus){
+    // Kapasite kontrolü — aktif otobüste yer var mı?
+    const ob = otobusBulSefer(p.sefer, aktifOtobus);
+    if(ob){
+      const mevcut = otobusDolulukHesaplaSefer(p.sefer, aktifOtobus);
+      if(mevcut + kisi <= (ob.kapasite || 40)){
+        p.otobus_no = aktifOtobus;
+        return aktifOtobus;
+      } else {
+        // Aktif otobüs dolu — uyar ama yine de en boşa ata
+        console.log('[OTOBÜS] Aktif otobüs dolu, otomatik en boşa atanıyor');
+      }
+    }
+  }
+
+  // Aktif otobüs yoksa veya doluysa → en boş
   const otobusNo = enBosOtobusBulSefer(p.sefer, kisi);
   if(otobusNo){
     p.otobus_no = otobusNo;
   }
   return otobusNo;
+}
+
+// ═══════════════════════════════════════════════
+// 🎯 AKTİF OTOBÜS SEÇİMİ (rehber hangi otobüsü doldurduğunu seçer)
+// ═══════════════════════════════════════════════
+// Saklama: localStorage 'voyago_aktif_otobus_{seferId}' = otobus_no
+// Aktif otobüs varsa yeni gelen yolcular SADECE bu otobüse atanır
+// Aktif otobüs dolarsa otomatik en boş otobüse geçer
+
+function _aktifOtobusAl(sid){
+  if(!sid) return null;
+  try {
+    const v = localStorage.getItem('voyago_aktif_otobus_' + sid);
+    return v ? parseInt(v) : null;
+  } catch(e) { return null; }
+}
+
+function _aktifOtobusKaydet(sid, otobusNo){
+  if(!sid) return;
+  try {
+    if(otobusNo === null || otobusNo === undefined){
+      localStorage.removeItem('voyago_aktif_otobus_' + sid);
+    } else {
+      localStorage.setItem('voyago_aktif_otobus_' + sid, String(otobusNo));
+    }
+  } catch(e){}
+}
+
+// Rehber bir otobüsü aktif seç (renderOtobusPaneli'den çağrılır)
+function aktifOtobusSec(sid, otobusNo){
+  const mevcut = _aktifOtobusAl(sid);
+  if(mevcut === otobusNo){
+    // Aynı otobüse tıklandıysa → seçimi kaldır
+    _aktifOtobusKaydet(sid, null);
+    showToast('🎯 Aktif otobüs seçimi kaldırıldı — otomatik dağılım');
+  } else {
+    _aktifOtobusKaydet(sid, otobusNo);
+    const ob = otobusBulSefer(sid, otobusNo);
+    const ad = ob ? otobusAdiAl(ob) : ('Otobüs ' + otobusNo);
+    showToast('✅ ' + ad + ' aktif — Yeni gelen yolcular buraya atanacak');
+  }
+  if(typeof renderOtobusPaneli === 'function') renderOtobusPaneli();
 }
 
 // Yolcuyu otobüsten çıkar - eğer hiçbir turda geldi=1 yoksa
@@ -11517,6 +11691,9 @@ function renderOtobusPaneli(){
     return;
   }
 
+  // 🎯 Aktif otobüs (rehber seçimi)
+  const aktifOtobusNo = _aktifOtobusAl(sid);
+
   // Otobüsleri görsel olarak göster
   const otobuslerHTML = otobusler.map(o => {
     const dolu = otobusDolulukHesaplaSefer(sid, o.no);
@@ -11526,17 +11703,36 @@ function renderOtobusPaneli(){
     const adi = otobusAdiAl(o);
     const etiketVar = o.etiket && o.etiket.trim();
     const notKisa = o.not ? (o.not.length > 20 ? o.not.substring(0,20)+'...' : o.not) : '';
+    const aktifMi = aktifOtobusNo === o.no;
+
+    // Aktif otobüs için pulsing border + üst rozet
+    const aktifStyle = aktifMi
+      ? 'border:3px solid #4f46e5;box-shadow:0 0 0 4px rgba(79,70,229,.15),0 4px 12px rgba(79,70,229,.3);'
+      : `border:2px solid ${renk};`;
+
     return `
-      <div onclick="otobusYolculariGoster('${sid}',${o.no})" 
-        style="flex:1;min-width:110px;background:white;border:2px solid ${renk};border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer;transition:transform .15s;"
-        onmouseover="this.style.transform='translateY(-2px)'"
-        onmouseout="this.style.transform='translateY(0)'">
-        <div style="font-size:10px;color:#666;font-weight:600;">${ikon} OTOBÜS</div>
-        <div style="font-family:'DM Serif Display',serif;font-size:${etiketVar && adi.length>4 ? '14px' : '22px'};color:${renk};line-height:1.1;margin:3px 0;font-weight:700;word-break:break-word;">${escapeHTML(adi)}</div>
-        <div style="font-size:12px;color:#1a1a1a;font-weight:700;">${dolu}/${o.kapasite}</div>
-        <div style="font-size:9px;color:${renk};font-weight:600;">${oran}%</div>
-        ${notKisa ? `<div style="font-size:9px;color:#666;margin-top:4px;font-style:italic;border-top:1px dashed #e5e7eb;padding-top:3px;">${escapeHTML(notKisa)}</div>` : ''}
-        <div style="font-size:9px;color:#4f46e5;margin-top:3px;font-weight:600;">👥 yolculara bak</div>
+      <div style="flex:1;min-width:120px;position:relative;">
+        ${aktifMi ? `
+          <div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#4f46e5;color:white;padding:2px 10px;border-radius:12px;font-size:10px;font-weight:700;z-index:2;white-space:nowrap;animation:aktifPulse 1.5s ease-in-out infinite;">
+            🎯 ŞU AN DOLDURULUYOR
+          </div>
+        ` : ''}
+        <div onclick="otobusYolculariGoster('${sid}',${o.no})" 
+          style="background:white;${aktifStyle};border-radius:10px;padding:${aktifMi ? '14px 8px 8px' : '10px 8px'};text-align:center;cursor:pointer;transition:transform .15s;"
+          onmouseover="this.style.transform='translateY(-2px)'"
+          onmouseout="this.style.transform='translateY(0)'">
+          <div style="font-size:10px;color:#666;font-weight:600;">${ikon} OTOBÜS</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:${etiketVar && adi.length>4 ? '14px' : '22px'};color:${aktifMi ? '#4f46e5' : renk};line-height:1.1;margin:3px 0;font-weight:700;word-break:break-word;">${escapeHTML(adi)}</div>
+          <div style="font-size:12px;color:#1a1a1a;font-weight:700;">${dolu}/${o.kapasite}</div>
+          <div style="font-size:9px;color:${renk};font-weight:600;">${oran}%</div>
+          ${notKisa ? `<div style="font-size:9px;color:#666;margin-top:4px;font-style:italic;border-top:1px dashed #e5e7eb;padding-top:3px;">${escapeHTML(notKisa)}</div>` : ''}
+          <div style="font-size:9px;color:#4f46e5;margin-top:3px;font-weight:600;">👥 yolculara bak</div>
+        </div>
+        <!-- Aktif seç butonu -->
+        <button onclick="event.stopPropagation();aktifOtobusSec('${sid}',${o.no})" 
+          style="width:100%;margin-top:4px;padding:5px;background:${aktifMi ? '#4f46e5' : 'white'};color:${aktifMi ? 'white' : '#4f46e5'};border:1.5px solid #4f46e5;border-radius:8px;font-size:10px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          ${aktifMi ? '✓ Aktif (Tıkla kaldır)' : '🎯 Bu Otobüsü Doldur'}
+        </button>
       </div>
     `;
   }).join('');
@@ -11555,8 +11751,10 @@ function renderOtobusPaneli(){
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;">${otobuslerHTML}</div>
       <div style="margin-top:8px;padding:8px;background:#f0f9ff;border-radius:8px;font-size:10px;color:#0d3b6e;line-height:1.5;">
-        💡 Yolcu "✓ Geldi" diyince otomatik en boş otobüse atanır. "✗ İptal" deyince otobüsten çıkar. Manuel taşımak için yolcu kartındaki 🚌 badge'ine tıklayın.
+        💡 <b>"🎯 Bu Otobüsü Doldur"</b> bas → yeni gelen yolcular SADECE buraya atanır.<br>
+        Aksi halde otomatik en boş otobüse dağıtılır. "✗ İptal" → otobüsten çıkar.
       </div>
+      <style>@keyframes aktifPulse { 0%,100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.05); } }</style>
     </div>
   `;
 }

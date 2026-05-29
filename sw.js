@@ -98,9 +98,19 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => {
           // Network yok, cache de yok
-          // HTML isteği ise → index.html dön
+          // HTML isteği ise → index.html dön (uygulama localStorage'tan çalışır)
           if (req.headers.get('accept')?.includes('text/html')) {
-            return caches.match('./index.html').then((html) => html || new Response('Çevrimdışı', { status: 503 }));
+            return caches.match('./index.html').then((html) => html || new Response(
+              `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>VOYAGO - Çevrimdışı</title>
+              <meta name="viewport" content="width=device-width,initial-scale=1">
+              <style>body{font-family:sans-serif;text-align:center;padding:40px 20px;background:#f0f4f8;color:#1a1a1a;}h1{color:#1a5fa8;}p{color:#666;line-height:1.6;}button{background:#1a5fa8;color:white;border:none;padding:12px 30px;border-radius:10px;font-size:14px;cursor:pointer;margin-top:14px;}</style>
+              </head><body>
+              <h1>📡 Çevrimdışısınız</h1>
+              <p>İnternet bağlantınız yok.<br>VOYAGO uygulaması cache'te yüklü değil.<br>Bir kere internete bağlanıp uygulamayı açtıktan sonra<br>çevrimdışı kullanılabilir.</p>
+              <button onclick="location.reload()">🔄 Tekrar Dene</button>
+              </body></html>`,
+              { status: 200, headers: { 'Content-Type': 'text/html' } }
+            ));
           }
           return new Response('Çevrimdışı', { status: 503 });
         });
