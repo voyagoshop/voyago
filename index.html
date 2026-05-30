@@ -2006,6 +2006,11 @@ textarea.ai2{resize:none;}
             <select class="fs" id="kontrol-sefer-sel" onchange="renderKontrolListesi()" style="height:40px;"></select>
           </div>
         </div>
+        <!-- 💰 Ödeme bekleyenler butonu -->
+        <button onclick="odemeBekleyenTopluRapor()" 
+          style="width:100%;margin-top:10px;padding:9px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;">
+          ⏳ <span>Ödeme Bekleyen Yolcuları Gör</span>
+        </button>
       </div>
 
       <!-- HIZLI KABİN ARAMA -->
@@ -8527,6 +8532,363 @@ function renderKatModalListesi(){
 }
 async function addToTour(kabin,sefer,tid){
   const p=passengers.find(p=>p.kabin===kabin&&p.sefer===sefer);
+  if(!p){ showToast('Yolcu bulunamadı'); return; }
+  if(p.joinedTours.includes(tid)){ showToast('Bu yolcu zaten tura kayıtlı'); return; }
+
+  // 💰 ÖDEME DURUMU SORULSUN — modal aç
+  odemeDurumuModalAc(kabin, sefer, tid);
+}
+
+// 💰 Ödeme durumu modal'ı (rehber tur kaydı yaparken sorulur)
+function odemeDurumuModalAc(kabin, sefer, tid){
+  const p = passengers.find(x => x.kabin === kabin && x.sefer === sefer);
+  const t = TOURS.find(x => x.id === tid);
+  if(!p || !t) return;
+
+  // Eski modal varsa kapat
+  const eski = document.getElementById('odeme-durumu-modal');
+  if(eski) eski.remove();
+
+  // Tahmini ücret
+  const y = p.adult || 0, c = p.child || 0, b = p.baby || 0;
+  const kisi = y + c + b;
+  let ucret = 0;
+  if(t.paketFiyat && t.paketFiyat > 0) ucret = t.paketFiyat;
+  else ucret = (y * (t.ap||0)) + (c * (t.cp||0)) + (b * (t.bp||0));
+
+  const modal = document.createElement('div');
+  modal.id = 'odeme-durumu-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e)=>{ if(e.target.id === 'odeme-durumu-modal') modal.remove(); };
+
+  modal.innerHTML = `
+    <div style="background:white;border-radius:18px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#7c3aed,#5b21b6);padding:16px 18px;color:white;">
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;">💰 Ödeme Durumu</div>
+        <div style="font-size:11px;opacity:.9;margin-top:3px;">
+          ${escapeHTML(p.name)} · Kabin ${escapeHTML(kabin)} · ${escapeHTML(t.name)}
+        </div>
+        <div style="font-size:13px;font-weight:700;margin-top:6px;">
+          ${kisi} kişi · Toplam: €${ucret}
+        </div>
+      </div>
+
+      <div style="padding:16px 18px;">
+        <div style="font-size:12px;color:#666;margin-bottom:10px;text-align:center;">
+          Yolcu ödemeyi yaptı mı?
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <!-- Ödeme yapıldı -->
+          <button onclick="odemeDurumuOnayla('${escapeHTML(kabin)}','${sefer}','${tid}','odendi')" 
+            style="padding:14px;background:#dcfce7;border:2px solid #16a34a;border-radius:12px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;font-family:'DM Sans',sans-serif;">
+            <span style="font-size:28px;">✅</span>
+            <div style="flex:1;">
+              <div style="font-size:14px;font-weight:700;color:#15803d;">Ödeme Yapıldı</div>
+              <div style="font-size:11px;color:#15803d;opacity:.85;margin-top:1px;">Nakit/kart ile ödendi · €${ucret}</div>
+            </div>
+          </button>
+
+          <!-- Ödeme bekliyor -->
+          <button onclick="odemeDurumuOnayla('${escapeHTML(kabin)}','${sefer}','${tid}','bekliyor')" 
+            style="padding:14px;background:#fef3c7;border:2px solid #f59e0b;border-radius:12px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;font-family:'DM Sans',sans-serif;">
+            <span style="font-size:28px;">⏳</span>
+            <div style="flex:1;">
+              <div style="font-size:14px;font-weight:700;color:#92400e;">Ödeme Bekleniyor</div>
+              <div style="font-size:11px;color:#92400e;opacity:.85;margin-top:1px;">Sonra ödenecek · Hatırlatma yapacağım</div>
+            </div>
+          </button>
+
+          <!-- Ücretsiz / Kompliment -->
+          <button onclick="odemeDurumuOnayla('${escapeHTML(kabin)}','${sefer}','${tid}','ucretsiz')" 
+            style="padding:12px;background:#f3f4f6;border:1.5px solid #d1d5db;border-radius:12px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;font-family:'DM Sans',sans-serif;">
+            <span style="font-size:24px;">🎁</span>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:600;color:#374151;">Ücretsiz / Hediye</div>
+              <div style="font-size:10px;color:#666;opacity:.85;">Ödeme alınmayacak</div>
+            </div>
+          </button>
+        </div>
+
+        <button onclick="document.getElementById('odeme-durumu-modal').remove()" 
+          style="width:100%;margin-top:12px;padding:9px;background:transparent;border:1.5px solid #e5e7eb;color:#666;border-radius:10px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">İptal</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+// Ödeme durumunu onayla ve tura kaydet
+async function odemeDurumuOnayla(kabin, sefer, tid, odemeDurumu){
+  const p = passengers.find(x => x.kabin === kabin && x.sefer === sefer);
+  if(!p){ document.getElementById('odeme-durumu-modal')?.remove(); return; }
+
+  document.getElementById('odeme-durumu-modal')?.remove();
+
+  if(!p.joinedTours.includes(tid)){
+    p.joinedTours.push(tid);
+
+    const t = TOURS.find(x=>x.id===tid);
+    if(t){
+      if(!p.tur_katilim_detay) p.tur_katilim_detay = {};
+      const y = p.adult || 0;
+      const c = p.child || 0;
+      const b = p.baby || 0;
+      const kisi = y + c + b;
+      let ucret = 0;
+      if(t.paketFiyat && t.paketFiyat > 0){
+        ucret = t.paketFiyat;
+      } else if(kisi > 0){
+        ucret = (y * (t.ap||0)) + (c * (t.cp||0)) + (b * (t.bp||0));
+      }
+
+      // Ücretsiz ise 0
+      if(odemeDurumu === 'ucretsiz') ucret = 0;
+
+      p.tur_katilim_detay[tid] = {
+        yetiskin: y, cocuk: c, bebek: b,
+        kisi: kisi, ucret: ucret,
+        e_imza: 'Rehber ekledi',
+        zaman: new Date().toISOString(),
+        odeme_durumu: odemeDurumu,        // 'odendi' | 'bekliyor' | 'ucretsiz'
+        odeme_zamani: odemeDurumu === 'odendi' ? new Date().toISOString() : null
+      };
+
+      const ikon = odemeDurumu === 'odendi' ? '✅' : (odemeDurumu === 'bekliyor' ? '⏳' : '🎁');
+      const yazi = odemeDurumu === 'odendi' ? 'ödendi' : (odemeDurumu === 'bekliyor' ? 'ödeme bekliyor' : 'ücretsiz');
+      showToast(ikon + ' ' + p.name + ' tura kaydedildi (' + yazi + ')');
+    }
+
+    if(typeof showKatilimcilar === 'function') showKatilimcilar(tid);
+    if(typeof renderTA === 'function') renderTA(CTSF);
+
+    try {
+      await saveYolcuDB(p);
+    } catch(e){
+      console.error('addToTour DB kayıt hatası:', e);
+      showToast('⚠️ Kayıt başarısız: ' + (e.message||''));
+    }
+  }
+}
+
+// 💬 WhatsApp ile ödeme hatırlatma gönder
+function odemeHatirlatmaWA(kabin, sefer, tid){
+  const p = passengers.find(x => x.kabin === kabin && x.sefer === sefer);
+  if(!p){ showToast('Yolcu bulunamadı'); return; }
+  if(!p.tel){ showToast('⚠️ Yolcunun telefonu yok'); return; }
+  const t = TOURS.find(x => x.id === tid);
+  if(!t){ showToast('Tur bulunamadı'); return; }
+  const det = p.tur_katilim_detay?.[tid];
+  if(!det){ showToast('Tur kaydı bulunamadı'); return; }
+
+  const ucret = det.ucret || 0;
+  const kisi = det.kisi || ((p.adult||0)+(p.child||0)+(p.baby||0));
+  const ilkAd = (p.name || '').split(' ')[0];
+  const rehberAdi = (CU && CU.name) ? CU.name : 'Rehberiniz';
+
+  const mesaj = [];
+  mesaj.push('Merhaba Sayın ' + ilkAd + ' 🌟');
+  mesaj.push('');
+  mesaj.push('*' + t.name + '* turuna kaydolduğunuz için teşekkür ederim.');
+  mesaj.push('');
+  mesaj.push('💰 *Ödeme Bilgisi:*');
+  mesaj.push('• Kişi sayısı: ' + kisi);
+  mesaj.push('• Toplam ücret: *€' + ucret + '*');
+  mesaj.push('');
+  mesaj.push('Tur öncesinde ödemenizi tamamlayabilirseniz çok memnun olurum 🙏');
+  mesaj.push('');
+  mesaj.push('Sorularınız için her zaman buradayım.');
+  mesaj.push('');
+  mesaj.push('Saygılarımla,');
+  mesaj.push('— ' + rehberAdi);
+
+  let tel = p.tel.replace(/[^0-9+]/g, '');
+  if(tel.startsWith('0')) tel = '90' + tel.substring(1);
+  if(!tel.startsWith('90') && !tel.startsWith('+')) tel = '90' + tel;
+  tel = tel.replace('+', '');
+
+  const url = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(mesaj.join('\n'));
+  window.open(url, '_blank');
+}
+
+// 🎯 Tüm ödeme bekleyen yolculara toplu hatırlatma
+function odemeBekleyenTopluRapor(sid){
+  if(!sid) sid = getCurrentSeferId?.() || '';
+  if(!sid){ showToast('Sefer bilgisi yok'); return; }
+
+  const bekleyenler = [];
+  passengers.filter(p => p.sefer === sid && !p.arsivli).forEach(p => {
+    (p.joinedTours || []).forEach(tid => {
+      const det = p.tur_katilim_detay?.[tid];
+      if(det?.odeme_durumu === 'bekliyor'){
+        const t = TOURS.find(x => x.id === tid);
+        if(t){
+          bekleyenler.push({ p, t, tid, det });
+        }
+      }
+    });
+  });
+
+  const eski = document.getElementById('odeme-bekleyen-modal');
+  if(eski) eski.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'odeme-bekleyen-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e)=>{ if(e.target.id === 'odeme-bekleyen-modal') modal.remove(); };
+
+  // Toplam bekleyen ücret
+  const toplam = bekleyenler.reduce((s, x) => s + (x.det.ucret||0), 0);
+
+  modal.innerHTML = `
+    <div style="background:white;border-radius:18px;max-width:520px;width:100%;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:14px 18px;color:white;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <div style="font-family:'DM Serif Display',serif;font-size:18px;">⏳ Ödeme Bekleyen Yolcular</div>
+            <div style="font-size:11px;opacity:.9;margin-top:3px;">${bekleyenler.length} tur kaydı · Toplam €${toplam}</div>
+          </div>
+          <button onclick="document.getElementById('odeme-bekleyen-modal').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;font-size:18px;cursor:pointer;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;">×</button>
+        </div>
+      </div>
+      <div style="padding:14px 18px;overflow-y:auto;flex:1;">
+        ${!bekleyenler.length ? `
+          <div style="text-align:center;padding:40px 20px;color:#888;">
+            <div style="font-size:48px;margin-bottom:10px;opacity:.5;">✅</div>
+            <div style="font-size:13px;">Harika! Tüm ödemeler tamamlanmış 🎉</div>
+            <div style="font-size:11px;margin-top:6px;color:#aaa;">Bekleyen ödeme yok</div>
+          </div>
+        ` : bekleyenler.map(({p, t, tid, det}) => `
+          <div style="padding:11px 12px;background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;margin-bottom:6px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;font-weight:700;color:#92400e;">${escapeHTML(p.name)}</div>
+                <div style="font-size:11px;color:#92400e;opacity:.85;margin-top:1px;">Kabin ${escapeHTML(p.kabin)} · ${det.kisi || 0} kişi · €${det.ucret || 0}</div>
+                <div style="font-size:10px;color:#92400e;margin-top:2px;">📍 ${escapeHTML(t.name)}</div>
+                ${p.tel ? `<div style="font-size:10px;color:#15803d;margin-top:2px;">📞 ${escapeHTML(p.tel)}</div>` : '<div style="font-size:10px;color:#dc2626;margin-top:2px;font-style:italic;">⚠️ Telefon yok</div>'}
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">
+                ${p.tel ? `<button onclick="odemeHatirlatmaWA('${escapeHTML(p.kabin)}','${sid}','${tid}')" 
+                  style="padding:6px 10px;background:#25d366;color:white;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;">💬 Hatırlat</button>` : ''}
+                <button onclick="document.getElementById('odeme-bekleyen-modal').remove();odemeDurumunuDegistir('${escapeHTML(p.kabin)}','${sid}','${tid}')" 
+                  style="padding:6px 10px;background:#dcfce7;color:#15803d;border:1.5px solid #86efac;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;">✅ Ödendi</button>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+// Ödeme rozetleri için CSS animasyon
+if(!document.getElementById('odeme-rozet-style')){
+  const style = document.createElement('style');
+  style.id = 'odeme-rozet-style';
+  style.textContent = `
+    @keyframes odemeUyari {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.65; }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+
+async function odemeDurumunuDegistir(kabin, sefer, tid){
+  const p = passengers.find(x => x.kabin === kabin && x.sefer === sefer);
+  if(!p || !p.joinedTours.includes(tid)){ showToast('Bu yolcu turda değil'); return; }
+
+  const t = TOURS.find(x => x.id === tid);
+  if(!t) return;
+  const mevcut = p.tur_katilim_detay?.[tid]?.odeme_durumu || 'odendi';
+  const ucret = p.tur_katilim_detay?.[tid]?.ucret || 0;
+
+  // Eski modal varsa kapat
+  const eski = document.getElementById('odeme-durumu-modal');
+  if(eski) eski.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'odeme-durumu-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e)=>{ if(e.target.id === 'odeme-durumu-modal') modal.remove(); };
+
+  function _opt(durum, ikon, ad, aciklama, bgRenk, brdRenk, txtRenk){
+    const aktif = mevcut === durum;
+    return `
+      <button onclick="_odemeDurumuKaydet('${escapeHTML(kabin)}','${sefer}','${tid}','${durum}')" 
+        style="padding:12px;background:${aktif ? bgRenk : 'white'};border:2px solid ${aktif ? brdRenk : '#e5e7eb'};border-radius:12px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;font-family:'DM Sans',sans-serif;">
+        <span style="font-size:24px;">${ikon}</span>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:700;color:${aktif ? txtRenk : '#1a1a1a'};">${ad}${aktif ? ' ✓' : ''}</div>
+          <div style="font-size:10px;color:${aktif ? txtRenk : '#666'};opacity:.85;margin-top:1px;">${aciklama}</div>
+        </div>
+      </button>
+    `;
+  }
+
+  modal.innerHTML = `
+    <div style="background:white;border-radius:18px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#7c3aed,#5b21b6);padding:14px 18px;color:white;">
+        <div style="font-family:'DM Serif Display',serif;font-size:16px;">💰 Ödeme Durumunu Değiştir</div>
+        <div style="font-size:11px;opacity:.9;margin-top:3px;">${escapeHTML(p.name)} · Kabin ${escapeHTML(kabin)} · ${escapeHTML(t.name)} · €${ucret}</div>
+      </div>
+      <div style="padding:14px 18px;">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${_opt('odendi','✅','Ödeme Yapıldı','Tahsil edildi','#dcfce7','#16a34a','#15803d')}
+          ${_opt('bekliyor','⏳','Ödeme Bekleniyor','Hatırlatma gerekiyor','#fef3c7','#f59e0b','#92400e')}
+          ${_opt('ucretsiz','🎁','Ücretsiz / Hediye','Ücret alınmayacak','#f3f4f6','#9ca3af','#374151')}
+        </div>
+        <button onclick="document.getElementById('odeme-durumu-modal').remove()" 
+          style="width:100%;margin-top:12px;padding:9px;background:transparent;border:1.5px solid #e5e7eb;color:#666;border-radius:10px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">İptal</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+async function _odemeDurumuKaydet(kabin, sefer, tid, yeniDurum){
+  const p = passengers.find(x => x.kabin === kabin && x.sefer === sefer);
+  if(!p) return;
+  if(!p.tur_katilim_detay) p.tur_katilim_detay = {};
+  if(!p.tur_katilim_detay[tid]) p.tur_katilim_detay[tid] = {};
+
+  const eskiUcret = p.tur_katilim_detay[tid].ucret || 0;
+  p.tur_katilim_detay[tid].odeme_durumu = yeniDurum;
+  p.tur_katilim_detay[tid].odeme_zamani = yeniDurum === 'odendi' ? new Date().toISOString() : null;
+
+  // Ücretsiz olarak işaretlendiyse ücret 0
+  if(yeniDurum === 'ucretsiz') p.tur_katilim_detay[tid].ucret = 0;
+  else if(p.tur_katilim_detay[tid].ucret === 0 && eskiUcret === 0) {
+    // Yeniden hesapla (önceden ücretsiz iken artık değil)
+    const t = TOURS.find(x => x.id === tid);
+    if(t){
+      const y = p.adult || 0, c = p.child || 0, b = p.baby || 0;
+      const kisi = y + c + b;
+      if(t.paketFiyat && t.paketFiyat > 0) p.tur_katilim_detay[tid].ucret = t.paketFiyat;
+      else p.tur_katilim_detay[tid].ucret = (y * (t.ap||0)) + (c * (t.cp||0)) + (b * (t.bp||0));
+    }
+  }
+
+  document.getElementById('odeme-durumu-modal')?.remove();
+
+  const ikon = yeniDurum === 'odendi' ? '✅' : (yeniDurum === 'bekliyor' ? '⏳' : '🎁');
+  showToast(ikon + ' Ödeme durumu güncellendi');
+
+  try { await saveYolcuDB(p); } catch(e){ console.error(e); }
+
+  // Açık modalı/listeyi yenile
+  try {
+    if(typeof renderKontrolListesi === 'function') renderKontrolListesi();
+    if(typeof yolcuDetayAc === 'function' && document.getElementById('yolcu-detay-modal')) yolcuDetayAc(kabin, sefer);
+    if(typeof renderTA === 'function') renderTA(CTSF);
+  } catch(e){}
+}
+
+// Eski addToTour - geriye uyumluluk için (ödeme sormadan kaydet, varsayılan 'odendi')
+async function _eskiAddToTour(kabin,sefer,tid){
+  const p=passengers.find(p=>p.kabin===kabin&&p.sefer===sefer);
   if(p&&!p.joinedTours.includes(tid)){
     p.joinedTours.push(tid);
 
@@ -8553,7 +8915,9 @@ async function addToTour(kabin,sefer,tid){
         kisi: kisi,
         ucret: ucret,
         e_imza: 'Rehber ekledi',
-        zaman: new Date().toISOString()
+        zaman: new Date().toISOString(),
+        odeme_durumu: 'odendi',
+        odeme_zamani: new Date().toISOString()
       };
     }
 
@@ -11030,6 +11394,38 @@ function renderKontrolListesi(){
       ? `<div style="display:inline-block;background:${d===1?'#e8f5ee':d===2?'#fee2e2':'#f0f6fb'};color:${d===1?'#15803d':d===2?'#a32d2d':'#0d3b6e'};padding:1px 8px;border-radius:10px;font-size:10px;font-weight:600;margin-bottom:3px;">📍 ${escapeHTML(t.name||'-')}</div>`
       : '';
 
+    // 💰 Ödeme durumu rozeti
+    const det = p.tur_katilim_detay?.[rowTid] || {};
+    const odemeDurumu = det.odeme_durumu || 'odendi'; // Varsayılan: ödendi (eski kayıtlar için)
+    const ucret = det.ucret || 0;
+    let odemeRozeti = '';
+    if(odemeDurumu === 'bekliyor'){
+      odemeRozeti = `
+        <button onclick="event.stopPropagation();odemeDurumunuDegistir('${escapeHTML(p.kabin||'')}','${sid}','${rowTid}')" 
+          style="display:inline-flex;align-items:center;gap:4px;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;margin-top:3px;border:1.5px solid #fcd34d;cursor:pointer;font-family:'DM Sans',sans-serif;animation:odemeUyari 2s ease-in-out infinite;">
+          ⏳ Ödeme Bekliyor · €${ucret}
+        </button>
+        ${p.tel ? `<button onclick="event.stopPropagation();odemeHatirlatmaWA('${escapeHTML(p.kabin||'')}','${sid}','${rowTid}')" 
+          style="display:inline-flex;align-items:center;gap:3px;background:#25d366;color:white;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;margin-top:3px;margin-left:4px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          💬 Hatırlat
+        </button>` : ''}
+      `;
+    } else if(odemeDurumu === 'odendi' && ucret > 0){
+      odemeRozeti = `
+        <button onclick="event.stopPropagation();odemeDurumunuDegistir('${escapeHTML(p.kabin||'')}','${sid}','${rowTid}')" 
+          style="display:inline-flex;align-items:center;gap:4px;background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;margin-top:3px;border:1px solid #86efac;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          ✅ Ödendi · €${ucret}
+        </button>
+      `;
+    } else if(odemeDurumu === 'ucretsiz'){
+      odemeRozeti = `
+        <button onclick="event.stopPropagation();odemeDurumunuDegistir('${escapeHTML(p.kabin||'')}','${sid}','${rowTid}')" 
+          style="display:inline-flex;align-items:center;gap:4px;background:#f3f4f6;color:#374151;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;margin-top:3px;border:1px solid #d1d5db;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          🎁 Ücretsiz
+        </button>
+      `;
+    }
+
     // 📞 Telefon + uygulama durumu
     const telVar = !!(p.tel && p.tel.trim());
     const checkinYapildi = !!p.checkinDone;
@@ -11053,6 +11449,7 @@ function renderKontrolListesi(){
         <div style="font-size:13px;font-weight:500;color:var(--t);">${escapeHTML(p.name||'')}</div>
         <div style="font-size:11px;color:var(--t2);margin-top:2px;">Kabin ${escapeHTML(p.kabin||'?')} · ${kisiStr} · ${topKisiP} kişi</div>
         ${telGorunum}
+        ${odemeRozeti}
       </div>
       <div style="display:flex;gap:5px;align-items:center;flex-shrink:0;">
         <button onclick="yolcuDuzenleAc('${escapeHTML(p.kabin||'')}','${sid}')" title="Yolcu bilgilerini düzenle"
