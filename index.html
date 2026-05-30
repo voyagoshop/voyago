@@ -1333,6 +1333,14 @@ textarea.ai2{resize:none;}
 
     <!-- CHECK-IN -->
     <div id="admin-ci" class="apg">
+      <!-- 🔄 Yolcu listesini yenile butonu -->
+      <div style="text-align:right;margin-bottom:8px;">
+        <button onclick="_rehberYolcuListesiniYenile();showToast('🔄 Yolcu listesi yenileniyor...')" 
+          style="padding:7px 14px;background:#1a5fa8;color:white;border:none;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:5px;">
+          🔄 <span>Yolcuları Yenile</span>
+        </button>
+      </div>
+
       <!-- 📋 EMBARKATION LİSTESİ YÜKLE (AI ile otomatik tara) -->
       <div style="background:linear-gradient(135deg,#0f6e56,#1D9E75);border-radius:14px;padding:14px;margin-bottom:12px;color:white;">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
@@ -3847,14 +3855,49 @@ function doPL(){
   try{ if(typeof waLinkleriYukle==='function') waLinkleriYukle(); }catch(e){console.log('wa:', e);}
   // 💾 Offline veri olarak kaydet — sayfa yenilense de erişebilsin
   try{ offlineDataKaydet(); }catch(e){console.log('offline cache:', e);}
-  // 🚦 DB'ye yaz — RANDOM DELAY ile (yük dağıtma)
-  // 200 yolcu aynı anda check-in yaparsa Supabase patlar
-  // 0-3 saniye rastgele bekle, sonra kaydet
-  const _yolcuYazmaGecikme = Math.random() * 3000; // 0-3 saniye
-  setTimeout(() => { 
-    saveYolcuDB(p).catch(e => console.warn('Yolcu DB kayıt (geri planda):', e?.message)); 
+
+  // 🚦 DB'ye HEMEN yaz — check-in için kritik
+  // Random delay'i AZALTTIK (0-300ms) — yolcu hızlı görüsün ama yine küçük dağılım olsun
+  const _yolcuYazmaGecikme = Math.random() * 300; // 0-300ms (eskiden 3000)
+  setTimeout(async () => {
+    try {
+      await saveYolcuDB(p);
+      console.log('[CHECK-IN] DB kayıt başarılı:', p.name);
+
+      // 🔄 Rehbere REALTIME bildirim - yolcu listesi anlık güncellensin
+      try {
+        if(typeof sb !== 'undefined' && p.sefer){
+          const kanal = sb.channel('voyago-yolcu-checkin-' + p.sefer);
+          await kanal.subscribe();
+          await kanal.send({
+            type: 'broadcast',
+            event: 'yeni_checkin',
+            payload: {
+              yolcu_kabin: p.kabin,
+              yolcu_ad: p.name,
+              yolcu_tel: p.tel,
+              kisi: (p.adult||0) + (p.child||0) + (p.baby||0),
+              zaman: new Date().toISOString()
+            }
+          });
+          // Kanal'ı 1 saniye sonra kapat (kaynakları boşalt)
+          setTimeout(() => { try { kanal.unsubscribe(); } catch(e){} }, 1500);
+        }
+      } catch(e){ console.log('Check-in broadcast:', e?.message); }
+
+      // 🧹 dbGet cache'i temizle - bir sonraki rehber çağrısında taze veri gelsin
+      try {
+        if(typeof _dbCache !== 'undefined'){
+          Object.keys(_dbCache).forEach(k => {
+            if(k.startsWith('yolcular:')) delete _dbCache[k];
+          });
+        }
+      } catch(e){}
+    } catch(e) {
+      console.warn('Yolcu DB kayıt:', e?.message);
+    }
   }, _yolcuYazmaGecikme);
-  console.log('[YÜK-DAĞIT] DB kayıt ' + Math.round(_yolcuYazmaGecikme) + 'ms sonra yapılacak');
+  console.log('[CHECK-IN] DB kayıt ' + Math.round(_yolcuYazmaGecikme) + 'ms sonra yapılacak');
   // Tarayıcıya kaydet — bir sonraki ziyarette otomatik giriş
   const yolcuKayit = {
     name: p.name, kabin: p.kabin, tel: p.tel,
@@ -23001,6 +23044,7 @@ async function rehberPushGonder(seferId, mesaj){
 
 // Rehberin paneli açıkken realtime kanalı dinle
 let _rehberRealtimeKanal = null;
+let _rehberCheckinKanal = null;
 function rehberRealtimeDinleBaslat(seferId){
   if(!seferId) return;
   // Önceki kanalı kapat
@@ -23008,38 +23052,113 @@ function rehberRealtimeDinleBaslat(seferId){
     try { _rehberRealtimeKanal.unsubscribe(); } catch(e){}
     _rehberRealtimeKanal = null;
   }
+  if(_rehberCheckinKanal){
+    try { _rehberCheckinKanal.unsubscribe(); } catch(e){}
+    _rehberCheckinKanal = null;
+  }
 
   try {
+    // 🎫 KANAL 1: Tur kayıtları (yolcu tura kaydolunca)
     _rehberRealtimeKanal = sb.channel('voyago-tur-kayit-' + seferId);
     _rehberRealtimeKanal.on('broadcast', { event: 'yeni_tur_kayit' }, (msg) => {
       const p = msg.payload || {};
-      // Sesli bildirim
       try {
         if(typeof bildirimSesi === 'function') bildirimSesi('duyuru');
       } catch(e){}
-      // Görsel toast
       const mesajText = '🎉 Yeni tur kaydı!\n' + (p.yolcu || '') + ' (Kabin ' + (p.kabin || '?') + ')\n' + (p.tur || '') + ' · ' + (p.kisi || 0) + ' kişi · €' + (p.ucret || 0);
       if(typeof showToast === 'function') showToast(mesajText);
-      // Dashboard sayacı güncelle
       _yeniTurKayitSayisi = (_yeniTurKayitSayisi || 0) + 1;
       rehberYeniKayitBadgeGuncelle();
-      // Eğer admin tur kontrol sayfasında ise listeyi yenile
-      try { 
-        if(typeof renderKontrolListesi === 'function') renderKontrolListesi(); 
-        if(typeof renderDashboard === 'function') renderDashboard();
-      } catch(e){}
+      // 🔄 Passengers'ı YENİLE - en güncel veri için
+      _rehberYolcuListesiniYenile();
     });
     _rehberRealtimeKanal.subscribe();
-    console.log('[REHBER REALTIME] Dinleme başladı:', seferId);
+    console.log('[REHBER REALTIME] Tur kayıt dinleme başladı:', seferId);
+
+    // ✅ KANAL 2: Yolcu check-in (yolcu uygulamadan giriş yapınca)
+    _rehberCheckinKanal = sb.channel('voyago-yolcu-checkin-' + seferId);
+    _rehberCheckinKanal.on('broadcast', { event: 'yeni_checkin' }, (msg) => {
+      const p = msg.payload || {};
+      console.log('[REHBER] Yeni check-in:', p);
+      try {
+        if(typeof bildirimSesi === 'function') bildirimSesi('mesaj');
+      } catch(e){}
+      const mesajText = '✅ Check-in yapıldı\n' + (p.yolcu_ad || '') + ' (Kabin ' + (p.yolcu_kabin || '?') + ') · ' + (p.kisi || 0) + ' kişi';
+      if(typeof showToast === 'function') showToast(mesajText);
+      // 🔄 Passengers'ı YENİLE - yolcu artık check-in olmuş gözüksün
+      _rehberYolcuListesiniYenile();
+    });
+    _rehberCheckinKanal.subscribe();
+    console.log('[REHBER REALTIME] Check-in dinleme başladı:', seferId);
   } catch(e){
     console.log('[REHBER REALTIME] Hata:', e?.message);
   }
+}
+
+// Rehber için yolcu listesini DB'den yenile
+let _rehberYenilemeTimer = null;
+async function _rehberYolcuListesiniYenile(){
+  // Debounce - 1 saniye içinde çoklu çağrıları birleştir
+  if(_rehberYenilemeTimer) clearTimeout(_rehberYenilemeTimer);
+  _rehberYenilemeTimer = setTimeout(async () => {
+    try {
+      // Cache'i temizle - taze veri
+      if(typeof _dbCache !== 'undefined'){
+        Object.keys(_dbCache).forEach(k => {
+          if(k.startsWith('yolcular:')) delete _dbCache[k];
+        });
+      }
+      // DB'den yolcuları çek
+      const yolcularDB = await dbGet('yolcular');
+      if(yolcularDB?.length){
+        passengers = yolcularDB.map(y => ({
+          name: y.ad, kabin: y.kabin, tel: y.telefon || '',
+          sefer: y.sefer_id || '', adult: y.yetiskin || 1,
+          child: y.cocuk || 0, baby: y.bebek || 0,
+          checkedIn: y.checkin || false, checkinDone: y.checkin_yapildi || false,
+          joinedTours: y.katildigi_turlar || [],
+          tur_katilim_detay: y.tur_katilim_detay || {},
+          arsivli: y.arsivli === true,
+          email: y.email || '',
+          pazarlama_izni: y.pazarlama_izni || false,
+          ekstra_isimler: y.ekstra_isimler || [],
+          dogum_tarihleri: y.dogum_tarihleri || { ana: '', ekstra: [] },
+          otobus_no: y.otobus_no || null
+        }));
+        // kontrolDurum'u yeniden inşa et
+        kontrolDurum = {};
+        passengers.forEach(p => {
+          if(p.tur_katilim_detay){
+            Object.keys(p.tur_katilim_detay).forEach(tid => {
+              const det = p.tur_katilim_detay[tid];
+              if(det && typeof det.geldi !== 'undefined' && det.geldi > 0){
+                const key = p.kabin + '_' + p.sefer + '_' + tid;
+                kontrolDurum[key] = det.geldi;
+              }
+            });
+          }
+        });
+        console.log('[REHBER] Yolcu listesi yenilendi:', passengers.length);
+        // Aktif sayfayı yenile
+        try {
+          if(typeof renderPS === 'function') renderPS(CASF);
+          if(typeof renderKontrolListesi === 'function') renderKontrolListesi();
+          if(typeof renderDashboard === 'function') renderDashboard();
+          if(typeof renderOtobusPaneli === 'function') renderOtobusPaneli();
+        } catch(e){}
+      }
+    } catch(e){ console.log('Yolcu yenileme:', e?.message); }
+  }, 800);
 }
 
 function rehberRealtimeDinleDurdur(){
   if(_rehberRealtimeKanal){
     try { _rehberRealtimeKanal.unsubscribe(); } catch(e){}
     _rehberRealtimeKanal = null;
+  }
+  if(_rehberCheckinKanal){
+    try { _rehberCheckinKanal.unsubscribe(); } catch(e){}
+    _rehberCheckinKanal = null;
   }
 }
 
