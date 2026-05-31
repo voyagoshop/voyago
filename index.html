@@ -2901,7 +2901,7 @@ async function initDB() {
       pazarlama_izni: y.pazarlama_izni || false,
       ekstra_isimler: y.ekstra_isimler || [],  // Diğer yolcular (ek isimler)
       dogum_tarihleri: y.dogum_tarihleri || { ana: '', ekstra: [] }, // 🎂 Doğum günleri
-      otobus_no: y.otobus_no || null  // 🚌 Sefer bazlı otobüs numarası
+      otobus_no: y.otobus_no ? parseInt(y.otobus_no) : null  // 🚌 Sefer bazlı otobüs numarası (integer)
     }));
 
     // 🔥 kontrolDurum'u DB'den geri yükle (sayfa yenilense bile QR/kontrol işaretleri kaybolmasın)
@@ -2932,6 +2932,35 @@ async function initDB() {
         }
       });
     } catch(e){ console.log('Offline kontrolDurum yükleme:', e); }
+
+    // 🚌 RETROAKTİF OTOBÜS ATAMASI:
+    // "geldi=1" olan ama otobus_no=null olan yolcuları otomatik ata
+    // (Sayfa yenilense bile sayaç doğru olsun)
+    try {
+      let atananSayisi = 0;
+      passengers.forEach(p => {
+        if(p.arsivli) return;
+        if(p.otobus_no) return; // Zaten atanmış
+        const det = p.tur_katilim_detay || {};
+        const geldiVar = Object.values(det).some(d => d?.geldi === 1);
+        if(!geldiVar) return;
+        // Sefer otobüsü var mı?
+        const otobusler = seferOtobusleriAl(p.sefer);
+        if(!otobusler.length) return;
+        // Otomatik ata
+        if(typeof yolcuOtomatikOtobusAtaSefer === 'function'){
+          const atanan = yolcuOtomatikOtobusAtaSefer(p);
+          if(atanan){
+            atananSayisi++;
+            // Arka planda DB'ye kaydet
+            saveYolcuDB(p).catch(e => console.log('Retroaktif otobüs kayıt:', e?.message));
+          }
+        }
+      });
+      if(atananSayisi > 0){
+        console.log('[OTOBÜS-RETRO] ' + atananSayisi + ' yolcuya otomatik otobüs atandı');
+      }
+    } catch(e){ console.log('Retroaktif otobüs ataması:', e?.message); }
 
     // Turları yükle (görsel hariç — sonra ayrı çekilir, performans için)
     let turlarDB = [];
@@ -12167,7 +12196,13 @@ function dogumGunuModalAc(){
 function seferOtobusleriAl(sid){
   const v = VOYAGES.find(x => x.id === sid);
   if(!v) return [];
-  return Array.isArray(v.otobusler) ? v.otobusler : [];
+  if(!Array.isArray(v.otobusler)) return [];
+  // Tip güvenliği: no integer olmalı
+  return v.otobusler.map(o => ({
+    ...o,
+    no: parseInt(o.no) || 0,
+    kapasite: parseInt(o.kapasite) || 40
+  }));
 }
 
 // Sefer için otobüs düzenini kaydet
@@ -12188,10 +12223,15 @@ async function seferOtobusleriKaydet(sid, otobusler){
 
 // Bir otobüsün doluluk durumunu hesapla — sefer bazlı, geldi=1 olan yolcular sayılır
 function otobusDolulukHesaplaSefer(sid, otobusNo){
+  if(!sid || otobusNo === null || otobusNo === undefined) return 0;
+  // Tip dönüşümü — DB'den string, koddan number gelebilir
+  const otobusNoNum = parseInt(otobusNo);
   let toplam = 0;
   passengers.forEach(p => {
     if(p.sefer !== sid || p.arsivli) return;
-    if(p.otobus_no !== otobusNo) return;
+    if(p.otobus_no === null || p.otobus_no === undefined) return;
+    // Karşılaştırma: int vs int (string olabilir)
+    if(parseInt(p.otobus_no) !== otobusNoNum) return;
     // SADECE en az 1 turda "geldi=1" olan yolcular sayılır
     // (Geldi denmediyse otobüse atanmamış sayılır)
     const det = p.tur_katilim_detay || {};
@@ -12236,7 +12276,9 @@ function otobusAdiAl(o){
 // Bir sefer + otobüs no için otobüs objesini bul
 function otobusBulSefer(sid, otobusNo){
   const otobusler = seferOtobusleriAl(sid);
-  return otobusler.find(o => o.no === otobusNo) || null;
+  if(otobusNo === null || otobusNo === undefined) return null;
+  const noNum = parseInt(otobusNo);
+  return otobusler.find(o => parseInt(o.no) === noNum) || null;
 }
 
 // Yolcunun otobüs numarasını al
@@ -12247,10 +12289,16 @@ function yolcuOtobusunuAl(p){
 // Yolcuya otomatik otobüs ata (en boş otobüse) - sefer bazlı
 function yolcuOtomatikOtobusAtaSefer(p){
   if(!p || !p.sefer) return null;
-  // Zaten atanmışsa değiştirme
-  if(p.otobus_no) return p.otobus_no;
+  // Zaten atanmışsa değiştirme (tip dönüşümü ile kontrol)
+  if(p.otobus_no !== null && p.otobus_no !== undefined && p.otobus_no !== 0 && p.otobus_no !== ''){
+    console.log('[OTOBÜS] ' + p.name + ' zaten atanmış: ' + p.otobus_no);
+    return parseInt(p.otobus_no);
+  }
   const otobusler = seferOtobusleriAl(p.sefer);
-  if(!otobusler.length) return null;
+  if(!otobusler.length){
+    console.log('[OTOBÜS] Bu seferde hiç otobüs yok: ' + p.sefer);
+    return null;
+  }
   const kisi = (p.adult||0) + (p.child||0) + (p.baby||0);
 
   // 🎯 ÖNCELİK: Rehber bir otobüsü AKTİF olarak seçtiyse onu kullan
@@ -12261,11 +12309,12 @@ function yolcuOtomatikOtobusAtaSefer(p){
     if(ob){
       const mevcut = otobusDolulukHesaplaSefer(p.sefer, aktifOtobus);
       if(mevcut + kisi <= (ob.kapasite || 40)){
-        p.otobus_no = aktifOtobus;
-        return aktifOtobus;
+        p.otobus_no = parseInt(aktifOtobus);
+        console.log('[OTOBÜS] ' + p.name + ' → aktif otobüs ' + aktifOtobus + ' (kapasite: ' + (mevcut+kisi) + '/' + ob.kapasite + ')');
+        return parseInt(aktifOtobus);
       } else {
         // Aktif otobüs dolu — uyar ama yine de en boşa ata
-        console.log('[OTOBÜS] Aktif otobüs dolu, otomatik en boşa atanıyor');
+        console.log('[OTOBÜS] Aktif otobüs ' + aktifOtobus + ' dolu (' + mevcut + '+' + kisi + '>' + ob.kapasite + '), otomatik en boşa atanıyor');
       }
     }
   }
@@ -12273,7 +12322,10 @@ function yolcuOtomatikOtobusAtaSefer(p){
   // Aktif otobüs yoksa veya doluysa → en boş
   const otobusNo = enBosOtobusBulSefer(p.sefer, kisi);
   if(otobusNo){
-    p.otobus_no = otobusNo;
+    p.otobus_no = parseInt(otobusNo);
+    console.log('[OTOBÜS] ' + p.name + ' → en boş otobüs ' + otobusNo);
+  } else {
+    console.log('[OTOBÜS] Hiç uygun otobüs bulunamadı!');
   }
   return otobusNo;
 }
@@ -12781,11 +12833,6 @@ function otobusYolcuEkleOnizleme(sid, otobusNo){
     `;
   }
 
-  // Telefon durumu
-  const telGorunum = p.tel
-    ? `<span style="color:#15803d;">📞 ${escapeHTML(p.tel)}</span>`
-    : `<span style="color:#dc2626;font-weight:600;">⚠️ Telefon yok! <button onclick="event.stopPropagation();otobusOnizlemeTelDuzenle('${escapeHTML(p.kabin).replace(/'/g,"\\'")}','${sid}')" style="background:#dc2626;color:white;border:none;padding:2px 8px;border-radius:6px;font-size:9px;font-weight:600;cursor:pointer;margin-left:4px;">✏️ Ekle</button></span>`;
-
   // Turlar
   const turlarHTML = aldigiTurlar.length
     ? aldigiTurlar.map(t => {
@@ -12799,6 +12846,46 @@ function otobusYolcuEkleOnizleme(sid, otobusNo){
       }).join('')
     : '<span style="font-size:10px;color:#dc2626;font-style:italic;">⚠️ Hiç tura kayıtlı değil!</span>';
 
+  // 📞 Telefon durumu - varsa yeşil, yoksa belirgin kırmızı kart
+  const kabinEsc = escapeHTML(p.kabin || '').replace(/'/g,"\\'");
+  const adEsc = escapeHTML(p.name || '').replace(/'/g,"\\'");
+
+  let telKartHTML;
+  if(p.tel && p.tel.trim()){
+    // ✅ Telefon var — yeşil + düzenle butonu
+    telKartHTML = `
+      <div style="margin-top:6px;padding:7px 10px;background:#dcfce7;border:1.5px solid #86efac;border-radius:8px;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:14px;">📞</span>
+        <span style="flex:1;font-size:12px;font-weight:600;color:#15803d;">${escapeHTML(p.tel)}</span>
+        <button onclick="event.stopPropagation();otobusOnizlemeTelInputAc('${kabinEsc}','${sid}','${otobusNo}')" 
+          style="background:transparent;border:1px solid #86efac;color:#15803d;padding:3px 9px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          ✏️ Düzenle
+        </button>
+      </div>
+    `;
+  } else {
+    // ⚠️ Telefon yok — KIRMIZI BELİRGİN UYARI KARTI
+    telKartHTML = `
+      <div style="margin-top:6px;padding:10px 12px;background:#fef2f2;border:2px solid #dc2626;border-radius:10px;animation:telUyariPulse 2s ease-in-out infinite;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <span style="font-size:18px;">⚠️</span>
+          <div style="flex:1;">
+            <div style="font-size:12px;font-weight:700;color:#991b1b;">Telefon Numarası Yok!</div>
+            <div style="font-size:10px;color:#991b1b;opacity:.85;margin-top:1px;">Yolcu uygulamaya kaydolmamış · WhatsApp gönderilemez</div>
+          </div>
+        </div>
+        <button onclick="event.stopPropagation();otobusOnizlemeTelInputAc('${kabinEsc}','${sid}','${otobusNo}')" 
+          style="width:100%;padding:8px;background:#dc2626;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;">
+          ✏️ <span>Telefon Numarası Ekle</span>
+        </button>
+      </div>
+      <style>@keyframes telUyariPulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,.3); }
+        50% { box-shadow: 0 0 0 6px rgba(220,38,38,0); }
+      }</style>
+    `;
+  }
+
   onizlemeEl.style.display = 'block';
   onizlemeEl.innerHTML = `
     <div style="padding:10px 12px;background:white;border:1.5px solid #16a34a;border-radius:10px;">
@@ -12807,9 +12894,37 @@ function otobusYolcuEkleOnizleme(sid, otobusNo){
           ${p.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
         </div>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:700;color:#1a1a1a;">${escapeHTML(p.name)}</div>
-          <div style="font-size:10px;color:#666;margin-top:1px;">Kabin ${escapeHTML(p.kabin)} · ${kisi} kişi · ${telGorunum}</div>
-          <div style="margin-top:5px;line-height:1.6;">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:700;color:#1a1a1a;">${escapeHTML(p.name)}</div>
+              <div style="font-size:10px;color:#666;margin-top:1px;">Kabin ${escapeHTML(p.kabin)} · ${kisi} kişi (${p.adult||0}Y${p.child>0?' '+p.child+'Ç':''}${p.baby>0?' '+p.baby+'B':''})</div>
+            </div>
+            <button onclick="event.stopPropagation();otobusOnizlemeTamDuzenle('${kabinEsc}','${sid}')" 
+              title="Yolcu bilgilerini düzenle (ad, kişi sayısı vs.)"
+              style="background:#f0f4ff;border:1.5px solid #c7d2fe;color:#4f46e5;padding:4px 10px;border-radius:8px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;flex-shrink:0;">
+              📝 Tam Düzenle
+            </button>
+          </div>
+          <!-- Telefon kartı -->
+          ${telKartHTML}
+          <!-- Telefon inline input alanı (gizli, butona basınca açılır) -->
+          <div id="otobus-tel-inline-${kabinEsc}" style="display:none;margin-top:6px;padding:8px;background:#f9fafb;border:1.5px solid #d1d5db;border-radius:8px;">
+            <div style="font-size:10px;color:#666;font-weight:600;margin-bottom:4px;">📞 Telefon numarası:</div>
+            <div style="display:flex;gap:5px;">
+              <input type="tel" id="otobus-tel-input-${kabinEsc}" placeholder="0532 xxx xx xx" value="${escapeHTML(p.tel||'')}"
+                style="flex:1;padding:7px 9px;border:1.5px solid #d1d5db;border-radius:6px;font-size:12px;outline:none;font-family:'DM Sans',sans-serif;">
+              <button onclick="event.stopPropagation();otobusOnizlemeTelKaydet('${kabinEsc}','${sid}','${otobusNo}')" 
+                style="padding:7px 12px;background:#16a34a;color:white;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+                ✓ Kaydet
+              </button>
+              <button onclick="event.stopPropagation();document.getElementById('otobus-tel-inline-${kabinEsc}').style.display='none';" 
+                style="padding:7px 10px;background:#f3f4f6;color:#666;border:1.5px solid #d1d5db;border-radius:6px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">
+                İptal
+              </button>
+            </div>
+          </div>
+          <!-- Turlar -->
+          <div style="margin-top:6px;line-height:1.6;">
             <span style="font-size:9px;color:#666;font-weight:600;">🎫 Aldığı Turlar:</span><br>
             ${turlarHTML}
           </div>
@@ -12820,18 +12935,59 @@ function otobusYolcuEkleOnizleme(sid, otobusNo){
   `;
 }
 
-// Önizlemeden telefon hızlı düzeltme
+// Önizlemeden telefon hızlı düzeltme (ESKİ - prompt ile, geriye uyumluluk için)
 function otobusOnizlemeTelDuzenle(kabin, sid){
+  // Yeni inline editor'ü aç
+  if(typeof otobusOnizlemeTelInputAc === 'function'){
+    return otobusOnizlemeTelInputAc(kabin, sid, null);
+  }
+}
+
+// 📞 Telefon inline edit alanını aç
+function otobusOnizlemeTelInputAc(kabin, sid, otobusNo){
+  const kabinEsc = kabin.replace(/'/g,"");
+  const inlineEl = document.getElementById('otobus-tel-inline-' + kabinEsc);
+  const inputEl = document.getElementById('otobus-tel-input-' + kabinEsc);
+  if(inlineEl){
+    inlineEl.style.display = 'block';
+    setTimeout(() => { if(inputEl) inputEl.focus(); }, 50);
+  }
+}
+
+// 📞 Telefon inline kaydet
+async function otobusOnizlemeTelKaydet(kabin, sid, otobusNo){
+  const kabinEsc = kabin.replace(/'/g,"");
+  const inputEl = document.getElementById('otobus-tel-input-' + kabinEsc);
+  if(!inputEl) return;
+  const yeniTel = (inputEl.value || '').trim();
+
   const p = passengers.find(x => x.kabin === kabin && x.sefer === sid && !x.arsivli);
   if(!p){ showToast('Yolcu bulunamadı'); return; }
-  const yeniTel = prompt('Telefon numarasını girin:\n(Örn: 05321234567)', p.tel || '');
-  if(yeniTel === null) return; // İptal
-  const temiz = yeniTel.trim();
-  p.tel = temiz;
-  saveYolcuDB(p).catch(e => console.error('Tel kayıt:', e));
-  showToast(temiz ? '✓ Telefon eklendi' : '✓ Telefon temizlendi');
-  // Önizlemeyi yenile
-  otobusYolcuEkleOnizleme(sid, p.otobus_no);
+
+  p.tel = yeniTel;
+  try {
+    await saveYolcuDB(p);
+    showToast(yeniTel ? '✓ Telefon kaydedildi' : '✓ Telefon temizlendi');
+  } catch(e){
+    console.error('Telefon kayıt:', e);
+    showToast('⚠️ Kayıt hatası: ' + e.message);
+  }
+
+  // Önizlemeyi yenile (input değerini al → yeni veriyle render)
+  if(typeof otobusYolcuEkleOnizleme === 'function' && otobusNo){
+    otobusYolcuEkleOnizleme(sid, parseInt(otobusNo));
+  }
+}
+
+// 📝 Tam Düzenle butonu - yolcu detay düzenle modal'ı aç
+function otobusOnizlemeTamDuzenle(kabin, sid){
+  // Mevcut yolcuDuzenleAc fonksiyonunu kullan (tur kontrol listesinden olan)
+  if(typeof yolcuDuzenleAc === 'function'){
+    yolcuDuzenleAc(kabin, sid);
+  } else if(typeof ydAc === 'function'){
+    const p = passengers.find(x => x.kabin === kabin && x.sefer === sid);
+    if(p) ydAc(kabin, sid, p.name);
+  }
 }
 
 // Manuel yolcu ekleme — modal içindeki yeşil alandan
@@ -23578,7 +23734,7 @@ async function _rehberYolcuListesiniYenile(){
           pazarlama_izni: y.pazarlama_izni || false,
           ekstra_isimler: y.ekstra_isimler || [],
           dogum_tarihleri: y.dogum_tarihleri || { ana: '', ekstra: [] },
-          otobus_no: y.otobus_no || null
+          otobus_no: y.otobus_no ? parseInt(y.otobus_no) : null
         }));
         // kontrolDurum'u yeniden inşa et
         kontrolDurum = {};
