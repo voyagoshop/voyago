@@ -23363,12 +23363,14 @@ async function rehberPushKaydet(){
 
     // Aboneliği rehber için kaydet
     const json = sub.toJSON();
-    const veri = {
-      yolcu_kabin: null, // Rehber için null
-      yolcu_sefer: null, // Tüm seferlerde aktif olmayabilir
+
+    // 🛡️ DEFANSIF: Önce TAM veri ile upsert dene (rol + rehber_key dahil)
+    const tamVeri = {
+      yolcu_kabin: null,
+      yolcu_sefer: null,
       yolcu_ad: CU.name || 'Rehber',
-      rol: 'rehber', // Önemli ayırıcı
-      rehber_key: CU.key || null, // Hangi rehber
+      rol: 'rehber',
+      rehber_key: CU.key || null,
       endpoint: json.endpoint,
       p256dh: json.keys.p256dh,
       auth: json.keys.auth,
@@ -23376,10 +23378,50 @@ async function rehberPushKaydet(){
       son_kullanim: new Date().toISOString()
     };
 
-    await sb.from('push_subscriptions').upsert(veri, { onConflict: 'endpoint' });
-    console.log('[REHBER PUSH] Kayıt başarılı');
+    let basarili = false;
+
+    // 1. Deneme: TAM veri (rol + rehber_key dahil)
+    try {
+      const { error: e1 } = await sb.from('push_subscriptions').upsert(tamVeri, { onConflict: 'endpoint' });
+      if(!e1){
+        basarili = true;
+        console.log('[REHBER PUSH] Kayıt başarılı (tam veri)');
+      } else {
+        console.log('[REHBER PUSH] Tam upsert hata:', e1.message);
+      }
+    } catch(e1){ console.log('[REHBER PUSH] Tam upsert exception:', e1?.message); }
+
+    // 2. Deneme: rol/rehber_key kolonları YOKSA → minimal veri
+    if(!basarili){
+      try {
+        const minimalVeri = {
+          yolcu_kabin: '__rehber__' + (CU.key || ''),  // Rehber için özel kabin değeri
+          yolcu_sefer: '__rehber__',
+          yolcu_ad: 'Rehber: ' + (CU.name || 'Bilinmeyen'),
+          endpoint: json.endpoint,
+          p256dh: json.keys.p256dh,
+          auth: json.keys.auth,
+          user_agent: navigator.userAgent.slice(0,200),
+          son_kullanim: new Date().toISOString()
+        };
+        // Önce endpoint ile silmeyi dene (varsa)
+        await sb.from('push_subscriptions').delete().eq('endpoint', json.endpoint).then(() => {}).catch(() => {});
+        // Sonra insert et
+        const { error: e2 } = await sb.from('push_subscriptions').insert(minimalVeri);
+        if(!e2){
+          basarili = true;
+          console.log('[REHBER PUSH] Kayıt başarılı (minimal veri — SQL henüz çalıştırılmamış)');
+        } else {
+          console.log('[REHBER PUSH] Minimal insert hata:', e2.message);
+        }
+      } catch(e2){ console.log('[REHBER PUSH] Minimal insert exception:', e2?.message); }
+    }
+
+    if(!basarili){
+      console.log('[REHBER PUSH] Tüm kayıt denemeleri başarısız (SQL kolonları eksik olabilir)');
+    }
   } catch(e){
-    console.log('[REHBER PUSH] Kayıt hatası:', e?.message);
+    console.log('[REHBER PUSH] Genel hata:', e?.message);
   }
 }
 
@@ -23396,13 +23438,29 @@ async function rehberPushGonder(seferId, mesaj){
       return;
     }
 
-    // Bu rehberin push subscription'larını al
-    const { data: subs, error } = await sb.from('push_subscriptions')
-      .select('*')
-      .eq('rol', 'rehber')
-      .eq('rehber_key', rehberKey);
+    // 🛡️ DEFANSIF: Önce yeni şema (rol + rehber_key) ile dene, yoksa eski şema
+    let subs = null;
 
-    if(error || !subs?.length) {
+    // Deneme 1: rol/rehber_key ile sorgu
+    try {
+      const r = await sb.from('push_subscriptions')
+        .select('*')
+        .eq('rol', 'rehber')
+        .eq('rehber_key', rehberKey);
+      if(!r.error && r.data) subs = r.data;
+    } catch(e){ console.log('[REHBER PUSH] Yeni şema sorgu:', e?.message); }
+
+    // Deneme 2: Eski şema (yolcu_kabin = '__rehber__' + key)
+    if(!subs?.length){
+      try {
+        const r = await sb.from('push_subscriptions')
+          .select('*')
+          .eq('yolcu_kabin', '__rehber__' + rehberKey);
+        if(!r.error && r.data) subs = r.data;
+      } catch(e){ console.log('[REHBER PUSH] Eski şema sorgu:', e?.message); }
+    }
+
+    if(!subs?.length) {
       console.log('[REHBER PUSH] Rehber subscription bulunamadı');
       return;
     }
