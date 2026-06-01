@@ -2591,9 +2591,17 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 async function dbGetSelect(tablo, kolonlar) {
   try {
     const { data, error } = await sb.from(tablo).select(kolonlar);
-    if(error) throw error;
+    if(error) {
+      // String log et — DataCloneError önle
+      console.log('[DB] ' + tablo + ' başarısız: ' + (error.message || JSON.stringify(error)));
+      return [];
+    }
     return data || [];
-  } catch(e) { console.error(tablo, e); return []; }
+  } catch(e) {
+    const hataMsg = (e && e.message) ? String(e.message) : String(e || 'bilinmeyen hata');
+    console.log('[DB] ' + tablo + ' istisnası: ' + hataMsg);
+    return [];
+  }
 }
 
 // Tur görsellerini ayrıca yükle
@@ -2639,12 +2647,17 @@ async function dbGet(tablo, filtre = {}) {
       let q = sb.from(tablo).select('*');
       Object.entries(filtre).forEach(([k,v]) => { q = q.eq(k, v); });
       const { data, error } = await q;
-      if (error) throw error;
+      if (error) {
+        // Error objesi yerine sadece mesajı throw et (DataCloneError önle)
+        throw new Error(error.message || JSON.stringify(error));
+      }
       const sonuc = data || [];
       _dbCache[cacheKey] = { data: sonuc, ts: Date.now() };
       return sonuc;
     } catch(e) {
-      const msg = String(e?.message || e || '').toLowerCase();
+      // Mesajı her zaman string olarak al
+      const hataMsg = (e && e.message) ? String(e.message) : String(e || 'bilinmeyen hata');
+      const msg = hataMsg.toLowerCase();
       const is504 = msg.includes('504') || msg.includes('timeout') || msg.includes('gateway');
       // Son deneme veya 504 değilse hatayı yut
       if(deneme === 2 || !is504){
@@ -2653,7 +2666,8 @@ async function dbGet(tablo, filtre = {}) {
           console.log('[DB] ' + tablo + ' hata → cache döndü (yaş: ' + Math.round((Date.now()-cached.ts)/1000) + 's)');
           return cached.data;
         }
-        console.warn('[DB] ' + tablo + ' başarısız:', e?.message);
+        // 🛡️ Sadece string log et — DataCloneError önle
+        console.log('[DB] ' + tablo + ' başarısız: ' + hataMsg);
         return [];
       }
       // 504 → kısa bekle, tekrar dene
@@ -2753,7 +2767,7 @@ async function dbKuyruguIsle(){
         if(islem.deneme < 5){
           yeniKuyruk.push(islem);
         } else {
-          console.warn('[DB-KUYRUK] ✗ Max deneme aşıldı, atlandı:', islem);
+          console.warn('[DB-KUYRUK] ✗ Max deneme aşıldı, atlandı: ' + (islem.tablo || 'bilinmeyen'));
         }
       }
       // Her işlem arası 200ms bekle (rate limit dostu)
@@ -2767,7 +2781,7 @@ async function dbKuyruguIsle(){
       console.log('[DB-KUYRUK] ✓ Tüm işlemler tamamlandı');
     }
   } catch(e) {
-    console.warn('Kuyruk işleme hata:', e);
+    console.warn('Kuyruk işleme hata: ' + ((e && e.message) ? e.message : String(e)));
   } finally {
     _dbKuyrukIsleniyor = false;
   }
@@ -2992,7 +3006,7 @@ async function initDB() {
 
     // Günlük içerikleri yükle
     let gunlukDB = [];
-    try { gunlukDB = await dbGet('gunluk'); } catch(e) { console.log('gunluk hatası:', e); gunlukDB = []; }
+    try { gunlukDB = await dbGet('gunluk'); } catch(e) { /* sessiz */ gunlukDB = []; }
     gunlukDB.forEach(g => {
       if(!DAILY[g.sefer_id]) DAILY[g.sefer_id] = getDailyForSefer(g.sefer_id);
       const d = DAILY[g.sefer_id];
@@ -3013,7 +3027,8 @@ async function initDB() {
     });
 
     // Gazete yükle
-    const gazeteDB = await dbGet('gazete');
+    let gazeteDB = [];
+    try { gazeteDB = await dbGet('gazete'); } catch(e){ gazeteDB = []; }
     if(gazeteDB.length > 0) {
       // Önce aktif sefer ID'sine göre, yoksa en son güncellenen
       const aktifSefer = VOYAGES.find(v=>v.status!=='archived'&&v.visible);
@@ -3023,7 +3038,8 @@ async function initDB() {
     }
 
     // Rehber raporları yükle
-    const raporlarDB = await dbGet('rehber_raporlari');
+    let raporlarDB = [];
+    try { raporlarDB = await dbGet('rehber_raporlari'); } catch(e){ raporlarDB = []; }
     REHBER_RAPORLARI_DB = raporlarDB;
 
     // Anketler yükle
@@ -3064,7 +3080,7 @@ async function initDB() {
     setTimeout(()=>{ if(typeof limanBilgileriYukle==='function') limanBilgileriYukle(); }, 950);
     populateSeferler();
   } catch(e) {
-    console.error('DB init hatasi:', e);
+    console.error('DB init hatasi: ' + ((e && e.message) ? e.message : String(e)));
     // 📡 OFFLINE FALLBACK: Bağlantı yoksa cache'ten yükle
     let offlineYuklendi = false;
     try {
@@ -3200,6 +3216,15 @@ async function saveYolcuDB(p) {
       otobus_no: p.otobus_no || null
     });
   }
+
+  // 🧹 Cache TEMİZLE - diğer cihazların taze veri çekmesi için
+  try {
+    if(typeof _dbCache !== 'undefined'){
+      Object.keys(_dbCache).forEach(k => {
+        if(k.startsWith('yolcular:')) delete _dbCache[k];
+      });
+    }
+  } catch(e){}
 }
 
 async function saveSeferDB(v) {
@@ -4411,6 +4436,21 @@ async function setupAdmin(){
         try { if(typeof adminOfflineDataKaydet === 'function') adminOfflineDataKaydet(); } catch(e){}
       }
     }, 60000);
+  }
+
+  // 🔄 Periyodik yolcu listesi yenileme - 30 sn'de bir taze veri çek
+  // Bu cihazlar arası senkron için yedek güvenlik (realtime başarısız olursa)
+  if(!window._yolcuYenilemeInterval && (isGuide || isAcente)){
+    window._yolcuYenilemeInterval = setInterval(() => {
+      if(navigator.onLine && typeof _rehberYolcuListesiniYenile === 'function'){
+        // Tur Kontrol veya Check-in sekmesinde isek yenile
+        const aktifSekme = document.querySelector('.apg.show')?.id || '';
+        if(aktifSekme === 'admin-kontrol' || aktifSekme === 'admin-ci' || aktifSekme === 'admin-otobus'){
+          _rehberYolcuListesiniYenile();
+          console.log('[OTO-YENİLE] Yolcu listesi periyodik olarak yenilendi');
+        }
+      }
+    }, 30000);
   }
 
   // 🔔 Rehber push + realtime dinleme başlat (yolcu kayıt bildirimleri)
@@ -6866,6 +6906,311 @@ function sablonSec(idx){
 }
 
 // ══ DASHBOARD - Rehber Anasayfa Özeti ══
+// ═══════════════════════════════════════════════
+// 💳 KREDİ KARTI UYARI SİSTEMİ (Gemi Muhasebesi)
+// ═══════════════════════════════════════════════
+// Gemi muhasebesi rehbere kabin numaraları verir.
+// Bu kabinlerin kredi kartı kapanmış → resepsiyona gitmeleri lazım.
+// Rehber bu listeye göre toplu WhatsApp mesajı gönderir.
+
+let _krediKartiBulunanlar = []; // {p, mesajGonderildi}
+let _krediKartiBulunamayanlar = []; // kabin numaraları
+
+function krediKartiUyariModalAc(){
+  const eski = document.getElementById('kredi-karti-modal');
+  if(eski) eski.remove();
+
+  // Aktif sefer bilgisi (varsa)
+  const aktifSefer = VOYAGES.find(v => v.status !== 'archived' && v.visible);
+  const aktifSeferId = aktifSefer?.id || '';
+
+  const modal = document.createElement('div');
+  modal.id = 'kredi-karti-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e) => { if(e.target.id === 'kredi-karti-modal') modal.remove(); };
+
+  modal.innerHTML = `
+    <div style="background:white;border-radius:18px;max-width:560px;width:100%;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;">
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,#dc2626,#991b1b);padding:16px 18px;color:white;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="font-size:32px;">💳</span>
+            <div>
+              <div style="font-family:'DM Serif Display',serif;font-size:18px;">Kredi Kartı Uyarısı</div>
+              <div style="font-size:11px;opacity:.9;margin-top:3px;">Resepsiyona Yönlendirme Mesajı</div>
+            </div>
+          </div>
+          <button onclick="document.getElementById('kredi-karti-modal').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;font-size:18px;cursor:pointer;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;">×</button>
+        </div>
+      </div>
+
+      <!-- Scroll içerik -->
+      <div style="flex:1;overflow-y:auto;padding:16px 18px;">
+
+        <!-- ADIM 1: Sefer seçimi -->
+        <div style="margin-bottom:12px;">
+          <div style="font-size:11px;color:#666;font-weight:700;margin-bottom:5px;">1️⃣ SEFER</div>
+          <select id="kk-sefer-sel" style="width:100%;padding:9px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;">
+            ${VOYAGES.filter(v => v.status !== 'archived').map(v => 
+              `<option value="${v.id}" ${v.id===aktifSeferId?'selected':''}>${escapeHTML(v.label)}${v.ship?' · '+escapeHTML(v.ship):''}</option>`
+            ).join('')}
+          </select>
+        </div>
+
+        <!-- ADIM 2: Kabin numaraları -->
+        <div style="margin-bottom:12px;">
+          <div style="font-size:11px;color:#666;font-weight:700;margin-bottom:5px;">2️⃣ KABİN NUMARALARI</div>
+          <div style="font-size:10px;color:#888;margin-bottom:5px;">
+            Her satıra bir kabin, veya virgül/boşluk ile ayır. Örn: <code style="background:#f3f4f6;padding:1px 4px;border-radius:3px;">4180, 5156, 6230</code>
+          </div>
+          <textarea id="kk-kabinler" placeholder="4180&#10;5156&#10;6230" 
+            style="width:100%;min-height:100px;padding:9px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Courier New',monospace;outline:none;resize:vertical;line-height:1.4;"></textarea>
+        </div>
+
+        <!-- ADIM 3: Mesaj önizleme -->
+        <div style="margin-bottom:12px;">
+          <div style="font-size:11px;color:#666;font-weight:700;margin-bottom:5px;">3️⃣ MESAJ ÖNİZLEMESİ</div>
+          <div style="background:#f0f9ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:10px;font-size:11px;color:#1a1a1a;line-height:1.5;white-space:pre-wrap;">${escapeHTML(_krediKartiMesajOlustur('İSİM_BURAYA'))}</div>
+          <div style="font-size:10px;color:#666;margin-top:4px;font-style:italic;">
+            ℹ️ Mesaj 3 dilde de var (TR/EN/RU). Yolcunun adına göre Türk veya yabancı olduğu otomatik tespit edilir.
+          </div>
+        </div>
+
+        <!-- Bul ve önizle butonu -->
+        <button onclick="krediKartiYolcularBul()" 
+          style="width:100%;padding:11px;background:#1a5fa8;color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:12px;">
+          🔍 Yolcuları Bul ve Önizle
+        </button>
+
+        <!-- Sonuç alanı -->
+        <div id="kk-sonuc" style="display:none;"></div>
+      </div>
+
+      <!-- Footer butonlar -->
+      <div id="kk-footer" style="border-top:1px solid #f0f0f0;padding:11px 16px;background:#fafafa;display:none;">
+        <button id="kk-toplu-btn" onclick="krediKartiTopluGonder()" 
+          style="width:100%;padding:12px;background:linear-gradient(135deg,#25d366,#1aa353);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          💬 Hepsine WhatsApp Gönder
+        </button>
+        <div style="font-size:10px;color:#666;margin-top:6px;text-align:center;line-height:1.4;">
+          Her yolcu için WhatsApp ayrı bir sekmede açılır.<br>Mesajı kontrol et ve gönder.
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+// Mesaj oluştur (3 dil destekli)
+function _krediKartiMesajOlustur(yolcuAdi, dil = 'tr'){
+  const ad = (yolcuAdi || '').split(' ')[0] || yolcuAdi;
+  const rehberAdi = (typeof CU !== 'undefined' && CU?.name) ? CU.name : 'Rehberiniz';
+
+  if(dil === 'en'){
+    return `Dear Mr./Mrs. ${ad},
+
+This is a kind reminder from your tour guide.
+
+💳 We have been informed by the ship's accounting department that your *credit card on file has been declined* by the bank.
+
+Please visit the *Reception Desk* at your earliest convenience to update your payment method so all your onboard purchases can continue smoothly.
+
+Thank you for your understanding 🙏
+
+Best regards,
+— ${rehberAdi}`;
+  }
+
+  if(dil === 'ru'){
+    return `Уважаемый(ая) ${ad},
+
+С наилучшими пожеланиями от вашего гида.
+
+💳 Бухгалтерия судна сообщила нам, что ваша *кредитная карта была отклонена* банком.
+
+Пожалуйста, посетите *стойку регистрации (Reception)* как можно скорее, чтобы обновить способ оплаты.
+
+Спасибо за понимание 🙏
+
+С уважением,
+— ${rehberAdi}`;
+  }
+
+  // TR (varsayılan)
+  return `Sayın ${ad},
+
+Rehberiniz olarak size önemli bir bilgi iletmek isterim.
+
+💳 Gemi muhasebesinden gelen bilgiye göre, *kredi kartınız bankanız tarafından kapatılmış* görünüyor.
+
+Onboard alışverişlerinizin sorunsuz devam edebilmesi için lütfen en kısa zamanda *resepsiyona uğrayarak* kart bilgilerinizi güncelleyiniz.
+
+Anlayışınız için teşekkür ederim 🙏
+
+Saygılarımla,
+— ${rehberAdi}`;
+}
+
+// Yabancı isim tespiti (basit heuristic)
+function _yabanciMiTahmin(ad){
+  if(!ad) return false;
+  // Türkçe karakter varsa Türk
+  if(/[ğüşıöçĞÜŞİÖÇ]/.test(ad)) return false;
+  // Yaygın Türk soyadları/isimleri
+  const turkKeyword = /OĞLU|YILDIRIM|KARA|DEMIR|YILMAZ|KAYA|ŞAHIN|ÇELIK|ARSLAN|ÖZTÜRK|DOĞAN|AKTAŞ|GÜL|ER|YAVUZ|GÜLER/i;
+  if(turkKeyword.test(ad)) return false;
+  // Slavic karakterler varsa Rus
+  if(/[А-Яа-я]/.test(ad)) return 'ru';
+  // Diğer Latin alfabe → İngilizce
+  return 'en';
+}
+
+// Kabinleri bul ve önizleme göster
+function krediKartiYolcularBul(){
+  const sid = document.getElementById('kk-sefer-sel')?.value;
+  const kabinlerRaw = document.getElementById('kk-kabinler')?.value || '';
+  const sonucEl = document.getElementById('kk-sonuc');
+  const footerEl = document.getElementById('kk-footer');
+
+  if(!sid){ showToast('⚠️ Sefer seçin'); return; }
+  if(!kabinlerRaw.trim()){ showToast('⚠️ Kabin numaralarını yazın'); return; }
+
+  // Kabinleri parse et (virgül, boşluk, satır sonu ile ayrılmış)
+  const kabinler = kabinlerRaw
+    .split(/[\s,;]+/)
+    .map(k => k.trim().toUpperCase())
+    .filter(k => k.length > 0);
+
+  if(!kabinler.length){ showToast('⚠️ Geçerli kabin bulunamadı'); return; }
+
+  _krediKartiBulunanlar = [];
+  _krediKartiBulunamayanlar = [];
+
+  kabinler.forEach(kabin => {
+    const p = passengers.find(x =>
+      x.sefer === sid && !x.arsivli &&
+      x.kabin && String(x.kabin).trim().toUpperCase() === kabin
+    );
+    if(p){
+      _krediKartiBulunanlar.push({ p, mesajGonderildi: false });
+    } else {
+      _krediKartiBulunamayanlar.push(kabin);
+    }
+  });
+
+  // Sonucu render et
+  let html = '';
+
+  // ✅ Bulunanlar
+  if(_krediKartiBulunanlar.length){
+    const telVar = _krediKartiBulunanlar.filter(x => x.p.tel?.trim());
+    const telYok = _krediKartiBulunanlar.filter(x => !x.p.tel?.trim());
+
+    html += `
+      <div style="background:#dcfce7;border:1.5px solid #86efac;border-radius:10px;padding:10px;margin-bottom:8px;">
+        <div style="font-size:12px;font-weight:700;color:#15803d;margin-bottom:6px;">
+          ✅ Bulundu: ${_krediKartiBulunanlar.length} yolcu
+          ${telVar.length ? ' · 📞 ' + telVar.length + ' telefonlu' : ''}
+          ${telYok.length ? ' · ⚠️ ' + telYok.length + ' telefonsuz' : ''}
+        </div>
+        ${_krediKartiBulunanlar.map(({p}) => {
+          const yabanci = _yabanciMiTahmin(p.name);
+          const dilBadge = yabanci === 'ru' ? '🇷🇺' : (yabanci === 'en' ? '🇬🇧' : '🇹🇷');
+          return `
+            <div style="display:flex;align-items:center;gap:8px;padding:6px;background:white;border-radius:6px;margin-bottom:3px;">
+              <span style="font-size:14px;">${dilBadge}</span>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:12px;font-weight:600;color:#1a1a1a;">${escapeHTML(p.name)}</div>
+                <div style="font-size:10px;color:#666;margin-top:1px;">Kabin ${escapeHTML(p.kabin)} · ${p.tel ? '📞 '+escapeHTML(p.tel) : '<span style="color:#dc2626;">⚠️ Telefon yok</span>'}</div>
+              </div>
+              ${p.tel ? `<button onclick="krediKartiTekGonder('${escapeHTML(p.kabin)}','${sid}')" 
+                style="padding:5px 10px;background:#25d366;color:white;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;">💬 Gönder</button>` : ''}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  // ❌ Bulunamayanlar
+  if(_krediKartiBulunamayanlar.length){
+    html += `
+      <div style="background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:10px;margin-bottom:8px;">
+        <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:5px;">
+          ❌ Sistemde bulunamayan: ${_krediKartiBulunamayanlar.length} kabin
+        </div>
+        <div style="font-size:11px;color:#92400e;line-height:1.6;">
+          ${_krediKartiBulunamayanlar.map(k => `<span style="display:inline-block;background:white;padding:1px 8px;border-radius:6px;margin:2px 2px 0 0;font-family:'Courier New',monospace;">${escapeHTML(k)}</span>`).join('')}
+        </div>
+        <div style="font-size:10px;color:#92400e;opacity:.85;margin-top:5px;font-style:italic;">
+          Bu yolcular uygulamaya kaydolmamış olabilir. Manuel olarak resepsiyona haber verin.
+        </div>
+      </div>
+    `;
+  }
+
+  sonucEl.style.display = 'block';
+  sonucEl.innerHTML = html;
+
+  // Footer'ı göster
+  if(_krediKartiBulunanlar.filter(x => x.p.tel?.trim()).length > 0){
+    footerEl.style.display = 'block';
+    document.getElementById('kk-toplu-btn').innerHTML = '💬 ' + _krediKartiBulunanlar.filter(x => x.p.tel?.trim()).length + ' Yolcuya WhatsApp Gönder';
+  } else {
+    footerEl.style.display = 'none';
+  }
+}
+
+// Tek bir yolcuya gönder
+function krediKartiTekGonder(kabin, sid){
+  const p = passengers.find(x => x.kabin === kabin && x.sefer === sid && !x.arsivli);
+  if(!p || !p.tel){ showToast('⚠️ Telefon bulunamadı'); return; }
+  _krediKartiWhatsAppAc(p);
+}
+
+// Toplu gönder
+async function krediKartiTopluGonder(){
+  const gonderilecekler = _krediKartiBulunanlar.filter(x => x.p.tel?.trim() && !x.mesajGonderildi);
+  if(!gonderilecekler.length){ showToast('⚠️ Gönderilecek yolcu yok'); return; }
+
+  if(!confirm(gonderilecekler.length + ' yolcuya WhatsApp mesajı gönderilecek. Devam edilsin mi?')){
+    return;
+  }
+
+  // Her birini ayrı sekmede aç (popup blokere takılmamak için sırayla 500ms aralıkla)
+  for(let i = 0; i < gonderilecekler.length; i++){
+    const item = gonderilecekler[i];
+    _krediKartiWhatsAppAc(item.p);
+    item.mesajGonderildi = true;
+    await new Promise(r => setTimeout(r, 500));
+  }
+
+  showToast('✓ ' + gonderilecekler.length + ' yolcu için WhatsApp açıldı');
+  // Modal'ı kapat
+  setTimeout(() => { document.getElementById('kredi-karti-modal')?.remove(); }, 1500);
+}
+
+// WhatsApp linkini aç (mesaj otomatik dil seçimiyle)
+function _krediKartiWhatsAppAc(p){
+  if(!p?.tel){ return; }
+
+  // Dil tespiti
+  const yabanci = _yabanciMiTahmin(p.name);
+  const dil = yabanci === 'ru' ? 'ru' : (yabanci === 'en' ? 'en' : 'tr');
+
+  const mesaj = _krediKartiMesajOlustur(p.name, dil);
+
+  // Telefon formatı
+  let tel = p.tel.replace(/[^0-9+]/g, '');
+  if(tel.startsWith('0')) tel = '90' + tel.substring(1);
+  if(!tel.startsWith('90') && !tel.startsWith('+') && tel.length === 10) tel = '90' + tel;
+  tel = tel.replace('+', '');
+
+  const url = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(mesaj);
+  window.open(url, '_blank');
+}
+
 function renderDashboard(){
   const el = document.getElementById('dashboard-icerik');
   if(!el) return;
@@ -7223,6 +7568,7 @@ function renderDashboard(){
         <button onclick="adminTab('kontrol')" style="padding:10px;background:#16a34a;color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">✅ Tur Kontrol</button>
         <button onclick="adminTab('gz')" style="padding:10px;background:#f59e0b;color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">📰 Gazete</button>
         <button onclick="adminTab('bil')" style="padding:10px;background:#1a5fa8;color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">🔔 Bildirim Gönder</button>
+        <button onclick="krediKartiUyariModalAc()" style="padding:10px;background:linear-gradient(135deg,#dc2626,#991b1b);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">💳 Kredi Kartı Uyarısı (Resepsiyon)</button>
       </div>
     </div>
 
@@ -11557,7 +11903,32 @@ async function setKontrol(key, val, tid, sid){
     // DB'ye kaydet
     try {
       if(typeof saveYolcuDB === 'function') await saveYolcuDB(p);
-    } catch(e){ console.error('Kontrol kayıt:', e); }
+    } catch(e){
+      const eMsg = (e && e.message) ? String(e.message) : String(e);
+      console.log('Kontrol kayıt: ' + eMsg);
+    }
+
+    // 📡 REALTIME BROADCAST - Diğer cihazlara haber ver
+    // Cihaz A'da ✓ basınca cihaz B otomatik öğrensin
+    try {
+      if(typeof sb !== 'undefined' && sid){
+        const kanal = sb.channel('voyago-kontrol-' + sid);
+        await kanal.subscribe();
+        await kanal.send({
+          type: 'broadcast',
+          event: 'kontrol_degisti',
+          payload: {
+            kabin: p.kabin,
+            tid: tid,
+            sid: sid,
+            durum: yeniDurum,
+            yolcu_ad: p.name,
+            zaman: new Date().toISOString()
+          }
+        });
+        setTimeout(() => { try { kanal.unsubscribe(); } catch(e){} }, 1500);
+      }
+    } catch(e){ console.log('Kontrol broadcast: ' + (e?.message || '')); }
   }
 
   renderKontrolListesi();
@@ -14573,7 +14944,38 @@ async function kabinHizliGeldi(){
 
   try {
     if(typeof saveYolcuDB === 'function') await saveYolcuDB(p);
-  } catch(e){ console.error('Hızlı geldi:', e); }
+  } catch(e){
+    const eMsg = (e && e.message) ? String(e.message) : String(e);
+    console.log('Hızlı geldi: ' + eMsg);
+  }
+
+  // 📡 REALTIME BROADCAST - Diğer cihazlara haber ver
+  try {
+    if(typeof sb !== 'undefined' && sid){
+      const kanal = sb.channel('voyago-kontrol-' + sid);
+      await kanal.subscribe();
+      // Tüm geldi=1 yapılan turlar için broadcast
+      const aldigiTurlar = (p.joinedTours || []).filter(otherTid => {
+        const det = p.tur_katilim_detay?.[otherTid];
+        return det?.geldi === 1;
+      });
+      for(const otherTid of aldigiTurlar){
+        await kanal.send({
+          type: 'broadcast',
+          event: 'kontrol_degisti',
+          payload: {
+            kabin: p.kabin,
+            tid: otherTid,
+            sid: sid,
+            durum: 1,
+            yolcu_ad: p.name,
+            zaman: new Date().toISOString()
+          }
+        });
+      }
+      setTimeout(() => { try { kanal.unsubscribe(); } catch(e){} }, 2000);
+    }
+  } catch(e){ console.log('Hızlı kabin broadcast: ' + (e?.message || '')); }
 
   document.getElementById('kontrol-kabin-ara').value = '';
   const otoMsg = atananOtobus ? ' → 🚌 <b>' + escapeHTML(atananOtobusAdi) + '</b>' : '';
@@ -23656,6 +24058,7 @@ async function rehberPushGonder(seferId, mesaj){
 // Rehberin paneli açıkken realtime kanalı dinle
 let _rehberRealtimeKanal = null;
 let _rehberCheckinKanal = null;
+let _rehberKontrolKanal = null;
 function rehberRealtimeDinleBaslat(seferId){
   if(!seferId) return;
   // Önceki kanalı kapat
@@ -23666,6 +24069,10 @@ function rehberRealtimeDinleBaslat(seferId){
   if(_rehberCheckinKanal){
     try { _rehberCheckinKanal.unsubscribe(); } catch(e){}
     _rehberCheckinKanal = null;
+  }
+  if(_rehberKontrolKanal){
+    try { _rehberKontrolKanal.unsubscribe(); } catch(e){}
+    _rehberKontrolKanal = null;
   }
 
   try {
@@ -23701,6 +24108,36 @@ function rehberRealtimeDinleBaslat(seferId){
     });
     _rehberCheckinKanal.subscribe();
     console.log('[REHBER REALTIME] Check-in dinleme başladı:', seferId);
+
+    // ✅ KANAL 3: Tur kontrol işaretleme (cihazlar arası senkron)
+    // Cihaz A'da ✓ basınca cihaz B otomatik güncellenir
+    _rehberKontrolKanal = sb.channel('voyago-kontrol-' + seferId);
+    _rehberKontrolKanal.on('broadcast', { event: 'kontrol_degisti' }, (msg) => {
+      const p = msg.payload || {};
+      console.log('[REHBER] Kontrol değişti:', p);
+      // kontrolDurum'u DOĞRUDAN güncelle (anlık)
+      const key = p.kabin + '_' + p.sid + '_' + p.tid;
+      kontrolDurum[key] = p.durum;
+      // localStorage'a da yedek
+      try {
+        const raw = localStorage.getItem('voyago_kontrolDurum_' + p.sid);
+        const offlineDurum = raw ? JSON.parse(raw) : {};
+        offlineDurum[key] = p.durum;
+        localStorage.setItem('voyago_kontrolDurum_' + p.sid, JSON.stringify(offlineDurum));
+      } catch(e){}
+      // 🔄 Passengers'ı yenile (taze veri)
+      _rehberYolcuListesiniYenile();
+      // Aktif sayfayı yeniden render et
+      try {
+        if(typeof renderKontrolListesi === 'function') renderKontrolListesi();
+        if(typeof renderOtobusPaneli === 'function') renderOtobusPaneli();
+      } catch(e){}
+      // Sessiz toast (çok rahatsız etmesin)
+      const durumText = p.durum === 1 ? '✓ Geldi' : p.durum === 2 ? '✗ İptal' : '○ Sıfırlandı';
+      if(typeof showToast === 'function') showToast(durumText + ': ' + p.yolcu_ad + ' (' + p.kabin + ')');
+    });
+    _rehberKontrolKanal.subscribe();
+    console.log('[REHBER REALTIME] Kontrol senkron dinleme başladı:', seferId);
   } catch(e){
     console.log('[REHBER REALTIME] Hata:', e?.message);
   }
@@ -23770,6 +24207,10 @@ function rehberRealtimeDinleDurdur(){
   if(_rehberCheckinKanal){
     try { _rehberCheckinKanal.unsubscribe(); } catch(e){}
     _rehberCheckinKanal = null;
+  }
+  if(_rehberKontrolKanal){
+    try { _rehberKontrolKanal.unsubscribe(); } catch(e){}
+    _rehberKontrolKanal = null;
   }
 }
 
