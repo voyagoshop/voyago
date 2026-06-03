@@ -7819,10 +7819,17 @@ function grupTopluTurModalAc(grupId){
                   </div>
                 </div>
                 <div style="display:flex;gap:4px;flex-shrink:0;">
-                  <button onclick="grupToplaTurEkle(${grupId},'${t.id}')" 
-                    ${tamMi?'disabled style="padding:5px 9px;background:#f3f4f6;color:#999;border:1px solid #e5e7eb;border-radius:6px;font-size:10px;cursor:not-allowed;font-family:\\'DM Sans\\',sans-serif;"':'style="padding:5px 9px;background:#16a34a;color:white;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:\\'DM Sans\\',sans-serif;"'}>
-                    + Hepsine Ekle
-                  </button>
+                  ${tamMi ? `
+                    <button disabled
+                      style="padding:5px 9px;background:#f3f4f6;color:#999;border:1px solid #e5e7eb;border-radius:6px;font-size:10px;cursor:not-allowed;font-family:'DM Sans',sans-serif;">
+                      + Hepsine Ekle
+                    </button>
+                  ` : `
+                    <button onclick="grupToplaTurEkle(${grupId},'${t.id}')"
+                      style="padding:5px 9px;background:#16a34a;color:white;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+                      + Hepsine Ekle
+                    </button>
+                  `}
                   ${sayi > 0 ? `
                     <button onclick="grupToplaTurCikar(${grupId},'${t.id}')" 
                       style="padding:5px 9px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
