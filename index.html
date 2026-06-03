@@ -8774,12 +8774,14 @@ function showKatilimcilar(tid){
   const aramaEl = document.getElementById('kat-modal-arama-wrap');
   if(aramaEl){
     aramaEl.innerHTML = `
-      <input type="text" id="kat-modal-arama" placeholder="🔍 Hızlı ekle: kabin no veya isim..." 
+      <input type="text" id="kat-modal-arama" placeholder="🔍 Hızlı ekle: kabin no veya isim... (virgülle çoklu: 4180, 5156, 6230)" 
         autocomplete="off"
         style="width:100%;padding:9px 12px;border:1.5px solid #d1fae5;border-radius:10px;font-size:13px;outline:none;font-family:'DM Sans',sans-serif;background:#f0fdf4;"
         oninput="katModalAramaDegisti()"
         onkeydown="if(event.key==='Enter') katModalHizliEkle()">
       <div id="kat-modal-arama-ipucu" style="font-size:10px;color:#666;margin-top:4px;text-align:center;"></div>
+      <!-- 🎯 TOPLU EKLE: virgül/boşluk ile ayrılmış kabinleri tek seferde ekle -->
+      <div id="kat-modal-toplu-onizleme" style="display:none;margin-top:8px;"></div>
     `;
   }
 
@@ -8791,7 +8793,272 @@ function showKatilimcilar(tid){
 // Arama değiştiğinde
 function katModalAramaDegisti(){
   if(_katModalAramaTimer) clearTimeout(_katModalAramaTimer);
-  _katModalAramaTimer = setTimeout(renderKatModalListesi, 100);
+  _katModalAramaTimer = setTimeout(() => {
+    const inp = document.getElementById('kat-modal-arama');
+    const onizleme = document.getElementById('kat-modal-toplu-onizleme');
+    const aramaVal = (inp?.value || '').trim();
+    // Virgül veya boşluk ile çoklu kabin var mı?
+    const cokluMu = /[,;\n]/.test(aramaVal) || (aramaVal.split(/\s+/).length > 1 && /^\d/.test(aramaVal));
+    if(cokluMu){
+      // 🎯 TOPLU EKLE MODU
+      katModalTopluOnizleme(aramaVal);
+      if(onizleme) onizleme.style.display = 'block';
+    } else {
+      // Normal arama modu
+      if(onizleme){
+        onizleme.style.display = 'none';
+        onizleme.innerHTML = '';
+      }
+      renderKatModalListesi();
+    }
+  }, 150);
+}
+
+// 🎯 Toplu kabin önizleme — kullanıcı 4180, 5156, 6230 yazınca her birini göster
+function katModalTopluOnizleme(aramaRaw){
+  const tid = _katModalTid;
+  if(!tid) return;
+  const t = TOURS.find(x => x.id === tid);
+  if(!t) return;
+
+  // Kabinleri parse et
+  const kabinler = aramaRaw
+    .split(/[\s,;\n\t]+/)
+    .map(k => k.trim().toUpperCase())
+    .filter(k => k.length > 0);
+
+  if(!kabinler.length){
+    const el = document.getElementById('kat-modal-toplu-onizleme');
+    if(el) el.style.display = 'none';
+    return;
+  }
+
+  // Aktif sefer ID'leri
+  const aktifSeferIds = VOYAGES.filter(v => v.status !== 'archived').map(v => v.id);
+
+  // Her kabin için bul
+  const sonuc = kabinler.map(kabin => {
+    const p = passengers.find(x =>
+      !x.arsivli && aktifSeferIds.includes(x.sefer) &&
+      x.kabin && String(x.kabin).trim().toUpperCase() === kabin
+    );
+    if(!p) return { kabin, durum: 'yok' };
+    if(p.joinedTours.includes(tid)) return { kabin, p, durum: 'kayitli' };
+    return { kabin, p, durum: 'eklenebilir' };
+  });
+
+  const eklenebilir = sonuc.filter(x => x.durum === 'eklenebilir');
+  const kayitli = sonuc.filter(x => x.durum === 'kayitli');
+  const yok = sonuc.filter(x => x.durum === 'yok');
+
+  let html = `
+    <div style="background:white;border:1.5px solid #16a34a;border-radius:10px;padding:10px;max-height:50vh;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #f0f0f0;">
+        <div style="font-size:12px;font-weight:700;color:#1a1a1a;">
+          📋 Toplu Ekleme · ${kabinler.length} kabin
+        </div>
+        <div style="font-size:10px;color:#666;">
+          ${eklenebilir.length ? '<span style="color:#15803d;font-weight:600;">✓ ' + eklenebilir.length + '</span>' : ''}
+          ${kayitli.length ? ' · <span style="color:#92400e;">⚠️ ' + kayitli.length + '</span>' : ''}
+          ${yok.length ? ' · <span style="color:#dc2626;">❌ ' + yok.length + '</span>' : ''}
+        </div>
+      </div>
+  `;
+
+  // Eklenebilir yolcular (yeşil)
+  if(eklenebilir.length){
+    html += `<div style="font-size:10px;color:#15803d;font-weight:700;margin-bottom:4px;">✓ EKLENECEK (${eklenebilir.length})</div>`;
+    eklenebilir.forEach(({p, kabin}) => {
+      const y = p.adult || 0, c = p.child || 0, b = p.baby || 0;
+      const kisi = y + c + b;
+      // Ücret tahmin
+      let ucret = 0;
+      if(t.paketFiyat && t.paketFiyat > 0) ucret = t.paketFiyat;
+      else ucret = (y * (t.ap||0)) + (c * (t.cp||0)) + (b * (t.bp||0));
+
+      const kabinEsc = escapeHTML(p.kabin || '').replace(/'/g,"\\'");
+
+      html += `
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 9px;background:#dcfce7;border:1px solid #86efac;border-radius:8px;margin-bottom:4px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:600;color:#1a1a1a;">${escapeHTML(p.name)}</div>
+            <div style="font-size:10px;color:#15803d;margin-top:1px;">
+              Kabin ${escapeHTML(p.kabin)} · 
+              <span style="display:inline-flex;align-items:center;gap:3px;">
+                <button onclick="katTopluSayiDegistir('${kabinEsc}','adult',-1)" style="background:#f3f4f6;border:1px solid #d1d5db;width:18px;height:18px;border-radius:3px;font-size:10px;cursor:pointer;line-height:1;">−</button>
+                <b style="min-width:14px;text-align:center;">${y}Y</b>
+                <button onclick="katTopluSayiDegistir('${kabinEsc}','adult',1)" style="background:#f3f4f6;border:1px solid #d1d5db;width:18px;height:18px;border-radius:3px;font-size:10px;cursor:pointer;line-height:1;">+</button>
+              </span>
+              ${c > 0 || y < 6 ? `
+                · <span style="display:inline-flex;align-items:center;gap:3px;">
+                  <button onclick="katTopluSayiDegistir('${kabinEsc}','child',-1)" style="background:#f3f4f6;border:1px solid #d1d5db;width:18px;height:18px;border-radius:3px;font-size:10px;cursor:pointer;line-height:1;">−</button>
+                  <b style="min-width:14px;text-align:center;">${c}Ç</b>
+                  <button onclick="katTopluSayiDegistir('${kabinEsc}','child',1)" style="background:#f3f4f6;border:1px solid #d1d5db;width:18px;height:18px;border-radius:3px;font-size:10px;cursor:pointer;line-height:1;">+</button>
+                </span>
+              ` : ''}
+              ${b > 0 ? `
+                · <span style="display:inline-flex;align-items:center;gap:3px;">
+                  <button onclick="katTopluSayiDegistir('${kabinEsc}','baby',-1)" style="background:#f3f4f6;border:1px solid #d1d5db;width:18px;height:18px;border-radius:3px;font-size:10px;cursor:pointer;line-height:1;">−</button>
+                  <b style="min-width:14px;text-align:center;">${b}B</b>
+                  <button onclick="katTopluSayiDegistir('${kabinEsc}','baby',1)" style="background:#f3f4f6;border:1px solid #d1d5db;width:18px;height:18px;border-radius:3px;font-size:10px;cursor:pointer;line-height:1;">+</button>
+                </span>
+              ` : ''}
+              · <b>€${ucret}</b>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  // Zaten kayıtlı olanlar (sarı)
+  if(kayitli.length){
+    html += `<div style="font-size:10px;color:#92400e;font-weight:700;margin:8px 0 4px;">⚠️ ZATEN KAYITLI (${kayitli.length})</div>`;
+    kayitli.forEach(({p, kabin}) => {
+      html += `
+        <div style="padding:5px 9px;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;margin-bottom:3px;font-size:11px;color:#92400e;">
+          ${escapeHTML(p.name)} · Kabin ${escapeHTML(p.kabin)}
+        </div>
+      `;
+    });
+  }
+
+  // Bulunmayan kabinler (kırmızı)
+  if(yok.length){
+    html += `<div style="font-size:10px;color:#dc2626;font-weight:700;margin:8px 0 4px;">❌ BULUNAMADI (${yok.length})</div>`;
+    html += `<div style="font-size:11px;color:#dc2626;line-height:1.6;">`;
+    yok.forEach(({kabin}) => {
+      html += `<span style="display:inline-block;background:#fef2f2;border:1px solid #fecaca;padding:1px 8px;border-radius:6px;margin:2px 2px 0 0;font-family:'Courier New',monospace;">${escapeHTML(kabin)}</span>`;
+    });
+    html += `</div>`;
+    html += `<div style="font-size:9px;color:#999;margin-top:4px;font-style:italic;">Sistemde yok — bu kabinler atlanır.</div>`;
+  }
+
+  // Eklenecekler varsa "Hepsini Ekle" butonu
+  if(eklenebilir.length){
+    const toplamKisi = eklenebilir.reduce((s, x) => s + (x.p.adult||0) + (x.p.child||0) + (x.p.baby||0), 0);
+    let toplamUcret = 0;
+    eklenebilir.forEach(({p}) => {
+      const y = p.adult || 0, c = p.child || 0, b = p.baby || 0;
+      if(t.paketFiyat && t.paketFiyat > 0) toplamUcret += t.paketFiyat;
+      else toplamUcret += (y * (t.ap||0)) + (c * (t.cp||0)) + (b * (t.bp||0));
+    });
+    html += `
+      <button onclick="katTopluHepsiniEkle()" 
+        style="width:100%;margin-top:10px;padding:11px;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+        ✓ Hepsini Ekle (${eklenebilir.length} yolcu · ${toplamKisi} kişi · €${toplamUcret})
+      </button>
+    `;
+  }
+
+  html += `</div>`;
+
+  const el = document.getElementById('kat-modal-toplu-onizleme');
+  if(el) el.innerHTML = html;
+}
+
+// 🔢 Önizlemede inline kişi sayısı değişim
+function katTopluSayiDegistir(kabin, tip, delta){
+  const aktifSeferIds = VOYAGES.filter(v => v.status !== 'archived').map(v => v.id);
+  const p = passengers.find(x =>
+    !x.arsivli && aktifSeferIds.includes(x.sefer) &&
+    x.kabin && String(x.kabin).trim().toUpperCase() === kabin.toUpperCase()
+  );
+  if(!p) return;
+
+  if(tip === 'adult') p.adult = Math.max(0, (p.adult||0) + delta);
+  else if(tip === 'child') p.child = Math.max(0, (p.child||0) + delta);
+  else if(tip === 'baby') p.baby = Math.max(0, (p.baby||0) + delta);
+
+  // En az 1 kişi olmalı
+  const top = (p.adult||0) + (p.child||0) + (p.baby||0);
+  if(top === 0) p.adult = 1;
+
+  // DB'ye kaydet (arka planda)
+  saveYolcuDB(p).catch(e => console.log('Sayı kayıt: ' + (e?.message || '')));
+
+  // Önizlemeyi yenile
+  const inp = document.getElementById('kat-modal-arama');
+  if(inp) katModalTopluOnizleme(inp.value || '');
+}
+
+// 🚀 HEPSİNİ EKLE - toplu ekleme uygulanır
+async function katTopluHepsiniEkle(){
+  const tid = _katModalTid;
+  if(!tid) return;
+  const inp = document.getElementById('kat-modal-arama');
+  const aramaRaw = (inp?.value || '').trim();
+  if(!aramaRaw) return;
+
+  const kabinler = aramaRaw
+    .split(/[\s,;\n\t]+/)
+    .map(k => k.trim().toUpperCase())
+    .filter(k => k.length > 0);
+
+  const aktifSeferIds = VOYAGES.filter(v => v.status !== 'archived').map(v => v.id);
+
+  const eklenecek = [];
+  kabinler.forEach(kabin => {
+    const p = passengers.find(x =>
+      !x.arsivli && aktifSeferIds.includes(x.sefer) &&
+      x.kabin && String(x.kabin).trim().toUpperCase() === kabin
+    );
+    if(p && !p.joinedTours.includes(tid)){
+      eklenecek.push(p);
+    }
+  });
+
+  if(!eklenecek.length){
+    showToast('⚠️ Eklenecek yolcu yok');
+    return;
+  }
+
+  // Tek seferde ödeme durumu sor (hepsi için aynı)
+  if(!confirm(eklenecek.length + ' yolcu turla eklenecek.\n\nÖdeme durumunu sonradan tek tek düzenleyebilirsiniz.\n\nDevam edilsin mi?')){
+    return;
+  }
+
+  const t = TOURS.find(x => x.id === tid);
+  if(!t) return;
+
+  // Hepsini ekle (varsayılan: ödeme bekliyor → sonra düzenlenebilir)
+  let basariliSayisi = 0;
+  for(const p of eklenecek){
+    p.joinedTours.push(tid);
+    const y = p.adult || 0, c = p.child || 0, b = p.baby || 0;
+    const kisi = y + c + b;
+    let ucret = 0;
+    if(t.paketFiyat && t.paketFiyat > 0) ucret = t.paketFiyat;
+    else if(kisi > 0) ucret = (y * (t.ap||0)) + (c * (t.cp||0)) + (b * (t.bp||0));
+
+    if(!p.tur_katilim_detay) p.tur_katilim_detay = {};
+    p.tur_katilim_detay[tid] = {
+      yetiskin: y, cocuk: c, bebek: b,
+      kisi: kisi, ucret: ucret,
+      e_imza: 'Rehber toplu ekledi',
+      zaman: new Date().toISOString(),
+      odeme_durumu: 'bekliyor', // Varsayılan: ödeme bekliyor (rehber sonradan düzenler)
+      odeme_zamani: null
+    };
+
+    try {
+      await saveYolcuDB(p);
+      basariliSayisi++;
+    } catch(e){
+      console.log('Toplu ekle: ' + (e?.message || ''));
+    }
+  }
+
+  showToast('✓ ' + basariliSayisi + ' yolcu turla kaydedildi (ödeme bekliyor — düzenlenebilir)');
+
+  // Input'u temizle ve önizlemeyi kapat
+  if(inp) inp.value = '';
+  const onizleme = document.getElementById('kat-modal-toplu-onizleme');
+  if(onizleme){ onizleme.style.display = 'none'; onizleme.innerHTML = ''; }
+
+  // Listeyi yenile
+  showKatilimcilar(tid);
+  if(typeof renderTA === 'function') renderTA(CTSF);
 }
 
 // Enter ile direkt ekle (kabin no tek eşleşme varsa)
