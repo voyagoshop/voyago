@@ -7776,7 +7776,12 @@ function grupTopluTurModalAc(grupId){
   const kabinler = g.kabinler || [];
   if(!kabinler.length){ showToast('⚠️ Grup boş, önce kabin ekle'); return; }
 
-  const seferTurlari = TOURS.filter(t => t.seferler && t.seferler.includes(sid));
+  // Bu seferdeki turlar (varsa)
+  let seferTurlari = TOURS.filter(t => t.seferler && Array.isArray(t.seferler) && t.seferler.includes(sid));
+  // Fallback: hiç tur yoksa, tüm aktif turları göster (kullanıcı seçsin)
+  if(!seferTurlari.length){
+    seferTurlari = TOURS.filter(t => t.aktif !== false);
+  }
 
   // Her tur için: kaç kişi grupta almış
   const turSayilari = {};
@@ -8831,9 +8836,29 @@ function renderPS(s){
     const ks=p.adult+' yetiskin'+(p.child>0?' - '+p.child+' cocuk':'')+(p.baby>0?' - '+p.baby+' bebek':'');
     const myT=TOURS.filter(t=>t.seferler.includes(p.sefer));
     const ts=myT.map(t=>`<span style="font-size:10px;color:${p.joinedTours.includes(t.id)?'var(--green)':'var(--t3)'};">${p.joinedTours.includes(t.id)?'✓':'✗'} ${t.name}</span>`).join(' · ');
-    return `<div class="prow2" style="cursor:pointer;transition:background .15s;" onclick="yolcuDetayAc('${p.kabin||''}','${p.sefer}',event)" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">
+
+    // 👥 Grup bilgisi - bu kabin bir gruba mı ait?
+    const kabinStr = String(p.kabin || '').trim();
+    const yolcuGruplari = (typeof GRUPLAR !== 'undefined' ? GRUPLAR : [])
+      .filter(g => g.sefer_id === p.sefer && (g.kabinler||[]).includes(kabinStr));
+    const ilkGrup = yolcuGruplari[0];
+    const grupRenk = ilkGrup ? ilkGrup.renk || '#7c3aed' : null;
+    const grupBorder = grupRenk ? `border-left:4px solid ${grupRenk};background:${grupRenk}08;` : '';
+    const grupRozeti = yolcuGruplari.length
+      ? yolcuGruplari.map(g => `<span style="display:inline-flex;align-items:center;gap:3px;background:${escapeHTML(g.renk||'#7c3aed')};color:white;padding:1px 7px;border-radius:8px;font-size:9px;font-weight:700;margin-right:3px;cursor:pointer;" onclick="event.stopPropagation();grupDetayAc(${g.id})" title="Grubu görüntüle">👥 ${escapeHTML(g.ad)}</span>`).join('')
+      : '';
+    const grupNotu = ilkGrup?.notlar ? `<div style="font-size:10px;color:${escapeHTML(ilkGrup.renk||'#7c3aed')};margin-top:2px;font-style:italic;">📝 ${escapeHTML(ilkGrup.notlar)}</div>` : '';
+
+    return `<div class="prow2" style="cursor:pointer;transition:background .15s;${grupBorder}" onclick="yolcuDetayAc('${p.kabin||''}','${p.sefer}',event)" onmouseover="this.style.filter='brightness(0.97)'" onmouseout="this.style.filter='none'">
       <div class="pav ${p.checkedIn?'ck':'wt'}">${ini}</div>
-      <div class="pi2"><div class="pn2">${p.name}${!p.kabin?' <span style="background:#fff8e6;color:#92400e;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;margin-left:4px;">⚠️ Eksik</span>':''}</div><div class="pd">${p.kabin?'Kabin '+p.kabin:'<span style="color:#92400e;">Kabin ?</span>'} - ${v?.label||p.sefer} - ${p.tel||'<span style="color:#92400e;">Tel ?</span>'}</div><div class="pk">${ks}</div>${myT.length?`<div class="ptr">${ts}</div>`:''}</div>
+      <div class="pi2">
+        <div class="pn2">${p.name}${!p.kabin?' <span style="background:#fff8e6;color:#92400e;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;margin-left:4px;">⚠️ Eksik</span>':''}</div>
+        ${grupRozeti ? `<div style="margin-top:3px;">${grupRozeti}</div>` : ''}
+        <div class="pd">${p.kabin?'Kabin '+p.kabin:'<span style="color:#92400e;">Kabin ?</span>'} - ${v?.label||p.sefer} - ${p.tel||'<span style="color:#92400e;">Tel ?</span>'}</div>
+        <div class="pk">${ks}</div>
+        ${grupNotu}
+        ${myT.length?`<div class="ptr">${ts}</div>`:''}
+      </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;" onclick="event.stopPropagation()">
         <span class="cb ${p.checkedIn?'cby':'cbn'}">${p.checkedIn?'Check-in':'Bekleyen'}</span>
         <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">
@@ -14465,6 +14490,26 @@ function otobusYolculariGoster(sid, otobusNo){
         <div id="otobus-yolcu-onizleme" style="margin-top:8px;display:none;"></div>
       </div>
 
+      <!-- 👥 Grup'tan toplu ekleme -->
+      ${(typeof GRUPLAR !== 'undefined' && GRUPLAR.filter(g => g.sefer_id === sid && (g.kabinler||[]).length > 0).length > 0) ? `
+        <div style="background:#f5f3ff;border:1.5px dashed #c4b5fd;border-radius:10px;padding:10px;margin-bottom:10px;">
+          <div style="font-size:11px;color:#5b21b6;font-weight:600;margin-bottom:5px;">👥 Bir grubu bu otobüse ekle</div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <select id="otobus-grup-sec-${otobusNo}" style="flex:1;padding:8px 10px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:12px;outline:none;font-family:'DM Sans',sans-serif;background:white;">
+              <option value="">-- Grup seç --</option>
+              ${GRUPLAR.filter(g => g.sefer_id === sid && (g.kabinler||[]).length > 0).map(g => 
+                `<option value="${g.id}">${escapeHTML(g.ad)} (${(g.kabinler||[]).length} kabin)</option>`
+              ).join('')}
+            </select>
+            <button onclick="otobuseGrupEkle('${sid}', ${otobusNo})"
+              style="padding:8px 14px;background:#7c3aed;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Grubu Ekle</button>
+          </div>
+          <div style="font-size:10px;color:#6b21a8;margin-top:5px;font-style:italic;">
+            Seçili grubun tüm üyeleri bu otobüse atanır (zaten başka otobüste olanlar buraya taşınır).
+          </div>
+        </div>
+      ` : ''}
+
       <!-- Yolcu listesi -->
       <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-right:2px;margin-bottom:12px;">
         ${yolcularHTML}
@@ -14697,6 +14742,78 @@ function otobusOnizlemeTamDuzenle(kabin, sid){
 }
 
 // Manuel yolcu ekleme — modal içindeki yeşil alandan
+// 👥 Bir grubun TÜM üyelerini bu otobüse ekle
+async function otobuseGrupEkle(sid, otobusNo){
+  const sel = document.getElementById('otobus-grup-sec-' + otobusNo);
+  if(!sel || !sel.value){ showToast('⚠️ Lütfen bir grup seçin'); return; }
+  const grupId = parseInt(sel.value);
+  const g = GRUPLAR.find(x => x.id === grupId);
+  if(!g){ showToast('⚠️ Grup bulunamadı'); return; }
+  const kabinler = g.kabinler || [];
+  if(!kabinler.length){ showToast('⚠️ Grup boş'); return; }
+
+  // Otobüs bilgisi
+  const ob = otobusBulSefer(sid, otobusNo);
+  if(!ob){ showToast('⚠️ Otobüs bulunamadı'); return; }
+  const otobusAdi = typeof otobusAdiAl === 'function' ? otobusAdiAl(ob) : ('Otobüs ' + otobusNo);
+
+  // Eklenecek yolcuları bul (zaten bu otobüste olmayanlar)
+  const eklencekler = [];
+  const zatenBurada = [];
+  const baskaOtobuste = [];
+  kabinler.forEach(k => {
+    const p = passengers.find(x => !x.arsivli && x.sefer === sid && String(x.kabin).trim() === k);
+    if(!p) return;
+    if(p.otobus_no === parseInt(otobusNo)){
+      zatenBurada.push(p);
+    } else if(p.otobus_no){
+      baskaOtobuste.push(p);
+      eklencekler.push(p);
+    } else {
+      eklencekler.push(p);
+    }
+  });
+
+  if(!eklencekler.length){ 
+    showToast('✓ Grubun tüm üyeleri zaten bu otobüste'); 
+    return; 
+  }
+
+  // Kapasite kontrol
+  const mevcutDoluluk = otobusDolulukHesaplaSefer(sid, otobusNo);
+  const eklencekKisi = eklencekler.reduce((s,p) => s + (p.adult||0)+(p.child||0)+(p.baby||0), 0);
+  const yeniDoluluk = mevcutDoluluk + eklencekKisi;
+  const kapasite = ob.kapasite || 40;
+
+  let onayMesaj = g.ad + ' grubundan ' + eklencekler.length + ' kabin (' + eklencekKisi + ' kişi) ' + otobusAdi + '\'a eklenecek.';
+  if(baskaOtobuste.length){
+    onayMesaj += '\n\n⚠️ ' + baskaOtobuste.length + ' kabin başka otobüsteydi, buraya taşınacak.';
+  }
+  if(yeniDoluluk > kapasite){
+    onayMesaj += '\n\n🔴 DİKKAT: Kapasite aşılıyor! ' + yeniDoluluk + '/' + kapasite + ' kişi. Yine de devam?';
+  } else {
+    onayMesaj += '\n\nKapasite: ' + yeniDoluluk + '/' + kapasite + ' kişi';
+  }
+  onayMesaj += '\n\nDevam edilsin mi?';
+
+  if(!confirm(onayMesaj)) return;
+
+  // Ekle
+  let basarili = 0;
+  for(const p of eklencekler){
+    p.otobus_no = parseInt(otobusNo);
+    try {
+      await saveYolcuDB(p);
+      basarili++;
+    } catch(e){ console.log('Otobüse grup ekle: ' + (e?.message || '')); }
+  }
+
+  showToast('✓ ' + basarili + ' yolcu ' + otobusAdi + '\'a eklendi');
+  // Modal'ı yenile
+  if(typeof otobusYolculariGoster === 'function') otobusYolculariGoster(sid, otobusNo);
+  if(typeof renderOtobusPaneli === 'function') renderOtobusPaneli();
+}
+
 async function otobusYolcuEkleManuel(sid, otobusNo){
   const inp = document.getElementById('otobus-yolcu-ekle-kabin');
   const kabin = (inp?.value || '').trim();
