@@ -8084,13 +8084,28 @@ function yolcuDetayAc(kabin, sid, ev){
               const kisi = det ? det.kisi : toplamKisi;
               const ucret = det ? det.ucret : 0;
               const onay = det?.onay_zamani ? new Date(det.onay_zamani).toLocaleString('tr-TR', {dateStyle:'short', timeStyle:'short'}) : '';
+              const katilan_isimler = det?.katilan_isimler || [];
+              // Eksik isimler bulgu: kabin'de var ama tura katılmıyorsa
+              const tumIsimler = [p.name, ...(p.ekstra_isimler || [])];
+              const eksikIsimler = katilan_isimler.length > 0 && katilan_isimler.length < tumIsimler.length
+                ? tumIsimler.filter(i => !katilan_isimler.includes(i))
+                : [];
               return `
-                <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#dcfce7;border:1.5px solid #86efac;border-radius:9px;margin-bottom:4px;">
-                  <span style="font-size:16px;">✓</span>
-                  <div style="flex:1;min-width:0;">
-                    <div style="font-size:12px;font-weight:600;color:#15803d;">${escapeHTML(t.name)}</div>
-                    <div style="font-size:10px;color:#15803d;opacity:.85;margin-top:1px;">${kisi} kişi · €${ucret}${onay ? ' · ' + onay : ''}</div>
+                <div style="display:flex;flex-direction:column;gap:4px;padding:8px 10px;background:#dcfce7;border:1.5px solid #86efac;border-radius:9px;margin-bottom:4px;">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:16px;">✓</span>
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-size:12px;font-weight:600;color:#15803d;">${escapeHTML(t.name)}</div>
+                      <div style="font-size:10px;color:#15803d;opacity:.85;margin-top:1px;">${kisi} kişi · €${ucret}${onay ? ' · ' + onay : ''}</div>
+                    </div>
                   </div>
+                  ${katilan_isimler.length > 0 ? `
+                    <div style="margin-left:24px;font-size:10px;line-height:1.5;border-top:1px dashed #86efac;padding-top:4px;">
+                      <span style="color:#15803d;font-weight:600;">👥 Katılan:</span>
+                      ${katilan_isimler.map(i => `<span style="background:white;color:#15803d;padding:1px 6px;border-radius:4px;margin:0 2px;font-weight:500;">${escapeHTML(i)}</span>`).join('')}
+                      ${eksikIsimler.length > 0 ? `<br><span style="color:#dc2626;font-weight:600;">⊘ Gitmeyen:</span> ${eksikIsimler.map(i => `<span style="background:#fef2f2;color:#991b1b;padding:1px 6px;border-radius:4px;margin:0 2px;text-decoration:line-through;">${escapeHTML(i)}</span>`).join('')}` : ''}
+                    </div>
+                  ` : ''}
                 </div>
               `;
             }).join('')}
@@ -8815,6 +8830,101 @@ function katModalAramaDegisti(){
 }
 
 // 🎯 Toplu kabin önizleme — kullanıcı 4180, 5156, 6230 yazınca her birini göster
+let _katTopluSecilenIsimler = {}; // kabin -> [isim1, isim2, ...] (seçili isimler)
+
+// Seçilenlerin yaş özetini ver: "2Y 1Ç" gibi
+function _secilenlerOzeti(secilenler, p){
+  let y=0, c=0, b=0;
+  const tumIsimler = [p.name, ...(p.ekstra_isimler || [])];
+  secilenler.forEach(isim => {
+    const idx = tumIsimler.indexOf(isim);
+    if(idx < 0) return;
+    const dogum = idx === 0 ? (p.dogum_tarihleri?.ana || '') : (p.dogum_tarihleri?.ekstra?.[idx-1] || '');
+    const yas = dogum && typeof _yasHesapla === 'function' ? _yasHesapla(dogum) : null;
+    if(yas === null) y++; // Yaş bilinmiyorsa yetişkin say
+    else if(yas < 2) b++;
+    else if(yas < 12) c++;
+    else y++;
+  });
+  const parts = [];
+  if(y > 0) parts.push(y + 'Y');
+  if(c > 0) parts.push(c + 'Ç');
+  if(b > 0) parts.push(b + 'B');
+  return parts.join(' ') || '-';
+}
+
+// Expand/collapse: isim seçim alanını aç/kapat
+function katTopluIsimSecToggle(kabin){
+  const el = document.getElementById('kat-isim-' + kabin);
+  if(el){
+    el.style.display = (el.style.display === 'none') ? 'block' : 'none';
+  }
+}
+
+// İsim seçim değişimi
+function katTopluIsimDegistir(kabin, idx, secili){
+  const aktifSeferIds = VOYAGES.filter(v => v.status !== 'archived').map(v => v.id);
+  const p = passengers.find(x =>
+    !x.arsivli && aktifSeferIds.includes(x.sefer) &&
+    x.kabin && String(x.kabin).trim().toUpperCase() === kabin.toUpperCase()
+  );
+  if(!p) return;
+
+  const tumIsimler = [p.name, ...(p.ekstra_isimler || [])];
+  let secilenler = _katTopluSecilenIsimler[p.kabin];
+  // İlk değişiklikse: default tüm isimleri yükle (ana sayıdan eksik olsa bile)
+  if(!secilenler){
+    const kisi = (p.adult||0) + (p.child||0) + (p.baby||0);
+    secilenler = tumIsimler.slice(0, kisi);
+  }
+
+  const isim = tumIsimler[idx];
+  if(!isim) return;
+
+  if(secili){
+    // Ekle (zaten varsa atla)
+    if(!secilenler.includes(isim)) secilenler.push(isim);
+  } else {
+    // Çıkar — en az 1 kişi kalsın
+    if(secilenler.length <= 1){
+      showToast('⚠️ En az 1 kişi olmalı');
+      // Checkbox'ı geri al
+      const el = document.querySelector('#kat-isim-' + kabin + ' input[type="checkbox"]');
+      // Bulamayabilir, render et yine
+      katModalTopluOnizleme(document.getElementById('kat-modal-arama')?.value || '');
+      return;
+    }
+    secilenler = secilenler.filter(x => x !== isim);
+  }
+
+  // Kabin sırasına göre yeniden sırala (ana ilk)
+  secilenler = tumIsimler.filter(x => secilenler.includes(x));
+  _katTopluSecilenIsimler[p.kabin] = secilenler;
+
+  // Y/Ç/B sayılarını yeniden hesapla
+  let y=0, c=0, b=0;
+  secilenler.forEach(name => {
+    const idx2 = tumIsimler.indexOf(name);
+    const dogum = idx2 === 0 ? (p.dogum_tarihleri?.ana || '') : (p.dogum_tarihleri?.ekstra?.[idx2-1] || '');
+    const yas = dogum && typeof _yasHesapla === 'function' ? _yasHesapla(dogum) : null;
+    if(yas === null) y++;
+    else if(yas < 2) b++;
+    else if(yas < 12) c++;
+    else y++;
+  });
+
+  p.adult = y;
+  p.child = c;
+  p.baby = b;
+
+  // DB'ye kaydet
+  saveYolcuDB(p).catch(e => console.log('İsim seçim kayıt: ' + (e?.message || '')));
+
+  // Önizlemeyi yenile
+  katModalTopluOnizleme(document.getElementById('kat-modal-arama')?.value || '');
+}
+
+// 🎯 Toplu kabin önizleme — kullanıcı 4180, 5156, 6230 yazınca her birini göster
 function katModalTopluOnizleme(aramaRaw){
   const tid = _katModalTid;
   if(!tid) return;
@@ -8871,6 +8981,7 @@ function katModalTopluOnizleme(aramaRaw){
     eklenebilir.forEach(({p, kabin}) => {
       const y = p.adult || 0, c = p.child || 0, b = p.baby || 0;
       const kisi = y + c + b;
+      const toplamKabinKisi = (p.ekstra_isimler?.length || 0) + 1; // ana + ekstra
       // Ücret tahmin
       let ucret = 0;
       if(t.paketFiyat && t.paketFiyat > 0) ucret = t.paketFiyat;
@@ -8878,34 +8989,74 @@ function katModalTopluOnizleme(aramaRaw){
 
       const kabinEsc = escapeHTML(p.kabin || '').replace(/'/g,"\\'");
 
-      html += `
-        <div style="display:flex;align-items:center;gap:8px;padding:7px 9px;background:#dcfce7;border:1px solid #86efac;border-radius:8px;margin-bottom:4px;">
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:12px;font-weight:600;color:#1a1a1a;">${escapeHTML(p.name)}</div>
-            <div style="font-size:10px;color:#15803d;margin-top:1px;">
-              Kabin ${escapeHTML(p.kabin)} · 
-              <span style="display:inline-flex;align-items:center;gap:3px;">
-                <button onclick="katTopluSayiDegistir('${kabinEsc}','adult',-1)" style="background:#f3f4f6;border:1px solid #d1d5db;width:18px;height:18px;border-radius:3px;font-size:10px;cursor:pointer;line-height:1;">−</button>
-                <b style="min-width:14px;text-align:center;">${y}Y</b>
-                <button onclick="katTopluSayiDegistir('${kabinEsc}','adult',1)" style="background:#f3f4f6;border:1px solid #d1d5db;width:18px;height:18px;border-radius:3px;font-size:10px;cursor:pointer;line-height:1;">+</button>
-              </span>
-              ${c > 0 || y < 6 ? `
-                · <span style="display:inline-flex;align-items:center;gap:3px;">
-                  <button onclick="katTopluSayiDegistir('${kabinEsc}','child',-1)" style="background:#f3f4f6;border:1px solid #d1d5db;width:18px;height:18px;border-radius:3px;font-size:10px;cursor:pointer;line-height:1;">−</button>
-                  <b style="min-width:14px;text-align:center;">${c}Ç</b>
-                  <button onclick="katTopluSayiDegistir('${kabinEsc}','child',1)" style="background:#f3f4f6;border:1px solid #d1d5db;width:18px;height:18px;border-radius:3px;font-size:10px;cursor:pointer;line-height:1;">+</button>
-                </span>
-              ` : ''}
-              ${b > 0 ? `
-                · <span style="display:inline-flex;align-items:center;gap:3px;">
-                  <button onclick="katTopluSayiDegistir('${kabinEsc}','baby',-1)" style="background:#f3f4f6;border:1px solid #d1d5db;width:18px;height:18px;border-radius:3px;font-size:10px;cursor:pointer;line-height:1;">−</button>
-                  <b style="min-width:14px;text-align:center;">${b}B</b>
-                  <button onclick="katTopluSayiDegistir('${kabinEsc}','baby',1)" style="background:#f3f4f6;border:1px solid #d1d5db;width:18px;height:18px;border-radius:3px;font-size:10px;cursor:pointer;line-height:1;">+</button>
-                </span>
-              ` : ''}
-              · <b>€${ucret}</b>
+      // 👥 İsim seçim alanı (kabinde 2+ kişi varsa)
+      let isimSecimHTML = '';
+      const tumIsimler = [p.name, ...(p.ekstra_isimler || [])];
+      if(toplamKabinKisi >= 2){
+        // Hangi isimlerin katıldığını al (default: ilk N isim, N = kisi)
+        const secilenler = _katTopluSecilenIsimler[p.kabin] || tumIsimler.slice(0, kisi);
+        isimSecimHTML = `
+          <div style="margin-top:5px;">
+            <button onclick="event.stopPropagation();katTopluIsimSecToggle('${kabinEsc}')" 
+              style="background:transparent;border:1px dashed #16a34a;color:#15803d;padding:3px 9px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:4px;">
+              👥 Katılan: ${secilenler.length}/${tumIsimler.length} kişi · ${_secilenlerOzeti(secilenler, p)}
+              <span style="font-size:8px;">▼</span>
+            </button>
+            <div id="kat-isim-${kabinEsc}" style="display:none;margin-top:5px;padding:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;">
+              <div style="font-size:9px;color:#666;margin-bottom:5px;font-weight:600;">Hangi kişiler tura katılıyor?</div>
+              ${tumIsimler.map((isim, idx) => {
+                const dogum = idx === 0 ? (p.dogum_tarihleri?.ana || '') : (p.dogum_tarihleri?.ekstra?.[idx-1] || '');
+                const yas = dogum && typeof _yasHesapla === 'function' ? _yasHesapla(dogum) : null;
+                const tip = yas === null ? 'Y' : (yas < 2 ? 'B' : (yas < 12 ? 'Ç' : 'Y'));
+                const tipRenk = tip === 'Y' ? '#1e40af' : (tip === 'Ç' ? '#92400e' : '#be185d');
+                const tipBg = tip === 'Y' ? '#dbeafe' : (tip === 'Ç' ? '#fef3c7' : '#fce7f3');
+                const secili = secilenler.includes(isim);
+                return `
+                  <label style="display:flex;align-items:center;gap:8px;padding:5px 7px;background:${secili?'white':'transparent'};border:1px solid ${secili?'#86efac':'#e5e7eb'};border-radius:6px;margin-bottom:3px;cursor:pointer;">
+                    <input type="checkbox" ${secili?'checked':''} 
+                      onchange="event.stopPropagation();katTopluIsimDegistir('${kabinEsc}',${idx},this.checked)"
+                      style="width:14px;height:14px;cursor:pointer;accent-color:#16a34a;">
+                    <span style="flex:1;font-size:11px;color:#1a1a1a;font-weight:${idx===0?'700':'500'};">
+                      ${escapeHTML(isim)}${idx===0?' <span style="font-size:9px;color:#666;font-weight:500;">(ana)</span>':''}
+                    </span>
+                    <span style="background:${tipBg};color:${tipRenk};padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700;">
+                      ${tip}${yas !== null ? ' · '+yas : ''}
+                    </span>
+                  </label>
+                `;
+              }).join('')}
             </div>
           </div>
+        `;
+      }
+
+      html += `
+        <div style="display:flex;flex-direction:column;gap:4px;padding:7px 9px;background:#dcfce7;border:1px solid #86efac;border-radius:8px;margin-bottom:4px;">
+          <div style="font-size:12px;font-weight:600;color:#1a1a1a;">${escapeHTML(p.name)}${toplamKabinKisi > 1 ? ' <span style="font-size:9px;color:#666;font-weight:500;">(+'+(toplamKabinKisi-1)+' diğer)</span>' : ''}</div>
+          <div style="font-size:10px;color:#15803d;display:flex;align-items:center;flex-wrap:wrap;gap:4px;">
+            Kabin ${escapeHTML(p.kabin)} · 
+            <span style="display:inline-flex;align-items:center;gap:3px;">
+              <button onclick="katTopluSayiDegistir('${kabinEsc}','adult',-1)" style="background:#f3f4f6;border:1px solid #d1d5db;width:18px;height:18px;border-radius:3px;font-size:10px;cursor:pointer;line-height:1;">−</button>
+              <b style="min-width:14px;text-align:center;">${y}Y</b>
+              <button onclick="katTopluSayiDegistir('${kabinEsc}','adult',1)" style="background:#f3f4f6;border:1px solid #d1d5db;width:18px;height:18px;border-radius:3px;font-size:10px;cursor:pointer;line-height:1;">+</button>
+            </span>
+            ${c > 0 || y < 6 ? `
+              · <span style="display:inline-flex;align-items:center;gap:3px;">
+                <button onclick="katTopluSayiDegistir('${kabinEsc}','child',-1)" style="background:#f3f4f6;border:1px solid #d1d5db;width:18px;height:18px;border-radius:3px;font-size:10px;cursor:pointer;line-height:1;">−</button>
+                <b style="min-width:14px;text-align:center;">${c}Ç</b>
+                <button onclick="katTopluSayiDegistir('${kabinEsc}','child',1)" style="background:#f3f4f6;border:1px solid #d1d5db;width:18px;height:18px;border-radius:3px;font-size:10px;cursor:pointer;line-height:1;">+</button>
+              </span>
+            ` : ''}
+            ${b > 0 ? `
+              · <span style="display:inline-flex;align-items:center;gap:3px;">
+                <button onclick="katTopluSayiDegistir('${kabinEsc}','baby',-1)" style="background:#f3f4f6;border:1px solid #d1d5db;width:18px;height:18px;border-radius:3px;font-size:10px;cursor:pointer;line-height:1;">−</button>
+                <b style="min-width:14px;text-align:center;">${b}B</b>
+                <button onclick="katTopluSayiDegistir('${kabinEsc}','baby',1)" style="background:#f3f4f6;border:1px solid #d1d5db;width:18px;height:18px;border-radius:3px;font-size:10px;cursor:pointer;line-height:1;">+</button>
+              </span>
+            ` : ''}
+            · <b>€${ucret}</b>
+          </div>
+          ${isimSecimHTML}
         </div>
       `;
     });
@@ -9032,12 +9183,18 @@ async function katTopluHepsiniEkle(){
     else if(kisi > 0) ucret = (y * (t.ap||0)) + (c * (t.cp||0)) + (b * (t.bp||0));
 
     if(!p.tur_katilim_detay) p.tur_katilim_detay = {};
+
+    // 👥 Hangi isimlerin katıldığı bilgisi (default: tümü)
+    const tumIsimler = [p.name, ...(p.ekstra_isimler || [])];
+    const katilan_isimler = _katTopluSecilenIsimler[p.kabin] || tumIsimler.slice(0, kisi);
+
     p.tur_katilim_detay[tid] = {
       yetiskin: y, cocuk: c, bebek: b,
       kisi: kisi, ucret: ucret,
+      katilan_isimler: katilan_isimler,  // 👥 Hangi kişiler katılıyor
       e_imza: 'Rehber toplu ekledi',
       zaman: new Date().toISOString(),
-      odeme_durumu: 'bekliyor', // Varsayılan: ödeme bekliyor (rehber sonradan düzenler)
+      odeme_durumu: 'bekliyor',
       odeme_zamani: null
     };
 
@@ -9050,6 +9207,9 @@ async function katTopluHepsiniEkle(){
   }
 
   showToast('✓ ' + basariliSayisi + ' yolcu turla kaydedildi (ödeme bekliyor — düzenlenebilir)');
+
+  // State temizle
+  _katTopluSecilenIsimler = {};
 
   // Input'u temizle ve önizlemeyi kapat
   if(inp) inp.value = '';
