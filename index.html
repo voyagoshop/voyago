@@ -7217,10 +7217,19 @@ function _krediKartiWhatsAppAc(p){
 // ═══════════════════════════════════════════════
 // 👥 GRUP YÖNETİMİ SİSTEMİ
 // ═══════════════════════════════════════════════
-// Kapalı gruplar, aileler, şirket grupları için
-// Grup → birden fazla kabin
-// Gruba toplu tur ekle/çıkar
-// Grup raporu (turlar, gelirler, mesaj)
+
+// 🔢 Global kabin sıralama helper (renderKontrolListesi'nden taşındı)
+function _kabinSiraKarsi(aK, bK){
+  aK = String(aK || '').trim();
+  bK = String(bK || '').trim();
+  if(!aK && !bK) return 0;
+  if(!aK) return 1;
+  if(!bK) return -1;
+  const aNum = parseInt(aK.match(/\d+/)?.[0] || 0);
+  const bNum = parseInt(bK.match(/\d+/)?.[0] || 0);
+  if(aNum && bNum && aNum !== bNum) return aNum - bNum;
+  return aK.localeCompare(bK, 'tr');
+}
 
 let GRUPLAR = []; // {id, sefer_id, ad, aciklama, renk, kabinler[], notlar}
 let _grupModalSid = null;
