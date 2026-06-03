@@ -8853,6 +8853,21 @@ function renderPS(s){
       <div class="pav ${p.checkedIn?'ck':'wt'}">${ini}</div>
       <div class="pi2">
         <div class="pn2">${p.name}${!p.kabin?' <span style="background:#fff8e6;color:#92400e;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;margin-left:4px;">⚠️ Eksik</span>':''}</div>
+        ${(p.ekstra_isimler && p.ekstra_isimler.length) ? `
+          <div style="font-size:11px;color:#666;margin-top:2px;line-height:1.45;">
+            ${p.ekstra_isimler.map((isim, idx) => {
+              const dogum = p.dogum_tarihleri?.ekstra?.[idx] || '';
+              const yas = dogum && typeof _yasHesapla === 'function' ? _yasHesapla(dogum) : null;
+              let tipBadge = '';
+              if(yas !== null){
+                if(yas < 2) tipBadge = '<span style="background:#fce7f3;color:#be185d;padding:0 5px;border-radius:5px;font-size:9px;font-weight:700;margin-left:3px;">B</span>';
+                else if(yas < 12) tipBadge = '<span style="background:#fef3c7;color:#92400e;padding:0 5px;border-radius:5px;font-size:9px;font-weight:700;margin-left:3px;">Ç</span>';
+                else tipBadge = '';
+              }
+              return `<span style="color:#475569;">+ ${escapeHTML(isim)}${tipBadge}</span>`;
+            }).join('<br>')}
+          </div>
+        ` : ''}
         ${grupRozeti ? `<div style="margin-top:3px;">${grupRozeti}</div>` : ''}
         <div class="pd">${p.kabin?'Kabin '+p.kabin:'<span style="color:#92400e;">Kabin ?</span>'} - ${v?.label||p.sefer} - ${p.tel||'<span style="color:#92400e;">Tel ?</span>'}</div>
         <div class="pk">${ks}</div>
