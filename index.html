@@ -14109,17 +14109,23 @@ function yolcuOtomatikOtobusAtaSefer(p){
         console.log('[OTOBÜS] ' + p.name + ' → aktif otobüs ' + aktifOtobus + ' (kapasite: ' + (mevcut+kisi) + '/' + ob.kapasite + ')');
         return parseInt(aktifOtobus);
       } else {
-        // Aktif otobüs dolu — uyar ama yine de en boşa ata
-        console.log('[OTOBÜS] Aktif otobüs ' + aktifOtobus + ' dolu (' + mevcut + '+' + kisi + '>' + ob.kapasite + '), otomatik en boşa atanıyor');
+        // 🛑 Aktif otobüs DOLU — MANUEL kontrol için atama YAPMA, uyarı ver
+        const adi = typeof otobusAdiAl === 'function' ? otobusAdiAl(ob) : ('Otobüs ' + aktifOtobus);
+        console.log('[OTOBÜS] Aktif otobüs ' + adi + ' DOLU - atama yapılmadı');
+        if(typeof showToast === 'function'){
+          showToast('🔴 ' + adi + ' DOLU (' + mevcut + '/' + ob.kapasite + ') · ' + p.name + ' için başka otobüs seç');
+        }
+        return null; // Atama yapma, rehber manuel seçsin
       }
     }
   }
 
-  // Aktif otobüs yoksa veya doluysa → en boş
+  // 🎯 Aktif otobüs yoksa → en boş otobüse otomatik ata (eski davranış)
+  // Sadece rehber AKTİF SEÇMEMİŞSE otomatik dağıt
   const otobusNo = enBosOtobusBulSefer(p.sefer, kisi);
   if(otobusNo){
     p.otobus_no = parseInt(otobusNo);
-    console.log('[OTOBÜS] ' + p.name + ' → en boş otobüs ' + otobusNo);
+    console.log('[OTOBÜS] ' + p.name + ' → en boş otobüs ' + otobusNo + ' (aktif yok)');
   } else {
     console.log('[OTOBÜS] Hiç uygun otobüs bulunamadı!');
   }
@@ -14302,13 +14308,434 @@ function renderOtobusPaneli(){
         <button onclick="otobusKurulumAc('${sid}')" style="padding:5px 10px;background:#f0f4ff;border:1.5px solid #c7d2fe;color:#4f46e5;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">✏️ Düzenle</button>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;">${otobuslerHTML}</div>
+      <!-- 🚀 HIZLI DOLDURMA - kart bazlı, tek tıkla -->
+      ${otobusler.length > 0 ? `
+        <button onclick="otobusHizliDoldurmaAc('${sid}')" 
+          style="width:100%;margin-top:8px;padding:11px;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;">
+          🚀 <span>HIZLI DOLDURMA — Yolcuları Buton Olarak Gör</span>
+        </button>
+      ` : ''}
       <div style="margin-top:8px;padding:8px;background:#f0f9ff;border-radius:8px;font-size:10px;color:#0d3b6e;line-height:1.5;">
         💡 <b>"🎯 Bu Otobüsü Doldur"</b> bas → yeni gelen yolcular SADECE buraya atanır.<br>
-        Aksi halde otomatik en boş otobüse dağıtılır. "✗ İptal" → otobüsten çıkar.
+        <b>"🚀 Hızlı Doldurma"</b> → tüm yolcular kart olarak, tek tıkla aktif otobüse ekle.
       </div>
       <style>@keyframes aktifPulse { 0%,100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.05); } }</style>
     </div>
   `;
+}
+
+// ═══════════════════════════════════════════════
+// 🚀 HIZLI OTOBÜS DOLDURMA (kart bazlı, tek tıkla)
+// ═══════════════════════════════════════════════
+// Tüm yolcular renkli kart olarak görünür
+// Tek tıkla aktif otobüse eklenir
+// Otobüs dolarsa otomatik bir sonrakine geçer
+
+let _hizliDoldurmaSid = null;
+let _hizliDoldurmaFilter = 'tumu'; // 'tumu' | 'bekleyen' | 'tur-alanlar' | tid
+
+function otobusHizliDoldurmaAc(sid){
+  if(!sid){ showToast('⚠️ Sefer seçilmedi'); return; }
+  _hizliDoldurmaSid = sid;
+  _hizliDoldurmaFilter = 'tumu';
+
+  const eski = document.getElementById('hizli-doldurma-modal');
+  if(eski) eski.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'hizli-doldurma-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99998;display:flex;align-items:stretch;justify-content:center;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e) => { if(e.target.id === 'hizli-doldurma-modal') modal.remove(); };
+
+  modal.innerHTML = `
+    <div style="background:white;width:100%;max-width:900px;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;">
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,#16a34a,#15803d);padding:14px 18px;color:white;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-family:'DM Serif Display',serif;font-size:18px;">🚀 Hızlı Otobüs Doldurma</div>
+          <div style="font-size:11px;opacity:.9;margin-top:2px;">Yolcu kartına tıkla → aktif otobüse anında eklensin</div>
+        </div>
+        <button onclick="document.getElementById('hizli-doldurma-modal').remove()" 
+          style="background:rgba(255,255,255,.2);border:none;color:white;font-size:20px;cursor:pointer;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;">×</button>
+      </div>
+
+      <!-- Otobüs Sayaçları + Aktif Seçim -->
+      <div id="hd-otobus-sayaclari" style="padding:12px 14px;background:#f8fafc;border-bottom:1px solid #e2e8f0;"></div>
+
+      <!-- Filtre Çubuğu -->
+      <div id="hd-filtre" style="padding:8px 14px;background:white;border-bottom:1px solid #f0f0f0;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+        <span style="font-size:11px;color:#666;font-weight:700;">FİLTRE:</span>
+        <button onclick="hizliDoldurmaFiltreSec('tumu')" id="hd-flt-tumu" class="hd-flt-btn">Tümü</button>
+        <button onclick="hizliDoldurmaFiltreSec('bekleyen')" id="hd-flt-bekleyen" class="hd-flt-btn">⏳ Otobüs Bekleyen</button>
+        <button onclick="hizliDoldurmaFiltreSec('tur-alanlar')" id="hd-flt-tur" class="hd-flt-btn">🎫 Tur Alanlar</button>
+        <select onchange="hizliDoldurmaFiltreSec(this.value)" id="hd-flt-tursec" 
+          style="padding:5px 9px;border:1.5px solid #d1d5db;border-radius:6px;font-size:11px;font-family:'DM Sans',sans-serif;background:white;cursor:pointer;">
+          <option value="">-- Tek Tur --</option>
+        </select>
+      </div>
+
+      <!-- Yolcu Kart Grid -->
+      <div style="flex:1;overflow-y:auto;padding:12px 14px;background:#fafafa;">
+        <div id="hd-yolcu-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));gap:6px;"></div>
+        <div id="hd-bos-mesaj" style="display:none;text-align:center;padding:40px 20px;color:#999;font-size:13px;"></div>
+      </div>
+
+      <!-- Alt Bilgi -->
+      <div id="hd-alt-bilgi" style="background:#f0f9ff;border-top:1px solid #bfdbfe;padding:8px 14px;font-size:11px;color:#0d3b6e;text-align:center;"></div>
+
+      <!-- CSS -->
+      <style>
+        .hd-flt-btn {
+          padding:5px 10px;background:white;border:1.5px solid #d1d5db;color:#666;
+          border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;
+          font-family:'DM Sans',sans-serif;
+        }
+        .hd-flt-btn.active {
+          background:#1a5fa8;border-color:#1a5fa8;color:white;
+        }
+        .hd-yolcu-kart {
+          padding:8px 10px;border-radius:8px;cursor:pointer;
+          border:2px solid;transition:all .15s;
+          display:flex;flex-direction:column;align-items:center;text-align:center;
+          font-family:'DM Sans',sans-serif;
+          background:white;position:relative;min-height:65px;
+          justify-content:center;
+        }
+        .hd-yolcu-kart:hover {
+          transform:translateY(-2px);
+          box-shadow:0 4px 8px rgba(0,0,0,.1);
+        }
+        .hd-yolcu-kart.bekleyen {
+          background:white;border-color:#cbd5e1;color:#1a1a1a;
+        }
+        .hd-yolcu-kart.bekleyen:hover {
+          border-color:#16a34a;background:#dcfce7;
+        }
+        .hd-yolcu-kart.bu-otobus {
+          background:#dcfce7;border-color:#16a34a;color:#15803d;
+        }
+        .hd-yolcu-kart.baska-otobus {
+          background:#fef3c7;border-color:#f59e0b;color:#92400e;
+        }
+        .hd-yolcu-kart.iptal {
+          background:#fef2f2;border-color:#fecaca;color:#991b1b;opacity:.7;
+        }
+        .hd-yolcu-kart .hd-k-kabin {
+          font-family:'DM Serif Display',serif;font-size:22px;font-weight:700;line-height:1;
+        }
+        .hd-yolcu-kart .hd-k-ad {
+          font-size:10px;font-weight:600;margin-top:3px;line-height:1.2;
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;
+        }
+        .hd-yolcu-kart .hd-k-kisi {
+          font-size:9px;opacity:.85;margin-top:2px;
+        }
+        .hd-yolcu-kart .hd-k-otobus-rozet {
+          position:absolute;top:-6px;right:-6px;background:#1a5fa8;color:white;
+          width:22px;height:22px;border-radius:50%;font-size:10px;font-weight:700;
+          display:flex;align-items:center;justify-content:center;border:2px solid white;
+        }
+      </style>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  // İlk render
+  hizliDoldurmaRender();
+}
+
+// Filtre seçimi
+function hizliDoldurmaFiltreSec(filtre){
+  _hizliDoldurmaFilter = filtre;
+  hizliDoldurmaRender();
+}
+
+// Tüm UI'ı yeniden çiz
+function hizliDoldurmaRender(){
+  const sid = _hizliDoldurmaSid;
+  if(!sid) return;
+
+  // ─── 1. Otobüs sayaçları + aktif seçim ───
+  const otobusler = seferOtobusleriAl(sid);
+  const aktifOtobus = _aktifOtobusAl(sid);
+  const sayacEl = document.getElementById('hd-otobus-sayaclari');
+  if(sayacEl){
+    sayacEl.innerHTML = `
+      <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;">
+        ${otobusler.map(o => {
+          const dolu = otobusDolulukHesaplaSefer(sid, o.no);
+          const oran = o.kapasite ? Math.round((dolu/o.kapasite)*100) : 0;
+          const dolu_p = oran >= 100;
+          const aktifMi = aktifOtobus === o.no;
+          const renk = dolu_p ? '#dc2626' : (oran >= 90 ? '#f59e0b' : (oran >= 70 ? '#eab308' : '#16a34a'));
+          const adi = otobusAdiAl(o);
+          return `
+            <div onclick="hizliDoldurmaAktifSec(${o.no})" 
+              style="min-width:120px;background:white;border:${aktifMi?'3px':'1.5px'} solid ${aktifMi?'#4f46e5':renk};border-radius:10px;padding:8px;text-align:center;cursor:pointer;position:relative;${aktifMi?'box-shadow:0 0 0 3px rgba(79,70,229,.15);':''}">
+              ${aktifMi ? '<div style="position:absolute;top:-7px;left:50%;transform:translateX(-50%);background:#4f46e5;color:white;padding:1px 8px;border-radius:8px;font-size:8px;font-weight:700;white-space:nowrap;">🎯 AKTİF</div>' : ''}
+              <div style="font-size:9px;color:#666;font-weight:600;">OTOBÜS</div>
+              <div style="font-family:'DM Serif Display',serif;font-size:16px;color:${aktifMi?'#4f46e5':renk};font-weight:700;line-height:1.1;margin:2px 0;">${escapeHTML(adi)}</div>
+              <div style="font-size:13px;font-weight:700;color:${renk};">${dolu}/${o.kapasite}</div>
+              <div style="font-size:9px;color:${renk};">${oran}%</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+      <div style="font-size:10px;color:#666;text-align:center;margin-top:5px;">
+        ${aktifOtobus ? '👆 <b>' + escapeHTML(otobusAdiAl(otobusBulSefer(sid, aktifOtobus) || {no:aktifOtobus})) + '</b> aktif — tıklanan yolcular buraya eklenir' : '⚠️ Önce bir otobüsü AKTİF yap (üstteki kartlara tıkla)'}
+      </div>
+    `;
+  }
+
+  // ─── 2. Tur dropdown'ını doldur ───
+  const turlar = TOURS.filter(t => t.seferler && t.seferler.includes(sid));
+  const turSecEl = document.getElementById('hd-flt-tursec');
+  if(turSecEl){
+    turSecEl.innerHTML = '<option value="">-- Tek Tur --</option>' + 
+      turlar.map(t => `<option value="${t.id}" ${_hizliDoldurmaFilter===t.id?'selected':''}>${escapeHTML(t.name)}</option>`).join('');
+  }
+
+  // ─── 3. Filtre butonlarının active class'ı ───
+  ['tumu', 'bekleyen', 'tur-alanlar'].forEach(f => {
+    const b = document.getElementById('hd-flt-' + f);
+    if(b) b.classList.toggle('active', _hizliDoldurmaFilter === f);
+  });
+
+  // ─── 4. Yolcu listesini hazırla ───
+  let yolcular = passengers.filter(p => p.sefer === sid && !p.arsivli && p.kabin);
+
+  // Filtre uygula
+  if(_hizliDoldurmaFilter === 'bekleyen'){
+    // Otobüse atanmamış olanlar
+    yolcular = yolcular.filter(p => !p.otobus_no);
+  } else if(_hizliDoldurmaFilter === 'tur-alanlar'){
+    // En az 1 tur almış olanlar
+    yolcular = yolcular.filter(p => p.joinedTours && p.joinedTours.length > 0);
+  } else if(_hizliDoldurmaFilter && _hizliDoldurmaFilter !== 'tumu'){
+    // Belli bir tura kayıtlı olanlar
+    yolcular = yolcular.filter(p => p.joinedTours && p.joinedTours.includes(_hizliDoldurmaFilter));
+  }
+
+  // Kabin sırasıyla sırala
+  yolcular.sort((a,b) => _kabinSiraKarsi(a.kabin, b.kabin));
+
+  // ─── 5. Yolcuları render et ───
+  const gridEl = document.getElementById('hd-yolcu-grid');
+  const bosEl = document.getElementById('hd-bos-mesaj');
+
+  if(yolcular.length === 0){
+    if(gridEl) gridEl.innerHTML = '';
+    if(bosEl){
+      bosEl.style.display = 'block';
+      bosEl.innerHTML = '🔍 Bu filtreye uyan yolcu yok';
+    }
+  } else {
+    if(bosEl) bosEl.style.display = 'none';
+    if(gridEl){
+      gridEl.innerHTML = yolcular.map(p => {
+        const kisi = (p.adult||0)+(p.child||0)+(p.baby||0);
+        const ot = p.otobus_no;
+        const buOtobus = ot === aktifOtobus;
+        const baskaOtobus = ot && ot !== aktifOtobus;
+        const sinif = buOtobus ? 'bu-otobus' : (baskaOtobus ? 'baska-otobus' : 'bekleyen');
+
+        // Otobüs adı (rozet için kısa)
+        let otRozet = '';
+        if(ot){
+          const otob = otobusBulSefer(sid, ot);
+          const adi = otob ? otobusAdiAl(otob) : ('' + ot);
+          // Kısalt: "Bus 1" → "B1", "Yeşim" → "Yş"
+          let kisa = adi;
+          if(adi.startsWith('Bus ') || adi.startsWith('Otobüs ')) kisa = 'B' + (otob?.no || ot);
+          else kisa = adi.substring(0,2);
+          otRozet = `<div class="hd-k-otobus-rozet" title="${escapeHTML(adi)}">${escapeHTML(kisa)}</div>`;
+        }
+
+        // Kısa ad (ilk + ikinci kelime baş harfi)
+        const adParts = (p.name || '').split(' ');
+        const kisaAd = adParts.length > 1 
+          ? adParts[0] + ' ' + adParts[1].charAt(0) + '.'
+          : (adParts[0] || '?');
+
+        return `
+          <div class="hd-yolcu-kart ${sinif}" 
+            onclick="hizliDoldurmaYolcuTikla('${escapeHTML(p.kabin).replace(/'/g,"\\'")}')"
+            title="${escapeHTML(p.name)}\nKabin ${escapeHTML(p.kabin)} · ${kisi} kişi${ot?' · Otobüs '+ot:' · Henüz atanmamış'}">
+            ${otRozet}
+            <div class="hd-k-kabin">${escapeHTML(p.kabin)}</div>
+            <div class="hd-k-ad">${escapeHTML(kisaAd)}</div>
+            <div class="hd-k-kisi">${kisi} kişi</div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // ─── 6. Alt bilgi ───
+  const altEl = document.getElementById('hd-alt-bilgi');
+  if(altEl){
+    const buOtobusSayisi = yolcular.filter(p => p.otobus_no === aktifOtobus).length;
+    const baskaOtobusSayisi = yolcular.filter(p => p.otobus_no && p.otobus_no !== aktifOtobus).length;
+    const beklenSayisi = yolcular.filter(p => !p.otobus_no).length;
+    altEl.innerHTML = `
+      <span style="color:#15803d;">🟢 Bu otobüste: <b>${buOtobusSayisi}</b></span> · 
+      <span style="color:#92400e;">🟡 Başka otobüste: <b>${baskaOtobusSayisi}</b></span> · 
+      <span style="color:#666;">⚪ Bekleyen: <b>${beklenSayisi}</b></span>
+    `;
+  }
+}
+
+// Aktif otobüs seç (üstteki kart tıklanınca)
+function hizliDoldurmaAktifSec(otobusNo){
+  const sid = _hizliDoldurmaSid;
+  if(!sid) return;
+  const mevcut = _aktifOtobusAl(sid);
+  if(mevcut === otobusNo){
+    _aktifOtobusKaydet(sid, null);
+    showToast('🎯 Aktif otobüs seçimi kaldırıldı');
+  } else {
+    _aktifOtobusKaydet(sid, otobusNo);
+    const ob = otobusBulSefer(sid, otobusNo);
+    const adi = ob ? otobusAdiAl(ob) : ('Otobüs ' + otobusNo);
+    showToast('✅ ' + adi + ' aktif — yolcular buraya eklenecek');
+  }
+  hizliDoldurmaRender();
+  if(typeof renderOtobusPaneli === 'function') renderOtobusPaneli();
+}
+
+// Yolcu kartına tıklama
+async function hizliDoldurmaYolcuTikla(kabin){
+  const sid = _hizliDoldurmaSid;
+  if(!sid) return;
+  const aktif = _aktifOtobusAl(sid);
+  if(!aktif){ 
+    showToast('⚠️ Önce bir otobüsü AKTİF yap (üstteki kartlara tıkla)'); 
+    return; 
+  }
+
+  const p = passengers.find(x => !x.arsivli && x.sefer === sid && String(x.kabin).trim() === kabin);
+  if(!p){ showToast('⚠️ Yolcu bulunamadı'); return; }
+
+  const ob = otobusBulSefer(sid, aktif);
+  if(!ob){ showToast('⚠️ Aktif otobüs bulunamadı'); return; }
+
+  const kisi = (p.adult||0)+(p.child||0)+(p.baby||0);
+
+  // Eğer zaten BU otobüsteyse → çıkar
+  if(p.otobus_no === aktif){
+    p.otobus_no = null;
+    try { await saveYolcuDB(p); } catch(e){}
+    showToast('↶ ' + p.name + ' otobüsten çıkarıldı');
+    hizliDoldurmaRender();
+    if(typeof renderOtobusPaneli === 'function') renderOtobusPaneli();
+    return;
+  }
+
+  // Kapasite kontrolü
+  const mevcut = otobusDolulukHesaplaSefer(sid, aktif);
+  const kapasite = ob.kapasite || 40;
+  if(mevcut + kisi > kapasite){
+    // 🛑 Otobüs dolu - MANUEL kontrol, otomatik geçiş yok
+    const otobusAdi = otobusAdiAl(ob);
+    showToast('🔴 ' + otobusAdi + ' DOLU! (' + mevcut + '/' + kapasite + ') · Başka otobüsü AKTİF seç');
+
+    // Sesli uyarı
+    try { if(typeof bildirimSesi === 'function') bildirimSesi('uyari'); } catch(e){}
+
+    // Görsel uyarı modal'ı
+    const eski = document.getElementById('hd-dolu-uyari');
+    if(eski) eski.remove();
+    const otobusler = seferOtobusleriAl(sid);
+    const bosOtobusler = otobusler
+      .filter(x => x.no !== aktif)
+      .map(x => ({ ...x, dolu: otobusDolulukHesaplaSefer(sid, x.no), bos_yer: (x.kapasite || 40) - otobusDolulukHesaplaSefer(sid, x.no) }))
+      .filter(x => x.bos_yer >= kisi);
+
+    const uyari = document.createElement('div');
+    uyari.id = 'hd-dolu-uyari';
+    uyari.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"DM Sans",sans-serif;';
+    uyari.onclick = (e) => { if(e.target.id === 'hd-dolu-uyari') uyari.remove(); };
+
+    uyari.innerHTML = `
+      <div style="background:white;border-radius:18px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.4);overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#dc2626,#991b1b);padding:18px;color:white;text-align:center;">
+          <div style="font-size:36px;margin-bottom:5px;">🚌🔴</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:20px;">${escapeHTML(otobusAdi)} DOLU!</div>
+          <div style="font-size:12px;opacity:.9;margin-top:4px;">${mevcut}/${kapasite} kişi · Yeni eklenemiyor</div>
+        </div>
+        <div style="padding:16px;">
+          <div style="font-size:12px;color:#666;margin-bottom:10px;text-align:center;">
+            <b>${escapeHTML(p.name)}</b> (${kisi} kişi) için<br>
+            başka bir otobüsü <b>AKTİF</b> olarak seç:
+          </div>
+          ${bosOtobusler.length === 0 ? `
+            <div style="background:#fef3c7;border:1.5px solid #fcd34d;color:#92400e;padding:11px;border-radius:10px;font-size:12px;text-align:center;">
+              ⚠️ Hiçbir otobüste ${kisi} kişilik yer yok!<br>
+              <span style="font-size:10px;">Otobüs kapasitelerini artırmanız gerekir</span>
+            </div>
+          ` : `
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              ${bosOtobusler.map(o => {
+                const adi = otobusAdiAl(o);
+                const oran = Math.round((o.dolu/(o.kapasite||40))*100);
+                return `
+                  <button onclick="hizliDoldurmaDoluUyariSec(${o.no},'${escapeHTML(p.kabin).replace(/'/g,"\\'")}')" 
+                    style="padding:11px;background:#dcfce7;border:2px solid #16a34a;border-radius:10px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;font-family:'DM Sans',sans-serif;">
+                    <div style="font-size:24px;">🚌</div>
+                    <div style="flex:1;text-align:left;">
+                      <div style="font-size:14px;font-weight:700;color:#15803d;">${escapeHTML(adi)}</div>
+                      <div style="font-size:11px;color:#15803d;opacity:.85;margin-top:1px;">
+                        ${o.dolu}/${o.kapasite} · ${oran}% dolu · <b>${o.bos_yer} kişilik yer var</b>
+                      </div>
+                    </div>
+                    <div style="color:#15803d;font-size:18px;">›</div>
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          `}
+          <button onclick="document.getElementById('hd-dolu-uyari').remove()" 
+            style="width:100%;margin-top:10px;padding:9px;background:#f3f4f6;border:1.5px solid #d1d5db;color:#666;border-radius:8px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">
+            İptal
+          </button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(uyari);
+    return; // Otomatik geçiş YOK
+  }
+
+  // Normal ekleme
+  p.otobus_no = aktif;
+  try { 
+    await saveYolcuDB(p);
+    showToast('✓ ' + p.name + ' → ' + otobusAdiAl(ob));
+  } catch(e){
+    showToast('⚠️ Hata: ' + (e?.message || ''));
+  }
+  hizliDoldurmaRender();
+  if(typeof renderOtobusPaneli === 'function') renderOtobusPaneli();
+}
+
+// Dolu uyarı modal'ından otobüs seçilince
+async function hizliDoldurmaDoluUyariSec(yeniOtobusNo, kabin){
+  const sid = _hizliDoldurmaSid;
+  if(!sid) return;
+  
+  // Yeni otobüsü AKTİF yap
+  _aktifOtobusKaydet(sid, yeniOtobusNo);
+  
+  // Uyarı modal'ını kapat
+  document.getElementById('hd-dolu-uyari')?.remove();
+  
+  const ob = otobusBulSefer(sid, yeniOtobusNo);
+  const adi = ob ? otobusAdiAl(ob) : ('Otobüs ' + yeniOtobusNo);
+  showToast('✅ ' + adi + ' aktif yapıldı — yolcu eklenebilir');
+  
+  // Şimdi o yolcuyu ekle (recursive)
+  setTimeout(() => {
+    hizliDoldurmaYolcuTikla(kabin);
+  }, 300);
 }
 
 // ═══════════════════════════════════════════════
