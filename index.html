@@ -13359,6 +13359,10 @@ async function setKontrol(key, val, tid, sid){
   renderKontrolListesi();
   renderTurAlmayanlar();
   renderOtobusPaneli();
+  // 🚀 Hızlı Doldurma modal'ı açıksa onu da yenile
+  if(document.getElementById('hizli-doldurma-modal') && typeof hizliDoldurmaRender === 'function'){
+    hizliDoldurmaRender();
+  }
 }
 
 function renderTurAlmayanlar(){
@@ -14332,7 +14336,8 @@ function renderOtobusPaneli(){
 // Otobüs dolarsa otomatik bir sonrakine geçer
 
 let _hizliDoldurmaSid = null;
-let _hizliDoldurmaFilter = 'tumu'; // 'tumu' | 'bekleyen' | 'tur-alanlar' | tid
+let _hizliDoldurmaFilter = 'tumu'; // 'tumu' | 'bekleyen' | 'tur-alanlar'
+let _hizliDoldurmaSecilenTurlar = new Set(); // Multi-select tur ID'leri
 
 function otobusHizliDoldurmaAc(sid){
   if(!sid){ showToast('⚠️ Sefer seçilmedi'); return; }
@@ -14422,6 +14427,16 @@ function otobusHizliDoldurmaAc(sid){
         .hd-yolcu-kart.iptal {
           background:#fef2f2;border-color:#fecaca;color:#991b1b;opacity:.7;
         }
+        .hd-yolcu-kart.geldi-otobus-yok {
+          background:#dbeafe;border-color:#1a5fa8;color:#1e40af;
+        }
+        .hd-yolcu-kart.geldi-otobus-yok::after {
+          content:'✓';position:absolute;top:3px;left:3px;
+          background:#1a5fa8;color:white;width:18px;height:18px;
+          border-radius:50%;font-size:11px;font-weight:700;
+          display:flex;align-items:center;justify-content:center;
+          border:1.5px solid white;
+        }
         .hd-yolcu-kart .hd-k-kabin {
           font-family:'DM Serif Display',serif;font-size:22px;font-weight:700;line-height:1;
         }
@@ -14450,9 +14465,30 @@ function otobusHizliDoldurmaAc(sid){
   hizliDoldurmaRender();
 }
 
-// Filtre seçimi
+// Filtre seçimi (tumu/bekleyen/tur-alanlar veya tur ID — toggle)
 function hizliDoldurmaFiltreSec(filtre){
-  _hizliDoldurmaFilter = filtre;
+  // Genel filtrelerden biri ise
+  if(filtre === 'tumu' || filtre === 'bekleyen' || filtre === 'tur-alanlar'){
+    _hizliDoldurmaFilter = filtre;
+    _hizliDoldurmaSecilenTurlar.clear(); // Tur seçimini temizle
+  } else {
+    // Tur ID → toggle (multi-select)
+    if(_hizliDoldurmaSecilenTurlar.has(filtre)){
+      _hizliDoldurmaSecilenTurlar.delete(filtre);
+    } else {
+      _hizliDoldurmaSecilenTurlar.add(filtre);
+    }
+    // Tur seçildiyse genel filtre 'tumu' olsun (çakışmasın)
+    if(_hizliDoldurmaSecilenTurlar.size > 0){
+      _hizliDoldurmaFilter = 'tumu';
+    }
+  }
+  hizliDoldurmaRender();
+}
+
+// Tüm tur seçimini temizle
+function hizliDoldurmaTurTemizle(){
+  _hizliDoldurmaSecilenTurlar.clear();
   hizliDoldurmaRender();
 }
 
@@ -14497,10 +14533,10 @@ function hizliDoldurmaRender(){
   const turlar = TOURS.filter(t => t.seferler && t.seferler.includes(sid));
   const turBtnEl = document.getElementById('hd-tur-butonlari');
   if(turBtnEl){
-    // İlk span'i koru, sonra butonları ekle
+    const secilenSayi = _hizliDoldurmaSecilenTurlar.size;
     turBtnEl.innerHTML = `<span style="font-size:10px;color:#888;font-weight:600;">TUR:</span>` +
       turlar.map(t => {
-        const aktifFiltre = _hizliDoldurmaFilter === t.id;
+        const aktifFiltre = _hizliDoldurmaSecilenTurlar.has(t.id);
         // Bu tura kayıtlı yolcu sayısı
         const kayitliSayi = passengers.filter(p => 
           p.sefer === sid && !p.arsivli && p.joinedTours?.includes(t.id)
@@ -14508,10 +14544,16 @@ function hizliDoldurmaRender(){
         return `
           <button onclick="hizliDoldurmaFiltreSec('${t.id}')" 
             style="padding:4px 9px;background:${aktifFiltre?'#7c3aed':'white'};border:1.5px solid ${aktifFiltre?'#7c3aed':'#c4b5fd'};color:${aktifFiltre?'white':'#5b21b6'};border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:3px;">
-            🎫 ${escapeHTML(t.name)} <span style="background:rgba(${aktifFiltre?'255,255,255':'124,58,237'},.2);padding:0 5px;border-radius:8px;font-size:9px;font-weight:700;">${kayitliSayi}</span>
+            ${aktifFiltre?'✓ ':'🎫 '}${escapeHTML(t.name)} <span style="background:rgba(${aktifFiltre?'255,255,255':'124,58,237'},.2);padding:0 5px;border-radius:8px;font-size:9px;font-weight:700;">${kayitliSayi}</span>
           </button>
         `;
-      }).join('');
+      }).join('') +
+      (secilenSayi > 0 ? `
+        <button onclick="hizliDoldurmaTurTemizle()" 
+          style="padding:4px 9px;background:#fef2f2;border:1.5px solid #fecaca;color:#dc2626;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;margin-left:4px;">
+          ✕ Tur Seçimini Temizle (${secilenSayi})
+        </button>
+      ` : '');
   }
 
   // ─── 3. Filtre butonlarının active class'ı ───
@@ -14523,16 +14565,23 @@ function hizliDoldurmaRender(){
   // ─── 4. Yolcu listesini hazırla ───
   let yolcular = passengers.filter(p => p.sefer === sid && !p.arsivli && p.kabin);
 
-  // Filtre uygula
-  if(_hizliDoldurmaFilter === 'bekleyen'){
-    // Otobüse atanmamış olanlar
-    yolcular = yolcular.filter(p => !p.otobus_no);
-  } else if(_hizliDoldurmaFilter === 'tur-alanlar'){
-    // En az 1 tur almış olanlar
-    yolcular = yolcular.filter(p => p.joinedTours && p.joinedTours.length > 0);
-  } else if(_hizliDoldurmaFilter && _hizliDoldurmaFilter !== 'tumu'){
-    // Belli bir tura kayıtlı olanlar
-    yolcular = yolcular.filter(p => p.joinedTours && p.joinedTours.includes(_hizliDoldurmaFilter));
+  // ÖNCELİK 1: Multi-tur seçimi varsa
+  if(_hizliDoldurmaSecilenTurlar.size > 0){
+    yolcular = yolcular.filter(p => {
+      if(!p.joinedTours || !p.joinedTours.length) return false;
+      // En az bir seçili turda kayıtlı mı?
+      return p.joinedTours.some(tid => _hizliDoldurmaSecilenTurlar.has(tid));
+    });
+  } else {
+    // ÖNCELİK 2: Genel filtre uygula
+    if(_hizliDoldurmaFilter === 'bekleyen'){
+      // Otobüse atanmamış olanlar
+      yolcular = yolcular.filter(p => !p.otobus_no);
+    } else if(_hizliDoldurmaFilter === 'tur-alanlar'){
+      // En az 1 tur almış olanlar
+      yolcular = yolcular.filter(p => p.joinedTours && p.joinedTours.length > 0);
+    }
+    // 'tumu' → filtre yok
   }
 
   // Kabin sırasıyla sırala
@@ -14556,7 +14605,22 @@ function hizliDoldurmaRender(){
         const ot = p.otobus_no;
         const buOtobus = ot === aktifOtobus;
         const baskaOtobus = ot && ot !== aktifOtobus;
-        const sinif = buOtobus ? 'bu-otobus' : (baskaOtobus ? 'baska-otobus' : 'bekleyen');
+        // ✅ Yolcunun herhangi bir turunda geldi=1 mi?
+        const herhangiBirTurdaGeldi = p.tur_katilim_detay && Object.values(p.tur_katilim_detay)
+          .some(det => det?.geldi === 1);
+
+        // Sınıf belirleme: otobüs durumu + geldi durumu
+        let sinif;
+        if(buOtobus){
+          sinif = 'bu-otobus';
+        } else if(baskaOtobus){
+          sinif = 'baska-otobus';
+        } else if(herhangiBirTurdaGeldi){
+          // Geldi ama henüz otobüs atanmamış (özel durum)
+          sinif = 'geldi-otobus-yok';
+        } else {
+          sinif = 'bekleyen';
+        }
 
         // Otobüs adı (rozet için kısa)
         let otRozet = '';
