@@ -4419,18 +4419,52 @@ async function setupAdmin(){
   const isGuide=u.role==='guide';
   const iS=isVoyago||isAcente;
 
-  // 📡 Önce localStorage'tan cache'i hızlıca yükle (offline destek)
+  // 📡 1. ANINDA: localStorage'tan cache'i yükle (0ms)
   try { 
     if(typeof adminOfflineDataUygula === 'function') adminOfflineDataUygula(); 
   } catch(e){}
 
-  // VOYAGES boşsa DB'den yükle
+  // 🚀 2. ANINDA: VOYAGES boşsa localStorage'tan
   if(!VOYAGES.length){
-    await loadVoyagesFromDB();
+    try {
+      const cached = _adminOfflineYukle ? _adminOfflineYukle('seferler') : null;
+      if(cached?.length){
+        VOYAGES.length = 0;
+        cached.forEach(v => VOYAGES.push(v));
+        console.log('[HIZLI] VOYAGES cache\'ten yüklendi');
+      }
+    } catch(e){}
   }
 
-  // 👥 Grupları yükle
-  try { if(typeof gruplariYukle === 'function') await gruplariYukle(); } catch(e){}
+  // 🚀 3. GRUPLAR cache'ten anında
+  if(!GRUPLAR.length){
+    try {
+      const cached = _adminOfflineYukle ? _adminOfflineYukle('gruplar') : null;
+      if(cached?.length){
+        GRUPLAR = cached;
+        console.log('[HIZLI] GRUPLAR cache\'ten yüklendi');
+      }
+    } catch(e){}
+  }
+
+  // 🎯 4. BACKGROUND: DB'den taze veri çek (UI bekletmez!)
+  // VOYAGES yine boşsa await et (ilk login), değilse arka planda
+  if(!VOYAGES.length){
+    // Hiç yoksa bekle (ilk açılış)
+    await loadVoyagesFromDB();
+  } else {
+    // Var → arka planda güncelle
+    loadVoyagesFromDB().catch(e => console.log('BG VOYAGES: ' + (e?.message||'')));
+  }
+
+  // Gruplar arka planda güncelle
+  if(typeof gruplariYukle === 'function'){
+    if(!GRUPLAR.length){
+      try { await gruplariYukle(); } catch(e){}
+    } else {
+      gruplariYukle().catch(e => console.log('BG GRUPLAR: ' + (e?.message||'')));
+    }
+  }
 
   // 💾 Periyodik cache - her 60 sn admin verisini sakla
   if(!window._adminCacheInterval){
@@ -4626,9 +4660,17 @@ async function setupAdmin(){
   renderTA('hepsi');
   initDailyForms();
 
-  // Rehber için aktif sekmeyi yükle
-  if(isGuide){
-    adminTab('dashboard');
+  // Aktif sekmeyi yükle - SON KULLANILAN SEKMEYE GİT (hızlı)
+  // Hem rehber hem acente için son sekme hatırlanır
+  if(isGuide || isAcente){
+    let sonSekme = 'dashboard';
+    try {
+      const kayit = localStorage.getItem('voyago_son_sekme');
+      if(kayit && document.getElementById('admin-' + kayit)){
+        sonSekme = kayit;
+      }
+    } catch(e){}
+    adminTab(sonSekme);
     // Günlük veriyi taze çek
     const svNow = getCurrentSeferId();
     if(svNow){
@@ -7241,9 +7283,15 @@ async function gruplariYukle(){
     const gruplarDB = await dbGet('gruplar');
     GRUPLAR = gruplarDB || [];
     console.log('[GRUP] ' + GRUPLAR.length + ' grup yüklendi');
+    // Cache'le - sonraki açılışlar anında olsun
+    try { if(typeof _adminOfflineKaydet === 'function') _adminOfflineKaydet('gruplar', GRUPLAR); } catch(e){}
   } catch(e){
     console.log('Grup yükleme: ' + (e?.message || ''));
-    GRUPLAR = [];
+    // Cache'ten yükle
+    try {
+      const cached = _adminOfflineYukle ? _adminOfflineYukle('gruplar') : null;
+      if(cached?.length) GRUPLAR = cached;
+    } catch(e){}
   }
 }
 
@@ -12118,6 +12166,8 @@ function adminTab(name){
   document.querySelectorAll('.att').forEach(b=>b.classList.remove('active'));
   const pg=document.getElementById('admin-'+name);
   if(pg)pg.classList.add('active');
+  // 💾 Son sekmeyi hatırla (login sonrası buraya dönsün)
+  try { localStorage.setItem('voyago_son_sekme', name); } catch(e){}
   // Rol bazlı prefix ile aktif butonu bul
   const isGuide=CU?.role==='guide';
   const isAcente=CU?.role==='acente';
