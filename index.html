@@ -14363,15 +14363,17 @@ function otobusHizliDoldurmaAc(sid){
       <div id="hd-otobus-sayaclari" style="padding:12px 14px;background:#f8fafc;border-bottom:1px solid #e2e8f0;"></div>
 
       <!-- Filtre Çubuğu -->
-      <div id="hd-filtre" style="padding:8px 14px;background:white;border-bottom:1px solid #f0f0f0;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-        <span style="font-size:11px;color:#666;font-weight:700;">FİLTRE:</span>
-        <button onclick="hizliDoldurmaFiltreSec('tumu')" id="hd-flt-tumu" class="hd-flt-btn">Tümü</button>
-        <button onclick="hizliDoldurmaFiltreSec('bekleyen')" id="hd-flt-bekleyen" class="hd-flt-btn">⏳ Otobüs Bekleyen</button>
-        <button onclick="hizliDoldurmaFiltreSec('tur-alanlar')" id="hd-flt-tur" class="hd-flt-btn">🎫 Tur Alanlar</button>
-        <select onchange="hizliDoldurmaFiltreSec(this.value)" id="hd-flt-tursec" 
-          style="padding:5px 9px;border:1.5px solid #d1d5db;border-radius:6px;font-size:11px;font-family:'DM Sans',sans-serif;background:white;cursor:pointer;">
-          <option value="">-- Tek Tur --</option>
-        </select>
+      <div id="hd-filtre" style="padding:8px 14px;background:white;border-bottom:1px solid #f0f0f0;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">
+          <span style="font-size:11px;color:#666;font-weight:700;">FİLTRE:</span>
+          <button onclick="hizliDoldurmaFiltreSec('tumu')" id="hd-flt-tumu" class="hd-flt-btn">Tümü</button>
+          <button onclick="hizliDoldurmaFiltreSec('bekleyen')" id="hd-flt-bekleyen" class="hd-flt-btn">⏳ Otobüs Bekleyen</button>
+          <button onclick="hizliDoldurmaFiltreSec('tur-alanlar')" id="hd-flt-tur" class="hd-flt-btn">🎫 Tur Alanlar</button>
+        </div>
+        <!-- 🎫 Tur butonları (sefer turlarına göre) -->
+        <div id="hd-tur-butonlari" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
+          <span style="font-size:10px;color:#888;font-weight:600;">TUR:</span>
+        </div>
       </div>
 
       <!-- Yolcu Kart Grid -->
@@ -14435,6 +14437,10 @@ function otobusHizliDoldurmaAc(sid){
           width:22px;height:22px;border-radius:50%;font-size:10px;font-weight:700;
           display:flex;align-items:center;justify-content:center;border:2px solid white;
         }
+        @keyframes hd-tel-uyari {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,.4); }
+          50% { box-shadow: 0 0 0 5px rgba(220,38,38,0); }
+        }
       </style>
     </div>
   `;
@@ -14487,12 +14493,25 @@ function hizliDoldurmaRender(){
     `;
   }
 
-  // ─── 2. Tur dropdown'ını doldur ───
+  // ─── 2. Tur butonlarını doldur ───
   const turlar = TOURS.filter(t => t.seferler && t.seferler.includes(sid));
-  const turSecEl = document.getElementById('hd-flt-tursec');
-  if(turSecEl){
-    turSecEl.innerHTML = '<option value="">-- Tek Tur --</option>' + 
-      turlar.map(t => `<option value="${t.id}" ${_hizliDoldurmaFilter===t.id?'selected':''}>${escapeHTML(t.name)}</option>`).join('');
+  const turBtnEl = document.getElementById('hd-tur-butonlari');
+  if(turBtnEl){
+    // İlk span'i koru, sonra butonları ekle
+    turBtnEl.innerHTML = `<span style="font-size:10px;color:#888;font-weight:600;">TUR:</span>` +
+      turlar.map(t => {
+        const aktifFiltre = _hizliDoldurmaFilter === t.id;
+        // Bu tura kayıtlı yolcu sayısı
+        const kayitliSayi = passengers.filter(p => 
+          p.sefer === sid && !p.arsivli && p.joinedTours?.includes(t.id)
+        ).length;
+        return `
+          <button onclick="hizliDoldurmaFiltreSec('${t.id}')" 
+            style="padding:4px 9px;background:${aktifFiltre?'#7c3aed':'white'};border:1.5px solid ${aktifFiltre?'#7c3aed':'#c4b5fd'};color:${aktifFiltre?'white':'#5b21b6'};border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:3px;">
+            🎫 ${escapeHTML(t.name)} <span style="background:rgba(${aktifFiltre?'255,255,255':'124,58,237'},.2);padding:0 5px;border-radius:8px;font-size:9px;font-weight:700;">${kayitliSayi}</span>
+          </button>
+        `;
+      }).join('');
   }
 
   // ─── 3. Filtre butonlarının active class'ı ───
@@ -14544,14 +14563,26 @@ function hizliDoldurmaRender(){
         if(ot){
           const otob = otobusBulSefer(sid, ot);
           const adi = otob ? otobusAdiAl(otob) : ('' + ot);
-          // Kısalt: "Bus 1" → "B1", "Yeşim" → "Yş"
           let kisa = adi;
           if(adi.startsWith('Bus ') || adi.startsWith('Otobüs ')) kisa = 'B' + (otob?.no || ot);
           else kisa = adi.substring(0,2);
           otRozet = `<div class="hd-k-otobus-rozet" title="${escapeHTML(adi)}">${escapeHTML(kisa)}</div>`;
         }
 
-        // Kısa ad (ilk + ikinci kelime baş harfi)
+        // 📞 Telefon durumu
+        const telVar = p.tel && p.tel.trim();
+        const kabinEsc = escapeHTML(p.kabin || '').replace(/'/g,"\\'");
+        let telDurum = '';
+        if(telVar){
+          telDurum = `<div class="hd-k-tel" style="position:absolute;bottom:3px;right:3px;background:#16a34a;color:white;width:18px;height:18px;border-radius:50%;font-size:9px;display:flex;align-items:center;justify-content:center;border:1.5px solid white;" title="${escapeHTML(p.tel)}">📞</div>`;
+        } else {
+          telDurum = `<div class="hd-k-tel-yok" 
+            onclick="event.stopPropagation();hizliDoldurmaTelDuzelt('${kabinEsc}')"
+            style="position:absolute;bottom:3px;right:3px;background:#dc2626;color:white;width:18px;height:18px;border-radius:50%;font-size:9px;display:flex;align-items:center;justify-content:center;border:1.5px solid white;cursor:pointer;animation:hd-tel-uyari 1.5s ease-in-out infinite;" 
+            title="Telefon yok! Eklemek için tıkla">⚠️</div>`;
+        }
+
+        // Kısa ad
         const adParts = (p.name || '').split(' ');
         const kisaAd = adParts.length > 1 
           ? adParts[0] + ' ' + adParts[1].charAt(0) + '.'
@@ -14559,12 +14590,13 @@ function hizliDoldurmaRender(){
 
         return `
           <div class="hd-yolcu-kart ${sinif}" 
-            onclick="hizliDoldurmaYolcuTikla('${escapeHTML(p.kabin).replace(/'/g,"\\'")}')"
-            title="${escapeHTML(p.name)}\nKabin ${escapeHTML(p.kabin)} · ${kisi} kişi${ot?' · Otobüs '+ot:' · Henüz atanmamış'}">
+            onclick="hizliDoldurmaYolcuTikla('${kabinEsc}')"
+            title="${escapeHTML(p.name)}\nKabin ${escapeHTML(p.kabin)} · ${kisi} kişi${ot?' · Otobüs '+ot:' · Henüz atanmamış'}${telVar?'\n📞 '+escapeHTML(p.tel):'\n⚠️ Telefon yok'}">
             ${otRozet}
             <div class="hd-k-kabin">${escapeHTML(p.kabin)}</div>
             <div class="hd-k-ad">${escapeHTML(kisaAd)}</div>
             <div class="hd-k-kisi">${kisi} kişi</div>
+            ${telDurum}
           </div>
         `;
       }).join('');
@@ -14621,9 +14653,18 @@ async function hizliDoldurmaYolcuTikla(kabin){
 
   const kisi = (p.adult||0)+(p.child||0)+(p.baby||0);
 
-  // Eğer zaten BU otobüsteyse → çıkar
+  // Eğer zaten BU otobüsteyse → çıkar (toggle)
   if(p.otobus_no === aktif){
     p.otobus_no = null;
+    // Tüm turlardan da geldi=0 yap
+    if(p.tur_katilim_detay){
+      Object.keys(p.tur_katilim_detay).forEach(tid => {
+        if(p.tur_katilim_detay[tid]) p.tur_katilim_detay[tid].geldi = 0;
+        // kontrolDurum'u da güncelle
+        const key = p.kabin + '_' + p.sefer + '_' + tid;
+        if(typeof kontrolDurum !== 'undefined') kontrolDurum[key] = 0;
+      });
+    }
     try { await saveYolcuDB(p); } catch(e){}
     showToast('↶ ' + p.name + ' otobüsten çıkarıldı');
     hizliDoldurmaRender();
@@ -14707,6 +14748,24 @@ async function hizliDoldurmaYolcuTikla(kabin){
 
   // Normal ekleme
   p.otobus_no = aktif;
+  // 🎯 Otobüs ataması + Tüm turlarda geldi=1 (yolcu otobüse biniyor demek geldi demek)
+  if(!p.tur_katilim_detay) p.tur_katilim_detay = {};
+  (p.joinedTours || []).forEach(tid => {
+    if(!p.tur_katilim_detay[tid]) p.tur_katilim_detay[tid] = {};
+    p.tur_katilim_detay[tid].geldi = 1;
+    p.tur_katilim_detay[tid].kontrol_zamani = new Date().toISOString();
+    // kontrolDurum global da güncellensin
+    const key = p.kabin + '_' + p.sefer + '_' + tid;
+    if(typeof kontrolDurum !== 'undefined') kontrolDurum[key] = 1;
+  });
+
+  // localStorage'a yedek
+  try { 
+    if(typeof kontrolDurum !== 'undefined'){
+      localStorage.setItem('voyago_kontrolDurum_' + sid, JSON.stringify(kontrolDurum)); 
+    }
+  } catch(e){}
+
   try { 
     await saveYolcuDB(p);
     showToast('✓ ' + p.name + ' → ' + otobusAdiAl(ob));
@@ -14715,6 +14774,67 @@ async function hizliDoldurmaYolcuTikla(kabin){
   }
   hizliDoldurmaRender();
   if(typeof renderOtobusPaneli === 'function') renderOtobusPaneli();
+}
+
+// Hızlı doldurma'da telefon düzelt modal'ı
+function hizliDoldurmaTelDuzelt(kabin){
+  const sid = _hizliDoldurmaSid;
+  if(!sid) return;
+  const p = passengers.find(x => !x.arsivli && x.sefer === sid && String(x.kabin).trim() === kabin);
+  if(!p){ showToast('⚠️ Yolcu bulunamadı'); return; }
+
+  const eski = document.getElementById('hd-tel-modal');
+  if(eski) eski.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'hd-tel-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100001;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e) => { if(e.target.id === 'hd-tel-modal') modal.remove(); };
+
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.4);overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#dc2626,#991b1b);padding:14px;color:white;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:28px;">📞</span>
+          <div>
+            <div style="font-family:'DM Serif Display',serif;font-size:16px;">Telefon Ekle</div>
+            <div style="font-size:11px;opacity:.9;margin-top:2px;">${escapeHTML(p.name)} · Kabin ${escapeHTML(p.kabin)}</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:14px;">
+        <div style="font-size:12px;color:#666;margin-bottom:8px;">Telefon numarasını yazın:</div>
+        <input type="tel" id="hd-tel-input" placeholder="0532 xxx xx xx" value="${escapeHTML(p.tel || '')}"
+          style="width:100%;padding:11px;border:2px solid #fecaca;border-radius:10px;font-size:15px;outline:none;font-family:'DM Sans',sans-serif;text-align:center;"
+          onkeydown="if(event.key==='Enter') hizliDoldurmaTelKaydet('${escapeHTML(kabin).replace(/'/g,"\\'")}')">
+        <div style="display:flex;gap:6px;margin-top:12px;">
+          <button onclick="document.getElementById('hd-tel-modal').remove()" 
+            style="flex:1;padding:10px;background:#f3f4f6;border:1.5px solid #d1d5db;color:#666;border-radius:8px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">İptal</button>
+          <button onclick="hizliDoldurmaTelKaydet('${escapeHTML(kabin).replace(/'/g,"\\'")}')" 
+            style="flex:1;padding:10px;background:#16a34a;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">✓ Kaydet</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  setTimeout(() => { document.getElementById('hd-tel-input')?.focus(); }, 100);
+}
+
+async function hizliDoldurmaTelKaydet(kabin){
+  const sid = _hizliDoldurmaSid;
+  const inp = document.getElementById('hd-tel-input');
+  if(!sid || !inp) return;
+  const p = passengers.find(x => !x.arsivli && x.sefer === sid && String(x.kabin).trim() === kabin);
+  if(!p) return;
+  p.tel = inp.value.trim();
+  try {
+    await saveYolcuDB(p);
+    showToast('✓ Telefon kaydedildi');
+  } catch(e){
+    showToast('⚠️ Hata: ' + (e?.message || ''));
+  }
+  document.getElementById('hd-tel-modal')?.remove();
+  hizliDoldurmaRender();
 }
 
 // Dolu uyarı modal'ından otobüs seçilince
