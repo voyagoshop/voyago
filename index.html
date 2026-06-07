@@ -14530,7 +14530,12 @@ function hizliDoldurmaRender(){
   }
 
   // ─── 2. Tur butonlarını doldur ───
-  const turlar = TOURS.filter(t => t.seferler && t.seferler.includes(sid));
+  // Önce bu seferdeki turlar (varsa)
+  let turlar = TOURS.filter(t => t.seferler && Array.isArray(t.seferler) && t.seferler.includes(sid));
+  // Fallback: hiç tur yoksa, tüm aktif turları göster
+  if(!turlar.length){
+    turlar = TOURS.filter(t => t.aktif !== false);
+  }
   const turBtnEl = document.getElementById('hd-tur-butonlari');
   if(turBtnEl){
     const secilenSayi = _hizliDoldurmaSecilenTurlar.size;
@@ -14603,8 +14608,8 @@ function hizliDoldurmaRender(){
       gridEl.innerHTML = yolcular.map(p => {
         const kisi = (p.adult||0)+(p.child||0)+(p.baby||0);
         const ot = p.otobus_no;
-        const buOtobus = ot === aktifOtobus;
-        const baskaOtobus = ot && ot !== aktifOtobus;
+        const buOtobus = ot && aktifOtobus && ot === aktifOtobus;
+        const baskaOtobus = ot && (!aktifOtobus || ot !== aktifOtobus);
         // ✅ Yolcunun herhangi bir turunda geldi=1 mi?
         const herhangiBirTurdaGeldi = p.tur_katilim_detay && Object.values(p.tur_katilim_detay)
           .some(det => det?.geldi === 1);
