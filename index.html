@@ -14335,6 +14335,34 @@ function renderOtobusPaneli(){
 // Tek tıkla aktif otobüse eklenir
 // Otobüs dolarsa otomatik bir sonrakine geçer
 
+// Tur paleti - her tur için sabit renk
+const _TUR_RENKLER = ['#7c3aed', '#16a34a', '#dc2626', '#f59e0b', '#0891b2', '#db2777', '#65a30d', '#0d9488', '#9333ea', '#ea580c'];
+function _turRengi(tid){
+  // Tur ID hash'ine göre renk seç
+  const turlar = TOURS.filter(t => t.id);
+  const idx = turlar.findIndex(t => t.id === tid);
+  return _TUR_RENKLER[idx % _TUR_RENKLER.length] || '#7c3aed';
+}
+function _turKisaltma(t){
+  if(!t || !t.name) return '?';
+  const kelimeler = t.name.split(/\s+/);
+  if(kelimeler.length >= 2){
+    return (kelimeler[0][0] + kelimeler[1][0]).toUpperCase();
+  }
+  return t.name.substring(0, 2).toUpperCase();
+}
+
+// Tur paneli toggle
+function hizliDoldurmaTurPanelToggle(){
+  const panel = document.getElementById('hd-tur-butonlari');
+  if(!panel) return;
+  if(panel.style.display === 'none' || !panel.style.display){
+    panel.style.display = 'block';
+  } else {
+    panel.style.display = 'none';
+  }
+}
+
 let _hizliDoldurmaSid = null;
 let _hizliDoldurmaFilter = 'tumu'; // 'tumu' | 'bekleyen' | 'tur-alanlar'
 let _hizliDoldurmaSecilenTurlar = new Set(); // Multi-select tur ID'leri
@@ -14369,16 +14397,19 @@ function otobusHizliDoldurmaAc(sid){
 
       <!-- Filtre Çubuğu -->
       <div id="hd-filtre" style="padding:8px 14px;background:white;border-bottom:1px solid #f0f0f0;">
-        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
           <span style="font-size:11px;color:#666;font-weight:700;">FİLTRE:</span>
           <button onclick="hizliDoldurmaFiltreSec('tumu')" id="hd-flt-tumu" class="hd-flt-btn">Tümü</button>
           <button onclick="hizliDoldurmaFiltreSec('bekleyen')" id="hd-flt-bekleyen" class="hd-flt-btn">⏳ Otobüs Bekleyen</button>
           <button onclick="hizliDoldurmaFiltreSec('tur-alanlar')" id="hd-flt-tur" class="hd-flt-btn">🎫 Tur Alanlar</button>
+          <!-- 🎫 Tur Filtresi Aç/Kapa Butonu -->
+          <button onclick="hizliDoldurmaTurPanelToggle()" id="hd-tur-toggle" 
+            style="padding:5px 10px;background:#7c3aed;border:1.5px solid #7c3aed;color:white;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:4px;">
+            <span>🎫</span><span id="hd-tur-toggle-text">Tur Seç</span><span style="font-size:9px;">▼</span>
+          </button>
         </div>
-        <!-- 🎫 Tur butonları (sefer turlarına göre) -->
-        <div id="hd-tur-butonlari" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
-          <span style="font-size:10px;color:#888;font-weight:600;">TUR:</span>
-        </div>
+        <!-- 🎫 Tur Seçim Paneli (default kapalı) -->
+        <div id="hd-tur-butonlari" style="display:none;margin-top:8px;padding:8px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;max-height:160px;overflow-y:auto;"></div>
       </div>
 
       <!-- Yolcu Kart Grid -->
@@ -14405,7 +14436,7 @@ function otobusHizliDoldurmaAc(sid){
           border:2px solid;transition:all .15s;
           display:flex;flex-direction:column;align-items:center;text-align:center;
           font-family:'DM Sans',sans-serif;
-          background:white;position:relative;min-height:65px;
+          background:white;position:relative;min-height:80px;
           justify-content:center;
         }
         .hd-yolcu-kart:hover {
@@ -14539,26 +14570,45 @@ function hizliDoldurmaRender(){
   const turBtnEl = document.getElementById('hd-tur-butonlari');
   if(turBtnEl){
     const secilenSayi = _hizliDoldurmaSecilenTurlar.size;
-    turBtnEl.innerHTML = `<span style="font-size:10px;color:#888;font-weight:600;">TUR:</span>` +
-      turlar.map(t => {
-        const aktifFiltre = _hizliDoldurmaSecilenTurlar.has(t.id);
-        // Bu tura kayıtlı yolcu sayısı
-        const kayitliSayi = passengers.filter(p => 
-          p.sefer === sid && !p.arsivli && p.joinedTours?.includes(t.id)
-        ).length;
-        return `
-          <button onclick="hizliDoldurmaFiltreSec('${t.id}')" 
-            style="padding:4px 9px;background:${aktifFiltre?'#7c3aed':'white'};border:1.5px solid ${aktifFiltre?'#7c3aed':'#c4b5fd'};color:${aktifFiltre?'white':'#5b21b6'};border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:3px;">
-            ${aktifFiltre?'✓ ':'🎫 '}${escapeHTML(t.name)} <span style="background:rgba(${aktifFiltre?'255,255,255':'124,58,237'},.2);padding:0 5px;border-radius:8px;font-size:9px;font-weight:700;">${kayitliSayi}</span>
-          </button>
-        `;
-      }).join('') +
-      (secilenSayi > 0 ? `
+    turBtnEl.innerHTML = `
+      <div style="display:flex;gap:5px;flex-wrap:wrap;">
+        ${turlar.map(t => {
+          const aktifFiltre = _hizliDoldurmaSecilenTurlar.has(t.id);
+          const renk = _turRengi(t.id);
+          const kisa = _turKisaltma(t);
+          // Bu tura kayıtlı yolcu sayısı
+          const kayitliSayi = passengers.filter(p => 
+            p.sefer === sid && !p.arsivli && p.joinedTours?.includes(t.id)
+          ).length;
+          return `
+            <button onclick="hizliDoldurmaFiltreSec('${t.id}')" 
+              style="padding:6px 10px;background:${aktifFiltre?renk:'white'};border:2px solid ${renk};color:${aktifFiltre?'white':renk};border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:5px;transition:all .15s;">
+              <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:${aktifFiltre?'rgba(255,255,255,.25)':renk};color:white;border-radius:50%;font-size:9px;font-weight:700;">${kisa}</span>
+              <span>${escapeHTML(t.name)}</span>
+              <span style="background:${aktifFiltre?'rgba(255,255,255,.2)':'rgba(0,0,0,.06)'};padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700;">${kayitliSayi}</span>
+              ${aktifFiltre ? '<span style="font-size:11px;">✓</span>' : ''}
+            </button>
+          `;
+        }).join('')}
+      </div>
+      ${secilenSayi > 0 ? `
         <button onclick="hizliDoldurmaTurTemizle()" 
-          style="padding:4px 9px;background:#fef2f2;border:1.5px solid #fecaca;color:#dc2626;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;margin-left:4px;">
+          style="margin-top:6px;padding:4px 9px;background:#fef2f2;border:1.5px solid #fecaca;color:#dc2626;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">
           ✕ Tur Seçimini Temizle (${secilenSayi})
         </button>
-      ` : '');
+      ` : ''}
+    `;
+  }
+  // Toggle butonun yazısını güncelle
+  const toggleText = document.getElementById('hd-tur-toggle-text');
+  if(toggleText){
+    const secSayi = _hizliDoldurmaSecilenTurlar.size;
+    toggleText.textContent = secSayi > 0 ? `Tur Seç (${secSayi} aktif)` : 'Tur Seç';
+  }
+  // Eğer tur seçildiyse panel otomatik açık tutulsun
+  const panel = document.getElementById('hd-tur-butonlari');
+  if(panel && _hizliDoldurmaSecilenTurlar.size > 0 && (panel.style.display === 'none' || !panel.style.display)){
+    panel.style.display = 'block';
   }
 
   // ─── 3. Filtre butonlarının active class'ı ───
@@ -14657,14 +14707,33 @@ function hizliDoldurmaRender(){
           ? adParts[0] + ' ' + adParts[1].charAt(0) + '.'
           : (adParts[0] || '?');
 
+        // 🎫 Yolcunun aldığı turlar - renkli rozetler
+        const aldigiTurlar = (p.joinedTours || [])
+          .map(tid => TOURS.find(t => t.id === tid))
+          .filter(Boolean);
+        let turRozetleri = '';
+        if(aldigiTurlar.length > 0){
+          turRozetleri = `
+            <div style="display:flex;gap:2px;justify-content:center;flex-wrap:wrap;margin-top:3px;">
+              ${aldigiTurlar.map(t => {
+                const renk = _turRengi(t.id);
+                const kisa = _turKisaltma(t);
+                return `<span title="${escapeHTML(t.name)}" 
+                  style="background:${renk};color:white;width:18px;height:18px;border-radius:5px;font-size:9px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid white;box-shadow:0 1px 2px rgba(0,0,0,.1);">${kisa}</span>`;
+              }).join('')}
+            </div>
+          `;
+        }
+
         return `
           <div class="hd-yolcu-kart ${sinif}" 
             onclick="hizliDoldurmaYolcuTikla('${kabinEsc}')"
-            title="${escapeHTML(p.name)}\nKabin ${escapeHTML(p.kabin)} · ${kisi} kişi${ot?' · Otobüs '+ot:' · Henüz atanmamış'}${telVar?'\n📞 '+escapeHTML(p.tel):'\n⚠️ Telefon yok'}">
+            title="${escapeHTML(p.name)}\nKabin ${escapeHTML(p.kabin)} · ${kisi} kişi${ot?' · Otobüs '+ot:' · Henüz atanmamış'}${telVar?'\n📞 '+escapeHTML(p.tel):'\n⚠️ Telefon yok'}${aldigiTurlar.length?'\n🎫 '+aldigiTurlar.map(t=>t.name).join(', '):''}">
             ${otRozet}
             <div class="hd-k-kabin">${escapeHTML(p.kabin)}</div>
             <div class="hd-k-ad">${escapeHTML(kisaAd)}</div>
             <div class="hd-k-kisi">${kisi} kişi</div>
+            ${turRozetleri}
             ${telDurum}
           </div>
         `;
