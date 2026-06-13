@@ -25323,28 +25323,11 @@ window.addEventListener('appinstalled', () => {
   try { localStorage.setItem('pwa_yuklendi', '1'); } catch(e){}
 });
 
-// Banner gösterimi - giriş + 30 saniye sonra
+// Banner gösterimi - TAMAMEN KAPATILDI (kullanıcı isteği)
 function pwaBannerGosterDeneme(){
-  // Zaten yüklüyse veya gösterilmişse atla
-  if(PWA_Standalone) return;
-  if(_pwaBannerGosterilmis) return;
-  try {
-    const yuklendi = localStorage.getItem('pwa_yuklendi');
-    if(yuklendi === '1') return;
-    const erteleTarih = localStorage.getItem('pwa_ertele_tarih');
-    if(erteleTarih){
-      const fark = Date.now() - parseInt(erteleTarih);
-      // 7 gün içinde ertelendiyse gösterme
-      if(fark < 7*24*60*60*1000) return;
-    }
-  } catch(e){}
-
-  const banner = document.getElementById('pwa-banner');
-  if(banner){
-    banner.style.display = 'flex'; // Önceden gizlenmişse aç
-    banner.classList.add('show');
-    _pwaBannerGosterilmis = true;
-  }
+  // ❌ PWA install prompt artık gösterilmiyor
+  // Kullanıcı manuel olarak tarayıcı menüsünden ekleyebilir
+  return;
 }
 
 function pwaBannerGizle(){
@@ -25603,22 +25586,21 @@ function pwaQrYukle(){
   }
 }
 
-// Sayfa yüklendiğinde:
-// 1. URL'de ?install varsa QR sayfasını aç
-// 2. Standart kullanıcıya 30 saniye sonra banner göster
 window.addEventListener('load', () => {
-  // QR'dan gelmiş mi?
-  setTimeout(() => {
-    try {
-      const url = new URL(window.location.href);
-      if(url.searchParams.get('install') === '1'){
-        pwaQrAc();
-        return;
-      }
-    } catch(e){}
-    // Otomatik banner KAPATILDI — yolcuları rahatsız ediyordu, iOS'ta düzgün çalışmıyordu
-    // İhtiyaç olursa: setTimeout(pwaBannerGosterDeneme, 30000);
-  }, 800);
+  // ❌ PWA install promptları TAMAMEN KAPATILDI
+  // - URL ?install=1 ile QR sayfası açılmıyor
+  // - 30 saniye bannerı kapalı
+  // - iOS rehber modal'ı sadece manuel butonla açılır
+  // Kullanıcı manuel olarak ana ekrana eklemek isterse tarayıcı menüsünden yapar
+  
+  // URL'den ?install parametresini temizle (eski linkler)
+  try {
+    const url = new URL(window.location.href);
+    if(url.searchParams.has('install')){
+      url.searchParams.delete('install');
+      window.history.replaceState({}, '', url.toString());
+    }
+  } catch(e){}
 });
 </script>
 
