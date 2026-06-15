@@ -4132,7 +4132,172 @@ function renderYemekPage(sv){
 }
 
 // ── TURLAR (misafir) ──
+// ═══════════════════════════════════════════════
+// 🎬 YOLCU TARAFI - CANLI SUNUM DİNLEME
+// ═══════════════════════════════════════════════
+
+let _yolcuSunumKanallari = []; // Her tur için bir kanal
+let _yolcuAktifSunum = null; // {sunum_id, tur_id, aktif_slide_index, slidelar, durum, ad}
+
+async function yolcuSunumDinleBaslat(){
+  if(!CP) return;
+  // Önceki kanalları kapat
+  _yolcuSunumKanallari.forEach(k => { try { k.unsubscribe(); } catch(e){} });
+  _yolcuSunumKanallari = [];
+
+  // 1. Aktif sunumları DB'den çek - belki zaten yayında bir tane var
+  try {
+    const data = await dbGet('tur_sunumlari', { sefer_id: CP.sefer });
+    const aktifSunumlar = (data || []).filter(s => 
+      s.durum === 'aktif' && (CP.joinedTours || []).includes(s.tur_id)
+    );
+    if(aktifSunumlar.length > 0){
+      _yolcuAktifSunum = aktifSunumlar[0];
+      yolcuSunumGoruntule();
+    }
+  } catch(e){}
+
+  // 2. Yolcunun aldığı her tur için realtime kanal aç
+  (CP.joinedTours || []).forEach(tid => {
+    try {
+      const kanal = sb.channel('voyago-sunum-' + tid);
+      kanal.on('broadcast', { event: 'baslatildi' }, (msg) => {
+        console.log('[YOLCU SUNUM] Başlatıldı:', msg.payload);
+        _yolcuAktifSunum = msg.payload;
+        yolcuSunumGoruntule();
+      });
+      kanal.on('broadcast', { event: 'slide_degisti' }, (msg) => {
+        console.log('[YOLCU SUNUM] Slide değişti:', msg.payload);
+        if(!_yolcuAktifSunum || _yolcuAktifSunum.sunum_id !== msg.payload.sunum_id){
+          _yolcuAktifSunum = msg.payload;
+        } else {
+          _yolcuAktifSunum.aktif_slide_index = msg.payload.aktif_slide_index;
+        }
+        yolcuSunumGoruntule();
+      });
+      kanal.on('broadcast', { event: 'bitti' }, (msg) => {
+        console.log('[YOLCU SUNUM] Bitti:', msg.payload);
+        if(_yolcuAktifSunum && _yolcuAktifSunum.sunum_id === msg.payload.sunum_id){
+          _yolcuAktifSunum.durum = 'bitti';
+          yolcuSunumGoruntule();
+        }
+      });
+      kanal.subscribe();
+      _yolcuSunumKanallari.push(kanal);
+    } catch(e){ console.log('Yolcu sunum kanal: ' + (e?.message || '')); }
+  });
+}
+
+// Yolcu sunum görüntüle
+function yolcuSunumGoruntule(){
+  if(!_yolcuAktifSunum){
+    // Sunum kapat
+    document.getElementById('yolcu-sunum-overlay')?.remove();
+    return;
+  }
+
+  const s = _yolcuAktifSunum;
+  const slidelar = s.slidelar || [];
+  const idx = s.aktif_slide_index ?? 0;
+  const aktifSlide = slidelar[idx];
+  const bitti = s.durum === 'bitti';
+
+  const eski = document.getElementById('yolcu-sunum-overlay');
+  if(eski) eski.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'yolcu-sunum-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:#000;z-index:99996;display:flex;flex-direction:column;font-family:"DM Sans",sans-serif;animation:ysFadeIn .4s ease;';
+
+  overlay.innerHTML = `
+    <style>
+      @keyframes ysFadeIn { from { opacity:0; } to { opacity:1; } }
+      @keyframes ysSlideIn { from { transform:translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+      @keyframes ysLivePulse { 0%,100% { opacity:1; } 50% { opacity:.5; } }
+    </style>
+
+    <!-- Üst Bar -->
+    <div style="background:linear-gradient(135deg,${bitti?'#16a34a':'#dc2626'},${bitti?'#15803d':'#991b1b'});color:white;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+      <div>
+        ${bitti ? '<span style="background:white;color:#15803d;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700;margin-right:6px;">✓ TAMAMLANDI</span>' : '<span style="background:white;color:#dc2626;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700;margin-right:6px;animation:ysLivePulse 1.5s ease-in-out infinite;">🔴 CANLI</span>'}
+        <span style="font-family:'DM Serif Display',serif;font-size:15px;">${escapeHTML(s.ad || '')}</span>
+      </div>
+      <button onclick="yolcuSunumKapat()" 
+        style="background:rgba(255,255,255,.2);border:none;color:white;font-size:18px;cursor:pointer;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;">×</button>
+    </div>
+
+    ${bitti ? `
+      <!-- 📦 BİTMİŞ MOD - Tüm slidelar + indirme -->
+      <div style="flex:1;overflow-y:auto;padding:16px;background:#1a1a1a;">
+        <div style="background:#dcfce7;border-radius:12px;padding:12px;margin-bottom:14px;text-align:center;">
+          <div style="font-size:28px;margin-bottom:4px;">✓</div>
+          <div style="font-size:14px;font-weight:700;color:#15803d;">Tur Tamamlandı</div>
+          <div style="font-size:11px;color:#15803d;opacity:.85;margin-top:3px;">Tüm resimleri görebilir ve indirebilirsin</div>
+        </div>
+        ${slidelar.map((sl, i) => `
+          <div style="background:white;border-radius:14px;overflow:hidden;margin-bottom:10px;box-shadow:0 4px 12px rgba(0,0,0,.3);">
+            ${sl.resim_url ? `
+              <img src="${escapeHTML(sl.resim_url)}" style="width:100%;height:auto;display:block;" />
+            ` : ''}
+            <div style="padding:12px 14px;">
+              <div style="font-size:11px;color:#9333ea;font-weight:700;margin-bottom:4px;">SLIDE ${i+1} / ${slidelar.length}</div>
+              <div style="font-family:'DM Serif Display',serif;font-size:16px;color:#1a1a1a;line-height:1.3;">${escapeHTML(sl.baslik || '')}</div>
+              ${sl.aciklama ? `<div style="font-size:12px;color:#666;margin-top:6px;line-height:1.5;">${escapeHTML(sl.aciklama)}</div>` : ''}
+              ${sl.resim_url ? `
+                <a href="${escapeHTML(sl.resim_url)}" download target="_blank"
+                  style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:7px 12px;background:#9333ea;color:white;text-decoration:none;border-radius:8px;font-size:11px;font-weight:600;">
+                  📥 Bu Resmi İndir
+                </a>
+              ` : ''}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    ` : `
+      <!-- 🎬 CANLI MOD - Tek slide tam ekran -->
+      <div style="flex:1;overflow-y:auto;background:#000;display:flex;flex-direction:column;animation:ysSlideIn .5s ease;">
+        ${aktifSlide ? `
+          ${aktifSlide.resim_url ? `
+            <div style="flex:1;display:flex;align-items:center;justify-content:center;background:#000;padding:8px;min-height:200px;">
+              <img src="${escapeHTML(aktifSlide.resim_url)}" style="max-width:100%;max-height:60vh;object-fit:contain;border-radius:8px;" />
+            </div>
+          ` : `<div style="flex:1;display:flex;align-items:center;justify-content:center;background:#1a1a1a;color:#666;font-size:48px;">🖼️</div>`}
+          
+          <div style="background:white;padding:14px 16px;border-top:3px solid #dc2626;">
+            <div style="font-size:11px;color:#9333ea;font-weight:700;margin-bottom:5px;">
+              SLIDE ${(idx+1)} / ${slidelar.length}
+            </div>
+            <div style="font-family:'DM Serif Display',serif;font-size:18px;color:#1a1a1a;line-height:1.3;margin-bottom:6px;">
+              ${escapeHTML(aktifSlide.baslik || '')}
+            </div>
+            ${aktifSlide.aciklama ? `<div style="font-size:13px;color:#444;line-height:1.55;">${escapeHTML(aktifSlide.aciklama)}</div>` : ''}
+          </div>
+        ` : `
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;color:#999;text-align:center;padding:20px;">
+            <div>
+              <div style="font-size:48px;margin-bottom:10px;">⏳</div>
+              <div style="font-size:14px;">Rehber sunuma başlamak üzere...</div>
+            </div>
+          </div>
+        `}
+      </div>
+      <!-- Alt info bar -->
+      <div style="background:#1a1a1a;color:white;padding:8px 14px;font-size:10px;text-align:center;opacity:.7;flex-shrink:0;">
+        🎬 Rehber slide ilerlettiğinde otomatik güncellenir
+      </div>
+    `}
+  `;
+
+  document.body.appendChild(overlay);
+}
+
+function yolcuSunumKapat(){
+  document.getElementById('yolcu-sunum-overlay')?.remove();
+}
+
 function renderPassTours(sv){
+  // 🎬 Yolcunun aldığı turların sunumlarını dinle (varsa)
+  setTimeout(() => { if(typeof yolcuSunumDinleBaslat === 'function') yolcuSunumDinleBaslat(); }, 500);
   const el=document.getElementById('tl-pass');
   if(!CP){el.innerHTML='';return;}
   const p=CP;
@@ -8173,6 +8338,471 @@ function grupTopluWhatsApp(grupId){
   showToast('✓ ' + yolcular.length + ' WhatsApp açıldı');
 }
 
+// ═══════════════════════════════════════════════
+// 🎬 CANLI TUR SUNUMU SİSTEMİ
+// ═══════════════════════════════════════════════
+// Rehber tur yaparken slideları yolcunun telefonunda gösterir
+// Realtime senkron - tek tıkla ileri/geri
+// Tur sonunda yolcular tüm slidelari indirebilir
+
+let SUNUMLAR = []; // {id, sefer_id, tur_id, ad, slidelar[], aktif_slide_index, durum}
+let _aktifSunumId = null;
+let _sunumRealtimeKanal = null;
+let _yolcuSunumKanal = null;
+
+// Sunumları DB'den yükle
+async function sunumlariYukle(sid){
+  if(!sid) return;
+  try {
+    const data = await dbGet('tur_sunumlari', {sefer_id: sid});
+    SUNUMLAR = data || [];
+    console.log('[SUNUM] ' + SUNUMLAR.length + ' sunum yüklendi');
+  } catch(e){
+    console.log('Sunum yükleme: ' + (e?.message || ''));
+    SUNUMLAR = [];
+  }
+}
+
+// Rehber: Sunum yönetimi ana modal
+function sunumlarModalAc(){
+  const aktif = VOYAGES.find(v => v.status !== 'archived' && v.visible);
+  if(!aktif){ showToast('⚠️ Aktif sefer yok'); return; }
+  const sid = aktif.id;
+
+  sunumlariYukle(sid).then(() => {
+    const eski = document.getElementById('sunumlar-modal');
+    if(eski) eski.remove();
+
+    const seferTurlari = TOURS.filter(t => t.seferler && t.seferler.includes(sid));
+    const fallbackTurlar = seferTurlari.length ? seferTurlari : TOURS.filter(t => t.aktif !== false);
+
+    const modal = document.createElement('div');
+    modal.id = 'sunumlar-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"DM Sans",sans-serif;';
+    modal.onclick = (e) => { if(e.target.id === 'sunumlar-modal') modal.remove(); };
+
+    modal.innerHTML = `
+      <div style="background:white;border-radius:18px;max-width:580px;width:100%;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#9333ea,#6b21a8);padding:14px 18px;color:white;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div>
+              <div style="font-family:'DM Serif Display',serif;font-size:18px;">🎬 Canlı Tur Sunumları</div>
+              <div style="font-size:11px;opacity:.9;margin-top:2px;">${escapeHTML(aktif.label)} · ${SUNUMLAR.length} sunum</div>
+            </div>
+            <button onclick="document.getElementById('sunumlar-modal').remove()" 
+              style="background:rgba(255,255,255,.2);border:none;color:white;font-size:18px;cursor:pointer;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;">×</button>
+          </div>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:14px 18px;">
+          <!-- + Yeni Sunum -->
+          <div style="background:#f5f3ff;border:1.5px dashed #c4b5fd;border-radius:10px;padding:12px;margin-bottom:12px;">
+            <div style="font-size:11px;color:#5b21b6;font-weight:700;margin-bottom:6px;">+ Yeni sunum oluştur</div>
+            <select id="sunum-yeni-tur" style="width:100%;padding:9px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;background:white;margin-bottom:6px;">
+              <option value="">Tur seç...</option>
+              ${fallbackTurlar.map(t => `<option value="${t.id}">${escapeHTML(t.name)}</option>`).join('')}
+            </select>
+            <input id="sunum-yeni-ad" type="text" placeholder="Sunum adı (örn: Knossos Sarayı)"
+              style="width:100%;padding:9px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;margin-bottom:6px;">
+            <button onclick="sunumYeniOlustur('${sid}')" 
+              style="width:100%;padding:9px;background:#9333ea;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+              + Sunum Oluştur
+            </button>
+          </div>
+
+          <!-- Mevcut sunumlar -->
+          ${SUNUMLAR.length === 0 ? `
+            <div style="text-align:center;padding:30px 20px;color:#999;">
+              <div style="font-size:48px;opacity:.4;margin-bottom:8px;">🎬</div>
+              <div style="font-size:13px;">Henüz sunum yok</div>
+              <div style="font-size:11px;margin-top:4px;opacity:.85;">Tur yaparken anlatımına eşlik edecek resimleri hazırlayın</div>
+            </div>
+          ` : SUNUMLAR.map(s => _sunumKarti(s)).join('')}
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  });
+}
+
+function _sunumKarti(s){
+  const t = TOURS.find(x => x.id === s.tur_id);
+  const turAdi = t ? t.name : '?';
+  const slideSayisi = (s.slidelar || []).length;
+  const aktifMi = s.durum === 'aktif';
+  const renk = aktifMi ? '#dc2626' : '#9333ea';
+
+  return `
+    <div style="background:white;border:2px solid ${renk};border-radius:12px;padding:11px;margin-bottom:8px;cursor:pointer;${aktifMi?'box-shadow:0 0 0 4px rgba(220,38,38,.15);animation:sunumAktifPulse 1.5s ease-in-out infinite;':''}" onclick="sunumDetayAc(${s.id})">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            ${aktifMi ? '<span style="background:#dc2626;color:white;padding:1px 7px;border-radius:8px;font-size:9px;font-weight:700;animation:sunumAktifPulse 1s ease-in-out infinite;">🔴 CANLI</span>' : ''}
+            <div style="font-size:14px;font-weight:700;color:#1a1a1a;">${escapeHTML(s.ad)}</div>
+          </div>
+          <div style="font-size:11px;color:#666;margin-top:3px;">🎫 ${escapeHTML(turAdi)} · 🖼️ ${slideSayisi} slide</div>
+        </div>
+        <span style="color:#999;font-size:18px;flex-shrink:0;">›</span>
+      </div>
+    </div>
+    <style>
+      @keyframes sunumAktifPulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
+      }
+    </style>
+  `;
+}
+
+// Yeni sunum oluştur
+async function sunumYeniOlustur(sid){
+  const tid = document.getElementById('sunum-yeni-tur')?.value;
+  const ad = document.getElementById('sunum-yeni-ad')?.value.trim();
+  if(!tid){ showToast('⚠️ Tur seç'); return; }
+  if(!ad){ showToast('⚠️ Ad gir'); return; }
+
+  try {
+    const yeni = { sefer_id: sid, tur_id: tid, ad: ad, slidelar: [], aktif_slide_index: -1, durum: 'hazirlik' };
+    const sonuc = await sb.from('tur_sunumlari').insert(yeni).select().single();
+    if(sonuc.data){
+      SUNUMLAR.push(sonuc.data);
+      showToast('✓ Sunum oluşturuldu');
+      sunumlarModalAc();
+      // Hemen detayı aç
+      setTimeout(() => sunumDetayAc(sonuc.data.id), 300);
+    } else {
+      showToast('⚠️ Hata: ' + (sonuc.error?.message || ''));
+    }
+  } catch(e){
+    showToast('⚠️ Hata: ' + (e?.message || ''));
+  }
+}
+
+// Sunum detay - slide yönetimi + canlı kontrol
+function sunumDetayAc(sunumId){
+  const s = SUNUMLAR.find(x => x.id === sunumId);
+  if(!s){ showToast('⚠️ Sunum bulunamadı'); return; }
+  const t = TOURS.find(x => x.id === s.tur_id);
+
+  const eski = document.getElementById('sunum-detay-modal');
+  if(eski) eski.remove();
+
+  const slidelar = s.slidelar || [];
+  const aktifMi = s.durum === 'aktif';
+  const aktifIdx = s.aktif_slide_index ?? -1;
+
+  const modal = document.createElement('div');
+  modal.id = 'sunum-detay-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:stretch;justify-content:center;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e) => { if(e.target.id === 'sunum-detay-modal') modal.remove(); };
+
+  modal.innerHTML = `
+    <div style="background:white;width:100%;max-width:600px;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.4);overflow:hidden;">
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,${aktifMi?'#dc2626':'#9333ea'},${aktifMi?'#991b1b':'#6b21a8'});padding:14px 16px;color:white;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              ${aktifMi ? '<span style="background:white;color:#dc2626;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700;">🔴 CANLI YAYIN</span>' : ''}
+              <div style="font-family:'DM Serif Display',serif;font-size:17px;">${escapeHTML(s.ad)}</div>
+            </div>
+            <div style="font-size:11px;opacity:.9;margin-top:3px;">🎫 ${escapeHTML(t?.name || '?')} · ${slidelar.length} slide</div>
+          </div>
+          <button onclick="document.getElementById('sunum-detay-modal').remove()" 
+            style="background:rgba(255,255,255,.2);border:none;color:white;font-size:18px;cursor:pointer;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
+        </div>
+      </div>
+
+      <div style="flex:1;overflow-y:auto;padding:14px 16px;">
+        ${aktifMi ? `
+          <!-- 🔴 CANLI YAYIN KONTROLLERİ -->
+          <div style="background:linear-gradient(135deg,#fef2f2,#fee2e2);border:2px solid #dc2626;border-radius:14px;padding:14px;margin-bottom:14px;text-align:center;">
+            <div style="font-size:11px;color:#991b1b;font-weight:700;margin-bottom:8px;">🎬 CANLI YAYIN</div>
+            <div style="background:white;border-radius:10px;padding:12px;margin-bottom:10px;">
+              <div style="font-size:11px;color:#666;">AKTİF SLIDE</div>
+              <div style="font-family:'DM Serif Display',serif;font-size:30px;color:#dc2626;font-weight:700;line-height:1;">
+                ${aktifIdx >= 0 ? (aktifIdx+1) : '—'} / ${slidelar.length}
+              </div>
+              ${aktifIdx >= 0 && slidelar[aktifIdx] ? `
+                <div style="font-size:12px;color:#1a1a1a;margin-top:6px;font-weight:600;">${escapeHTML(slidelar[aktifIdx].baslik || '')}</div>
+              ` : '<div style="font-size:11px;color:#999;margin-top:6px;">Henüz başlamadı</div>'}
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+              <button onclick="sunumOnceki(${sunumId})" ${aktifIdx<=0?'disabled':''}
+                style="padding:10px;background:${aktifIdx<=0?'#f3f4f6':'#1a5fa8'};color:${aktifIdx<=0?'#999':'white'};border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:${aktifIdx<=0?'not-allowed':'pointer'};font-family:'DM Sans',sans-serif;">⏮ Önceki</button>
+              <button onclick="sunumBitir(${sunumId})" 
+                style="padding:10px;background:#1a1a1a;color:white;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">⏹ Bitir</button>
+              <button onclick="sunumSonraki(${sunumId})" ${aktifIdx>=slidelar.length-1?'disabled':''}
+                style="padding:10px;background:${aktifIdx>=slidelar.length-1?'#f3f4f6':'#16a34a'};color:${aktifIdx>=slidelar.length-1?'#999':'white'};border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:${aktifIdx>=slidelar.length-1?'not-allowed':'pointer'};font-family:'DM Sans',sans-serif;">Sıradaki ⏭</button>
+            </div>
+          </div>
+        ` : `
+          <!-- ▶️ SUNUMU BAŞLAT BUTONU -->
+          ${slidelar.length > 0 ? `
+            <button onclick="sunumBaslat(${sunumId})" 
+              style="width:100%;padding:14px;background:linear-gradient(135deg,#dc2626,#991b1b);color:white;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:8px;">
+              ▶️ Canlı Sunumu Başlat
+            </button>
+          ` : ''}
+        `}
+
+        <!-- Slide Listesi -->
+        <div style="font-size:11px;color:#666;font-weight:700;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
+          <span>🖼️ SLİDELAR (${slidelar.length})</span>
+          <span style="font-size:10px;color:#999;font-weight:500;">Sırayla gösterilir</span>
+        </div>
+
+        ${slidelar.length === 0 ? `
+          <div style="text-align:center;padding:20px;color:#999;background:#fafafa;border-radius:8px;margin-bottom:10px;font-size:12px;">
+            Henüz slide yok. Aşağıdan ekle ⬇️
+          </div>
+        ` : slidelar.map((sl, idx) => {
+          const buAktif = aktifMi && idx === aktifIdx;
+          const onceki = aktifMi && aktifIdx > idx; // Geçildi mi?
+          return `
+            <div style="background:${buAktif?'#fee2e2':onceki?'#f3f4f6':'white'};border:${buAktif?'2px solid #dc2626':'1px solid #e5e7eb'};border-radius:10px;padding:9px;margin-bottom:5px;display:flex;gap:9px;align-items:center;">
+              <div style="background:${buAktif?'#dc2626':onceki?'#9ca3af':'#9333ea'};color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">${idx+1}</div>
+              ${sl.resim_url ? `
+                <img src="${escapeHTML(sl.resim_url)}" 
+                  style="width:50px;height:50px;border-radius:8px;object-fit:cover;flex-shrink:0;border:1px solid #e5e7eb;">
+              ` : `<div style="width:50px;height:50px;border-radius:8px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;flex-shrink:0;">🖼️</div>`}
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:12px;font-weight:600;color:#1a1a1a;line-height:1.2;${buAktif?'color:#991b1b;':''}">${escapeHTML(sl.baslik || 'Başlıksız')}</div>
+                ${sl.aciklama ? `<div style="font-size:10px;color:#666;margin-top:2px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHTML(sl.aciklama)}</div>` : ''}
+              </div>
+              ${!aktifMi ? `
+                <button onclick="sunumSlideSil(${sunumId},${idx})" 
+                  style="background:transparent;border:1px solid #fecaca;color:#dc2626;padding:4px 7px;border-radius:6px;font-size:10px;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0;">✕</button>
+              ` : ''}
+            </div>
+          `;
+        }).join('')}
+
+        <!-- + Slide ekle -->
+        ${!aktifMi ? `
+          <div style="background:#f5f3ff;border:1.5px dashed #c4b5fd;border-radius:10px;padding:11px;margin-top:8px;">
+            <div style="font-size:11px;color:#5b21b6;font-weight:700;margin-bottom:6px;">+ Yeni Slide Ekle</div>
+            <input id="sunum-slide-baslik" type="text" placeholder="Başlık (örn: Knossos Antik Hali)"
+              style="width:100%;padding:8px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;margin-bottom:5px;">
+            <textarea id="sunum-slide-aciklama" placeholder="Açıklama (opsiyonel - yolcuya gösterilecek metin)"
+              style="width:100%;padding:8px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;min-height:50px;resize:vertical;margin-bottom:5px;"></textarea>
+            <input id="sunum-slide-resim" type="file" accept="image/*" 
+              style="width:100%;padding:7px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:11px;font-family:'DM Sans',sans-serif;margin-bottom:6px;background:white;">
+            <button onclick="sunumSlideEkle(${sunumId})" 
+              style="width:100%;padding:9px;background:#9333ea;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+              + Slide Ekle
+            </button>
+          </div>
+
+          <!-- Sil butonu -->
+          <button onclick="sunumSil(${sunumId})" 
+            style="width:100%;margin-top:12px;padding:9px;background:#fef2f2;border:1.5px solid #fecaca;color:#991b1b;border-radius:8px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">🗑️ Sunumu Sil</button>
+        ` : ''}
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+// Slide ekle
+async function sunumSlideEkle(sunumId){
+  const baslik = document.getElementById('sunum-slide-baslik')?.value.trim();
+  const aciklama = document.getElementById('sunum-slide-aciklama')?.value.trim();
+  const resimInp = document.getElementById('sunum-slide-resim');
+  const dosya = resimInp?.files?.[0];
+  
+  if(!baslik && !dosya){ showToast('⚠️ Başlık veya resim ekle'); return; }
+
+  const s = SUNUMLAR.find(x => x.id === sunumId);
+  if(!s) return;
+
+  showToast('⏳ Slide ekleniyor...');
+
+  let resim_url = null;
+  if(dosya){
+    try {
+      // Storage'a yükle - mevcut bucket'lardan birini kullan
+      const dosyaAdi = 'sunum-' + sunumId + '-' + Date.now() + '-' + dosya.name.replace(/[^a-z0-9.]/gi, '_');
+      
+      // Önce 'sunum-resimleri' bucket'ını dene, yoksa 'hikaye-resimleri'
+      let bucket = 'sunum-resimleri';
+      let yol = dosyaAdi;
+      let yuklemeBasarili = false;
+      let urlData = null;
+      
+      try {
+        const { data, error } = await sb.storage.from(bucket).upload(yol, dosya);
+        if(!error){
+          yuklemeBasarili = true;
+          const r = sb.storage.from(bucket).getPublicUrl(yol);
+          urlData = r.data;
+        }
+      } catch(e){}
+      
+      // Fallback: hikaye-resimleri bucket'ı
+      if(!yuklemeBasarili){
+        bucket = 'hikaye-resimleri';
+        yol = 'sunumlar/' + dosyaAdi;
+        try {
+          const { data, error } = await sb.storage.from(bucket).upload(yol, dosya);
+          if(error) throw error;
+          yuklemeBasarili = true;
+          const r = sb.storage.from(bucket).getPublicUrl(yol);
+          urlData = r.data;
+        } catch(e2){
+          throw new Error('Bucket erişimi yok. Supabase Storage\'da "sunum-resimleri" bucket\'ı oluştur (Public).');
+        }
+      }
+      
+      resim_url = urlData?.publicUrl;
+    } catch(e){
+      console.log('Resim yükleme: ' + (e?.message || ''));
+      showToast('⚠️ Resim yüklenemedi: ' + (e?.message || ''));
+      return;
+    }
+  }
+
+  if(!s.slidelar) s.slidelar = [];
+  s.slidelar.push({
+    id: Date.now(),
+    baslik: baslik || '',
+    aciklama: aciklama || '',
+    resim_url: resim_url
+  });
+
+  try {
+    await dbUpdate('tur_sunumlari', { id: sunumId }, { 
+      slidelar: s.slidelar, 
+      updated_at: new Date().toISOString() 
+    });
+    showToast('✓ Slide eklendi');
+    sunumDetayAc(sunumId);
+  } catch(e){
+    showToast('⚠️ Hata: ' + (e?.message || ''));
+  }
+}
+
+// Slide sil
+async function sunumSlideSil(sunumId, idx){
+  const s = SUNUMLAR.find(x => x.id === sunumId);
+  if(!s || !s.slidelar) return;
+  if(!confirm('Bu slide silinecek. Emin misin?')) return;
+  s.slidelar.splice(idx, 1);
+  try {
+    await dbUpdate('tur_sunumlari', { id: sunumId }, { slidelar: s.slidelar, updated_at: new Date().toISOString() });
+    showToast('✓ Silindi');
+    sunumDetayAc(sunumId);
+  } catch(e){
+    showToast('⚠️ Hata: ' + (e?.message || ''));
+  }
+}
+
+// Sunumu başlat - canlı yayın
+async function sunumBaslat(sunumId){
+  const s = SUNUMLAR.find(x => x.id === sunumId);
+  if(!s) return;
+  if(!s.slidelar || s.slidelar.length === 0){ showToast('⚠️ Önce slide ekle'); return; }
+  if(!confirm('"' + s.ad + '" canlı yayını başlasın mı?\n\nTura kayıtlı yolculara slidelari göndereceksin.')) return;
+
+  s.durum = 'aktif';
+  s.aktif_slide_index = 0;
+  s.baslangic_zamani = new Date().toISOString();
+  _aktifSunumId = sunumId;
+
+  try {
+    await dbUpdate('tur_sunumlari', { id: sunumId }, { 
+      durum: 'aktif', 
+      aktif_slide_index: 0,
+      baslangic_zamani: s.baslangic_zamani,
+      updated_at: new Date().toISOString() 
+    });
+
+    // Realtime broadcast
+    _sunumBroadcast(s, 'baslatildi');
+    showToast('🔴 Canlı yayın başladı!');
+    sunumDetayAc(sunumId);
+  } catch(e){
+    showToast('⚠️ Hata: ' + (e?.message || ''));
+  }
+}
+
+async function sunumOnceki(sunumId){
+  const s = SUNUMLAR.find(x => x.id === sunumId);
+  if(!s || s.aktif_slide_index <= 0) return;
+  s.aktif_slide_index--;
+  try {
+    await dbUpdate('tur_sunumlari', { id: sunumId }, { aktif_slide_index: s.aktif_slide_index, updated_at: new Date().toISOString() });
+    _sunumBroadcast(s, 'slide_degisti');
+    sunumDetayAc(sunumId);
+  } catch(e){ showToast('⚠️ ' + (e?.message || '')); }
+}
+
+async function sunumSonraki(sunumId){
+  const s = SUNUMLAR.find(x => x.id === sunumId);
+  if(!s || s.aktif_slide_index >= s.slidelar.length-1) return;
+  s.aktif_slide_index++;
+  try {
+    await dbUpdate('tur_sunumlari', { id: sunumId }, { aktif_slide_index: s.aktif_slide_index, updated_at: new Date().toISOString() });
+    _sunumBroadcast(s, 'slide_degisti');
+    sunumDetayAc(sunumId);
+  } catch(e){ showToast('⚠️ ' + (e?.message || '')); }
+}
+
+async function sunumBitir(sunumId){
+  const s = SUNUMLAR.find(x => x.id === sunumId);
+  if(!s) return;
+  if(!confirm('Canlı yayın bitsin mi?\n\nYolcular sunum sonrası moduna geçer (tüm slidelari görebilir + indirebilir).')) return;
+
+  s.durum = 'bitti';
+  s.bitis_zamani = new Date().toISOString();
+  _aktifSunumId = null;
+  
+  try {
+    await dbUpdate('tur_sunumlari', { id: sunumId }, { 
+      durum: 'bitti', 
+      bitis_zamani: s.bitis_zamani,
+      updated_at: new Date().toISOString() 
+    });
+    _sunumBroadcast(s, 'bitti');
+    showToast('✓ Yayın bitti');
+    sunumDetayAc(sunumId);
+  } catch(e){ showToast('⚠️ ' + (e?.message || '')); }
+}
+
+async function sunumSil(sunumId){
+  const s = SUNUMLAR.find(x => x.id === sunumId);
+  if(!s) return;
+  if(!confirm('"' + s.ad + '" sunumu silinsin mi?\n\nResimler ve slidelar tamamen kaybolur.')) return;
+  try {
+    await sb.from('tur_sunumlari').delete().eq('id', sunumId);
+    SUNUMLAR = SUNUMLAR.filter(x => x.id !== sunumId);
+    showToast('✓ Silindi');
+    document.getElementById('sunum-detay-modal')?.remove();
+    sunumlarModalAc();
+  } catch(e){ showToast('⚠️ ' + (e?.message || '')); }
+}
+
+// Realtime broadcast - yolculara haber ver
+async function _sunumBroadcast(sunum, event){
+  try {
+    const kanal = sb.channel('voyago-sunum-' + sunum.tur_id);
+    await kanal.subscribe();
+    await kanal.send({
+      type: 'broadcast',
+      event: event,
+      payload: {
+        sunum_id: sunum.id,
+        tur_id: sunum.tur_id,
+        aktif_slide_index: sunum.aktif_slide_index,
+        durum: sunum.durum,
+        ad: sunum.ad,
+        slidelar: sunum.slidelar,
+        zaman: new Date().toISOString()
+      }
+    });
+    setTimeout(() => { try { kanal.unsubscribe(); } catch(e){} }, 2000);
+  } catch(e){ console.log('Sunum broadcast: ' + (e?.message || '')); }
+}
+
 function renderDashboard(){
   const el = document.getElementById('dashboard-icerik');
   if(!el) return;
@@ -8532,6 +9162,7 @@ function renderDashboard(){
         <button onclick="adminTab('bil')" style="padding:10px;background:#1a5fa8;color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">🔔 Bildirim Gönder</button>
         <button onclick="krediKartiUyariModalAc()" style="padding:10px;background:linear-gradient(135deg,#dc2626,#991b1b);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">💳 Kredi Kartı Uyarısı (Resepsiyon)</button>
         <button onclick="gruplarModalAc()" style="padding:10px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">👥 Grup Yönetimi (Kapalı Gruplar)</button>
+        <button onclick="sunumlarModalAc()" style="padding:10px;background:linear-gradient(135deg,#9333ea,#6b21a8);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">🎬 Canlı Tur Sunumları (Resimli Anlatım)</button>
       </div>
     </div>
 
