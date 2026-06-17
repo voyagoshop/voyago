@@ -4145,47 +4145,82 @@ async function yolcuSunumDinleBaslat(){
   _yolcuSunumKanallari.forEach(k => { try { k.unsubscribe(); } catch(e){} });
   _yolcuSunumKanallari = [];
 
-  // 1. Aktif sunumları DB'den çek - belki zaten yayında bir tane var
+  const yolcuKabin = String(CP.kabin || '').trim().toUpperCase();
+
+  // 1. Aktif sunumları DB'den çek
   try {
     const data = await dbGet('tur_sunumlari', { sefer_id: CP.sefer });
-    const aktifSunumlar = (data || []).filter(s => 
-      s.durum === 'aktif' && (CP.joinedTours || []).includes(s.tur_id)
-    );
+    const aktifSunumlar = (data || []).filter(s => {
+      if(s.durum !== 'aktif') return false;
+      // 🏨 ÖNCELİK: Kabin listesinde var mı?
+      const kabinler = s.kabinler || [];
+      if(kabinler.length > 0){
+        return kabinler.map(k => String(k).toUpperCase()).includes(yolcuKabin);
+      }
+      // Fallback (eski): tur kayıtlı yolcular
+      if(s.tur_id && (CP.joinedTours || []).includes(s.tur_id)) return true;
+      return false;
+    });
     if(aktifSunumlar.length > 0){
       _yolcuAktifSunum = aktifSunumlar[0];
       yolcuSunumGoruntule();
     }
   } catch(e){}
 
-  // 2. Yolcunun aldığı her tur için realtime kanal aç
-  (CP.joinedTours || []).forEach(tid => {
-    try {
-      const kanal = sb.channel('voyago-sunum-' + tid);
-      kanal.on('broadcast', { event: 'baslatildi' }, (msg) => {
-        console.log('[YOLCU SUNUM] Başlatıldı:', msg.payload);
-        _yolcuAktifSunum = msg.payload;
-        yolcuSunumGoruntule();
-      });
-      kanal.on('broadcast', { event: 'slide_degisti' }, (msg) => {
-        console.log('[YOLCU SUNUM] Slide değişti:', msg.payload);
-        if(!_yolcuAktifSunum || _yolcuAktifSunum.sunum_id !== msg.payload.sunum_id){
-          _yolcuAktifSunum = msg.payload;
-        } else {
-          _yolcuAktifSunum.aktif_slide_index = msg.payload.aktif_slide_index;
-        }
-        yolcuSunumGoruntule();
-      });
-      kanal.on('broadcast', { event: 'bitti' }, (msg) => {
-        console.log('[YOLCU SUNUM] Bitti:', msg.payload);
-        if(_yolcuAktifSunum && _yolcuAktifSunum.sunum_id === msg.payload.sunum_id){
-          _yolcuAktifSunum.durum = 'bitti';
+  // 2. Yolcunun kabinine atanmış tüm sunumlar için kanal aç
+  // (Tüm sunum tur_id'lerinin kanallarını dinle)
+  try {
+    const data = await dbGet('tur_sunumlari', { sefer_id: CP.sefer });
+    const kanalIdleri = new Set();
+    
+    (data || []).forEach(s => {
+      const kabinler = s.kabinler || [];
+      const kabinUyusuyor = kabinler.length > 0 && 
+        kabinler.map(k => String(k).toUpperCase()).includes(yolcuKabin);
+      const turUyusuyor = !kabinler.length && s.tur_id && (CP.joinedTours || []).includes(s.tur_id);
+      
+      if(kabinUyusuyor || turUyusuyor){
+        // Kabin bazlı için sunum_id, tur bazlı için tur_id ile dinle
+        const kanalId = kabinler.length > 0 ? ('sunum-' + s.id) : ('sunum-' + s.tur_id);
+        kanalIdleri.add(kanalId);
+      }
+    });
+
+    kanalIdleri.forEach(kanalId => {
+      try {
+        const kanal = sb.channel('voyago-' + kanalId);
+        kanal.on('broadcast', { event: 'baslatildi' }, (msg) => {
+          console.log('[YOLCU SUNUM] Başlatıldı:', msg.payload);
+          // Kabin kontrolü
+          const pyld = msg.payload;
+          const kabinler = pyld.kabinler || [];
+          if(kabinler.length > 0 && !kabinler.map(k => String(k).toUpperCase()).includes(yolcuKabin)) return;
+          _yolcuAktifSunum = pyld;
           yolcuSunumGoruntule();
-        }
-      });
-      kanal.subscribe();
-      _yolcuSunumKanallari.push(kanal);
-    } catch(e){ console.log('Yolcu sunum kanal: ' + (e?.message || '')); }
-  });
+        });
+        kanal.on('broadcast', { event: 'slide_degisti' }, (msg) => {
+          const pyld = msg.payload;
+          const kabinler = pyld.kabinler || [];
+          if(kabinler.length > 0 && !kabinler.map(k => String(k).toUpperCase()).includes(yolcuKabin)) return;
+          if(!_yolcuAktifSunum || _yolcuAktifSunum.sunum_id !== pyld.sunum_id){
+            _yolcuAktifSunum = pyld;
+          } else {
+            _yolcuAktifSunum.aktif_slide_index = pyld.aktif_slide_index;
+          }
+          yolcuSunumGoruntule();
+        });
+        kanal.on('broadcast', { event: 'bitti' }, (msg) => {
+          const pyld = msg.payload;
+          if(_yolcuAktifSunum && _yolcuAktifSunum.sunum_id === pyld.sunum_id){
+            _yolcuAktifSunum.durum = 'bitti';
+            yolcuSunumGoruntule();
+          }
+        });
+        kanal.subscribe();
+        _yolcuSunumKanallari.push(kanal);
+      } catch(e){ console.log('Yolcu sunum kanal: ' + (e?.message || '')); }
+    });
+  } catch(e){ console.log('Yolcu dinleme: ' + (e?.message || '')); }
 }
 
 // Yolcu sunum görüntüle
@@ -8397,12 +8432,27 @@ function sunumlarModalAc(){
           <!-- + Yeni Sunum -->
           <div style="background:#f5f3ff;border:1.5px dashed #c4b5fd;border-radius:10px;padding:12px;margin-bottom:12px;">
             <div style="font-size:11px;color:#5b21b6;font-weight:700;margin-bottom:6px;">+ Yeni sunum oluştur</div>
+            
+            <!-- Sunum adı -->
+            <input id="sunum-yeni-ad" type="text" placeholder="Sunum adı (örn: Knossos Sarayı, Girit Turu)"
+              style="width:100%;padding:9px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;margin-bottom:6px;">
+            
+            <!-- Kabinler (zorunlu) -->
+            <div style="background:white;border:1.5px solid #c4b5fd;border-radius:8px;padding:8px;margin-bottom:6px;">
+              <div style="font-size:10px;color:#5b21b6;font-weight:700;margin-bottom:4px;">🏨 KABİNLER (virgülle ayrılmış - sadece bu kabinler görür)</div>
+              <textarea id="sunum-yeni-kabinler" placeholder="4180, 5156, 6230, 7115..." 
+                style="width:100%;padding:6px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:'Courier New',monospace;outline:none;resize:vertical;min-height:50px;"></textarea>
+              <div style="font-size:9px;color:#666;margin-top:4px;line-height:1.4;">
+                💡 İpucu: Buradan jest yapabilirsin — tur almayan bir kabini de ekleyebilirsin
+              </div>
+            </div>
+            
+            <!-- Tur (opsiyonel - sadece organize için) -->
             <select id="sunum-yeni-tur" style="width:100%;padding:9px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;background:white;margin-bottom:6px;">
-              <option value="">Tur seç...</option>
+              <option value="">İlgili tur (opsiyonel) — sadece etiketleme için</option>
               ${fallbackTurlar.map(t => `<option value="${t.id}">${escapeHTML(t.name)}</option>`).join('')}
             </select>
-            <input id="sunum-yeni-ad" type="text" placeholder="Sunum adı (örn: Knossos Sarayı)"
-              style="width:100%;padding:9px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;margin-bottom:6px;">
+            
             <button onclick="sunumYeniOlustur('${sid}')" 
               style="width:100%;padding:9px;background:#9333ea;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
               + Sunum Oluştur
@@ -8426,8 +8476,9 @@ function sunumlarModalAc(){
 
 function _sunumKarti(s){
   const t = TOURS.find(x => x.id === s.tur_id);
-  const turAdi = t ? t.name : '?';
+  const turAdi = t ? t.name : '';
   const slideSayisi = (s.slidelar || []).length;
+  const kabinSayisi = (s.kabinler || []).length;
   const aktifMi = s.durum === 'aktif';
   const renk = aktifMi ? '#dc2626' : '#9333ea';
 
@@ -8435,11 +8486,13 @@ function _sunumKarti(s){
     <div style="background:white;border:2px solid ${renk};border-radius:12px;padding:11px;margin-bottom:8px;cursor:pointer;${aktifMi?'box-shadow:0 0 0 4px rgba(220,38,38,.15);animation:sunumAktifPulse 1.5s ease-in-out infinite;':''}" onclick="sunumDetayAc(${s.id})">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
         <div style="flex:1;min-width:0;">
-          <div style="display:flex;align-items:center;gap:6px;">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
             ${aktifMi ? '<span style="background:#dc2626;color:white;padding:1px 7px;border-radius:8px;font-size:9px;font-weight:700;animation:sunumAktifPulse 1s ease-in-out infinite;">🔴 CANLI</span>' : ''}
             <div style="font-size:14px;font-weight:700;color:#1a1a1a;">${escapeHTML(s.ad)}</div>
           </div>
-          <div style="font-size:11px;color:#666;margin-top:3px;">🎫 ${escapeHTML(turAdi)} · 🖼️ ${slideSayisi} slide</div>
+          <div style="font-size:11px;color:#666;margin-top:3px;">
+            🏨 <b>${kabinSayisi}</b> kabin · 🖼️ <b>${slideSayisi}</b> slide${turAdi ? ' · 🎫 '+escapeHTML(turAdi) : ''}
+          </div>
         </div>
         <span style="color:#999;font-size:18px;flex-shrink:0;">›</span>
       </div>
@@ -8455,19 +8508,36 @@ function _sunumKarti(s){
 
 // Yeni sunum oluştur
 async function sunumYeniOlustur(sid){
-  const tid = document.getElementById('sunum-yeni-tur')?.value;
+  const tid = document.getElementById('sunum-yeni-tur')?.value || '';
   const ad = document.getElementById('sunum-yeni-ad')?.value.trim();
-  if(!tid){ showToast('⚠️ Tur seç'); return; }
-  if(!ad){ showToast('⚠️ Ad gir'); return; }
+  const kabinlerRaw = document.getElementById('sunum-yeni-kabinler')?.value.trim();
+  
+  if(!ad){ showToast('⚠️ Sunum adı gir'); return; }
+  if(!kabinlerRaw){ showToast('⚠️ En az 1 kabin numarası gir'); return; }
+
+  // Kabinleri parse et
+  const kabinler = kabinlerRaw
+    .split(/[\s,;\n\t]+/)
+    .map(k => k.trim().toUpperCase())
+    .filter(k => k.length > 0);
+
+  if(!kabinler.length){ showToast('⚠️ Geçerli kabin bulunamadı'); return; }
 
   try {
-    const yeni = { sefer_id: sid, tur_id: tid, ad: ad, slidelar: [], aktif_slide_index: -1, durum: 'hazirlik' };
+    const yeni = { 
+      sefer_id: sid, 
+      tur_id: tid || '', 
+      ad: ad, 
+      kabinler: kabinler,
+      slidelar: [], 
+      aktif_slide_index: -1, 
+      durum: 'hazirlik' 
+    };
     const sonuc = await sb.from('tur_sunumlari').insert(yeni).select().single();
     if(sonuc.data){
       SUNUMLAR.push(sonuc.data);
-      showToast('✓ Sunum oluşturuldu');
+      showToast('✓ ' + kabinler.length + ' kabin için sunum oluşturuldu');
       sunumlarModalAc();
-      // Hemen detayı aç
       setTimeout(() => sunumDetayAc(sonuc.data.id), 300);
     } else {
       showToast('⚠️ Hata: ' + (sonuc.error?.message || ''));
@@ -8501,11 +8571,13 @@ function sunumDetayAc(sunumId){
       <div style="background:linear-gradient(135deg,${aktifMi?'#dc2626':'#9333ea'},${aktifMi?'#991b1b':'#6b21a8'});padding:14px 16px;color:white;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
           <div style="flex:1;min-width:0;">
-            <div style="display:flex;align-items:center;gap:6px;">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
               ${aktifMi ? '<span style="background:white;color:#dc2626;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700;">🔴 CANLI YAYIN</span>' : ''}
               <div style="font-family:'DM Serif Display',serif;font-size:17px;">${escapeHTML(s.ad)}</div>
             </div>
-            <div style="font-size:11px;opacity:.9;margin-top:3px;">🎫 ${escapeHTML(t?.name || '?')} · ${slidelar.length} slide</div>
+            <div style="font-size:11px;opacity:.9;margin-top:3px;">
+              🏨 ${(s.kabinler||[]).length} kabin · 🖼️ ${slidelar.length} slide${t?.name ? ' · 🎫 '+escapeHTML(t.name) : ''}
+            </div>
           </div>
           <button onclick="document.getElementById('sunum-detay-modal').remove()" 
             style="background:rgba(255,255,255,.2);border:none;color:white;font-size:18px;cursor:pointer;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
@@ -8513,6 +8585,23 @@ function sunumDetayAc(sunumId){
       </div>
 
       <div style="flex:1;overflow-y:auto;padding:14px 16px;">
+        <!-- 🏨 KABİN LİSTESİ -->
+        <div style="background:#f5f3ff;border:1.5px solid #c4b5fd;border-radius:10px;padding:10px;margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="font-size:11px;color:#5b21b6;font-weight:700;">🏨 HEDEF KABİNLER (${(s.kabinler||[]).length})</div>
+            ${!aktifMi ? `<button onclick="sunumKabinDuzenle(${sunumId})" style="padding:3px 8px;background:#9333ea;color:white;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">✏️ Düzenle</button>` : ''}
+          </div>
+          <div style="font-size:11px;color:#1a1a1a;line-height:1.6;">
+            ${(s.kabinler||[]).length === 0 ? '<span style="color:#dc2626;">⚠️ Kabin yok — kimse göremez!</span>' : 
+              (s.kabinler||[]).map(k => {
+                const p = passengers.find(x => !x.arsivli && x.sefer === s.sefer_id && String(x.kabin).trim().toUpperCase() === k);
+                const isim = p ? p.name : '?';
+                return `<span style="display:inline-block;background:white;color:#5b21b6;padding:2px 8px;border-radius:6px;margin:2px 3px 2px 0;font-size:11px;font-weight:600;" title="${escapeHTML(isim)}">${escapeHTML(k)}</span>`;
+              }).join('')
+            }
+          </div>
+        </div>
+
         ${aktifMi ? `
           <!-- 🔴 CANLI YAYIN KONTROLLERİ -->
           <div style="background:linear-gradient(135deg,#fef2f2,#fee2e2);border:2px solid #dc2626;border-radius:14px;padding:14px;margin-bottom:14px;text-align:center;">
@@ -8601,6 +8690,36 @@ function sunumDetayAc(sunumId){
     </div>
   `;
   document.body.appendChild(modal);
+}
+
+// Kabin listesini düzenle
+async function sunumKabinDuzenle(sunumId){
+  const s = SUNUMLAR.find(x => x.id === sunumId);
+  if(!s) return;
+  const mevcut = (s.kabinler || []).join(', ');
+  const yeni = prompt('Kabinleri düzenle (virgülle ayrılmış):\n\n💡 Jest yapabilirsin — tur almayanları da ekleyebilirsin', mevcut);
+  if(yeni === null) return; // İptal
+  
+  const yeniKabinler = yeni
+    .split(/[\s,;\n\t]+/)
+    .map(k => k.trim().toUpperCase())
+    .filter(k => k.length > 0);
+  
+  if(yeniKabinler.length === 0){
+    if(!confirm('⚠️ Tüm kabinler silinecek. Kimse göremeyecek. Emin misin?')) return;
+  }
+  
+  s.kabinler = yeniKabinler;
+  try {
+    await dbUpdate('tur_sunumlari', { id: sunumId }, { 
+      kabinler: yeniKabinler, 
+      updated_at: new Date().toISOString() 
+    });
+    showToast('✓ ' + yeniKabinler.length + ' kabin güncellendi');
+    sunumDetayAc(sunumId);
+  } catch(e){
+    showToast('⚠️ Hata: ' + (e?.message || ''));
+  }
 }
 
 // Slide ekle
@@ -8784,7 +8903,12 @@ async function sunumSil(sunumId){
 // Realtime broadcast - yolculara haber ver
 async function _sunumBroadcast(sunum, event){
   try {
-    const kanal = sb.channel('voyago-sunum-' + sunum.tur_id);
+    // Kabin listesi varsa sunum_id ile, yoksa tur_id ile broadcast yap
+    const kanalAdi = (sunum.kabinler && sunum.kabinler.length > 0) 
+      ? ('voyago-sunum-' + sunum.id)
+      : ('voyago-sunum-' + sunum.tur_id);
+    
+    const kanal = sb.channel(kanalAdi);
     await kanal.subscribe();
     await kanal.send({
       type: 'broadcast',
@@ -8792,6 +8916,7 @@ async function _sunumBroadcast(sunum, event){
       payload: {
         sunum_id: sunum.id,
         tur_id: sunum.tur_id,
+        kabinler: sunum.kabinler || [],
         aktif_slide_index: sunum.aktif_slide_index,
         durum: sunum.durum,
         ad: sunum.ad,
