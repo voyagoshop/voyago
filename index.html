@@ -2587,6 +2587,34 @@ const SUPABASE_URL = 'https://mvltmnysiujelphcijls.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12bHRtbnlzaXVqZWxwaGNpamxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDg2OTEsImV4cCI6MjA5MDUyNDY5MX0.6UlF08KiujhUIT8inGvU1oicxbcgTtBa2t79GgrzWOU';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// 📡 Güvenli realtime broadcast helper
+// httpSend varsa onu kullan (deprecation uyarısı vermesin)
+// Subscribe sürecini de düzgün bekler
+async function _sbBroadcast(kanalAdi, event, payload){
+  try {
+    const kanal = sb.channel(kanalAdi);
+    // Subscribe'ı bekle - kanalın hazır olmasını bekle
+    await new Promise((resolve) => {
+      let resolved = false;
+      const timer = setTimeout(() => { if(!resolved){ resolved = true; resolve(); } }, 1500);
+      kanal.subscribe((status) => {
+        if(status === 'SUBSCRIBED' && !resolved){
+          resolved = true;
+          clearTimeout(timer);
+          resolve();
+        }
+      });
+    });
+    // Tercih: httpSend (yeni API), yoksa send (eski)
+    if(typeof kanal.httpSend === 'function'){
+      await kanal.httpSend({ type: 'broadcast', event, payload });
+    } else {
+      await kanal.send({ type: 'broadcast', event, payload });
+    }
+    setTimeout(() => { try { kanal.unsubscribe(); } catch(e){} }, 800);
+  } catch(e){ console.log('Broadcast: ' + (e?.message || '')); }
+}
+
 // ── VERİTABANI YARDIMCI FONKSİYONLARI ──
 async function dbGetSelect(tablo, kolonlar) {
   try {
@@ -8902,30 +8930,21 @@ async function sunumSil(sunumId){
 
 // Realtime broadcast - yolculara haber ver
 async function _sunumBroadcast(sunum, event){
-  try {
-    // Kabin listesi varsa sunum_id ile, yoksa tur_id ile broadcast yap
-    const kanalAdi = (sunum.kabinler && sunum.kabinler.length > 0) 
-      ? ('voyago-sunum-' + sunum.id)
-      : ('voyago-sunum-' + sunum.tur_id);
-    
-    const kanal = sb.channel(kanalAdi);
-    await kanal.subscribe();
-    await kanal.send({
-      type: 'broadcast',
-      event: event,
-      payload: {
-        sunum_id: sunum.id,
-        tur_id: sunum.tur_id,
-        kabinler: sunum.kabinler || [],
-        aktif_slide_index: sunum.aktif_slide_index,
-        durum: sunum.durum,
-        ad: sunum.ad,
-        slidelar: sunum.slidelar,
-        zaman: new Date().toISOString()
-      }
-    });
-    setTimeout(() => { try { kanal.unsubscribe(); } catch(e){} }, 2000);
-  } catch(e){ console.log('Sunum broadcast: ' + (e?.message || '')); }
+  // Kabin listesi varsa sunum_id ile, yoksa tur_id ile broadcast yap
+  const kanalAdi = (sunum.kabinler && sunum.kabinler.length > 0) 
+    ? ('voyago-sunum-' + sunum.id)
+    : ('voyago-sunum-' + sunum.tur_id);
+  
+  await _sbBroadcast(kanalAdi, event, {
+    sunum_id: sunum.id,
+    tur_id: sunum.tur_id,
+    kabinler: sunum.kabinler || [],
+    aktif_slide_index: sunum.aktif_slide_index,
+    durum: sunum.durum,
+    ad: sunum.ad,
+    slidelar: sunum.slidelar,
+    zaman: new Date().toISOString()
+  });
 }
 
 function renderDashboard(){
