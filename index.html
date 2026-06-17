@@ -8778,7 +8778,11 @@ function sunumDetayAc(sunumId){
                 ${sl.aciklama ? `<div style="font-size:10px;color:#666;margin-top:2px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHTML(sl.aciklama)}</div>` : ''}
               </div>
               ${!aktifMi ? `
+                <button onclick="sunumSlideDuzenleAc(${sunumId},${idx})" 
+                  title="Slide düzenle"
+                  style="background:transparent;border:1px solid #c4b5fd;color:#9333ea;padding:4px 7px;border-radius:6px;font-size:10px;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0;">✏️</button>
                 <button onclick="sunumSlideSil(${sunumId},${idx})" 
+                  title="Slide sil"
                   style="background:transparent;border:1px solid #fecaca;color:#dc2626;padding:4px 7px;border-radius:6px;font-size:10px;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0;">✕</button>
               ` : ''}
             </div>
@@ -8810,6 +8814,154 @@ function sunumDetayAc(sunumId){
     </div>
   `;
   document.body.appendChild(modal);
+}
+
+// 🎯 SLIDE DÜZENLEME
+function sunumSlideDuzenleAc(sunumId, idx){
+  const s = SUNUMLAR.find(x => x.id === sunumId);
+  if(!s || !s.slidelar || !s.slidelar[idx]) return;
+  const sl = s.slidelar[idx];
+
+  const eski = document.getElementById('sunum-slide-duzenle-modal');
+  if(eski) eski.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'sunum-slide-duzenle-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e) => { if(e.target.id === 'sunum-slide-duzenle-modal') modal.remove(); };
+
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;max-width:480px;width:100%;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;">
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,#9333ea,#6b21a8);padding:13px 16px;color:white;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-family:'DM Serif Display',serif;font-size:16px;">✏️ Slide Düzenle</div>
+            <div style="font-size:11px;opacity:.9;margin-top:2px;">Slide ${idx+1} / ${s.slidelar.length}</div>
+          </div>
+          <button onclick="document.getElementById('sunum-slide-duzenle-modal').remove()" 
+            style="background:rgba(255,255,255,.2);border:none;color:white;font-size:18px;cursor:pointer;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;">×</button>
+        </div>
+      </div>
+
+      <div style="flex:1;overflow-y:auto;padding:14px 16px;">
+        <!-- Mevcut resim önizleme -->
+        ${sl.resim_url ? `
+          <div style="margin-bottom:12px;">
+            <div style="font-size:10px;color:#5b21b6;font-weight:700;margin-bottom:5px;">📷 MEVCUT RESİM</div>
+            <div style="border:2px solid #e5e7eb;border-radius:10px;overflow:hidden;background:#f9fafb;">
+              <img id="sunum-slide-mevcut-resim" src="${escapeHTML(sl.resim_url)}" 
+                style="width:100%;max-height:200px;object-fit:contain;display:block;background:#fafafa;">
+            </div>
+          </div>
+        ` : `
+          <div style="margin-bottom:12px;padding:18px;background:#f9fafb;border:2px dashed #d1d5db;border-radius:10px;text-align:center;color:#999;font-size:12px;">
+            🖼️ Bu slide'da resim yok
+          </div>
+        `}
+
+        <!-- Yeni resim seç (opsiyonel) -->
+        <div style="margin-bottom:12px;">
+          <div style="font-size:10px;color:#5b21b6;font-weight:700;margin-bottom:4px;">🔄 RESMİ DEĞİŞTİR (opsiyonel)</div>
+          <input type="file" id="sunum-slide-duzenle-resim" accept="image/*"
+            style="width:100%;padding:7px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:11px;font-family:'DM Sans',sans-serif;background:white;">
+          <div style="font-size:9px;color:#666;margin-top:3px;line-height:1.4;">
+            ${sl.resim_url ? '💡 Boş bırakırsan eski resim kalır' : '💡 Yeni resim ekleyebilirsin'}
+          </div>
+        </div>
+
+        <!-- Başlık -->
+        <div style="margin-bottom:10px;">
+          <div style="font-size:10px;color:#5b21b6;font-weight:700;margin-bottom:4px;">📝 BAŞLIK</div>
+          <input id="sunum-slide-duzenle-baslik" type="text" 
+            value="${escapeHTML(sl.baslik || '')}"
+            placeholder="Başlık (örn: Knossos Antik Hali)"
+            style="width:100%;padding:9px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;">
+        </div>
+
+        <!-- Açıklama -->
+        <div style="margin-bottom:14px;">
+          <div style="font-size:10px;color:#5b21b6;font-weight:700;margin-bottom:4px;">📄 AÇIKLAMA</div>
+          <textarea id="sunum-slide-duzenle-aciklama" 
+            placeholder="Açıklama (yolcuya gösterilecek metin)"
+            style="width:100%;padding:9px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;min-height:80px;resize:vertical;">${escapeHTML(sl.aciklama || '')}</textarea>
+        </div>
+
+        <!-- Butonlar -->
+        <div style="display:flex;gap:6px;">
+          <button onclick="document.getElementById('sunum-slide-duzenle-modal').remove()" 
+            style="flex:1;padding:11px;background:#f3f4f6;border:1.5px solid #d1d5db;color:#666;border-radius:8px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">İptal</button>
+          <button onclick="sunumSlideKaydet(${sunumId},${idx})" 
+            style="flex:1;padding:11px;background:#9333ea;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">✓ Kaydet</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+// Slide kaydet (düzenleme)
+async function sunumSlideKaydet(sunumId, idx){
+  const s = SUNUMLAR.find(x => x.id === sunumId);
+  if(!s || !s.slidelar || !s.slidelar[idx]) return;
+
+  const baslik = document.getElementById('sunum-slide-duzenle-baslik')?.value.trim() || '';
+  const aciklama = document.getElementById('sunum-slide-duzenle-aciklama')?.value.trim() || '';
+  const resimInp = document.getElementById('sunum-slide-duzenle-resim');
+  const yeniDosya = resimInp?.files?.[0];
+
+  // Yeni resim varsa yükle
+  let yeniResimUrl = s.slidelar[idx].resim_url; // Varsayılan: eskisi
+  if(yeniDosya){
+    showToast('⏳ Yeni resim yükleniyor...');
+    try {
+      const dosyaAdi = 'sunum-' + sunumId + '-' + Date.now() + '-' + yeniDosya.name.replace(/[^a-z0-9.]/gi, '_');
+      let bucket = 'sunum-resimleri';
+      let yol = dosyaAdi;
+      let basarili = false;
+      let urlData = null;
+      try {
+        const { data, error } = await sb.storage.from(bucket).upload(yol, yeniDosya);
+        if(!error){
+          basarili = true;
+          const r = sb.storage.from(bucket).getPublicUrl(yol);
+          urlData = r.data;
+        }
+      } catch(e){}
+      if(!basarili){
+        bucket = 'hikaye-resimleri';
+        yol = 'sunumlar/' + dosyaAdi;
+        const { data, error } = await sb.storage.from(bucket).upload(yol, yeniDosya);
+        if(error) throw error;
+        const r = sb.storage.from(bucket).getPublicUrl(yol);
+        urlData = r.data;
+      }
+      yeniResimUrl = urlData?.publicUrl;
+    } catch(e){
+      showToast('⚠️ Resim yüklenemedi: ' + (e?.message || ''));
+      return;
+    }
+  }
+
+  // Güncelle
+  s.slidelar[idx] = {
+    ...s.slidelar[idx],
+    baslik: baslik,
+    aciklama: aciklama,
+    resim_url: yeniResimUrl
+  };
+
+  try {
+    await dbUpdate('tur_sunumlari', { id: sunumId }, { 
+      slidelar: s.slidelar, 
+      updated_at: new Date().toISOString() 
+    });
+    showToast('✓ Slide güncellendi');
+    document.getElementById('sunum-slide-duzenle-modal')?.remove();
+    sunumDetayAc(sunumId);
+  } catch(e){
+    showToast('⚠️ Hata: ' + (e?.message || ''));
+  }
 }
 
 // 🎯 SLIDE SÜRÜKLE-BIRAK FONKSİYONLARI
