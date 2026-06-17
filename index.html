@@ -8413,13 +8413,12 @@ let _aktifSunumId = null;
 let _sunumRealtimeKanal = null;
 let _yolcuSunumKanal = null;
 
-// Sunumları DB'den yükle
+// Sunumları DB'den yükle - TÜM sunumlar (eski seferdekiler de) görünsün
 async function sunumlariYukle(sid){
-  if(!sid) return;
   try {
-    const data = await dbGet('tur_sunumlari', {sefer_id: sid});
+    const data = await dbGet('tur_sunumlari'); // sefer filtresi yok
     SUNUMLAR = data || [];
-    console.log('[SUNUM] ' + SUNUMLAR.length + ' sunum yüklendi');
+    console.log('[SUNUM] ' + SUNUMLAR.length + ' sunum yüklendi (tüm seferler)');
   } catch(e){
     console.log('Sunum yükleme: ' + (e?.message || ''));
     SUNUMLAR = [];
@@ -8465,19 +8464,40 @@ function sunumlarModalAc(){
             <input id="sunum-yeni-ad" type="text" placeholder="Sunum adı (örn: Knossos Sarayı, Girit Turu)"
               style="width:100%;padding:9px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;margin-bottom:6px;">
             
-            <!-- Kabinler (zorunlu) -->
+            <!-- Kabinler -->
             <div style="background:white;border:1.5px solid #c4b5fd;border-radius:8px;padding:8px;margin-bottom:6px;">
-              <div style="font-size:10px;color:#5b21b6;font-weight:700;margin-bottom:4px;">🏨 KABİNLER (virgülle ayrılmış - sadece bu kabinler görür)</div>
+              <div style="font-size:10px;color:#5b21b6;font-weight:700;margin-bottom:4px;">🏨 KABİNLER (virgülle ayrılmış)</div>
               <textarea id="sunum-yeni-kabinler" placeholder="4180, 5156, 6230, 7115..." 
                 style="width:100%;padding:6px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:'Courier New',monospace;outline:none;resize:vertical;min-height:50px;"></textarea>
+              
+              <!-- 🎫 Tur seçerek toplu ekleme -->
+              ${fallbackTurlar.length > 0 ? `
+                <div style="margin-top:6px;padding-top:6px;border-top:1px dashed #c4b5fd;">
+                  <div style="font-size:9px;color:#5b21b6;font-weight:700;margin-bottom:4px;">⚡ HIZLI EKLE: Bir turun TÜM yolcularını ekle</div>
+                  <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                    ${fallbackTurlar.map(t => {
+                      const kayitliSayi = passengers.filter(p => 
+                        p.sefer === sid && !p.arsivli && p.joinedTours?.includes(t.id)
+                      ).length;
+                      return `
+                        <button type="button" onclick="sunumYeniTurKabinEkle('${t.id}','${sid}')" 
+                          style="padding:4px 8px;background:white;border:1.5px solid #9333ea;color:#5b21b6;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:3px;">
+                          🎫 ${escapeHTML(t.name)} <span style="background:#9333ea;color:white;padding:0 5px;border-radius:8px;font-size:9px;">${kayitliSayi}</span>
+                        </button>
+                      `;
+                    }).join('')}
+                  </div>
+                </div>
+              ` : ''}
+              
               <div style="font-size:9px;color:#666;margin-top:4px;line-height:1.4;">
-                💡 İpucu: Buradan jest yapabilirsin — tur almayan bir kabini de ekleyebilirsin
+                💡 İpucu: Tur butonuna tıkla → o turun yolcuları textarea'ya eklenir
               </div>
             </div>
             
-            <!-- Tur (opsiyonel - sadece organize için) -->
+            <!-- Tur (etiket - opsiyonel) -->
             <select id="sunum-yeni-tur" style="width:100%;padding:9px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;background:white;margin-bottom:6px;">
-              <option value="">İlgili tur (opsiyonel) — sadece etiketleme için</option>
+              <option value="">İlgili tur (opsiyonel - sadece etiket)</option>
               ${fallbackTurlar.map(t => `<option value="${t.id}">${escapeHTML(t.name)}</option>`).join('')}
             </select>
             
@@ -8532,6 +8552,71 @@ function _sunumKarti(s){
       }
     </style>
   `;
+}
+
+// Tur seç → o turun yolcularını kabinler textarea'sına ekle (yeni oluşturma için)
+function sunumYeniTurKabinEkle(tid, sid){
+  const inp = document.getElementById('sunum-yeni-kabinler');
+  if(!inp) return;
+  const t = TOURS.find(x => x.id === tid);
+  if(!t){ showToast('⚠️ Tur bulunamadı'); return; }
+  
+  // O turun yolcularını bul
+  const yolcular = passengers.filter(p => 
+    p.sefer === sid && !p.arsivli && p.kabin && p.joinedTours?.includes(tid)
+  );
+  if(!yolcular.length){ showToast('⚠️ Bu turda yolcu yok'); return; }
+  
+  // Mevcut kabinleri parse et
+  const mevcut = inp.value
+    .split(/[\s,;\n\t]+/)
+    .map(k => k.trim().toUpperCase())
+    .filter(k => k.length > 0);
+  
+  // Yeni kabinleri ekle (dublikatları engelle)
+  const yeniKabinler = [...mevcut];
+  let eklendi = 0;
+  yolcular.forEach(p => {
+    const k = String(p.kabin).trim().toUpperCase();
+    if(!yeniKabinler.includes(k)){
+      yeniKabinler.push(k);
+      eklendi++;
+    }
+  });
+  
+  inp.value = yeniKabinler.join(', ');
+  showToast('✓ ' + t.name + ': ' + eklendi + ' yeni kabin eklendi');
+}
+
+// Tur seç → o turun yolcularını kabinler textarea'sına ekle (DÜZENLEME için)
+function sunumDuzenleTurKabinEkle(tid, sid){
+  const inp = document.getElementById('sunum-duzenle-kabinler');
+  if(!inp) return;
+  const t = TOURS.find(x => x.id === tid);
+  if(!t){ showToast('⚠️ Tur bulunamadı'); return; }
+  
+  const yolcular = passengers.filter(p => 
+    p.sefer === sid && !p.arsivli && p.kabin && p.joinedTours?.includes(tid)
+  );
+  if(!yolcular.length){ showToast('⚠️ Bu turda yolcu yok'); return; }
+  
+  const mevcut = inp.value
+    .split(/[\s,;\n\t]+/)
+    .map(k => k.trim().toUpperCase())
+    .filter(k => k.length > 0);
+  
+  const yeniKabinler = [...mevcut];
+  let eklendi = 0;
+  yolcular.forEach(p => {
+    const k = String(p.kabin).trim().toUpperCase();
+    if(!yeniKabinler.includes(k)){
+      yeniKabinler.push(k);
+      eklendi++;
+    }
+  });
+  
+  inp.value = yeniKabinler.join(', ');
+  showToast('✓ ' + t.name + ': ' + eklendi + ' yeni kabin eklendi');
 }
 
 // Yeni sunum oluştur
@@ -8672,17 +8757,23 @@ function sunumDetayAc(sunumId){
           <div style="text-align:center;padding:20px;color:#999;background:#fafafa;border-radius:8px;margin-bottom:10px;font-size:12px;">
             Henüz slide yok. Aşağıdan ekle ⬇️
           </div>
-        ` : slidelar.map((sl, idx) => {
+        ` : `
+          ${!aktifMi ? '<div style="font-size:10px;color:#666;background:#f9fafb;padding:6px 9px;border-radius:6px;margin-bottom:5px;">💡 <b>Yerini değiştir:</b> Slidelara basılı tut ve sürükle</div>' : ''}
+          ${slidelar.map((sl, idx) => {
           const buAktif = aktifMi && idx === aktifIdx;
-          const onceki = aktifMi && aktifIdx > idx; // Geçildi mi?
+          const onceki = aktifMi && aktifIdx > idx;
           return `
-            <div style="background:${buAktif?'#fee2e2':onceki?'#f3f4f6':'white'};border:${buAktif?'2px solid #dc2626':'1px solid #e5e7eb'};border-radius:10px;padding:9px;margin-bottom:5px;display:flex;gap:9px;align-items:center;">
+            <div 
+              ${!aktifMi ? 'draggable="true" ondragstart="sunumSlideDragStart(event,'+idx+')" ondragover="sunumSlideDragOver(event)" ondragleave="sunumSlideDragLeave(event)" ondrop="sunumSlideDrop(event,'+sunumId+','+idx+')" ondragend="sunumSlideDragEnd(event)"' : ''}
+              data-slide-idx="${idx}"
+              style="background:${buAktif?'#fee2e2':onceki?'#f3f4f6':'white'};border:${buAktif?'2px solid #dc2626':'1px solid #e5e7eb'};border-radius:10px;padding:9px;margin-bottom:5px;display:flex;gap:9px;align-items:center;${!aktifMi?'cursor:grab;':''}transition:all .15s;">
+              ${!aktifMi ? '<div style="color:#9ca3af;font-size:16px;cursor:grab;user-select:none;padding:0 2px;" title="Sürükle">⋮⋮</div>' : ''}
               <div style="background:${buAktif?'#dc2626':onceki?'#9ca3af':'#9333ea'};color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">${idx+1}</div>
               ${sl.resim_url ? `
                 <img src="${escapeHTML(sl.resim_url)}" 
-                  style="width:50px;height:50px;border-radius:8px;object-fit:cover;flex-shrink:0;border:1px solid #e5e7eb;">
+                  style="width:50px;height:50px;border-radius:8px;object-fit:cover;flex-shrink:0;border:1px solid #e5e7eb;pointer-events:none;">
               ` : `<div style="width:50px;height:50px;border-radius:8px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;flex-shrink:0;">🖼️</div>`}
-              <div style="flex:1;min-width:0;">
+              <div style="flex:1;min-width:0;pointer-events:none;">
                 <div style="font-size:12px;font-weight:600;color:#1a1a1a;line-height:1.2;${buAktif?'color:#991b1b;':''}">${escapeHTML(sl.baslik || 'Başlıksız')}</div>
                 ${sl.aciklama ? `<div style="font-size:10px;color:#666;margin-top:2px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHTML(sl.aciklama)}</div>` : ''}
               </div>
@@ -8693,6 +8784,7 @@ function sunumDetayAc(sunumId){
             </div>
           `;
         }).join('')}
+        `}
 
         <!-- + Slide ekle -->
         ${!aktifMi ? `
@@ -8720,13 +8812,145 @@ function sunumDetayAc(sunumId){
   document.body.appendChild(modal);
 }
 
-// Kabin listesini düzenle
-async function sunumKabinDuzenle(sunumId){
+// 🎯 SLIDE SÜRÜKLE-BIRAK FONKSİYONLARI
+let _sunumDragIdx = -1;
+
+function sunumSlideDragStart(e, idx){
+  _sunumDragIdx = idx;
+  e.dataTransfer.effectAllowed = 'move';
+  if(e.target.style){
+    e.target.style.opacity = '0.4';
+  }
+}
+
+function sunumSlideDragOver(e){
+  if(e.preventDefault) e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  if(e.currentTarget?.style){
+    e.currentTarget.style.borderTop = '3px solid #9333ea';
+  }
+  return false;
+}
+
+function sunumSlideDragLeave(e){
+  if(e.currentTarget?.style){
+    e.currentTarget.style.borderTop = '';
+  }
+}
+
+function sunumSlideDragEnd(e){
+  // Tüm border'ları temizle, opacity'leri eski haline getir
+  document.querySelectorAll('[data-slide-idx]').forEach(el => {
+    el.style.borderTop = '';
+    el.style.opacity = '1';
+  });
+}
+
+async function sunumSlideDrop(e, sunumId, hedefIdx){
+  if(e.preventDefault) e.preventDefault();
+  if(e.stopPropagation) e.stopPropagation();
+  
+  // Border temizle
+  document.querySelectorAll('[data-slide-idx]').forEach(el => {
+    el.style.borderTop = '';
+    el.style.opacity = '1';
+  });
+  
+  if(_sunumDragIdx < 0 || _sunumDragIdx === hedefIdx) return;
+  
+  const s = SUNUMLAR.find(x => x.id === sunumId);
+  if(!s || !s.slidelar) return;
+  
+  // Array'i yeniden sırala
+  const slidelar = [...s.slidelar];
+  const tasinanSlide = slidelar.splice(_sunumDragIdx, 1)[0];
+  slidelar.splice(hedefIdx, 0, tasinanSlide);
+  s.slidelar = slidelar;
+  
+  _sunumDragIdx = -1;
+  
+  try {
+    await dbUpdate('tur_sunumlari', { id: sunumId }, { 
+      slidelar: slidelar, 
+      updated_at: new Date().toISOString() 
+    });
+    showToast('✓ Slide sırası güncellendi');
+    sunumDetayAc(sunumId);
+  } catch(e){
+    showToast('⚠️ Sıralama kaydedilemedi');
+  }
+  return false;
+}
+
+// Kabin listesini düzenle - GÜZEL MODAL
+function sunumKabinDuzenle(sunumId){
   const s = SUNUMLAR.find(x => x.id === sunumId);
   if(!s) return;
-  const mevcut = (s.kabinler || []).join(', ');
-  const yeni = prompt('Kabinleri düzenle (virgülle ayrılmış):\n\n💡 Jest yapabilirsin — tur almayanları da ekleyebilirsin', mevcut);
-  if(yeni === null) return; // İptal
+  const sid = s.sefer_id;
+  const aktifSefer = VOYAGES.find(v => v.id === sid) || VOYAGES.find(v => v.status !== 'archived' && v.visible);
+  const turlar = TOURS.filter(t => t.seferler && t.seferler.includes(sid));
+  const fallbackTurlar = turlar.length ? turlar : TOURS.filter(t => t.aktif !== false);
+
+  const eski = document.getElementById('sunum-kabin-modal');
+  if(eski) eski.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'sunum-kabin-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e) => { if(e.target.id === 'sunum-kabin-modal') modal.remove(); };
+
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;max-width:500px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#9333ea,#6b21a8);padding:13px 16px;color:white;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-family:'DM Serif Display',serif;font-size:16px;">🏨 Kabin Listesini Düzenle</div>
+            <div style="font-size:11px;opacity:.9;margin-top:2px;">${escapeHTML(s.ad)}</div>
+          </div>
+          <button onclick="document.getElementById('sunum-kabin-modal').remove()" 
+            style="background:rgba(255,255,255,.2);border:none;color:white;font-size:18px;cursor:pointer;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;">×</button>
+        </div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:14px 16px;">
+        <div style="font-size:10px;color:#5b21b6;font-weight:700;margin-bottom:4px;">🏨 KABİNLER (virgülle ayrılmış)</div>
+        <textarea id="sunum-duzenle-kabinler" 
+          style="width:100%;padding:9px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:13px;font-family:'Courier New',monospace;outline:none;resize:vertical;min-height:80px;margin-bottom:8px;">${(s.kabinler||[]).join(', ')}</textarea>
+        
+        ${fallbackTurlar.length > 0 ? `
+          <div style="background:#f5f3ff;border:1.5px dashed #c4b5fd;border-radius:10px;padding:9px;margin-bottom:10px;">
+            <div style="font-size:10px;color:#5b21b6;font-weight:700;margin-bottom:5px;">⚡ HIZLI EKLE: Bir turun TÜM yolcularını ekle</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+              ${fallbackTurlar.map(t => {
+                const kayitliSayi = passengers.filter(p => 
+                  p.sefer === sid && !p.arsivli && p.joinedTours?.includes(t.id)
+                ).length;
+                return `
+                  <button type="button" onclick="sunumDuzenleTurKabinEkle('${t.id}','${sid}')" 
+                    style="padding:4px 8px;background:white;border:1.5px solid #9333ea;color:#5b21b6;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:3px;">
+                    🎫 ${escapeHTML(t.name)} <span style="background:#9333ea;color:white;padding:0 5px;border-radius:8px;font-size:9px;">${kayitliSayi}</span>
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        ` : ''}
+        
+        <div style="display:flex;gap:6px;">
+          <button onclick="document.getElementById('sunum-kabin-modal').remove()" 
+            style="flex:1;padding:10px;background:#f3f4f6;border:1.5px solid #d1d5db;color:#666;border-radius:8px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">İptal</button>
+          <button onclick="sunumKabinKaydet(${sunumId})" 
+            style="flex:1;padding:10px;background:#9333ea;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">✓ Kaydet</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+async function sunumKabinKaydet(sunumId){
+  const s = SUNUMLAR.find(x => x.id === sunumId);
+  if(!s) return;
+  const yeni = document.getElementById('sunum-duzenle-kabinler')?.value || '';
   
   const yeniKabinler = yeni
     .split(/[\s,;\n\t]+/)
@@ -8744,6 +8968,7 @@ async function sunumKabinDuzenle(sunumId){
       updated_at: new Date().toISOString() 
     });
     showToast('✓ ' + yeniKabinler.length + ' kabin güncellendi');
+    document.getElementById('sunum-kabin-modal')?.remove();
     sunumDetayAc(sunumId);
   } catch(e){
     showToast('⚠️ Hata: ' + (e?.message || ''));
