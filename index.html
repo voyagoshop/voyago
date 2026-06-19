@@ -2943,7 +2943,9 @@ async function initDB() {
       pazarlama_izni: y.pazarlama_izni || false,
       ekstra_isimler: y.ekstra_isimler || [],  // Diğer yolcular (ek isimler)
       dogum_tarihleri: y.dogum_tarihleri || { ana: '', ekstra: [] }, // 🎂 Doğum günleri
-      otobus_no: y.otobus_no ? parseInt(y.otobus_no) : null  // 🚌 Sefer bazlı otobüs numarası (integer)
+      otobus_no: y.otobus_no ? parseInt(y.otobus_no) : null,  // 🚌 Sefer bazlı otobüs numarası (integer)
+      giris_sayisi: y.giris_sayisi || 0,  // 📊 Uygulama giriş sayısı
+      son_aktiflik: y.son_aktiflik || null  // 📊 Son aktiflik zamanı
     }));
 
     // 🔥 kontrolDurum'u DB'den geri yükle (sayfa yenilense bile QR/kontrol işaretleri kaybolmasın)
@@ -3182,6 +3184,54 @@ async function saveTurDB(tur) {
 }
 
 // ── DB KAYIT FONKSİYONLARI ──
+// ═══════════════════════════════════════════════
+// 📊 YOLCU AKTİVİTE TAKİBİ
+// ═══════════════════════════════════════════════
+// Her yolcunun giriş sayısı + son aktiflik zamanı
+// En aktif yolcuyu bulup son gün hediye için kullan
+
+async function yolcuAktiviteKaydet(p, yeniGiris){
+  if(!p || !p.kabin) return;
+  const simdi = new Date().toISOString();
+  
+  // Local güncelle
+  if(yeniGiris){
+    p.giris_sayisi = (p.giris_sayisi || 0) + 1;
+  }
+  p.son_aktiflik = simdi;
+
+  // Sık DB yazımını engelle - giriş veya 60sn'de bir
+  try {
+    await sb.from('yolcular').update({
+      giris_sayisi: p.giris_sayisi || 0,
+      son_aktiflik: simdi
+    }).eq('kabin', p.kabin).eq('sefer', p.sefer);
+  } catch(e){
+    // Kolon yoksa sessizce geç (SQL henüz çalıştırılmamış olabilir)
+    console.log('Aktivite kayıt: ' + (e?.message || ''));
+  }
+}
+
+// Şu an aktif yolcu sayısı (son 5 dk)
+function aktifYolcuSayisi(seferId){
+  const simdi = Date.now();
+  const besDk = 5 * 60 * 1000;
+  return passengers.filter(p => {
+    if(p.sefer !== seferId || p.arsivli) return false;
+    if(!p.son_aktiflik) return false;
+    const fark = simdi - new Date(p.son_aktiflik).getTime();
+    return fark < besDk;
+  }).length;
+}
+
+// En aktif yolcular (sıralı)
+function enAktifYolcular(seferId, limit){
+  return passengers
+    .filter(p => p.sefer === seferId && !p.arsivli && (p.giris_sayisi || 0) > 0)
+    .sort((a,b) => (b.giris_sayisi || 0) - (a.giris_sayisi || 0))
+    .slice(0, limit || 10);
+}
+
 async function saveYolcuDB(p) {
   // Kabini varsa kabin+sefer ile, yoksa isim+sefer ile eşleştir
   let mevcut;
@@ -3886,6 +3936,15 @@ function doPL(){
     passengers.push(p);
   }
   CP=p;
+  // 📊 Aktivite kaydı - giriş sayısı + son aktiflik
+  try { if(typeof yolcuAktiviteKaydet === 'function') yolcuAktiviteKaydet(p, true); } catch(e){}
+  // Periyodik aktiflik güncelle (her 60 sn - online göstergesi için)
+  try {
+    if(window._yolcuAktiflikInterval) clearInterval(window._yolcuAktiflikInterval);
+    window._yolcuAktiflikInterval = setInterval(() => {
+      if(CP && typeof yolcuAktiviteKaydet === 'function') yolcuAktiviteKaydet(CP, false);
+    }, 60000);
+  } catch(e){}
   if(eslestirmeMesaji) setTimeout(()=>showToast(eslestirmeMesaji), 1500);
   // WhatsApp grup butonunu kontrol et (sefere göre)
   try {
@@ -9687,12 +9746,173 @@ function renderDashboard(){
       </div>
     </div>
 
+    <!-- 📊 YOLCU AKTİFLİK & LİDERLİK -->
+    ${_dashboardAktiflikHTML(sid)}
+
 
     <!-- Footer info -->
     <div style="text-align:center;padding:8px;color:#aaa;font-size:11px;">
       🔄 Sayfa yenile: ${saatStr} · ${gunBilgisi || 'Bugün'}
     </div>
   `;
+}
+
+// 📊 Dashboard aktiflik + liderlik HTML
+function _dashboardAktiflikHTML(sid){
+  const aktifSayi = aktifYolcuSayisi(sid);
+  const enAktifler = enAktifYolcular(sid, 5);
+  const toplamGirisYapan = passengers.filter(p => p.sefer === sid && !p.arsivli && (p.giris_sayisi||0) > 0).length;
+
+  if(toplamGirisYapan === 0){
+    return `
+      <div style="background:white;border-radius:14px;padding:14px;border:1px solid #f0f0f0;margin-top:14px;">
+        <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+          📊 <span>Yolcu Aktifliği</span>
+        </div>
+        <div style="font-size:12px;color:#999;text-align:center;padding:14px;">
+          Henüz uygulama kullanımı kaydedilmedi
+        </div>
+      </div>
+    `;
+  }
+
+  const madalya = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+
+  return `
+    <div style="background:white;border-radius:14px;padding:14px;border:1px solid #f0f0f0;margin-top:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:6px;">
+          📊 <span>Yolcu Aktifliği</span>
+        </div>
+        <button onclick="aktiflikDetayAc('${sid}')" style="padding:4px 10px;background:#f3f4f6;border:1px solid #e5e7eb;color:#666;border-radius:8px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">Tümünü Gör →</button>
+      </div>
+
+      <!-- Canlı aktiflik -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+        <div style="background:linear-gradient(135deg,#dcfce7,#bbf7d0);border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:22px;font-weight:700;color:#15803d;display:flex;align-items:center;justify-content:center;gap:5px;">
+            <span style="width:8px;height:8px;background:#16a34a;border-radius:50%;display:inline-block;animation:aktifPulse 1.5s ease-in-out infinite;"></span>
+            ${aktifSayi}
+          </div>
+          <div style="font-size:10px;color:#15803d;opacity:.85;margin-top:2px;">ŞU AN AKTİF (5dk)</div>
+        </div>
+        <div style="background:linear-gradient(135deg,#dbeafe,#bfdbfe);border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:22px;font-weight:700;color:#1e40af;">${toplamGirisYapan}</div>
+          <div style="font-size:10px;color:#1e40af;opacity:.85;margin-top:2px;">UYGULAMAYI KULLANAN</div>
+        </div>
+      </div>
+
+      <!-- Liderlik tablosu -->
+      ${enAktifler.length > 0 ? `
+        <div style="font-size:11px;color:#666;font-weight:700;margin-bottom:6px;">🏆 EN AKTİF YOLCULAR</div>
+        ${enAktifler.map((p, i) => {
+          const online = p.son_aktiflik && (Date.now() - new Date(p.son_aktiflik).getTime()) < 5*60*1000;
+          return `
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 9px;background:${i===0?'#fffbeb':'#fafafa'};border:1px solid ${i===0?'#fde68a':'#f0f0f0'};border-radius:8px;margin-bottom:4px;">
+              <div style="font-size:16px;flex-shrink:0;">${madalya[i] || (i+1)}</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:12px;font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:5px;">
+                  ${escapeHTML(p.name)}
+                  ${online ? '<span style="width:7px;height:7px;background:#16a34a;border-radius:50%;display:inline-block;" title="Şu an aktif"></span>' : ''}
+                </div>
+                <div style="font-size:10px;color:#666;margin-top:1px;">Kabin ${escapeHTML(p.kabin || '?')}</div>
+              </div>
+              <div style="text-align:right;flex-shrink:0;">
+                <div style="font-size:14px;font-weight:700;color:#9333ea;">${p.giris_sayisi || 0}</div>
+                <div style="font-size:9px;color:#999;">giriş</div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+
+        <!-- Son gün hediye önerisi -->
+        <div style="margin-top:10px;padding:10px;background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:10px;">
+          <div style="font-size:11px;color:#92400e;font-weight:700;margin-bottom:3px;">🎁 SON GÜN HEDİYE ÖNERİSİ</div>
+          <div style="font-size:11px;color:#78350f;line-height:1.4;">
+            En aktif yolcu <b>${escapeHTML(enAktifler[0].name)}</b> (Kabin ${escapeHTML(enAktifler[0].kabin)}) — ${enAktifler[0].giris_sayisi} giriş.
+            Yolculuğun son günü küçük bir hediye/teşekkür ile ödüllendirebilirsin! 🏆
+          </div>
+        </div>
+      ` : ''}
+    </div>
+    <style>
+      @keyframes aktifPulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.4; transform: scale(1.3); }
+      }
+    </style>
+  `;
+}
+
+// Aktiflik detay modal (tüm yolcular)
+function aktiflikDetayAc(sid){
+  const tumYolcular = passengers
+    .filter(p => p.sefer === sid && !p.arsivli)
+    .sort((a,b) => (b.giris_sayisi||0) - (a.giris_sayisi||0));
+
+  const eski = document.getElementById('aktiflik-modal');
+  if(eski) eski.remove();
+
+  const v = VOYAGES.find(x => x.id === sid);
+  const aktifSayi = aktifYolcuSayisi(sid);
+
+  const modal = document.createElement('div');
+  modal.id = 'aktiflik-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e) => { if(e.target.id === 'aktiflik-modal') modal.remove(); };
+
+  const madalya = ['🥇', '🥈', '🥉'];
+
+  modal.innerHTML = `
+    <div style="background:white;border-radius:18px;max-width:520px;width:100%;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#9333ea,#6b21a8);padding:14px 18px;color:white;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <div style="font-family:'DM Serif Display',serif;font-size:18px;">📊 Yolcu Aktiflik Sıralaması</div>
+            <div style="font-size:11px;opacity:.9;margin-top:2px;">🟢 ${aktifSayi} aktif · ${escapeHTML(v?.label || sid)}</div>
+          </div>
+          <button onclick="document.getElementById('aktiflik-modal').remove()" 
+            style="background:rgba(255,255,255,.2);border:none;color:white;font-size:18px;cursor:pointer;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;">×</button>
+        </div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:14px 18px;">
+        ${tumYolcular.map((p, i) => {
+          const online = p.son_aktiflik && (Date.now() - new Date(p.son_aktiflik).getTime()) < 5*60*1000;
+          const sonAktif = p.son_aktiflik ? _zamanFarki(p.son_aktiflik) : 'Hiç';
+          const giris = p.giris_sayisi || 0;
+          return `
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:${i<3 && giris>0?'#fffbeb':'#fafafa'};border:1px solid ${i<3 && giris>0?'#fde68a':'#f0f0f0'};border-radius:8px;margin-bottom:5px;">
+              <div style="font-size:15px;width:24px;text-align:center;flex-shrink:0;">${giris>0 && madalya[i] ? madalya[i] : (i+1)}</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:6px;">
+                  ${escapeHTML(p.name)}
+                  ${online ? '<span style="font-size:9px;background:#dcfce7;color:#15803d;padding:1px 6px;border-radius:8px;font-weight:700;">🟢 Aktif</span>' : ''}
+                </div>
+                <div style="font-size:10px;color:#666;margin-top:1px;">Kabin ${escapeHTML(p.kabin || '?')} · Son: ${sonAktif}</div>
+              </div>
+              <div style="text-align:right;flex-shrink:0;">
+                <div style="font-size:16px;font-weight:700;color:${giris>0?'#9333ea':'#ccc'};">${giris}</div>
+                <div style="font-size:9px;color:#999;">giriş</div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+// Zaman farkı formatla
+function _zamanFarki(zaman){
+  const fark = Date.now() - new Date(zaman).getTime();
+  const dk = Math.floor(fark / 60000);
+  if(dk < 1) return 'Az önce';
+  if(dk < 60) return dk + ' dk önce';
+  const saat = Math.floor(dk / 60);
+  if(saat < 24) return saat + ' saat önce';
+  const gun = Math.floor(saat / 24);
+  return gun + ' gün önce';
 }
 
 // ══ GLOBAL ARAMA SİSTEMİ ══
@@ -12823,6 +13043,242 @@ function adminOfflineDataUygula(){
   } catch(e){ return false; }
 }
 
+// ═══════════════════════════════════════════════
+// 📊 SEFER YOLCU RAPORU (gruplar için kullanılır)
+// ═══════════════════════════════════════════════
+function seferYolcuRaporu(seferId){
+  const v = VOYAGES.find(x => x.id === seferId);
+  if(!v){ showToast('⚠️ Sefer bulunamadı'); return; }
+
+  const yolcular = passengers
+    .filter(p => p.sefer === seferId && !p.arsivli)
+    .sort((a,b) => _kabinSiraKarsi(a.kabin, b.kabin));
+
+  if(!yolcular.length){ showToast('⚠️ Bu seferde yolcu yok'); return; }
+
+  const seferTurlari = TOURS.filter(t => t.seferler && t.seferler.includes(seferId));
+
+  // İstatistikler
+  const toplamKisi = yolcular.reduce((s, p) => s + (p.adult||0)+(p.child||0)+(p.baby||0), 0);
+  const checkedIn = yolcular.filter(p => p.checkedIn).length;
+  const telVar = yolcular.filter(p => p.tel?.trim()).length;
+  const turAlanlar = yolcular.filter(p => p.joinedTours && p.joinedTours.length > 0).length;
+
+  // Tur bazlı sayılar
+  const turSayilari = {};
+  seferTurlari.forEach(t => {
+    turSayilari[t.id] = yolcular.filter(p => p.joinedTours?.includes(t.id)).length;
+  });
+
+  const eski = document.getElementById('sefer-rapor-modal');
+  if(eski) eski.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'sefer-rapor-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:stretch;justify-content:center;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e) => { if(e.target.id === 'sefer-rapor-modal') modal.remove(); };
+
+  modal.innerHTML = `
+    <div style="background:white;width:100%;max-width:760px;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.4);overflow:hidden;">
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,#9333ea,#6b21a8);padding:14px 18px;color:white;flex-shrink:0;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-family:'DM Serif Display',serif;font-size:18px;">📊 Yolcu Raporu</div>
+            <div style="font-size:11px;opacity:.9;margin-top:3px;">${escapeHTML(v.label)}${v.ship?' · '+escapeHTML(v.ship):''}</div>
+          </div>
+          <button onclick="document.getElementById('sefer-rapor-modal').remove()" 
+            style="background:rgba(255,255,255,.2);border:none;color:white;font-size:18px;cursor:pointer;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
+        </div>
+      </div>
+
+      <!-- Aksiyon butonları -->
+      <div style="padding:10px 16px;background:#fafafa;border-bottom:1px solid #f0f0f0;display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0;">
+        <button onclick="seferRaporKopyala('${seferId}')" 
+          style="padding:7px 12px;background:#16a34a;color:white;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 Kopyala (Grup için)</button>
+        <button onclick="seferRaporExcel('${seferId}')" 
+          style="padding:7px 12px;background:#1a5fa8;color:white;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">📥 Excel İndir</button>
+        <button onclick="window.print()" 
+          style="padding:7px 12px;background:#666;color:white;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">🖨️ Yazdır</button>
+      </div>
+
+      <div style="flex:1;overflow-y:auto;padding:14px 16px;">
+        <!-- Özet kartları -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px;">
+          <div style="background:#dbeafe;border-radius:8px;padding:9px;text-align:center;">
+            <div style="font-size:18px;font-weight:700;color:#1e40af;">${yolcular.length}</div>
+            <div style="font-size:9px;color:#1e40af;opacity:.85;">KABİN</div>
+          </div>
+          <div style="background:#dcfce7;border-radius:8px;padding:9px;text-align:center;">
+            <div style="font-size:18px;font-weight:700;color:#15803d;">${toplamKisi}</div>
+            <div style="font-size:9px;color:#15803d;opacity:.85;">KİŞİ</div>
+          </div>
+          <div style="background:#fef3c7;border-radius:8px;padding:9px;text-align:center;">
+            <div style="font-size:18px;font-weight:700;color:#92400e;">${telVar}</div>
+            <div style="font-size:9px;color:#92400e;opacity:.85;">TELEFONLU</div>
+          </div>
+          <div style="background:#f3e8ff;border-radius:8px;padding:9px;text-align:center;">
+            <div style="font-size:18px;font-weight:700;color:#7c3aed;">${turAlanlar}</div>
+            <div style="font-size:9px;color:#7c3aed;opacity:.85;">TUR ALAN</div>
+          </div>
+        </div>
+
+        <!-- Tur dağılımı -->
+        ${seferTurlari.length > 0 ? `
+          <div style="margin-bottom:14px;">
+            <div style="font-size:11px;color:#666;font-weight:700;margin-bottom:6px;">🎫 TUR DAĞILIMI</div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;">
+              ${seferTurlari.map(t => `
+                <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:6px 10px;font-size:11px;">
+                  <b style="color:#1a1a1a;">${escapeHTML(t.name)}</b>
+                  <span style="color:#7c3aed;font-weight:700;margin-left:4px;">${turSayilari[t.id]||0}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Yolcu listesi - detaylı -->
+        <div style="font-size:11px;color:#666;font-weight:700;margin-bottom:6px;">👥 YOLCU DETAYLARI (${yolcular.length})</div>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:11px;">
+            <thead>
+              <tr style="background:#f3f4f6;">
+                <th style="padding:7px 8px;text-align:left;border-bottom:2px solid #e5e7eb;white-space:nowrap;">Kabin</th>
+                <th style="padding:7px 8px;text-align:left;border-bottom:2px solid #e5e7eb;">İsim</th>
+                <th style="padding:7px 8px;text-align:left;border-bottom:2px solid #e5e7eb;white-space:nowrap;">Telefon</th>
+                <th style="padding:7px 8px;text-align:center;border-bottom:2px solid #e5e7eb;">Kişi</th>
+                <th style="padding:7px 8px;text-align:left;border-bottom:2px solid #e5e7eb;">Turlar</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${yolcular.map((p, i) => {
+                const kisi = (p.adult||0)+(p.child||0)+(p.baby||0);
+                const aldigiTurlar = (p.joinedTours || [])
+                  .map(tid => TOURS.find(t => t.id === tid))
+                  .filter(Boolean)
+                  .map(t => t.name);
+                const tumIsimler = [p.name, ...(p.ekstra_isimler || [])];
+                return `
+                  <tr style="border-bottom:1px solid #f0f0f0;background:${i%2===0?'white':'#fafafa'};">
+                    <td style="padding:6px 8px;font-weight:700;color:#1a5fa8;white-space:nowrap;">${escapeHTML(p.kabin || '?')}</td>
+                    <td style="padding:6px 8px;">
+                      <div style="font-weight:600;color:#1a1a1a;">${escapeHTML(p.name)}</div>
+                      ${p.ekstra_isimler && p.ekstra_isimler.length ? `<div style="font-size:9px;color:#666;">+ ${p.ekstra_isimler.map(escapeHTML).join(', ')}</div>` : ''}
+                    </td>
+                    <td style="padding:6px 8px;white-space:nowrap;">${p.tel ? escapeHTML(p.tel) : '<span style="color:#dc2626;">—</span>'}</td>
+                    <td style="padding:6px 8px;text-align:center;">${kisi}</td>
+                    <td style="padding:6px 8px;font-size:10px;color:#444;">${aldigiTurlar.length ? aldigiTurlar.map(escapeHTML).join(', ') : '<span style="color:#999;">-</span>'}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+// Raporu metin olarak kopyala (WhatsApp grup oluşturma için ideal)
+function seferRaporKopyala(seferId){
+  const v = VOYAGES.find(x => x.id === seferId);
+  const yolcular = passengers
+    .filter(p => p.sefer === seferId && !p.arsivli)
+    .sort((a,b) => _kabinSiraKarsi(a.kabin, b.kabin));
+
+  let metin = '📊 ' + (v?.label || seferId) + '\n';
+  if(v?.ship) metin += '🚢 ' + v.ship + '\n';
+  metin += '👥 ' + yolcular.length + ' kabin\n\n';
+
+  yolcular.forEach(p => {
+    const kisi = (p.adult||0)+(p.child||0)+(p.baby||0);
+    const turlar = (p.joinedTours || [])
+      .map(tid => TOURS.find(t => t.id === tid))
+      .filter(Boolean)
+      .map(t => t.name);
+    metin += '🏨 ' + (p.kabin || '?') + ' · ' + p.name + '\n';
+    if(p.tel) metin += '   📞 ' + p.tel + '\n';
+    metin += '   👤 ' + kisi + ' kişi';
+    if(turlar.length) metin += ' · 🎫 ' + turlar.join(', ');
+    metin += '\n\n';
+  });
+
+  // Kopyala
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(metin).then(() => {
+      showToast('📋 Rapor kopyalandı! Grup oluştururken yapıştırabilirsin');
+    }).catch(() => {
+      _raporPanoYedek(metin);
+    });
+  } else {
+    _raporPanoYedek(metin);
+  }
+}
+
+function _raporPanoYedek(metin){
+  // Fallback: textarea oluştur, seç, kopyala
+  const ta = document.createElement('textarea');
+  ta.value = metin;
+  ta.style.cssText = 'position:fixed;top:-9999px;';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); showToast('📋 Rapor kopyalandı!'); }
+  catch(e){ showToast('⚠️ Kopyalanamadı, manuel seç'); }
+  document.body.removeChild(ta);
+}
+
+// Excel/CSV indir
+function seferRaporExcel(seferId){
+  const v = VOYAGES.find(x => x.id === seferId);
+  const yolcular = passengers
+    .filter(p => p.sefer === seferId && !p.arsivli)
+    .sort((a,b) => _kabinSiraKarsi(a.kabin, b.kabin));
+
+  const seferTurlari = TOURS.filter(t => t.seferler && t.seferler.includes(seferId));
+
+  // CSV başlık
+  let csv = 'Kabin,İsim,Ek İsimler,Telefon,Yetişkin,Çocuk,Bebek,Toplam Kişi,Check-in';
+  seferTurlari.forEach(t => { csv += ',' + (t.name || '').replace(/,/g, ' '); });
+  csv += '\n';
+
+  yolcular.forEach(p => {
+    const kisi = (p.adult||0)+(p.child||0)+(p.baby||0);
+    const ekIsim = (p.ekstra_isimler || []).join('; ');
+    const tel = p.tel ? ("'" + p.tel) : ''; // Excel'de tel formatı korunsun
+    csv += [
+      (p.kabin || ''),
+      '"' + (p.name || '').replace(/"/g, '""') + '"',
+      '"' + ekIsim.replace(/"/g, '""') + '"',
+      tel,
+      (p.adult||0),
+      (p.child||0),
+      (p.baby||0),
+      kisi,
+      (p.checkedIn ? 'Evet' : 'Hayır')
+    ].join(',');
+    // Tur sütunları
+    seferTurlari.forEach(t => {
+      csv += ',' + (p.joinedTours?.includes(t.id) ? 'X' : '');
+    });
+    csv += '\n';
+  });
+
+  // BOM ekle (Türkçe karakterler için)
+  const bom = '\uFEFF';
+  const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'yolcu-raporu-' + (v?.label || seferId).replace(/[^a-z0-9]/gi, '_') + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('📥 Excel (CSV) indirildi');
+}
+
 function renderSeferPanel(){
   // Aktif = arşivlenmemiş tüm seferler (gizli olsalar bile aktifte görün, gözleyebilelim)
   const aktif=VOYAGES.filter(v=>v.status!=='archived');
@@ -12841,6 +13297,7 @@ function renderSeferPanel(){
               <div style="font-size:11px;color:var(--t2);margin-top:2px;">${v.ship||''} ${v.startDate?'· '+v.startDate:''} ${v.endDate?'→ '+v.endDate:''}</div>
             </div>
             <div style="display:flex;gap:5px;flex-wrap:wrap;">
+              <button onclick="seferYolcuRaporu('${v.id}')" style="padding:4px 10px;border-radius:20px;font-size:11px;border:1.5px solid #9333ea;color:#9333ea;background:transparent;cursor:pointer;font-weight:600;">📊 Yolcu Raporu</button>
               <button onclick="toggleVoyageVisible('${v.id}')" style="padding:4px 10px;border-radius:20px;font-size:11px;border:1.5px solid ${v.visible?'var(--green)':'var(--amber)'};color:${v.visible?'var(--green)':'var(--amber)'};background:transparent;cursor:pointer;font-weight:600;">${v.visible?'👁️ Görünür':'🚫 Gizli'}</button>
               <button onclick="seferDuzenle('${v.id}')" style="padding:4px 10px;border-radius:20px;font-size:11px;border:1.5px solid var(--blue);color:var(--blue);background:transparent;cursor:pointer;">Düzenle</button>
               <button onclick="seferKapatBaslat('${v.id}')" style="padding:4px 10px;border-radius:20px;font-size:11px;border:1.5px solid #d97706;color:#d97706;background:transparent;cursor:pointer;font-weight:500;">🏁 Seferi Kapat</button>
@@ -12864,6 +13321,7 @@ function renderSeferPanel(){
               <div style="font-size:11px;color:var(--t3);">${v.ship||''} ${v.startDate?'· '+v.startDate:''}</div>
             </div>
             <div style="display:flex;gap:5px;flex-wrap:wrap;">
+              <button onclick="seferYolcuRaporu('${v.id}')" style="padding:5px 12px;border-radius:20px;font-size:11px;background:#9333ea;color:white;border:none;cursor:pointer;font-weight:600;">📊 Rapor</button>
               <button onclick="unarchiveVoyage('${v.id}')" style="padding:5px 12px;border-radius:20px;font-size:11px;background:#16a34a;color:white;border:none;cursor:pointer;font-weight:600;">↩️ Geri Al</button>
               <button onclick="deleteVoyageDB('${v.id}')" style="padding:4px 10px;border-radius:20px;font-size:11px;border:1.5px solid var(--red);color:var(--red);background:transparent;cursor:pointer;">Sil</button>
             </div>
