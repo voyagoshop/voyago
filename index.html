@@ -3201,8 +3201,11 @@ async function saveTurDB(tur) {
 // Her yolcunun giriş sayısı + son aktiflik zamanı
 // En aktif yolcuyu bulup son gün hediye için kullan
 
+let _aktiviteKolonuYok = false; // Kolon yoksa bir daha deneme
+
 async function yolcuAktiviteKaydet(p, yeniGiris){
   if(!p || !p.kabin) return;
+  if(_aktiviteKolonuYok) return; // Kolon yoksa hiç deneme
   const simdi = new Date().toISOString();
   
   // Local güncelle
@@ -3211,14 +3214,24 @@ async function yolcuAktiviteKaydet(p, yeniGiris){
   }
   p.son_aktiflik = simdi;
 
-  // Sık DB yazımını engelle - giriş veya 60sn'de bir
+  // DB'ye yaz - hata olursa (kolon yok) bir daha deneme
   try {
-    await sb.from('yolcular').update({
+    const { error } = await sb.from('yolcular').update({
       giris_sayisi: p.giris_sayisi || 0,
       son_aktiflik: simdi
     }).eq('kabin', p.kabin).eq('sefer', p.sefer);
+    
+    if(error){
+      // Kolon yok hatası (400) → bu özelliği devre dışı bırak
+      const msg = (error.message || '').toLowerCase();
+      if(msg.includes('column') || msg.includes('giris_sayisi') || msg.includes('son_aktiflik') || error.code === 'PGRST204'){
+        _aktiviteKolonuYok = true;
+        console.log('[AKTİVİTE] Kolonlar yok, özellik devre dışı. SQL çalıştırın.');
+      } else {
+        console.log('Aktivite kayıt: ' + (error.message || ''));
+      }
+    }
   } catch(e){
-    // Kolon yoksa sessizce geç (SQL henüz çalıştırılmamış olabilir)
     console.log('Aktivite kayıt: ' + (e?.message || ''));
   }
 }
