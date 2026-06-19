@@ -838,6 +838,10 @@ textarea.ai2{resize:none;}
         <span id="hosgeldin-devam-sayac" style="opacity:.8;margin-left:6px;font-size:13px;"></span>
         <div id="hosgeldin-progress" style="position:absolute;bottom:0;left:0;height:3px;background:rgba(255,255,255,.5);width:0;transition:width .1s linear;"></div>
       </button>
+      <!-- ⚡ Hızlı Gezinme: internet/DB yavaşsa kayıtlı bilgiyle anında gir -->
+      <button onclick="hizliGezinme()" style="width:100%;padding:11px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;border:none;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:6px;">
+        ⚡ Hızlı Gezinme (Beklemeden Gir)
+      </button>
       <button onclick="yeniGiris()" style="width:100%;padding:9px;background:transparent;color:#6b6b6b;border:1.5px solid #e0e0e0;border-radius:10px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:6px;">
         🔄 Farklı bir hesapla giriş yap
       </button>
@@ -3763,6 +3767,24 @@ function showScreen(id){
   // Sabit dil butonu sadece giriş ekranlarında görünsün
   const fixedDil=document.getElementById('fixed-dil-wrapper');
   if(fixedDil) fixedDil.style.display=(id==='sl'||id==='sal')?'block':'none';
+  // 📝 Admin giriş ekranı açılınca son kullanıcı adını doldur (form görünürse)
+  if(id==='sal'){
+    setTimeout(() => {
+      const form = document.getElementById('admin-giris-form');
+      const au = document.getElementById('au');
+      // Form görünür ve kullanıcı adı boşsa doldur
+      if(form && form.style.display !== 'none' && au && !au.value){
+        try {
+          const sonK = localStorage.getItem('voyago_son_kullanici');
+          if(sonK){
+            au.value = sonK;
+            const ap = document.getElementById('ap');
+            if(ap) ap.focus(); // Direkt şifreye odaklan
+          }
+        } catch(e){}
+      }
+    }, 100);
+  }
 }
 
 function getDailyForSefer(sid){
@@ -4694,6 +4716,8 @@ async function doAL(){
   if(!USERS[u]||USERS[u].pass!==p){err.style.display='block';return;}
   err.style.display='none';
   CU={key:u,...USERS[u]};
+  // 📝 Kullanıcı adını HER ZAMAN hatırla (şifre hariç) - bir daha yazmasın
+  try{ localStorage.setItem('voyago_son_kullanici', u); }catch(e){}
   // "Beni Hatırla" tickbox'ı (default açık)
   const hatirla = document.getElementById('au-hatirla')?.checked !== false;
   if(hatirla){
@@ -20314,7 +20338,7 @@ async function adminDevamEt(){
 
 // Admin - farklı kullanıcıyla giriş (formu göster, kayıt sil)
 function adminFarkliHesap(){
-  // Kayıtları sil
+  // Otomatik giriş kayıtlarını sil (ama "son kullanıcı adı"nı koru)
   try{ localStorage.removeItem('voyago_admin'); }catch(e){}
   try{ document.cookie = 'voyago_admin=; max-age=0; path=/'; }catch(e){}
   // Kartı gizle, formu göster
@@ -20322,12 +20346,21 @@ function adminFarkliHesap(){
   const form = document.getElementById('admin-giris-form');
   if(kart) kart.style.display = 'none';
   if(form) form.style.display = 'block';
-  // Form input'larını temizle
+  // 📝 Form input'ları: kullanıcı adını DOLDUR, sadece şifre boş
   const au = document.getElementById('au');
   const ap = document.getElementById('ap');
-  if(au) au.value = '';
-  if(ap) ap.value = '';
-  if(au) au.focus();
+  let sonKullanici = '';
+  try { sonKullanici = localStorage.getItem('voyago_son_kullanici') || ''; } catch(e){}
+  if(au){
+    au.value = sonKullanici;  // Kullanıcı adı hatırlanır
+  }
+  if(ap) ap.value = '';  // Şifre her zaman boş
+  // Kullanıcı adı varsa direkt şifreye odaklan, yoksa kullanıcı adına
+  if(sonKullanici && ap){
+    ap.focus();
+  } else if(au){
+    au.focus();
+  }
 }
 
 // Admin - tam çıkış (kayıtları temizle)
@@ -20500,6 +20533,90 @@ function checkHosgeldin() {
     if(progressEl){ progressEl.style.transition = ''; progressEl.style.width = '0'; }
   } catch(e) {
     console.log('checkHosgeldin hata:', e);
+  }
+}
+
+// ⚡ HIZLI GEZİNME - DB/internet beklemeden kayıtlı bilgiyle anında gir
+async function hizliGezinme(){
+  try {
+    const kayit = yolcuKayitOku();
+    if(!kayit || !kayit.kabin){
+      showToast('⚠️ Kayıtlı bilgi yok, normal giriş yapın');
+      yeniGiris();
+      return;
+    }
+
+    showToast('⚡ Hızlı giriş yapılıyor...');
+
+    // VOYAGES'ten seferi bul, yoksa kayıttan minimal oluştur
+    let v = VOYAGES.find(x => x.id === kayit.sefer);
+    if(!v){
+      v = {
+        id: kayit.sefer,
+        label: kayit.seferAdi || kayit.sefer,
+        ship: kayit.gemi || '',
+        visible: true, status: 'active',
+        startDate: '', endDate: ''
+      };
+    }
+
+    // Yolcuyu bul veya kayıttan oluştur
+    let yolcu = passengers.find(px => px.kabin === kayit.kabin && px.sefer === kayit.sefer);
+    if(!yolcu){
+      yolcu = {
+        name: kayit.name, kabin: kayit.kabin, tel: kayit.tel,
+        sefer: kayit.sefer, adult: kayit.adult||1, child: kayit.child||0, baby: kayit.baby||0,
+        checkedIn: true, checkinDone: true, joinedTours: [],
+        tur_katilim_detay: {}
+      };
+      passengers.push(yolcu);
+    }
+    CP = yolcu;
+
+    // 📊 Aktivite kaydı (kim kullanıyor takibi için)
+    try { if(typeof yolcuAktiviteKaydet === 'function') yolcuAktiviteKaydet(yolcu, true); } catch(e){}
+
+    // Temel UI'yı doldur
+    const aklEl = document.getElementById('akl');
+    if(aklEl) aklEl.textContent = 'Kabin ' + kayit.kabin;
+    const shipEl = document.getElementById('app-ship-name');
+    if(shipEl) shipEl.textContent = v.ship || '';
+
+    const dateEl = document.getElementById('app-date-pill');
+    if(dateEl){
+      const tarih = v.startDate && v.endDate
+        ? new Date(v.startDate).toLocaleDateString('tr-TR',{day:'numeric',month:'short'}) + ' – ' + new Date(v.endDate).toLocaleDateString('tr-TR',{day:'numeric',month:'short'})
+        : (kayit.seferAdi || '');
+      dateEl.textContent = tarih;
+    }
+
+    // Sayfaları render et (mevcut verilerle)
+    try { renderPassTours(kayit.sefer); } catch(e){}
+    try { renderProgramPage(kayit.sefer); } catch(e){}
+    try { renderYemekPage(kayit.sefer); } catch(e){}
+    try { renderGazete(); } catch(e){}
+
+    // Ana ekrana geç
+    showScreen('app');
+
+    // 🔄 Arka planda DB'yi yükle, gelince taze veriyle güncelle
+    if(!DB_READY || VOYAGES.length === 0){
+      setTimeout(async () => {
+        try {
+          if(typeof loadVoyagesFromDB === 'function') await loadVoyagesFromDB();
+          // Yolcu verilerini tazele
+          const tazeyolcu = passengers.find(px => px.kabin === kayit.kabin && px.sefer === kayit.sefer);
+          if(tazeyolcu){
+            CP = tazeyolcu;
+            renderPassTours(kayit.sefer);
+          }
+        } catch(e){}
+      }, 500);
+    }
+  } catch(e){
+    console.log('Hızlı gezinme: ' + (e?.message || ''));
+    showToast('⚠️ Hata, normal giriş deneyin');
+    yeniGiris();
   }
 }
 
