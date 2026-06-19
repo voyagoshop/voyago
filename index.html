@@ -26541,6 +26541,63 @@ function yolcuKabinKontrol(){
   _yolcuKabinTimer = setTimeout(_yolcuKabinKontrolUygula, 250);
 }
 
+// ⚡ Önceden giriş yapmış kabin - sahibiyse direkt gir (beklemeden)
+async function oncedenGirisDevam(kabin, sid){
+  const yolcu = passengers.find(p =>
+    p.kabin && p.kabin.toString().trim().toUpperCase() === kabin.toUpperCase() &&
+    p.sefer === sid && !p.arsivli
+  );
+  if(!yolcu){ showToast('⚠️ Yolcu bulunamadı'); return; }
+
+  showToast('⚡ Giriş yapılıyor...');
+
+  // CP'yi set et
+  CP = yolcu;
+  yolcu.checkedIn = true;
+  yolcu.checkinDone = true;
+
+  // Sefer bilgisi
+  let v = VOYAGES.find(x => x.id === sid);
+  if(!v){
+    v = { id: sid, label: sid, ship: '', visible: true, status: 'active', startDate:'', endDate:'' };
+  }
+
+  // Tarayıcıya kaydet (sonraki girişler için)
+  const yolcuKayit = {
+    name: yolcu.name, kabin: yolcu.kabin, tel: yolcu.tel,
+    sefer: sid, adult: yolcu.adult, child: yolcu.child, baby: yolcu.baby,
+    seferAdi: v.label || '', gemi: v.ship || ''
+  };
+  try { localStorage.setItem('voyago_yolcu', JSON.stringify(yolcuKayit)); } catch(e){}
+  try {
+    document.cookie = 'voyago_yolcu=' + encodeURIComponent(JSON.stringify(yolcuKayit)) + '; max-age=' + (90*24*60*60) + '; path=/; SameSite=Lax';
+  } catch(e){}
+
+  // 📊 Aktivite kaydı
+  try { if(typeof yolcuAktiviteKaydet === 'function') yolcuAktiviteKaydet(yolcu, true); } catch(e){}
+
+  // UI doldur
+  const aklEl = document.getElementById('akl');
+  if(aklEl) aklEl.textContent = 'Kabin ' + kabin;
+  const shipEl = document.getElementById('app-ship-name');
+  if(shipEl) shipEl.textContent = v.ship || '';
+  const dateEl = document.getElementById('app-date-pill');
+  if(dateEl){
+    dateEl.textContent = v.startDate && v.endDate
+      ? new Date(v.startDate).toLocaleDateString('tr-TR',{day:'numeric',month:'short'}) + ' – ' + new Date(v.endDate).toLocaleDateString('tr-TR',{day:'numeric',month:'short'})
+      : (v.label || '');
+  }
+
+  // Sayfaları render et
+  try { renderPassTours(sid); } catch(e){}
+  try { renderProgramPage(sid); } catch(e){}
+  try { renderYemekPage(sid); } catch(e){}
+  try { renderGazete(); } catch(e){}
+
+  // Ana ekrana geç
+  showScreen('app');
+}
+
 function _yolcuKabinKontrolUygula(){
   const kabinInp = document.getElementById('lk');
   const ipucu = document.getElementById('yolcu-manifest-ipucu');
@@ -26568,12 +26625,24 @@ function _yolcuKabinKontrolUygula(){
   );
 
   if(yapmis){
-    // Bu kabin zaten check-in yapmış (başka biri tarafından)
+    // Bu kabin zaten check-in yapmış (başka biri tarafından veya kendisi)
     ipucu.style.display = 'block';
     ipucu.style.background = '#fef3c7';
     ipucu.style.borderColor = '#f59e0b';
     ipucu.style.color = '#92400e';
-    ipucu.innerHTML = `⚠️ Bu kabin önceden giriş yaptı. Sizseniz aynı bilgilerle devam edin, değilseniz rehbere danışın.`;
+    // Form alanlarını otomatik doldur (devam edebilsin)
+    const nameInpY = document.getElementById('ln');
+    if(nameInpY && !nameInpY.value.trim()) nameInpY.value = yapmis.name || '';
+    const telInpY = document.getElementById('lt');
+    if(telInpY && !telInpY.value.trim() && yapmis.tel) telInpY.value = yapmis.tel;
+    ipucu.innerHTML = `
+      ⚠️ <b>Bu kabin önceden giriş yaptı.</b><br>
+      <span style="font-size:11px;">Bu kabin sizinse aşağıdaki butona dokunup devam edin. Değilseniz rehbere danışın.</span>
+      <button onclick="oncedenGirisDevam('${escapeHTML(yapmis.kabin).replace(/'/g,"\\'")}','${sid}')" 
+        style="width:100%;margin-top:8px;padding:11px;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;">
+        ✓ Bu kabin benim, devam et
+      </button>
+    `;
     return;
   }
 
