@@ -3222,14 +3222,10 @@ async function yolcuAktiviteKaydet(p, yeniGiris){
     }).eq('kabin', p.kabin).eq('sefer', p.sefer);
     
     if(error){
-      // Kolon yok hatası (400) → bu özelliği devre dışı bırak
-      const msg = (error.message || '').toLowerCase();
-      if(msg.includes('column') || msg.includes('giris_sayisi') || msg.includes('son_aktiflik') || error.code === 'PGRST204'){
-        _aktiviteKolonuYok = true;
-        console.log('[AKTİVİTE] Kolonlar yok, özellik devre dışı. SQL çalıştırın.');
-      } else {
-        console.log('Aktivite kayıt: ' + (error.message || ''));
-      }
+      // HERHANGI bir hata → bu özelliği devre dışı bırak (400, kolon yok vs.)
+      // Aktivite takibi opsiyonel, hata vermesin
+      _aktiviteKolonuYok = true;
+      console.log('[AKTİVİTE] Devre dışı (kolon eksik olabilir): ' + (error.message || error.code || ''));
     }
   } catch(e){
     console.log('Aktivite kayıt: ' + (e?.message || ''));
