@@ -2505,7 +2505,7 @@ textarea.ai2{resize:none;}
     </div>
 
     <button class="kars-btn" onclick="karsilamaKapat()">
-      ⚓ Anladım, Maceraya Başlayalım!
+      👆 Lütfen buraya dokunun, yolculuğunuz başlasın · Devam
     </button>
 
     <div class="kars-iyi-yolculuklar">
@@ -2872,6 +2872,23 @@ async function initDB() {
   GEMI_PLANLARI.length = 0;
   passengers.length = 0;
   try {
+    // 🚀 ÖNCELİK: Seferleri İLK yükle (yolcu giriş ekranı dropdown'ı için)
+    // Limanda QR okutan yolcu sefer seçimini hemen görsün
+    try {
+      const seferlerErken = await dbGet('seferler');
+      VOYAGES = seferlerErken.map(s => ({
+        id: s.id, label: s.etiket, route: s.guzergah || '',
+        ship: s.gemi || '', guide: s.rehber_adi || '',
+        status: s.durum || 'active', visible: s.gorunur !== false,
+        startDate: s.baslangic || '', endDate: s.bitis || '',
+        otobusler: (s.otobus_duzeni?.otobusler) || [],
+        flash_etkinlik: s.flash_etkinlik || null
+      }));
+      // Dropdown'ı HEMEN doldur
+      if(typeof populateSeferler === 'function') populateSeferler();
+      console.log('[HIZLI] Seferler erken yüklendi: ' + VOYAGES.length);
+    } catch(e){ console.log('Erken sefer: ' + (e?.message||'')); }
+
     // Kullanıcıları yükle
     const kullanicilar = await dbGet('kullanicilar');
     kullanicilar.forEach(u => {
@@ -2899,18 +2916,8 @@ async function initDB() {
       if (!TUR_URUNLERI[a.anahtar]) TUR_URUNLERI[a.anahtar] = [];
     });
 
-    // Seferleri yükle
-    const seferlerDB = await dbGet('seferler');
-    VOYAGES = seferlerDB.map(s => ({
-      id: s.id, label: s.etiket, route: s.guzergah || '',
-      ship: s.gemi || '', guide: s.rehber_adi || '',
-      status: s.durum || 'active', visible: s.gorunur !== false,
-      startDate: s.baslangic || '', endDate: s.bitis || '',
-      // 🚌 Otobüs düzeni (sefer altında)
-      otobusler: (s.otobus_duzeni?.otobusler) || [],
-      // ⭐ Günün etkinliği (Flash event)
-      flash_etkinlik: s.flash_etkinlik || null
-    }));
+    // Seferler zaten erken yüklendi (yukarıda) - tekrar yükleme gereksiz
+    // (VOYAGES dolu, dropdown hazır)
 
     // Yolcuları yükle (arşivli olanlar da DB'de durur — rapor için)
     let yolcularDB = [];
@@ -3777,6 +3784,23 @@ function populateSeferler(){
   const s=document.getElementById('lsf');
   if(!s) return;
 
+  // 🔄 VOYAGES henüz yüklenmediyse "bekleyin" göster
+  if(!VOYAGES || VOYAGES.length === 0){
+    s.innerHTML = '<option value="">⏳ Seferler yükleniyor, lütfen bekleyin...</option>';
+    s.disabled = true;
+    // 1 saniye sonra tekrar dene (DB'den gelmesini bekle)
+    if(!window._seferYuklemeDeneme) window._seferYuklemeDeneme = 0;
+    if(window._seferYuklemeDeneme < 15){
+      window._seferYuklemeDeneme++;
+      setTimeout(() => populateSeferler(), 700);
+    } else {
+      s.innerHTML = '<option value="">Sefer bulunamadı — sayfayı yenileyin</option>';
+    }
+    return;
+  }
+  s.disabled = false;
+  window._seferYuklemeDeneme = 0;
+
   // 🗓️ Tarih bazlı filtreleme + sıralama
   const bugun = new Date();
   bugun.setHours(0,0,0,0);
@@ -4047,10 +4071,13 @@ function doPL(){
   }, _yolcuYazmaGecikme);
   console.log('[CHECK-IN] DB kayıt ' + Math.round(_yolcuYazmaGecikme) + 'ms sonra yapılacak');
   // Tarayıcıya kaydet — bir sonraki ziyarette otomatik giriş
+  const _seferObj = VOYAGES.find(v => v.id === p.sefer);
   const yolcuKayit = {
     name: p.name, kabin: p.kabin, tel: p.tel,
     sefer: p.sefer, adult: p.adult, child: p.child, baby: p.baby,
-    code: document.getElementById('cc').value
+    code: document.getElementById('cc').value,
+    seferAdi: _seferObj?.label || '',  // Offline için sefer adı
+    gemi: _seferObj?.ship || ''  // Offline için gemi adı
   };
   try {
     localStorage.setItem('voyago_yolcu', JSON.stringify(yolcuKayit));
@@ -20419,9 +20446,30 @@ function checkHosgeldin() {
     // Sefer hâlâ aktif mi?
     const v = VOYAGES.find(v => v.id === p.sefer && v.visible && v.status !== 'archived');
     if (!v) {
-      // Geçersiz sefer - kayıtları temizle
-      try { localStorage.removeItem('voyago_yolcu'); } catch(e){}
-      try { document.cookie = 'voyago_yolcu=; max-age=0; path=/'; } catch(e){}
+      // ⚠️ DİKKAT: VOYAGES boşsa (internet/DB henüz gelmemiş) → kaydı SİLME!
+      // Sadece VOYAGES dolu VE sefer gerçekten yoksa temizle
+      if(VOYAGES.length > 0){
+        const seferVarMi = VOYAGES.some(vv => vv.id === p.sefer);
+        if(!seferVarMi){
+          // Sefer gerçekten silinmiş/arşivlenmiş
+          try { localStorage.removeItem('voyago_yolcu'); } catch(e){}
+          try { document.cookie = 'voyago_yolcu=; max-age=0; path=/'; } catch(e){}
+          return;
+        }
+      }
+      // VOYAGES boş VEYA sefer hâlâ var (gizli) → kartı yine de göster, kaydı koru
+      // Hoşgeldin kartını göster (kayıtlı bilgiyle)
+      const adFb = p.name ? p.name.split(' ')[0] : '';
+      const hosKartiEl = document.getElementById('hosgeldin-karti');
+      const formKartiEl = document.getElementById('giris-form-karti');
+      if(hosKartiEl && formKartiEl){
+        document.getElementById('hosgeldin-ad').textContent = 'Tekrar merhaba, ' + adFb + '! 👋';
+        document.getElementById('hosgeldin-detay').textContent = 'Kabin ' + p.kabin;
+        const yaziElFb = document.getElementById('hosgeldin-devam-yazi');
+        if(yaziElFb && adFb) yaziElFb.textContent = '✓ ' + adFb + ' olarak devam et';
+        hosKartiEl.style.display = 'block';
+        formKartiEl.style.display = 'none';
+      }
       return;
     }
 
@@ -20464,17 +20512,47 @@ async function devamEt() {
     const p = yolcuKayitOku();
     if (!p) { yeniGiris(); return; }
 
-    // DB hazır değilse bekle (max 8 saniye, sonra yedekle devam)
-    if(!DB_READY){
+    // DB hazır değilse bekle (max 10 saniye)
+    if(!DB_READY || VOYAGES.length === 0){
       const baslangic = Date.now();
-      while(!DB_READY && (Date.now() - baslangic) < 8000){
-        await new Promise(r=>setTimeout(r, 100));
+      while((!DB_READY || VOYAGES.length === 0) && (Date.now() - baslangic) < 10000){
+        await new Promise(r=>setTimeout(r, 150));
+        // Arada VOYAGES'i yüklemeyi dene
+        if(VOYAGES.length === 0 && typeof loadVoyagesFromDB === 'function'){
+          try { await loadVoyagesFromDB(); } catch(e){}
+        }
       }
-      // Hâlâ hazır değilse arka planda devam, kullanıcıyı bekletme
     }
 
-    const v = VOYAGES.find(v => v.id === p.sefer && v.visible && v.status !== 'archived');
-    if (!v) { yeniGiris(); return; }
+    // Seferi bul
+    let v = VOYAGES.find(v => v.id === p.sefer && v.visible && v.status !== 'archived');
+    
+    // ⚠️ Sefer bulunamadı ama KAYIT VAR → yeni girişe ATMA!
+    // VOYAGES henüz yüklenmemiş olabilir (yavaş internet) veya sefer geçici gizli olabilir
+    if (!v) {
+      // Arşivlenmemiş herhangi bir eşleşme var mı? (visible olmasa bile)
+      v = VOYAGES.find(vv => vv.id === p.sefer && vv.status !== 'archived');
+      
+      if(!v){
+        // VOYAGES tamamen boşsa (internet sorunu) → kayıtla devam et, minimal sefer oluştur
+        if(VOYAGES.length === 0){
+          console.log('[DEVAM] VOYAGES boş ama kayıt var → kayıtlı bilgiyle devam');
+          v = { id: p.sefer, label: p.seferAdi || p.sefer, ship: p.gemi || '', visible: true, status: 'active', startDate:'', endDate:'' };
+        } else {
+          // VOYAGES dolu ama sefer gerçekten yok (arşivlenmiş/silinmiş)
+          // Yine de yolcuyu atmadan önce uyar
+          const eminMisin = VOYAGES.some(vv => vv.id === p.sefer);
+          if(!eminMisin){
+            // Sefer gerçekten silinmiş - artık yeni giriş gerekli
+            showToast('⚠️ Önceki seferiniz sona ermiş. Lütfen yeni sefer seçin.');
+            yeniGiris();
+            return;
+          }
+          // Arşivlenmiş ama duruyor - kayıtla devam
+          v = VOYAGES.find(vv => vv.id === p.sefer);
+        }
+      }
+    }
 
     let yolcu = passengers.find(px => px.kabin === p.kabin && px.sefer === p.sefer);
     if (!yolcu) {
