@@ -20609,8 +20609,14 @@ async function hizliGezinme(){
     try { renderYemekPage(kayit.sefer); } catch(e){}
     try { renderGazete(); } catch(e){}
 
-    // Ana ekrana geç
-    showScreen('app');
+    // app-yolcu-adi güncelle
+    try {
+      const adEl = document.getElementById('app-yolcu-adi');
+      if(adEl) adEl.textContent = (kayit.name||'').split(' ')[0] || 'Hoş geldiniz';
+    } catch(e){}
+
+    // Ana ekrana geç (yolcu ana ekranı = 'sa')
+    showScreen('sa');
 
     // 🔄 Arka planda DB'yi yükle, gelince taze veriyle güncelle
     if(!DB_READY || VOYAGES.length === 0){
@@ -26594,8 +26600,14 @@ async function oncedenGirisDevam(kabin, sid){
   try { renderYemekPage(sid); } catch(e){}
   try { renderGazete(); } catch(e){}
 
-  // Ana ekrana geç
-  showScreen('app');
+  // app-yolcu-adi da güncelle (varsa)
+  try {
+    const adEl = document.getElementById('app-yolcu-adi');
+    if(adEl) adEl.textContent = (yolcu.name||'').split(' ')[0] || 'Hoş geldiniz';
+  } catch(e){}
+
+  // Ana ekrana geç (yolcu ana ekranı = 'sa')
+  showScreen('sa');
 }
 
 function _yolcuKabinKontrolUygula(){
