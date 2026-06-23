@@ -1071,6 +1071,8 @@ textarea.ai2{resize:none;}
     <div id="tab-program" class="tp active">
       <!-- 🌅 Akıllı Karşılama Banner -->
       <div id="akilli-karsilama"></div>
+      <!-- ⭐ Öne Çıkan Aktiviteler -->
+      <div id="one-cikan-area"></div>
       <!-- 🚌 Yolcu Otobüs Bilgisi -->
       <div id="yolcu-otobus-karti"></div>
       <!-- 🗺️ Sefer Haritası -->
@@ -1459,6 +1461,9 @@ textarea.ai2{resize:none;}
 
       <div class="daily-section">
         <div class="daily-title">Günün Programı <span>+ Aktivite Ekle</span></div>
+        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:11px;color:#92400e;line-height:1.4;">
+          ⭐ <b>Öne Çıkar:</b> İşaretlediğin aktiviteler yolcunun ilk açtığı ana ekranda renkli kartlarda gösterilir. En fazla 4 tanesi görünür.
+        </div>
         <div id="program-items"></div>
         <button class="add-item-btn" onclick="addProgramItem()">+ Aktivite Ekle</button>
         <button class="save-daily-btn" onclick="saveProgram()">Kaydet</button>
@@ -4198,8 +4203,105 @@ function doPL(){
 }
 
 // ── PROGRAM SAYFASI ──
+// ⭐ Öne çıkan aktiviteler - yolcu ana ekranı
+function renderOneCikanlar(sv){
+  const area = document.getElementById('one-cikan-area');
+  if(!area) return;
+  const d = getDailyForSefer(sv);
+  const program = d.program || [];
+
+  // Öne çıkan işaretli aktiviteler (max 4)
+  const oneCikanlar = program.filter(item => item.oneCikan && item.title).slice(0, 4);
+
+  if(oneCikanlar.length === 0){ area.innerHTML = ''; return; }
+
+  // Renk paleti - her kart farklı renk
+  const renkler = [
+    {bg:'linear-gradient(135deg,#0d3b6e,#1a5fa8)', ikon:'🌟'},
+    {bg:'linear-gradient(135deg,#9333ea,#6b21a8)', ikon:'🎭'},
+    {bg:'linear-gradient(135deg,#dc2626,#991b1b)', ikon:'🔥'},
+    {bg:'linear-gradient(135deg,#16a34a,#15803d)', ikon:'✨'}
+  ];
+
+  area.innerHTML = `
+    <div style="margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;padding:0 2px;">
+        <span style="font-size:16px;">⭐</span>
+        <span style="font-family:'DM Serif Display',serif;font-size:16px;color:var(--t);">Bugün Kaçırma</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        ${oneCikanlar.map((item, i) => {
+          const renk = renkler[i % renkler.length];
+          return `
+            <div onclick="oneCikanDetay(${i})" style="background:${renk.bg};border-radius:14px;padding:0;overflow:hidden;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.15);position:relative;min-height:${item.img?'140px':'105px'};display:flex;flex-direction:column;">
+              ${item.img ? `
+                <div style="height:75px;overflow:hidden;position:relative;">
+                  <img src="${item.img}" style="width:100%;height:100%;object-fit:cover;">
+                  <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.4),transparent);"></div>
+                </div>
+              ` : `
+                <div style="padding:10px 12px 0;font-size:24px;">${renk.ikon}</div>
+              `}
+              <div style="padding:8px 11px 11px;color:white;flex:1;display:flex;flex-direction:column;justify-content:flex-end;">
+                ${item.time ? `<div style="font-size:10px;opacity:.9;font-weight:600;margin-bottom:2px;">⏰ ${escapeHTML(item.time)}</div>` : ''}
+                <div style="font-size:13px;font-weight:700;line-height:1.2;">${escapeHTML(item.title)}</div>
+                ${item.sub ? `<div style="font-size:10px;opacity:.85;margin-top:2px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📍 ${escapeHTML(item.sub)}</div>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// Öne çıkan aktivite detayı (tıklayınca)
+function oneCikanDetay(idx){
+  if(!CP) return;
+  const d = getDailyForSefer(CP.sefer);
+  const oneCikanlar = (d.program || []).filter(item => item.oneCikan && item.title).slice(0, 4);
+  const item = oneCikanlar[idx];
+  if(!item) return;
+
+  document.getElementById('one-cikan-detay-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'one-cikan-detay-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:flex-end;justify-content:center;font-family:"DM Sans",sans-serif;backdrop-filter:blur(4px);';
+  modal.onclick = (e) => { if(e.target.id === 'one-cikan-detay-modal') modal.remove(); };
+
+  modal.innerHTML = `
+    <div style="background:white;border-radius:24px 24px 0 0;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;animation:sesPopIn .3s ease;">
+      ${item.img ? `
+        <div style="height:200px;overflow:hidden;position:relative;">
+          <img src="${item.img}" onclick="lightboxAc('${item.img}')" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;">
+          <button onclick="document.getElementById('one-cikan-detay-modal').remove()" style="position:absolute;top:14px;right:14px;background:rgba(0,0,0,.5);border:none;width:34px;height:34px;border-radius:50%;color:white;font-size:18px;cursor:pointer;">✕</button>
+        </div>
+      ` : `
+        <div style="display:flex;justify-content:flex-end;padding:14px 14px 0;">
+          <button onclick="document.getElementById('one-cikan-detay-modal').remove()" style="background:#f3f4f6;border:none;width:34px;height:34px;border-radius:50%;color:#666;font-size:18px;cursor:pointer;">✕</button>
+        </div>
+      `}
+      <div style="padding:18px 20px 28px;">
+        <div style="display:inline-flex;align-items:center;gap:5px;background:#fef3c7;color:#92400e;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;margin-bottom:10px;">⭐ Öne Çıkan Etkinlik</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:24px;color:#1a1a1a;line-height:1.2;margin-bottom:10px;">${escapeHTML(item.title)}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+          ${item.time ? `<span style="background:#dbeafe;color:#1e40af;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;">⏰ ${escapeHTML(item.time)}</span>` : ''}
+          ${item.sub ? `<span style="background:#dcfce7;color:#15803d;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;">📍 ${escapeHTML(item.sub)}</span>` : ''}
+        </div>
+        <button onclick="document.getElementById('one-cikan-detay-modal').remove();switchTab('program');" style="width:100%;padding:13px;background:linear-gradient(135deg,#0d3b6e,#1a5fa8);color:white;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          📋 Tüm Günlük Programı Gör
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
 function renderProgramPage(sv){
   const d=getDailyForSefer(sv);
+
+  // ⭐ Öne çıkan aktiviteleri render et
+  try { renderOneCikanlar(sv); } catch(e){}
 
   // 🌅 Akıllı karşılama + 🗺️ Sefer haritası render et
   try { if(typeof renderAkilliKarsilama === 'function') renderAkilliKarsilama(sv); } catch(e){}
@@ -5497,13 +5599,16 @@ function renderProgramForm(items){
                <input type="file" accept="image/*" style="display:none;" onchange="programResimEkle(${i},this)">
              </label>`
         }
-        <span style="font-size:10px;color:var(--t3);">Opsiyonel — yolcu ekranında görünür</span>
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:4px 10px;background:${item.oneCikan?'#fef3c7':'transparent'};border:1.5px solid ${item.oneCikan?'#f59e0b':'var(--border)'};border-radius:8px;font-size:11px;color:${item.oneCikan?'#92400e':'var(--t2)'};font-weight:${item.oneCikan?'700':'400'};">
+          <input type="checkbox" ${item.oneCikan?'checked':''} onchange="programItems[${i}].oneCikan=this.checked;renderProgramForm(programItems);" style="width:15px;height:15px;cursor:pointer;">
+          ⭐ Öne Çıkar
+        </label>
       </div>
     </div>`).join('');
 }
 let programItems=[];
 function addProgramItem(){
-  programItems.push({time:'',title:'',sub:'',badge:'',badgeClass:'bg',img:null});
+  programItems.push({time:'',title:'',sub:'',badge:'',badgeClass:'bg',img:null,oneCikan:false});
   renderProgramForm(programItems);
 }
 function updateProgramItem(i,key,val){if(programItems[i])programItems[i][key]=val;}
