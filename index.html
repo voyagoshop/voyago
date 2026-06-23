@@ -10127,6 +10127,101 @@ function renderDashboard(){
 }
 
 // 📊 Dashboard aktiflik + liderlik HTML
+// 🔍 Aktiflik sistemi tanı - neden boş?
+async function aktiflikTaniYap(sid){
+  showToast('🔍 Kontrol ediliyor...');
+  let rapor = [];
+
+  // 1. Bu seferin yolcu sayısı
+  const seferYolculari = passengers.filter(p => p.sefer === sid && !p.arsivli);
+  rapor.push('📋 Bu seferde ' + seferYolculari.length + ' yolcu var');
+
+  // 2. DB'den kolon kontrolü - bir yolcuyu test et
+  let kolonVar = false;
+  let dbHata = '';
+  try {
+    const { data, error } = await sb.from('yolcular')
+      .select('kabin, giris_sayisi, son_aktiflik')
+      .eq('sefer', sid)
+      .limit(1);
+    if(error){
+      dbHata = error.message || 'Bilinmeyen hata';
+      if((error.message||'').includes('column') || error.code === '42703' || error.code === 'PGRST204'){
+        rapor.push('❌ SQL kolonları EKSİK!');
+        rapor.push('Çözüm: Aşağıdaki SQL\'i Supabase\'de çalıştır');
+      } else {
+        rapor.push('⚠️ DB hatası: ' + dbHata);
+      }
+    } else {
+      kolonVar = true;
+      rapor.push('✅ SQL kolonları mevcut');
+      // Kaç yolcuda giriş var?
+      const girisli = (data||[]).filter(y => (y.giris_sayisi||0) > 0).length;
+      const { data: tumData } = await sb.from('yolcular')
+        .select('giris_sayisi')
+        .eq('sefer', sid)
+        .gt('giris_sayisi', 0);
+      rapor.push('📊 DB\'de ' + (tumData?.length||0) + ' yolcuda giriş kaydı var');
+    }
+  } catch(e){
+    rapor.push('⚠️ Bağlantı hatası: ' + (e?.message||''));
+  }
+
+  // 3. _aktiviteKolonuYok flag durumu
+  if(_aktiviteKolonuYok){
+    rapor.push('⚠️ Aktivite takibi devre dışı bırakılmıştı (önceki hata)');
+    rapor.push('Sayfayı yenileyince tekrar denenir');
+  }
+
+  // Modal göster
+  document.getElementById('aktiflik-tani-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'aktiflik-tani-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:18px;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e) => { if(e.target.id === 'aktiflik-tani-modal') modal.remove(); };
+
+  const sqlGerekli = !kolonVar;
+
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;max-width:440px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+      <div style="background:linear-gradient(135deg,#1a5fa8,#0d3b6e);padding:14px 18px;color:white;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-family:'DM Serif Display',serif;font-size:17px;">🔍 Aktiflik Tanısı</div>
+          <button onclick="document.getElementById('aktiflik-tani-modal').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;font-size:18px;cursor:pointer;width:30px;height:30px;border-radius:50%;">×</button>
+        </div>
+      </div>
+      <div style="padding:16px 18px;">
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+          ${rapor.map(r => `<div style="font-size:13px;color:#1a1a1a;line-height:1.4;padding:8px 10px;background:#fafafa;border-radius:8px;">${r}</div>`).join('')}
+        </div>
+        ${sqlGerekli ? `
+          <div style="background:#fef3c7;border:1.5px solid #fde68a;border-radius:10px;padding:12px;">
+            <div style="font-size:12px;color:#92400e;font-weight:700;margin-bottom:8px;">📋 Bu SQL'i Supabase'de çalıştır:</div>
+            <div style="background:#1a1a1a;border-radius:8px;padding:10px;font-family:'Courier New',monospace;font-size:10px;color:#4ade80;line-height:1.6;overflow-x:auto;white-space:pre;">ALTER TABLE yolcular ADD COLUMN IF NOT EXISTS giris_sayisi INT DEFAULT 0;
+ALTER TABLE yolcular ADD COLUMN IF NOT EXISTS son_aktiflik TIMESTAMPTZ;
+ALTER TABLE yolcular ADD COLUMN IF NOT EXISTS toplam_sure INT DEFAULT 0;</div>
+            <button onclick="aktiflikSqlKopyala()" style="width:100%;margin-top:8px;padding:8px;background:#92400e;color:white;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 SQL'i Kopyala</button>
+          </div>
+        ` : `
+          <div style="background:#dcfce7;border:1.5px solid #bbf7d0;border-radius:10px;padding:12px;font-size:12px;color:#15803d;line-height:1.5;">
+            ✅ Sistem çalışıyor! Yolcular uygulamaya giriş yaptıkça sayılar artacak. Eğer hâlâ boşsa, henüz kimse giriş yapmamış demektir.
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function aktiflikSqlKopyala(){
+  const sql = `ALTER TABLE yolcular ADD COLUMN IF NOT EXISTS giris_sayisi INT DEFAULT 0;
+ALTER TABLE yolcular ADD COLUMN IF NOT EXISTS son_aktiflik TIMESTAMPTZ;
+ALTER TABLE yolcular ADD COLUMN IF NOT EXISTS toplam_sure INT DEFAULT 0;`;
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(sql).then(()=>showToast('📋 SQL kopyalandı!')).catch(()=>{});
+  }
+}
+
 function _dashboardAktiflikHTML(sid){
   const aktifSayi = aktifYolcuSayisi(sid);
   const enAktifler = enAktifYolcular(sid, 5);
@@ -10138,9 +10233,13 @@ function _dashboardAktiflikHTML(sid){
         <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
           📊 <span>Yolcu Aktifliği</span>
         </div>
-        <div style="font-size:12px;color:#999;text-align:center;padding:14px;">
-          Henüz uygulama kullanımı kaydedilmedi
+        <div style="font-size:12px;color:#999;text-align:center;padding:14px;line-height:1.5;">
+          Henüz uygulama kullanımı kaydedilmedi.<br>
+          <span style="font-size:11px;">Yolcular giriş yaptıkça burada görünür.</span>
         </div>
+        <button onclick="aktiflikTaniYap('${sid}')" style="width:100%;padding:8px;background:#f3f4f6;border:1px solid #e5e7eb;color:#666;border-radius:8px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          🔍 Neden boş? (Kontrol et)
+        </button>
       </div>
     `;
   }
@@ -21036,6 +21135,15 @@ async function devamEt() {
       }
     }
     CP = yolcu;
+
+    // 📊 Aktivite kaydı - giriş sayısı + son aktiflik (devamEt yoluyla giriş)
+    try { if(typeof yolcuAktiviteKaydet === 'function') yolcuAktiviteKaydet(yolcu, true); } catch(e){}
+    try {
+      if(window._yolcuAktiflikInterval) clearInterval(window._yolcuAktiflikInterval);
+      window._yolcuAktiflikInterval = setInterval(() => {
+        if(CP && typeof yolcuAktiviteKaydet === 'function') yolcuAktiviteKaydet(CP, false);
+      }, 60000);
+    } catch(e){}
 
     document.getElementById('akl').textContent = 'Kabin ' + p.kabin;
     document.getElementById('app-ship-name').textContent = v.ship || '';
