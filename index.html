@@ -1595,6 +1595,39 @@ textarea.ai2{resize:none;}
           <div><label class="fl" style="margin-bottom:3px;">Maks. Kişi (0=sınırsız)</label><input class="ai2" type="number" id="nt-max-kisi" placeholder="40" style="margin:0;"></div>
           <div><label class="fl" style="margin-bottom:3px;">Uyarı Eşiği (kalan)</label><input class="ai2" type="number" id="nt-uyari-esigi" placeholder="5" style="margin:0;" value="5"></div>
         </div>
+
+        <!-- 🎯 TUR DETAYLARI (Yolcuya gösterilir) -->
+        <div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:10px;padding:10px;margin-top:10px;">
+          <div style="font-size:11px;color:#0369a1;font-weight:700;margin-bottom:8px;">🎯 TUR DETAYLARI (Yolcunun "Benim Turum" ekranında görünür)</div>
+          
+          <label class="fl" style="margin-bottom:3px;">📍 Toplanma Yeri</label>
+          <input class="ai2" type="text" id="nt-toplanma-yeri" placeholder="Örn: Kat 9 Martini Bar" style="margin:0 0 8px 0;">
+          
+          <div class="two">
+            <div>
+              <label class="fl" style="margin-bottom:3px;">👕 Kıyafet</label>
+              <input class="ai2" type="text" id="nt-kiyafet" placeholder="Rahat ayakkabı, şapka" style="margin:0;">
+            </div>
+            <div>
+              <label class="fl" style="margin-bottom:3px;">🥾 Yürüyüş Zorluğu</label>
+              <select class="fs" id="nt-zorluk" style="height:40px;">
+                <option value="">Seçiniz</option>
+                <option value="kolay">🟢 Kolay</option>
+                <option value="orta">🟡 Orta</option>
+                <option value="zorlu">🔴 Zorlu</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px;background:white;border-radius:8px;">
+            <input type="checkbox" id="nt-pasaport" style="width:18px;height:18px;cursor:pointer;">
+            <label for="nt-pasaport" style="font-size:13px;color:#1a1a1a;cursor:pointer;">🛂 Pasaport gerekli (yolcuya hatırlatılır)</label>
+          </div>
+
+          <label class="fl" style="margin-bottom:3px;margin-top:8px;">📝 Rehber Notu (yolcuya özel mesaj)</label>
+          <textarea id="nt-rehber-notu" placeholder="Örn: Su şişenizi yanınıza alın, öğle yemeği dahil değildir..." style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;min-height:55px;resize:vertical;box-sizing:border-box;"></textarea>
+        </div>
+
             <input type="file" id="tur-img-input" accept="image/*" style="display:none;" onchange="previewTurImg(this)">
           </div>
         </div>
@@ -3042,7 +3075,13 @@ async function initDB() {
       aktif: t.aktif !== false,
       uyari_mesaji: t.uyari_mesaji || '',
       uyari_aktif: t.uyari_aktif || false,
-      sira: t.sira != null ? t.sira : 999
+      sira: t.sira != null ? t.sira : 999,
+      // 🎯 Tur detayları (JSONB'den)
+      toplanma_yeri: t.detaylar?.toplanma_yeri || '',
+      kiyafet: t.detaylar?.kiyafet || '',
+      zorluk: t.detaylar?.zorluk || '',
+      pasaport_gerekli: t.detaylar?.pasaport_gerekli || false,
+      rehber_notu: t.detaylar?.rehber_notu || ''
     }));
 
     // Günlük içerikleri yükle
@@ -3185,7 +3224,15 @@ async function saveTurDB(tur) {
     aktif: tur.aktif !== false,
     uyari_mesaji: tur.uyari_mesaji || '',
     uyari_aktif: tur.uyari_aktif || false,
-    sira: tur.sira != null ? tur.sira : 999
+    sira: tur.sira != null ? tur.sira : 999,
+    // 🎯 Tur detayları (JSONB - tek alan)
+    detaylar: {
+      toplanma_yeri: tur.toplanma_yeri || '',
+      kiyafet: tur.kiyafet || '',
+      zorluk: tur.zorluk || '',
+      pasaport_gerekli: tur.pasaport_gerekli || false,
+      rehber_notu: tur.rehber_notu || ''
+    }
   };
   if(mevcut.length > 0) {
     await dbUpdate('turlar', {id: tur.id}, veri);
@@ -3796,18 +3843,42 @@ function showScreen(id){
   }
 }
 
+// 🍽️ GLOBAL yemek saatleri - tüm seferlerde aynı kalır
+let GLOBAL_YEMEK = null;
+function getGlobalYemek(){
+  if(GLOBAL_YEMEK) return GLOBAL_YEMEK;
+  // localStorage'dan oku
+  try {
+    const ls = localStorage.getItem('voyago_global_yemek');
+    if(ls){ GLOBAL_YEMEK = JSON.parse(ls); return GLOBAL_YEMEK; }
+  } catch(e){}
+  // Varsayılan
+  GLOBAL_YEMEK = [
+    {icon:'🍽️',name:'Ana Restoran',floor:'Güverte 5',meals:[{name:'Kahvalti',time:'07:00 - 10:00'},{name:'Ögle',time:'12:00 - 14:30'},{name:'Aksam',time:'18:30 - 21:30'}]},
+    {icon:'☀️',name:'Lido Açik Büfe',floor:'Güverte 9',meals:[{name:'Kahvalti',time:'06:30 - 10:30'},{name:'Ögle',time:'11:30 - 15:00'},{name:'Gece',time:'23:00 - 01:00'}]},
+    {icon:'☕',name:'Kafe & Bar',floor:'Güverte 7',meals:[{name:'Kahve & içecek',time:'24 saat'}]},
+  ];
+  return GLOBAL_YEMEK;
+}
+function saveGlobalYemek(yemekArr){
+  GLOBAL_YEMEK = yemekArr;
+  try { localStorage.setItem('voyago_global_yemek', JSON.stringify(yemekArr)); } catch(e){}
+  // DB'ye de yaz (cihazlar arası senkron için)
+  try {
+    sb.from('ayarlar').upsert({ anahtar: 'global_yemek', deger: yemekArr }, { onConflict: 'anahtar' }).then(()=>{}).catch(()=>{});
+  } catch(e){}
+}
+
 function getDailyForSefer(sid){
   if(!DAILY[sid]) DAILY[sid]={
     port:{name:'',country:'',arival:'',depart:''},
     program:[],
     promos:[],
-    yemek:[
-      {icon:'🍽️',name:'Ana Restoran',floor:'Güverte 5',meals:[{name:'Kahvalti',time:'07:00 - 10:00'},{name:'Ögle',time:'12:00 - 14:30'},{name:'Aksam',time:'18:30 - 21:30'}]},
-      {icon:'☀️',name:'Lido Açik Büfe',floor:'Güverte 9',meals:[{name:'Kahvalti',time:'06:30 - 10:30'},{name:'Ögle',time:'11:30 - 15:00'},{name:'Gece',time:'23:00 - 01:00'}]},
-      {icon:'☕',name:'Kafe & Bar',floor:'Güverte 7',meals:[{name:'Kahve & içecek',time:'24 saat'}]},
-    ],
+    yemek:getGlobalYemek(),  // 🍽️ Global yemek saatleri
     meeting:{saat:'',yer:'',konu:''}
   };
+  // Yemek her zaman global'den gelsin (sefer bazlı override yok)
+  DAILY[sid].yemek = getGlobalYemek();
   return DAILY[sid];
 }
 
@@ -4496,7 +4567,23 @@ function renderPassTours(sv){
     return String(a.id).localeCompare(String(b.id));
   });
   if(!tours.length){el.innerHTML='<div class="no-data" style="margin-top:10px;">Henüz tur eklenmemis.</div>';return;}
-  el.innerHTML=tours.map(t=>{
+
+  // 🎯 BENİM TURUM - yolcunun katıldığı turların detayı (en üstte)
+  const benimTurlarim = tours.filter(t => p.joinedTours.includes(t.id));
+  let benimTurumHtml = '';
+  if(benimTurlarim.length > 0){
+    benimTurumHtml = `
+      <div style="margin-bottom:16px;">
+        <div style="font-family:'DM Serif Display',serif;font-size:17px;color:var(--t);margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+          🎯 Benim Turlarım
+        </div>
+        ${benimTurlarim.map(t => _benimTurumKarti(t)).join('')}
+      </div>
+      <div style="font-size:13px;color:var(--t2);font-weight:600;margin-bottom:8px;">🗺️ Tüm Turlar</div>
+    `;
+  }
+
+  el.innerHTML = benimTurumHtml + tours.map(t=>{
     const j=p.joinedTours.includes(t.id);
     const total=(p.adult*t.ap)+(p.child*t.cp)+(p.baby*t.bp);
     const totalN=(p.adult*(t.apN||0))+(p.child*(t.cpN||0))+(p.baby*(t.bpN||0));
@@ -4532,6 +4619,121 @@ function renderPassTours(sv){
       </div>
     </div>`;
   }).join('');
+}
+
+// 🎯 Benim Turum kartı - detaylı bilgi
+function _benimTurumKarti(t){
+  const zorlukRenk = {kolay:{bg:'#dcfce7',c:'#15803d',i:'🟢',ad:'Kolay'}, orta:{bg:'#fef3c7',c:'#92400e',i:'🟡',ad:'Orta'}, zorlu:{bg:'#fee2e2',c:'#991b1b',i:'🔴',ad:'Zorlu'}};
+  const zor = zorlukRenk[t.zorluk] || null;
+  const tarihStr = t.tarih ? new Date(t.tarih).toLocaleDateString('tr-TR',{weekday:'long',day:'numeric',month:'long'}) : (t.gun?t.gun+'. gün':'');
+
+  return `
+    <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);border-radius:16px;padding:0;margin-bottom:10px;overflow:hidden;box-shadow:0 4px 16px rgba(13,59,110,.25);">
+      <!-- Üst başlık -->
+      <div style="padding:14px 16px 12px;color:white;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:10px;opacity:.85;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">✓ Katıldığınız Tur</div>
+            <div style="font-family:'DM Serif Display',serif;font-size:18px;line-height:1.2;">${escapeHTML(t.name)}</div>
+            <div style="font-size:12px;opacity:.9;margin-top:3px;">📍 ${escapeHTML(t.liman||'')}</div>
+          </div>
+          ${zor ? `<span style="background:${zor.bg};color:${zor.c};padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;flex-shrink:0;">${zor.i} ${zor.ad}</span>` : ''}
+        </div>
+      </div>
+
+      <!-- Detay grid -->
+      <div style="background:white;border-radius:16px 16px 0 0;padding:14px 16px;">
+        <!-- Toplanma -->
+        <div style="display:flex;gap:10px;margin-bottom:12px;">
+          <div style="background:#dbeafe;border-radius:10px;padding:10px 12px;flex:1;text-align:center;">
+            <div style="font-size:9px;color:#1e40af;font-weight:700;margin-bottom:2px;">⏰ TOPLANMA SAATİ</div>
+            <div style="font-size:20px;font-weight:700;color:#0d3b6e;font-family:'DM Serif Display',serif;">${escapeHTML(t.saat||'—')}</div>
+          </div>
+          ${t.toplanma_yeri ? `
+            <div style="background:#dcfce7;border-radius:10px;padding:10px 12px;flex:1.4;">
+              <div style="font-size:9px;color:#15803d;font-weight:700;margin-bottom:2px;">📍 TOPLANMA YERİ</div>
+              <div style="font-size:13px;font-weight:600;color:#14532d;line-height:1.3;">${escapeHTML(t.toplanma_yeri)}</div>
+            </div>
+          ` : ''}
+        </div>
+
+        ${tarihStr ? `<div style="font-size:12px;color:#666;margin-bottom:10px;">📅 ${escapeHTML(tarihStr)}</div>` : ''}
+
+        <!-- Bilgi satırları -->
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          ${t.pasaport_gerekli ? `
+            <div style="display:flex;align-items:center;gap:8px;background:#fef3c7;border-radius:8px;padding:9px 11px;">
+              <span style="font-size:16px;">🛂</span>
+              <span style="font-size:12px;color:#92400e;font-weight:600;">Pasaportunuzu yanınıza almayı unutmayın!</span>
+            </div>
+          ` : ''}
+          ${t.kiyafet ? `
+            <div style="display:flex;align-items:flex-start;gap:8px;padding:4px 2px;">
+              <span style="font-size:15px;flex-shrink:0;">👕</span>
+              <div><span style="font-size:11px;color:#666;font-weight:600;">Kıyafet/Ekipman: </span><span style="font-size:12px;color:#1a1a1a;">${escapeHTML(t.kiyafet)}</span></div>
+            </div>
+          ` : ''}
+          ${t.rehber_notu ? `
+            <div style="background:#f0f9ff;border-left:3px solid #1a5fa8;border-radius:6px;padding:9px 11px;margin-top:2px;">
+              <div style="font-size:10px;color:#0369a1;font-weight:700;margin-bottom:3px;">💬 REHBER NOTU</div>
+              <div style="font-size:12px;color:#1a1a1a;line-height:1.5;">${escapeHTML(t.rehber_notu)}</div>
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- Detay butonu -->
+        <button onclick="turDetayAc('${t.id}')" style="width:100%;margin-top:12px;padding:10px;background:#f3f4f6;border:none;border-radius:10px;font-size:12px;font-weight:600;color:#0d3b6e;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          Tüm Detayları Gör →
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+// Tur detay bilgi bloğu (modal için)
+function _turDetayBilgiBloku(t){
+  const varMi = t.toplanma_yeri || t.kiyafet || t.zorluk || t.pasaport_gerekli || t.rehber_notu;
+  if(!varMi) return '';
+  const zorlukRenk = {kolay:{bg:'#dcfce7',c:'#15803d',i:'🟢',ad:'Kolay yürüyüş'}, orta:{bg:'#fef3c7',c:'#92400e',i:'🟡',ad:'Orta zorluk'}, zorlu:{bg:'#fee2e2',c:'#991b1b',i:'🔴',ad:'Zorlu yürüyüş'}};
+  const zor = zorlukRenk[t.zorluk] || null;
+
+  return `
+    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:14px;margin-bottom:16px;">
+      <div style="font-size:12px;color:#0369a1;font-weight:700;margin-bottom:10px;">📋 TUR BİLGİLERİ</div>
+      <div style="display:flex;flex-direction:column;gap:9px;">
+        ${t.toplanma_yeri ? `
+          <div style="display:flex;align-items:flex-start;gap:9px;">
+            <span style="font-size:16px;flex-shrink:0;">📍</span>
+            <div><div style="font-size:11px;color:#666;font-weight:600;">Toplanma Yeri</div><div style="font-size:13px;color:#1a1a1a;font-weight:500;">${escapeHTML(t.toplanma_yeri)}</div></div>
+          </div>
+        ` : ''}
+        ${zor ? `
+          <div style="display:flex;align-items:flex-start;gap:9px;">
+            <span style="font-size:16px;flex-shrink:0;">🥾</span>
+            <div><div style="font-size:11px;color:#666;font-weight:600;">Yürüyüş Zorluğu</div><div style="display:inline-block;background:${zor.bg};color:${zor.c};padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;margin-top:2px;">${zor.i} ${zor.ad}</div></div>
+          </div>
+        ` : ''}
+        ${t.kiyafet ? `
+          <div style="display:flex;align-items:flex-start;gap:9px;">
+            <span style="font-size:16px;flex-shrink:0;">👕</span>
+            <div><div style="font-size:11px;color:#666;font-weight:600;">Kıyafet / Ekipman</div><div style="font-size:13px;color:#1a1a1a;">${escapeHTML(t.kiyafet)}</div></div>
+          </div>
+        ` : ''}
+        ${t.pasaport_gerekli ? `
+          <div style="display:flex;align-items:center;gap:9px;background:#fef3c7;border-radius:8px;padding:9px 11px;">
+            <span style="font-size:16px;flex-shrink:0;">🛂</span>
+            <div style="font-size:13px;color:#92400e;font-weight:600;">Bu tur için pasaport gereklidir</div>
+          </div>
+        ` : ''}
+        ${t.rehber_notu ? `
+          <div style="background:white;border-left:3px solid #1a5fa8;border-radius:6px;padding:10px 12px;">
+            <div style="font-size:11px;color:#0369a1;font-weight:700;margin-bottom:3px;">💬 Rehber Notu</div>
+            <div style="font-size:13px;color:#1a1a1a;line-height:1.5;">${escapeHTML(t.rehber_notu)}</div>
+          </div>
+        ` : ''}
+      </div>
+    </div>
+  `;
 }
 
 function turDetayAc(tid){
@@ -4588,6 +4790,7 @@ function turDetayAc(tid){
       <span style="background:var(--bl);color:#0c447c;padding:4px 12px;border-radius:20px;font-size:12px;">${t.tarih ? '📅 '+new Date(t.tarih).toLocaleDateString('tr-TR') : (t.gun?t.gun+'. Gün':'')}</span>
     </div>
     ${kapasiteHtml}
+    ${_turDetayBilgiBloku(t)}
     <div style="background:var(--gray);border-radius:12px;padding:14px;margin-bottom:16px;">
       <div style="font-size:12px;color:var(--t2);margin-bottom:8px;">ÜCRET HESABI</div>
       ${det.map(d=>`<div style="font-size:13px;color:var(--t);margin-bottom:3px;">${d}</div>`).join('')}
@@ -5423,15 +5626,14 @@ function removeRestoran(i){yemekData.splice(i,1);renderYemekForm(yemekData);}
 function addMeal(ri){yemekData[ri].meals.push({name:'',time:''});renderYemekForm(yemekData);}
 function removeMeal(ri,mi){yemekData[ri].meals.splice(mi,1);renderYemekForm(yemekData);}
 function saveYemek(){
-  const sv=getCurrentSeferId();if(!sv)return;
   // Collect from DOM
   const restBlocks=document.querySelectorAll('#yemek-items > div');
   const data=[];
   restBlocks.forEach((block,ri)=>{
     const inputs=block.querySelectorAll('input');
+    if(inputs.length < 3) return;
     const icon=inputs[0].value,name=inputs[1].value.trim(),floor=inputs[2].value.trim();
     if(!name)return;
-    const mealRows=block.querySelectorAll('div > div');
     const meals=[];
     block.querySelectorAll('div > div').forEach(row=>{
       const ins=row.querySelectorAll('input');
@@ -5439,11 +5641,13 @@ function saveYemek(){
     });
     data.push({icon,name,floor,meals});
   });
-  const d=getDailyForSefer(sv);
-  d.yemek=yemekData;
-  saveDailyDB(sv);
-  if(CP&&CP.sefer===sv)renderYemekPage(sv);
-  showToast('Yemek saatleri kaydedildi!');
+  // 🍽️ GLOBAL kaydet - tüm seferlerde aynı kalsın
+  saveGlobalYemek(data);
+  // Tüm açık DAILY objelerini güncelle
+  Object.keys(DAILY).forEach(sid => { if(DAILY[sid]) DAILY[sid].yemek = data; });
+  // Yolcu görüntülüyorsa yenile
+  if(CP) renderYemekPage(CP.sefer);
+  showToast('✓ Yemek saatleri kaydedildi (tüm seferlerde geçerli)');
 }
 
 // ── CHECK-IN ──
@@ -11062,6 +11266,12 @@ function turDuzenle(tid){
   const ntbN=document.getElementById('ntb-normal');if(ntbN)ntbN.value=t.bpN||'';
   const mkEl=document.getElementById('nt-max-kisi');if(mkEl)mkEl.value=t.max_kisi||'';
   const ueEl=document.getElementById('nt-uyari-esigi');if(ueEl)ueEl.value=t.uyari_esigi||5;
+  // 🎯 Tur detayları
+  const tyEl=document.getElementById('nt-toplanma-yeri');if(tyEl)tyEl.value=t.toplanma_yeri||'';
+  const kyEl=document.getElementById('nt-kiyafet');if(kyEl)kyEl.value=t.kiyafet||'';
+  const zrEl=document.getElementById('nt-zorluk');if(zrEl)zrEl.value=t.zorluk||'';
+  const psEl=document.getElementById('nt-pasaport');if(psEl)psEl.checked=t.pasaport_gerekli||false;
+  const rnEl=document.getElementById('nt-rehber-notu');if(rnEl)rnEl.value=t.rehber_notu||'';
   if(t.img)document.getElementById('tur-img-preview').innerHTML=`<img src="${t.img}" style="width:100%;height:70px;object-fit:cover;border-radius:8px;">`;
   // Düzenleme moduna geç
   window._editTurId = tid;
@@ -11093,10 +11303,18 @@ function addTourGuncelle(){
   t.bp=parseFloat(document.getElementById('ntb').value)||t.bp;
   t.max_kisi=parseInt(document.getElementById('nt-max-kisi')?.value)||0;
   t.uyari_esigi=parseInt(document.getElementById('nt-uyari-esigi')?.value)||5;
+  // 🎯 Tur detayları
+  t.toplanma_yeri=document.getElementById('nt-toplanma-yeri')?.value.trim()||'';
+  t.kiyafet=document.getElementById('nt-kiyafet')?.value.trim()||'';
+  t.zorluk=document.getElementById('nt-zorluk')?.value||'';
+  t.pasaport_gerekli=document.getElementById('nt-pasaport')?.checked||false;
+  t.rehber_notu=document.getElementById('nt-rehber-notu')?.value.trim()||'';
   if(newTurImg)t.img=newTurImg;
   saveTurDB(t);
   newTurImg=null;
-  ['ntn','ntl','nta','ntc','ntb','nta-normal','ntc-normal','ntb-normal'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['ntn','ntl','nta','ntc','ntb','nta-normal','ntc-normal','ntb-normal','nt-toplanma-yeri','nt-kiyafet','nt-rehber-notu'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const zorlukRst2=document.getElementById('nt-zorluk');if(zorlukRst2)zorlukRst2.value='';
+  const pasRst2=document.getElementById('nt-pasaport');if(pasRst2)pasRst2.checked=false;
   document.getElementById('tur-img-preview').innerHTML='📷 Görsel ekle';
   window._editTurId=null;
   const btn=document.querySelector('[onclick="addTourGuncelle()"]');
@@ -11163,6 +11381,12 @@ function addTour(){
   const sefer=document.getElementById('ntse').value;
   const maxKisi=parseInt(document.getElementById('nt-max-kisi')?.value)||0;
   const uyariEsigi=parseInt(document.getElementById('nt-uyari-esigi')?.value)||5;
+  // 🎯 Tur detayları
+  const toplanmaYeri=document.getElementById('nt-toplanma-yeri')?.value.trim()||'';
+  const kiyafet=document.getElementById('nt-kiyafet')?.value.trim()||'';
+  const zorluk=document.getElementById('nt-zorluk')?.value||'';
+  const pasaportGerekli=document.getElementById('nt-pasaport')?.checked||false;
+  const rehberNotu=document.getElementById('nt-rehber-notu')?.value.trim()||'';
   if(!name||!liman){showToast('Ad ve liman gereklidir.');return;}
   const iS=CU?.role==='super';
   const activeShip=iS?ACTIVE_SHIP:CU?.ship;
@@ -11174,9 +11398,12 @@ function addTour(){
     apN,cpN,bpN,
     ship:activeShip,seferler:sefer?[sefer]:[],img:newTurImg,
     max_kisi:maxKisi,uyari_esigi:uyariEsigi,aktif:true,
+    toplanma_yeri:toplanmaYeri, kiyafet:kiyafet, zorluk:zorluk, pasaport_gerekli:pasaportGerekli, rehber_notu:rehberNotu,
     sira: yeniSira});
   newTurImg=null;
-  ['ntn','ntl','nta','ntc','ntb'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['ntn','ntl','nta','ntc','ntb','nt-toplanma-yeri','nt-kiyafet','nt-rehber-notu'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const zorlukRst=document.getElementById('nt-zorluk');if(zorlukRst)zorlukRst.value='';
+  const pasRst=document.getElementById('nt-pasaport');if(pasRst)pasRst.checked=false;
   const tarihRst=document.getElementById('nttarih');if(tarihRst)tarihRst.value='';
   const mkEl=document.getElementById('nt-max-kisi');if(mkEl)mkEl.value='';
   document.getElementById('tur-img-preview').innerHTML='📷 Görsel ekle';
