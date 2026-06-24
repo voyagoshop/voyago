@@ -2,8 +2,27 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>VOYAGO</title>
+
+<!-- 📱 PWA / Ana Ekrana Ekle -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0d3b6e">
+<meta name="description" content="Cruise yolculuğunuz için dijital rehber">
+
+<!-- iOS - Ana Ekrana Ekle -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="VOYAGO">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png">
+<link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png">
+
+<!-- Favicon -->
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+<link rel="shortcut icon" href="/icon-192.png">
+
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -7159,10 +7178,15 @@ let LB_ONERILER = []; // Modal'daki öneri listesi (geçici)
 async function limanBilgileriYukle(){
   try {
     const { data, error } = await sb.from('liman_bilgileri').select('*').order('liman_adi');
-    if(error){ console.error('Liman yükleme:', error); return; }
+    if(error){ 
+      console.log('Liman yükleme: ' + (error.message || error.code || JSON.stringify(error)));
+      // Tablo yoksa sessizce boş bırak
+      LIMAN_BILGILERI = [];
+      return; 
+    }
     LIMAN_BILGILERI = data || [];
     renderLimanListesi();
-  } catch(e){ console.error('Liman yükleme:', e); }
+  } catch(e){ console.log('Liman yükleme: ' + (e?.message || '')); LIMAN_BILGILERI = []; }
 }
 
 // Liman listesini admin panelde render et
@@ -10682,6 +10706,63 @@ document.addEventListener('keydown', e => {
   }
 });
 
+// 🔍 Check-in listesi tanı detayı
+function checkinTaniDetay(){
+  const iS=CU?.role==='super';
+  const activeShip=iS?ACTIVE_SHIP:CU?.ship;
+  const mvi=VOYAGES.filter(v=>v.ship===activeShip&&v.status!=='archived').map(v=>v.id);
+  
+  let rapor = [];
+  rapor.push('👤 Rol: ' + (CU?.role||'?') + (iS?' (süper)':''));
+  rapor.push('🚢 Aktif gemi: ' + (activeShip||'YOK'));
+  rapor.push('🚢 ACTIVE_SHIP: ' + (typeof ACTIVE_SHIP!=='undefined'?ACTIVE_SHIP:'tanımsız'));
+  rapor.push('📋 Toplam yolcu (DB): ' + passengers.length);
+  rapor.push('📋 Arşivsiz yolcu: ' + passengers.filter(p=>!p.arsivli).length);
+  rapor.push('🛳️ Bu geminin aktif seferleri: ' + mvi.length + (mvi.length?' ('+mvi.join(', ')+')':''));
+  
+  // Tüm seferler ve gemileri
+  rapor.push('');
+  rapor.push('— SEFERLER —');
+  VOYAGES.forEach(v => {
+    const yolcuSayi = passengers.filter(p=>p.sefer===v.id && !p.arsivli).length;
+    const durum = v.status === 'archived' ? '📦arşiv' : (v.visible?'👁️görünür':'🚫gizli');
+    rapor.push((v.ship===activeShip?'➡️ ':'   ') + escapeHTML(v.label||v.id) + ' · ' + escapeHTML(v.ship||'?') + ' · ' + durum + ' · ' + yolcuSayi + ' yolcu');
+  });
+
+  // Yolcuların gemi dağılımı
+  const gemiDagilim = {};
+  passengers.filter(p=>!p.arsivli).forEach(p => {
+    const v = VOYAGES.find(vv=>vv.id===p.sefer);
+    const g = v?.ship || '(sefer bulunamadı: '+p.sefer+')';
+    gemiDagilim[g] = (gemiDagilim[g]||0)+1;
+  });
+  rapor.push('');
+  rapor.push('— YOLCU DAĞILIMI (gemiye göre) —');
+  Object.entries(gemiDagilim).forEach(([g,n]) => {
+    rapor.push((g===activeShip?'➡️ ':'   ') + escapeHTML(g) + ': ' + n + ' yolcu');
+  });
+
+  document.getElementById('checkin-tani-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'checkin-tani-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:18px;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e) => { if(e.target.id === 'checkin-tani-modal') modal.remove(); };
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;max-width:460px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+      <div style="background:linear-gradient(135deg,#1a5fa8,#0d3b6e);padding:14px 18px;color:white;position:sticky;top:0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-family:'DM Serif Display',serif;font-size:17px;">🔍 Check-in Tanısı</div>
+          <button onclick="document.getElementById('checkin-tani-modal').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;font-size:18px;cursor:pointer;width:30px;height:30px;border-radius:50%;">×</button>
+        </div>
+      </div>
+      <div style="padding:16px 18px;">
+        <div style="font-family:'Courier New',monospace;font-size:12px;color:#1a1a1a;line-height:1.7;white-space:pre-wrap;">${rapor.join('\n')}</div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
 function renderPS(s){
   const iS=CU?.role==='super';
   const activeShip=iS?ACTIVE_SHIP:CU?.ship;
@@ -10719,7 +10800,33 @@ function renderPS(s){
   document.getElementById('s-b').textContent=total.length-ci.length;
   document.getElementById('s-k').textContent=kisi;
   const body=document.getElementById('plb');
-  if(!list.length){body.innerHTML='<div class="es">Yolcu bulunamadi.</div>';return;}
+  if(!list.length){
+    // 🔍 TANI: neden boş?
+    const tumYolcu = passengers.length;
+    const aktifYolcu = passengers.filter(p => !p.arsivli).length;
+    const buGemiYolcu = passengers.filter(p => mvi.includes(p.sefer)).length;
+    let taniMsg = '';
+    if(tumYolcu === 0){
+      taniMsg = 'Henüz hiç yolcu kaydı yüklenmemiş.';
+    } else if(mvi.length === 0){
+      taniMsg = 'Aktif sefer bulunamadı.<br><span style="font-size:11px;">Gemi: ' + escapeHTML(activeShip||'?') + '</span>';
+    } else if(buGemiYolcu === 0){
+      taniMsg = 'Bu gemide yolcu yok.<br><span style="font-size:11px;">Toplam ' + tumYolcu + ' yolcu var ama farklı gemilerde/seferlerde.</span>';
+    } else if(s !== 'hepsi'){
+      taniMsg = 'Bu seferde yolcu yok. "Tümü" filtresine geç.';
+    } else if(CIF === 'ci'){
+      taniMsg = 'Henüz check-in yapan yok.';
+    } else if(CIF === 'bk'){
+      taniMsg = 'Bekleyen yolcu yok (hepsi check-in yapmış).';
+    } else if(q){
+      taniMsg = '"' + escapeHTML(q) + '" aramasıyla eşleşen yok.';
+    } else {
+      taniMsg = 'Yolcu bulunamadı.';
+    }
+    body.innerHTML='<div class="es" style="padding:24px 16px;text-align:center;line-height:1.6;">' + taniMsg + 
+      '<br><button onclick="checkinTaniDetay()" style="margin-top:12px;padding:6px 12px;background:#f3f4f6;border:1px solid #e5e7eb;color:#666;border-radius:8px;font-size:11px;cursor:pointer;font-family:\'DM Sans\',sans-serif;">🔍 Detaylı kontrol</button></div>';
+    return;
+  }
   body.innerHTML=list.map(p=>{
     const v=VOYAGES.find(vv=>vv.id===p.sefer);
     const ini=p.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
@@ -14837,7 +14944,8 @@ async function gelecekTurlariYukle(){
   try {
     const { data, error } = await sb.from('gelecek_turlar').select('*').order('sira').order('olusturma', { ascending: false });
     if(error) {
-      console.error('Gelecek turlar yükleme hatası:', error);
+      console.log('Gelecek turlar yükleme: ' + (error.message || error.code || JSON.stringify(error)));
+      GELECEK_TURLAR = [];
       return;
     }
     GELECEK_TURLAR = data || [];

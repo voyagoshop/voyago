@@ -1,11 +1,15 @@
 // VOYAGO Service Worker — Offline Cache + Push Notifications
-const CACHE_NAME = 'voyago-v2-offline';
+const CACHE_NAME = 'voyago-v3-pwa';
 
 // Cache'lenecek temel dosyalar (uygulama iskeleti)
 const STATIC_FILES = [
   './',
   './index.html',
   './sw.js',
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png',
+  './icon-maskable.png',
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
   'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js',
