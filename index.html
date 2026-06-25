@@ -13165,6 +13165,7 @@ async function htkYolcuKaydet(){
     .filter(x => x);
 
   // Yolcuyu güncelle
+  const _eskiTelHtk = (p.tel||'').trim();
   p.name = ad;
   p.kabin = kabin;
   p.tel = tel;
@@ -13172,6 +13173,10 @@ async function htkYolcuKaydet(){
   p.child = c;
   p.baby = b;
   p.ekstra_isimler = ekIsimler;
+  // 📞 Telefon yeni eklendiyse otomatik check-in
+  if((tel||'').trim() && !_eskiTelHtk && (!p.checkedIn || !p.checkinDone)){
+    p.checkedIn = true; p.checkinDone = true;
+  }
 
   try {
     if(typeof saveYolcuDB === 'function') await saveYolcuDB(p);
@@ -17256,19 +17261,38 @@ function hizliDoldurmaTelDuzelt(kabin){
   setTimeout(() => { document.getElementById('hd-tel-input')?.focus(); }, 100);
 }
 
+// ═══════════════════════════════════════════════
+// 📞 TELEFON EKLE + OTOMATİK CHECK-IN (merkezi helper)
+// ═══════════════════════════════════════════════
+// Rehber herhangi bir yerde telefon eklerse, yolcu otomatik check-in olur
+// Böylece yolcu uygulamadan çıkıp girince baştan başlamaz
+async function yolcuTelefonEkleVeCheckin(p, yeniTel){
+  if(!p) return;
+  const tel = (yeniTel || '').trim();
+  p.tel = tel;
+  // 📞 Telefon eklendiyse otomatik check-in yap
+  let checkinYapildi = false;
+  if(tel && (!p.checkedIn || !p.checkinDone)){
+    p.checkedIn = true;
+    p.checkinDone = true;
+    checkinYapildi = true;
+  }
+  try {
+    await saveYolcuDB(p);
+  } catch(e){
+    console.log('Tel+checkin kayıt: ' + (e?.message||''));
+  }
+  return checkinYapildi;
+}
+
 async function hizliDoldurmaTelKaydet(kabin){
   const sid = _hizliDoldurmaSid;
   const inp = document.getElementById('hd-tel-input');
   if(!sid || !inp) return;
   const p = passengers.find(x => !x.arsivli && x.sefer === sid && String(x.kabin).trim() === kabin);
   if(!p) return;
-  p.tel = inp.value.trim();
-  try {
-    await saveYolcuDB(p);
-    showToast('✓ Telefon kaydedildi');
-  } catch(e){
-    showToast('⚠️ Hata: ' + (e?.message || ''));
-  }
+  const checkinYapildi = await yolcuTelefonEkleVeCheckin(p, inp.value);
+  showToast(checkinYapildi ? '✓ Telefon kaydedildi · Check-in yapıldı ✅' : '✓ Telefon kaydedildi');
   document.getElementById('hd-tel-modal')?.remove();
   hizliDoldurmaRender();
 }
@@ -17763,14 +17787,8 @@ async function otobusOnizlemeTelKaydet(kabin, sid, otobusNo){
   const p = passengers.find(x => x.kabin === kabin && x.sefer === sid && !x.arsivli);
   if(!p){ showToast('Yolcu bulunamadı'); return; }
 
-  p.tel = yeniTel;
-  try {
-    await saveYolcuDB(p);
-    showToast(yeniTel ? '✓ Telefon kaydedildi' : '✓ Telefon temizlendi');
-  } catch(e){
-    console.error('Telefon kayıt:', e);
-    showToast('⚠️ Kayıt hatası: ' + e.message);
-  }
+  const checkinYapildi = await yolcuTelefonEkleVeCheckin(p, yeniTel);
+  showToast(yeniTel ? (checkinYapildi ? '✓ Telefon kaydedildi · Check-in yapıldı ✅' : '✓ Telefon kaydedildi') : '✓ Telefon temizlendi');
 
   // Önizlemeyi yenile (input değerini al → yeni veriyle render)
   if(typeof otobusYolcuEkleOnizleme === 'function' && otobusNo){
@@ -19150,6 +19168,7 @@ async function kontrolYolcuKaydet(){
     .filter(x => x);
 
   // Yolcuyu güncelle
+  const _eskiTelKd = (p.tel||'').trim();
   p.name = ad;
   p.kabin = kabin;
   p.tel = tel;
@@ -19157,6 +19176,10 @@ async function kontrolYolcuKaydet(){
   p.child = c;
   p.baby = b;
   p.ekstra_isimler = ekIsimler;
+  // 📞 Telefon yeni eklendiyse otomatik check-in
+  if((tel||'').trim() && !_eskiTelKd && (!p.checkedIn || !p.checkinDone)){
+    p.checkedIn = true; p.checkinDone = true;
+  }
 
   try {
     if(typeof saveYolcuDB === 'function') await saveYolcuDB(p);
@@ -25949,12 +25972,17 @@ async function ydKaydet(){
   const eskiBaby = p.baby || 0;
 
   // Yeni değerler
+  const _eskiTelYd = (p.tel||'').trim();
   p.name = yeniName;
   p.tel = yeniTel;
   p.kabin = yeniKabin;
   p.adult = YD_SECIM.adult;
   p.child = YD_SECIM.child;
   p.baby = YD_SECIM.baby;
+  // 📞 Telefon yeni eklendiyse otomatik check-in
+  if((yeniTel||'').trim() && !_eskiTelYd && (!p.checkedIn || !p.checkinDone)){
+    p.checkedIn = true; p.checkinDone = true;
+  }
 
   // Ek isimleri topla ve kaydet
   const yeniEkIsimler = [];
