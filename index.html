@@ -13510,6 +13510,8 @@ async function loadVoyagesFromDB(){
         ship:s.gemi||'', guide:s.rehber_adi||'',
         status:s.durum||'active', visible:s.gorunur!==false,
         startDate:s.baslangic||'', endDate:s.bitis||'',
+        otobusler: (s.otobus_duzeni?.otobusler) || [],  // 🚌 Otobüs düzeni (KRİTİK - kaydoluyordu ama okunmuyordu)
+        flash_etkinlik: s.flash_etkinlik || null,  // ⭐ Flash etkinlik
         yarisma_kazanan: s.yarisma_kazanan || null,
         yarisma_durumu: s.yarisma_durumu || 'aktif'
       });
