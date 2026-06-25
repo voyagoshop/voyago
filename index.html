@@ -8643,8 +8643,8 @@ async function grupToplaTurEkle(grupId, tid){
       grup_ad: g.ad,
       e_imza: 'Grup toplu kayıt: ' + g.ad,
       zaman: new Date().toISOString(),
-      odeme_durumu: 'bekliyor',
-      odeme_zamani: null
+      odeme_durumu: 'odendi',
+      odeme_zamani: new Date().toISOString()
     };
 
     try { await saveYolcuDB(p); basariliSayi++; }
@@ -12178,8 +12178,8 @@ async function katTopluHepsiniEkle(){
       katilan_isimler: katilan_isimler,  // 👥 Hangi kişiler katılıyor
       e_imza: 'Rehber toplu ekledi',
       zaman: new Date().toISOString(),
-      odeme_durumu: 'bekliyor',
-      odeme_zamani: null
+      odeme_durumu: 'odendi',
+      odeme_zamani: new Date().toISOString()
     };
 
     try {
@@ -12190,7 +12190,7 @@ async function katTopluHepsiniEkle(){
     }
   }
 
-  showToast('✓ ' + basariliSayisi + ' yolcu turla kaydedildi (ödeme bekliyor — düzenlenebilir)');
+  showToast('✓ ' + basariliSayisi + ' yolcu turla kaydedildi (ödendi olarak işaretlendi)');
 
   // State temizle
   _katTopluSecilenIsimler = {};
