@@ -1230,7 +1230,7 @@ textarea.ai2{resize:none;}
         <span style="font-size:9px;font-weight:600;color:var(--blue);">Gemide Ne Nerede</span>
       </button>
       <button class="nb" id="nb-anket" onclick="switchTab('anket')"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h4"/></svg></span><span data-t="anket">Anket</span></button>
-      <button class="nb" id="nb-bildirim" onclick="switchTab('bildirim')"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span><span data-t="bildirim">Bildirim</span></button>
+      <button class="nb" id="nb-bildirim" onclick="switchTab('bildirim')" style="position:relative;"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span id="bildirim-badge" style="display:none;position:absolute;top:-4px;right:-6px;background:#dc2626;color:white;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 4px;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.3);">0</span></span><span data-t="bildirim">Bildirim</span></button>
       <button class="nb" id="nb-gelecek" onclick="switchTab('gelecek')"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 13.9 8.6 19.5 10.5 13.9 12.4 12 18 10.1 12.4 4.5 10.5 10.1 8.6Z"/><path d="M19 14v4M21 16h-4M5 4v3M6.5 5.5h-3"/></svg></span><span style="font-size:9px;">Fırsat Turları</span></button>
       <button class="nb" id="nb-rehber" onclick="switchTab('rehber')"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/></svg></span><span data-t="rehber">Rehber</span></button>
       <button class="nb" id="nb-alisveris" onclick="switchTab('alisveris')"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/></svg></span><span style="font-size:9px;">Alışveriş</span></button>
@@ -3754,16 +3754,30 @@ function startClock(){
           const yeniMesajlar=await dbGet('mesajlar',{sefer_id:CP.sefer});
           const filtred=yeniMesajlar.filter(m=>!m.silindi);
           if(filtred.length>MESAJLAR_DB.length){
+            // Yeni gelen mesajlardan rehberden olanları say (yolcunun kendi mesajı badge artırmasın)
+            const yeniGelenSayi = filtred.length - MESAJLAR_DB.length;
+            const yeniGelenler = filtred.slice(0, yeniGelenSayi);
+            const rehberdenGelen = yeniGelenler.filter(m => m.gonderen_tip !== 'yolcu').length;
             bildirimSesi('mesaj');
             MESAJLAR_DB=filtred;
             renderMesajlar(CP.sefer);
+            // Bildirim sekmesinde değilse badge artır
+            if(rehberdenGelen > 0 && _aktifTab !== 'bildirim' && _aktifTab !== 'rehber'){
+              try { bildirimBadgeArtir(rehberdenGelen); } catch(e){}
+            }
             // Yeni tur anonsu var mı?
             const yeniAnonsAll=await dbGet('tur_anons',{sefer_id:CP.sefer});
             const yeniAnons=yeniAnonsAll.filter(a=>a.aktif!==false);
             if(yeniAnons.length!==TUR_ANONS_DB.length){
+              const anonsArtti = yeniAnons.length > TUR_ANONS_DB.length;
               TUR_ANONS_DB=yeniAnons;
               renderTurAnonsPano(CP.sefer);
-              if(yeniAnons.length>0){bildirimSesi('duyuru');showToast('Yeni tur anonsu geldi! 📢');}
+              if(yeniAnons.length>0){
+                bildirimSesi('duyuru');showToast('Yeni tur anonsu geldi! 📢');
+                if(anonsArtti && _aktifTab !== 'bildirim'){
+                  try { bildirimBadgeArtir(1); } catch(e){}
+                }
+              }
             }
           }
         }catch(e){}
@@ -4134,6 +4148,8 @@ function doPL(){
   renderGsSerit(sv);
   showScreen('sa');
   startClock();
+  // 🔔 Kayıtlı okunmamış bildirim sayısını yükle
+  try{ if(typeof _bildirimBadgeOku === 'function') _bildirimBadgeOku(); }catch(e){}
   // 🌤️ Hava durumu yükle
   try{ if(typeof havaDurumBaslat==='function') havaDurumBaslat(sv); }catch(e){console.log('hava:', e);}
   // ⭐ Flash etkinlik popup kontrolü (eğer rehber yayınladıysa)
@@ -13378,6 +13394,69 @@ function sendApp(){
   if(!t||!b){showToast('Baslik ve mesaj gereklidir.');return;}
   pushNotif(t,b);showToast(getActiveNums().length+' yolcuya bildirim gönderildi');
 }
+// ═══════════════════════════════════════════════
+// 🔔 BİLDİRİM BADGE SİSTEMİ (app ikonu + sekme)
+// ═══════════════════════════════════════════════
+let _okunmamisBildirim = 0;
+
+// Badge'i güncelle (hem app ikonu hem sekme)
+function bildirimBadgeGuncelle(sayi){
+  _okunmamisBildirim = Math.max(0, sayi);
+
+  // 1. Uygulama içi sekme badge'i
+  const badge = document.getElementById('bildirim-badge');
+  if(badge){
+    if(_okunmamisBildirim > 0){
+      badge.textContent = _okunmamisBildirim > 99 ? '99+' : _okunmamisBildirim;
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  // 2. App ikonu badge (Badging API - destekleyen cihazlarda)
+  try {
+    if('setAppBadge' in navigator){
+      if(_okunmamisBildirim > 0){
+        navigator.setAppBadge(_okunmamisBildirim).catch(()=>{});
+      } else {
+        navigator.clearAppBadge().catch(()=>{});
+      }
+    }
+  } catch(e){}
+}
+
+// Bildirim sayısını artır (yeni mesaj/anons geldiğinde)
+function bildirimBadgeArtir(adet){
+  bildirimBadgeGuncelle(_okunmamisBildirim + (adet || 1));
+  _bildirimBadgeKaydet();
+}
+
+// Bildirimleri okundu işaretle (bildirim sekmesi açılınca)
+function bildirimBadgeTemizle(){
+  bildirimBadgeGuncelle(0);
+  _bildirimBadgeKaydet();
+}
+
+// localStorage'a kaydet (sayfa yenilense de kalsın)
+function _bildirimBadgeKaydet(){
+  try {
+    if(CP) localStorage.setItem('voyago_okunmamis_' + CP.sefer + '_' + CP.kabin, String(_okunmamisBildirim));
+  } catch(e){}
+}
+
+// localStorage'dan oku
+function _bildirimBadgeOku(){
+  try {
+    if(CP){
+      const s = localStorage.getItem('voyago_okunmamis_' + CP.sefer + '_' + CP.kabin);
+      if(s != null){
+        bildirimBadgeGuncelle(parseInt(s) || 0);
+      }
+    }
+  } catch(e){}
+}
+
 function pushNotif(t,b){
   const nl=document.getElementById('nl');
   const d=document.createElement('div');d.className='nc nn';
@@ -14512,11 +14591,17 @@ function adminTab(name){
     }).catch(()=>renderGemiplanAdmin());}else renderGemiplanAdmin();
   }
 }
+let _aktifTab = 'program';
 function switchTab(name){
+  _aktifTab = name;
   document.querySelectorAll('.tp').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
   document.getElementById('nb-'+name).classList.add('active');
+  // 🔔 Bildirim veya rehber sekmesi açılınca badge temizle
+  if(name === 'bildirim' || name === 'rehber'){
+    try { if(typeof bildirimBadgeTemizle === 'function') bildirimBadgeTemizle(); } catch(e){}
+  }
   if(name==='gelecek')renderGelecekTurlar();
   if(name==='albuм'){ if(typeof renderAlbuм === 'function') renderAlbuм(); }
   if(name==='anket'){
