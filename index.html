@@ -1092,6 +1092,8 @@ textarea.ai2{resize:none;}
       <div id="akilli-karsilama"></div>
       <!-- ⭐ Öne Çıkan Aktiviteler -->
       <div id="one-cikan-area"></div>
+      <!-- 🏨 Kabin Bilgisi (kabindeki kişiler) -->
+      <div id="yolcu-kabin-karti"></div>
       <!-- 📱 E-Ship SIM Kart -->
       <div id="yolcu-sim-karti"></div>
       <!-- 🚌 Yolcu Otobüs Bilgisi -->
@@ -2506,21 +2508,21 @@ textarea.ai2{resize:none;}
 .kars-modal { position: fixed; inset: 0; background: linear-gradient(160deg, #0d3b6e 0%, #1a5fa8 60%, #2563eb 100%); z-index: 99999; display: flex; flex-direction: column; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .kars-konfeti { position: absolute; top: 0; left: 0; right: 0; height: 100%; pointer-events: none; overflow: hidden; }
 .kars-konfeti span { position: absolute; top: -20px; width: 10px; height: 10px; opacity: 0.8; animation: konfetiDus 4s linear infinite; }
-.kars-icerik { flex: 1; padding: 20px 22px 30px; color: white; max-width: 540px; margin: 0 auto; width: 100%; position: relative; z-index: 2; }
+.kars-icerik { flex: 1; padding: 14px 18px 20px; color: white; max-width: 540px; margin: 0 auto; width: 100%; position: relative; z-index: 2; }
 .kars-x { position: absolute; top: 12px; right: 12px; background: rgba(255,255,255,.18); border: none; color: white; width: 36px; height: 36px; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10; backdrop-filter: blur(10px); transition: background .15s; }
 .kars-x:hover, .kars-x:active { background: rgba(255,255,255,.35); }
-.kars-gemi-anim { font-size: 70px; display: inline-block; animation: gemiSallan 3s ease-in-out infinite; filter: drop-shadow(0 6px 16px rgba(0,0,0,.3)); }
-.kars-baslik { font-family: 'DM Serif Display', serif; font-size: 30px; line-height: 1.15; margin-top: 8px; text-shadow: 0 2px 12px rgba(0,0,0,.25); }
-.kars-alt { font-size: 14px; opacity: .95; margin-top: 6px; line-height: 1.55; }
-.kars-kart { background: rgba(255,255,255,.13); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.18); border-radius: 16px; padding: 14px 16px; margin-top: 12px; display: flex; gap: 12px; align-items: flex-start; animation: kartGir .5s ease-out backwards; }
-.kars-kart:nth-child(1) { animation-delay: .15s; }
-.kars-kart:nth-child(2) { animation-delay: .3s; }
-.kars-kart:nth-child(3) { animation-delay: .45s; }
-.kars-kart:nth-child(4) { animation-delay: .6s; }
-.kars-kart-emoji { font-size: 32px; flex-shrink: 0; animation: dalgaHareket 2.5s ease-in-out infinite; }
-.kars-kart-baslik { font-size: 15px; font-weight: 700; color: white; margin-bottom: 4px; }
-.kars-kart-aciklama { font-size: 12.5px; color: rgba(255,255,255,.92); line-height: 1.5; }
-.kars-btn { width: 100%; padding: 16px; background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #1a1a1a; border: none; border-radius: 14px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; margin-top: 18px; animation: btnNabız 2s ease-in-out infinite; }
+.kars-gemi-anim { font-size: 46px; display: inline-block; animation: gemiSallan 3s ease-in-out infinite; filter: drop-shadow(0 6px 16px rgba(0,0,0,.3)); }
+.kars-baslik { font-family: 'DM Serif Display', serif; font-size: 22px; line-height: 1.15; margin-top: 4px; text-shadow: 0 2px 12px rgba(0,0,0,.25); }
+.kars-alt { font-size: 12px; opacity: .95; margin-top: 4px; line-height: 1.4; }
+.kars-kart { background: rgba(255,255,255,.13); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.18); border-radius: 12px; padding: 9px 12px; margin-top: 7px; display: flex; gap: 10px; align-items: flex-start; animation: kartGir .5s ease-out backwards; }
+.kars-kart:nth-child(1) { animation-delay: .1s; }
+.kars-kart:nth-child(2) { animation-delay: .2s; }
+.kars-kart:nth-child(3) { animation-delay: .3s; }
+.kars-kart:nth-child(4) { animation-delay: .4s; }
+.kars-kart-emoji { font-size: 24px; flex-shrink: 0; animation: dalgaHareket 2.5s ease-in-out infinite; }
+.kars-kart-baslik { font-size: 13px; font-weight: 700; color: white; margin-bottom: 2px; }
+.kars-kart-aciklama { font-size: 11px; color: rgba(255,255,255,.92); line-height: 1.4; }
+.kars-btn { width: 100%; padding: 13px; background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #1a1a1a; border: none; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; margin-top: 12px; animation: btnNabız 2s ease-in-out infinite; }
 .kars-iyi-yolculuklar { text-align: center; font-size: 12px; opacity: .85; margin-top: 14px; font-style: italic; }
 </style>
 
@@ -2529,7 +2531,7 @@ textarea.ai2{resize:none;}
   <button class="kars-x" onclick="karsilamaKapat()" aria-label="Kapat">✕</button>
   <div class="kars-konfeti" id="kars-konfeti"></div>
   <div class="kars-icerik">
-    <div style="text-align:center;padding-top:26px;">
+    <div style="text-align:center;padding-top:10px;">
       <div class="kars-gemi-anim">🚢</div>
       <div class="kars-baslik" id="kars-baslik">Hoş Geldiniz!</div>
       <div class="kars-alt">İyi haberler — yolculuğunuz başlamak üzere! ✨<br>Birazdan şunlar olacak:</div>
@@ -3012,6 +3014,7 @@ async function initDB() {
       email: y.email || '',
       pazarlama_izni: y.pazarlama_izni || false,
       ekstra_isimler: y.ekstra_isimler || [],  // Diğer yolcular (ek isimler)
+      ekstra_telefonlar: y.ekstra_telefonlar || {},  // 📞 Ek yolcuların opsiyonel telefonları
       dogum_tarihleri: y.dogum_tarihleri || { ana: '', ekstra: [] }, // 🎂 Doğum günleri
       otobus_no: y.otobus_no ? parseInt(y.otobus_no) : null,  // 🚌 Sefer bazlı otobüs numarası (integer)
       giris_sayisi: y.giris_sayisi || 0,  // 📊 Uygulama giriş sayısı
@@ -3404,6 +3407,7 @@ async function saveYolcuDB(p) {
         email: p.email || null,
         pazarlama_izni: p.pazarlama_izni || false,
         ekstra_isimler: p.ekstra_isimler || [],
+        ekstra_telefonlar: p.ekstra_telefonlar || {},
         dogum_tarihleri: p.dogum_tarihleri || null,
         otobus_no: p.otobus_no || null
       });
@@ -3420,6 +3424,7 @@ async function saveYolcuDB(p) {
           email: p.email || null,
           pazarlama_izni: p.pazarlama_izni || false,
           ekstra_isimler: p.ekstra_isimler || [],
+          ekstra_telefonlar: p.ekstra_telefonlar || {},
         dogum_tarihleri: p.dogum_tarihleri || null,
           otobus_no: p.otobus_no || null
         });
@@ -3436,6 +3441,7 @@ async function saveYolcuDB(p) {
       email: p.email || null,
       pazarlama_izni: p.pazarlama_izni || false,
       ekstra_isimler: p.ekstra_isimler || [],
+      ekstra_telefonlar: p.ekstra_telefonlar || {},
         dogum_tarihleri: p.dogum_tarihleri || null,
       otobus_no: p.otobus_no || null
     });
@@ -3872,18 +3878,20 @@ function ekYolcuIsimleriRender(){
 
   el.style.display = 'block';
   let html = '<div style="background:rgba(255,255,255,.08);border-radius:12px;padding:12px;margin-top:10px;">';
-  html += '<div style="font-size:12px;color:rgba(255,255,255,.85);margin-bottom:8px;line-height:1.5;">👥 <b>Sizinle birlikte gelen yolcular</b><br><span style="font-size:11px;opacity:.8;">İsimleri yazın (bebek için isteğe bağlı)</span></div>';
+  html += '<div style="font-size:12px;color:rgba(255,255,255,.85);margin-bottom:8px;line-height:1.5;">👥 <b>Sizinle birlikte gelen yolcular</b><br><span style="font-size:11px;opacity:.8;">İsimleri yazın · Telefon isteğe bağlı (ayrı bildirim almak isteyenler için)</span></div>';
 
   let idx = 0;
-  // Ek yetişkinler
+  // Ek yetişkinler - isim + opsiyonel telefon
   for(let i = 0; i < yetEk; i++){
     const eski = eskiDegerler[idx] || '';
-    html += `<div class="fg" style="margin-bottom:6px;">
-      <input class="fi" type="text" data-idx="${idx}" data-tip="yetiskin" value="${escapeHTML(eski)}" placeholder="${i+2}. Yetişkin - Ad Soyad" style="padding:9px 12px;font-size:13px;">
+    const eskiTel = eskiDegerler['tel'+idx] || '';
+    html += `<div style="margin-bottom:8px;">
+      <input class="fi" type="text" data-idx="${idx}" data-tip="yetiskin" value="${escapeHTML(eski)}" placeholder="${i+2}. Yetişkin - Ad Soyad" style="padding:9px 12px;font-size:13px;margin-bottom:4px;">
+      <input class="fi" type="tel" data-idx="${idx}" data-tel="1" value="${escapeHTML(eskiTel)}" placeholder="📞 Telefon (opsiyonel)" style="padding:8px 12px;font-size:12px;opacity:.9;">
     </div>`;
     idx++;
   }
-  // Çocuklar
+  // Çocuklar - sadece isim
   for(let i = 0; i < cocEk; i++){
     const eski = eskiDegerler[idx] || '';
     html += `<div class="fg" style="margin-bottom:6px;">
@@ -3891,7 +3899,7 @@ function ekYolcuIsimleriRender(){
     </div>`;
     idx++;
   }
-  // Bebekler
+  // Bebekler - sadece isim
   for(let i = 0; i < bebEk; i++){
     const eski = eskiDegerler[idx] || '';
     html += `<div class="fg" style="margin-bottom:6px;">
@@ -4133,9 +4141,16 @@ function doPL(){
 
   // Ek yolcu isimlerini topla (Y/Ç/B'den >= 2 varsa)
   const ekIsimler = [];
-  document.querySelectorAll('#ek-yolcu-isimleri input').forEach(inp => {
+  const ekTelefonlar = {};
+  document.querySelectorAll('#ek-yolcu-isimleri input[type="text"]').forEach(inp => {
     const v = (inp.value || '').trim();
     if(v) ekIsimler.push(v);
+  });
+  // Opsiyonel telefonları topla (isim index'ine göre)
+  document.querySelectorAll('#ek-yolcu-isimleri input[data-tel="1"]').forEach(inp => {
+    const tel = (inp.value || '').trim();
+    const idx = inp.dataset.idx;
+    if(tel) ekTelefonlar[idx] = tel;
   });
 
   const isFirst=!p||!p.checkinDone;
@@ -4148,10 +4163,11 @@ function doPL(){
     p.adult=loginKisi.adult;p.child=loginKisi.child;p.baby=loginKisi.baby;
     p.email=email||null;p.pazarlama_izni=pazarlamaIzni;
     p.ekstra_isimler = ekIsimler;
+    if(Object.keys(ekTelefonlar).length) p.ekstra_telefonlar = ekTelefonlar;
   }
   else{
     // Yeni yolcu (listede yoktu)
-    p={name,kabin,tel:code+' '+phone,sefer:sv,adult:loginKisi.adult,child:loginKisi.child,baby:loginKisi.baby,email:email||null,pazarlama_izni:pazarlamaIzni,checkedIn:true,checkinDone:true,joinedTours:[],ekstra_isimler:ekIsimler};
+    p={name,kabin,tel:code+' '+phone,sefer:sv,adult:loginKisi.adult,child:loginKisi.child,baby:loginKisi.baby,email:email||null,pazarlama_izni:pazarlamaIzni,checkedIn:true,checkinDone:true,joinedTours:[],ekstra_isimler:ekIsimler,ekstra_telefonlar:ekTelefonlar};
     passengers.push(p);
   }
   CP=p;
@@ -4589,8 +4605,48 @@ async function yolcuSimTalep(){
   }
 }
 
+// 🏨 Yolcu kabin bilgisi kartı - kabindeki herkesi göster
+function renderYolcuKabinKarti(){
+  const area = document.getElementById('yolcu-kabin-karti');
+  if(!area || !CP) return;
+
+  // Kabindeki tüm kişiler: ana + ek isimler
+  const tumKisiler = [CP.name, ...((CP.ekstra_isimler || []))].filter(x => x && x.trim());
+  const kisiSayisi = (CP.adult||0) + (CP.child||0) + (CP.baby||0);
+
+  // Tek kişiyse kart gösterme
+  if(tumKisiler.length <= 1 && kisiSayisi <= 1){ area.innerHTML = ''; return; }
+
+  area.innerHTML = `
+    <div style="background:white;border:1px solid #e5e7eb;border-radius:14px;padding:14px 16px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:20px;">🏨</span>
+        <div>
+          <div style="font-size:14px;font-weight:700;color:#1a1a1a;">Kabin ${escapeHTML(CP.kabin)}</div>
+          <div style="font-size:11px;color:#888;">${kisiSayisi} kişi · ${tumKisiler.length} isim kayıtlı</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${tumKisiler.map((isim, i) => `
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:${i===0?'#f0f9ff':'#fafafa'};border-radius:8px;">
+            <span style="width:24px;height:24px;background:${i===0?'#1a5fa8':'#94a3b8'};color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">${i+1}</span>
+            <span style="font-size:13px;color:#1a1a1a;font-weight:${i===0?'600':'400'};flex:1;">${escapeHTML(isim)}${i===0?' <span style="font-size:10px;color:#1a5fa8;">(siz)</span>':''}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div style="font-size:10px;color:#999;margin-top:8px;line-height:1.4;text-align:center;">
+        ✓ Hepiniz aynı kabinde kayıtlısınız. Tek check-in yeterli — herkes kayıtlıdır.
+      </div>
+    </div>
+  `;
+}
+
+// 🏨 Yolcu kabin bilgisi kartı - kabindeki herkesi göster (eski tanım üstte)
 function renderProgramPage(sv){
   const d=getDailyForSefer(sv);
+
+  // 🏨 Kabin bilgisi kartı (kabindeki herkes)
+  try { renderYolcuKabinKarti(); } catch(e){}
 
   // 📱 E-Ship SIM kart render et
   try { renderYolcuSimKarti(sv); } catch(e){}
@@ -10835,14 +10891,14 @@ function renderDashboard(){
     <!-- Hızlı Sayılar Grid -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
       <div onclick="adminTab('ci')" style="background:white;border-radius:12px;padding:14px;cursor:pointer;border:1px solid #f0f0f0;transition:transform .15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-        <div style="font-size:11px;color:#888;margin-bottom:4px;">👥 Yolcular</div>
+        <div style="font-size:11px;color:#888;margin-bottom:4px;">🏨 Kabinler</div>
         <div style="font-size:24px;font-weight:700;color:#1a5fa8;line-height:1;">${toplamYolcu}</div>
         <div style="font-size:11px;color:#16a34a;margin-top:4px;">${checkInYapan} check-in (${ciOran}%)</div>
       </div>
       <div onclick="adminTab('ci')" style="background:white;border-radius:12px;padding:14px;cursor:pointer;border:1px solid #f0f0f0;transition:transform .15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
         <div style="font-size:11px;color:#888;margin-bottom:4px;">🧑‍🤝‍🧑 Toplam Kişi</div>
         <div style="font-size:24px;font-weight:700;color:#1a5fa8;line-height:1;">${toplamKisi}</div>
-        <div style="font-size:11px;color:#666;margin-top:4px;">${toplamYolcu} kabin</div>
+        <div style="font-size:11px;color:#666;margin-top:4px;">${toplamYolcu} kabinde</div>
       </div>
       <div onclick="adminTab('tur')" style="background:white;border-radius:12px;padding:14px;cursor:pointer;border:1px solid #f0f0f0;transition:transform .15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
         <div style="font-size:11px;color:#888;margin-bottom:4px;">🗺️ Turlar</div>
