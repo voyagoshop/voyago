@@ -3013,7 +3013,8 @@ async function initDB() {
       dogum_tarihleri: y.dogum_tarihleri || { ana: '', ekstra: [] }, // 🎂 Doğum günleri
       otobus_no: y.otobus_no ? parseInt(y.otobus_no) : null,  // 🚌 Sefer bazlı otobüs numarası (integer)
       giris_sayisi: y.giris_sayisi || 0,  // 📊 Uygulama giriş sayısı
-      son_aktiflik: y.son_aktiflik || null  // 📊 Son aktiflik zamanı
+      son_aktiflik: y.son_aktiflik || null,  // 📊 Son aktiflik zamanı
+      giris_gunlugu: Array.isArray(y.giris_gunlugu) ? y.giris_gunlugu : []  // 📅 Giriş tarih/saat günlüğü
     }));
 
     // 🔥 kontrolDurum'u DB'den geri yükle (sayfa yenilense bile QR/kontrol işaretleri kaybolmasın)
@@ -3285,18 +3286,70 @@ async function yolcuAktiviteKaydet(p, yeniGiris){
   }
   p.son_aktiflik = simdi;
 
-  // DB'ye yaz - hata olursa (kolon yok) bir daha deneme
+  // 📅 Giriş günlüğü - her giriş tarih+saat olarak kaydedilir (kontrol için)
+  if(yeniGiris){
+    if(!p.giris_gunlugu) p.giris_gunlugu = [];
+    p.giris_gunlugu.push(simdi);
+    // Son 50 girişi tut (şişmesin)
+    if(p.giris_gunlugu.length > 50) p.giris_gunlugu = p.giris_gunlugu.slice(-50);
+  }
+
+  // DB'ye yaz - güncel değeri DB'den oku, sonra artır (yarış durumu önle)
   try {
-    const { error } = await sb.from('yolcular').update({
-      giris_sayisi: p.giris_sayisi || 0,
+    // Önce DB'deki güncel giriş sayısını çek (başka cihazdan da güncellenmişse)
+    let dbGirisSayisi = p.giris_sayisi || 0;
+    let dbGunluk = p.giris_gunlugu || [];
+    
+    if(yeniGiris){
+      try {
+        const { data: mevcut } = await sb.from('yolcular')
+          .select('giris_sayisi, giris_gunlugu')
+          .eq('kabin', p.kabin).eq('sefer', p.sefer)
+          .maybeSingle();
+        if(mevcut){
+          // DB'deki değeri baz al, +1 yap (en güncel sayı)
+          dbGirisSayisi = (mevcut.giris_sayisi || 0) + 1;
+          p.giris_sayisi = dbGirisSayisi;
+          // Günlüğü birleştir
+          dbGunluk = Array.isArray(mevcut.giris_gunlugu) ? mevcut.giris_gunlugu : [];
+          dbGunluk.push(simdi);
+          if(dbGunluk.length > 50) dbGunluk = dbGunluk.slice(-50);
+          p.giris_gunlugu = dbGunluk;
+        }
+      } catch(e){ /* maybeSingle başarısız olursa local değerle devam */ }
+    }
+
+    const guncelleme = {
+      giris_sayisi: dbGirisSayisi,
       son_aktiflik: simdi
-    }).eq('kabin', p.kabin).eq('sefer', p.sefer);
+    };
+    // Günlük kolonu varsa ekle
+    if(yeniGiris) guncelleme.giris_gunlugu = dbGunluk;
+
+    const { error } = await sb.from('yolcular').update(guncelleme)
+      .eq('kabin', p.kabin).eq('sefer', p.sefer);
     
     if(error){
-      // HERHANGI bir hata → bu özelliği devre dışı bırak (400, kolon yok vs.)
-      // Aktivite takibi opsiyonel, hata vermesin
-      _aktiviteKolonuYok = true;
-      console.log('[AKTİVİTE] Devre dışı (kolon eksik olabilir): ' + (error.message || error.code || ''));
+      // Günlük kolonu yoksa, onsuz tekrar dene
+      if((error.message||'').includes('giris_gunlugu')){
+        try {
+          const { error: e2 } = await sb.from('yolcular').update({
+            giris_sayisi: dbGirisSayisi,
+            son_aktiflik: simdi
+          }).eq('kabin', p.kabin).eq('sefer', p.sefer);
+          if(e2){
+            _aktiviteKolonuYok = true;
+            console.log('[AKTİVİTE] Devre dışı: ' + (e2.message || e2.code || ''));
+          } else {
+            console.log('[AKTİVİTE] Kaydedildi (günlüksüz): ' + p.kabin + ' giriş=' + dbGirisSayisi);
+          }
+        } catch(e3){}
+      } else {
+        _aktiviteKolonuYok = true;
+        console.log('[AKTİVİTE] Devre dışı: ' + (error.message || error.code || ''));
+      }
+    } else {
+      console.log('[AKTİVİTE] ✓ Kaydedildi: kabin=' + p.kabin + ' giriş=' + dbGirisSayisi);
     }
   } catch(e){
     console.log('Aktivite kayıt: ' + (e?.message || ''));
@@ -10388,20 +10441,38 @@ function aktiflikDetayAc(sid){
           const online = p.son_aktiflik && (Date.now() - new Date(p.son_aktiflik).getTime()) < 5*60*1000;
           const sonAktif = p.son_aktiflik ? _zamanFarki(p.son_aktiflik) : 'Hiç';
           const giris = p.giris_sayisi || 0;
+          const gunlukVar = (p.giris_gunlugu || []).length > 0;
           return `
-            <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:${i<3 && giris>0?'#fffbeb':'#fafafa'};border:1px solid ${i<3 && giris>0?'#fde68a':'#f0f0f0'};border-radius:8px;margin-bottom:5px;">
-              <div style="font-size:15px;width:24px;text-align:center;flex-shrink:0;">${giris>0 && madalya[i] ? madalya[i] : (i+1)}</div>
-              <div style="flex:1;min-width:0;">
-                <div style="font-size:13px;font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:6px;">
-                  ${escapeHTML(p.name)}
-                  ${online ? '<span style="font-size:9px;background:#dcfce7;color:#15803d;padding:1px 6px;border-radius:8px;font-weight:700;">🟢 Aktif</span>' : ''}
+            <div style="background:${i<3 && giris>0?'#fffbeb':'#fafafa'};border:1px solid ${i<3 && giris>0?'#fde68a':'#f0f0f0'};border-radius:8px;margin-bottom:5px;overflow:hidden;">
+              <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;${gunlukVar?'cursor:pointer;':''}" ${gunlukVar?`onclick="_aktiflikGunlukToggle('${escapeHTML(p.kabin).replace(/'/g,"")}')"`:''}>
+                <div style="font-size:15px;width:24px;text-align:center;flex-shrink:0;">${giris>0 && madalya[i] ? madalya[i] : (i+1)}</div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:6px;">
+                    ${escapeHTML(p.name)}
+                    ${online ? '<span style="font-size:9px;background:#dcfce7;color:#15803d;padding:1px 6px;border-radius:8px;font-weight:700;">🟢 Aktif</span>' : ''}
+                  </div>
+                  <div style="font-size:10px;color:#666;margin-top:1px;">Kabin ${escapeHTML(p.kabin || '?')} · Son: ${sonAktif}${gunlukVar?' · 📅 günlük için dokun':''}</div>
                 </div>
-                <div style="font-size:10px;color:#666;margin-top:1px;">Kabin ${escapeHTML(p.kabin || '?')} · Son: ${sonAktif}</div>
+                <div style="text-align:right;flex-shrink:0;">
+                  <div style="font-size:16px;font-weight:700;color:${giris>0?'#9333ea':'#ccc'};">${giris}</div>
+                  <div style="font-size:9px;color:#999;">giriş</div>
+                </div>
               </div>
-              <div style="text-align:right;flex-shrink:0;">
-                <div style="font-size:16px;font-weight:700;color:${giris>0?'#9333ea':'#ccc'};">${giris}</div>
-                <div style="font-size:9px;color:#999;">giriş</div>
-              </div>
+              ${gunlukVar ? `
+                <div id="gunluk-${escapeHTML(p.kabin).replace(/[^a-zA-Z0-9]/g,'')}" style="display:none;padding:8px 12px 10px;border-top:1px dashed #e5e7eb;background:white;">
+                  <div style="font-size:10px;color:#9333ea;font-weight:700;margin-bottom:5px;">📅 GİRİŞ GÜNLÜĞÜ (son ${(p.giris_gunlugu||[]).length})</div>
+                  <div style="display:flex;flex-direction:column;gap:3px;max-height:160px;overflow-y:auto;">
+                    ${(p.giris_gunlugu||[]).slice().reverse().map((z, gi) => {
+                      const d = new Date(z);
+                      const tarih = d.toLocaleDateString('tr-TR', {day:'2-digit',month:'short'});
+                      const saat = d.toLocaleTimeString('tr-TR', {hour:'2-digit',minute:'2-digit'});
+                      return `<div style="font-size:11px;color:#444;display:flex;justify-content:space-between;padding:3px 6px;background:#fafafa;border-radius:5px;">
+                        <span>📅 ${tarih}</span><span style="color:#9333ea;font-weight:600;">🕐 ${saat}</span>
+                      </div>`;
+                    }).join('')}
+                  </div>
+                </div>
+              ` : ''}
             </div>
           `;
         }).join('')}
@@ -10409,6 +10480,13 @@ function aktiflikDetayAc(sid){
     </div>
   `;
   document.body.appendChild(modal);
+}
+
+// Giriş günlüğü aç/kapa
+function _aktiflikGunlukToggle(kabin){
+  const id = 'gunluk-' + kabin.replace(/[^a-zA-Z0-9]/g,'');
+  const el = document.getElementById(id);
+  if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
 // Zaman farkı formatla
