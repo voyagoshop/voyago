@@ -1092,6 +1092,8 @@ textarea.ai2{resize:none;}
       <div id="akilli-karsilama"></div>
       <!-- ⭐ Öne Çıkan Aktiviteler -->
       <div id="one-cikan-area"></div>
+      <!-- 📱 E-Ship SIM Kart -->
+      <div id="yolcu-sim-karti"></div>
       <!-- 🚌 Yolcu Otobüs Bilgisi -->
       <div id="yolcu-otobus-karti"></div>
       <!-- 🗺️ Sefer Haritası -->
@@ -4292,6 +4294,110 @@ function doPL(){
 
 // ── PROGRAM SAYFASI ──
 // ⭐ Öne çıkan aktiviteler - yolcu ana ekranı
+// 📱 Yolcu tarafı - E-Ship SIM kart talep kartı
+async function renderYolcuSimKarti(sv){
+  const area = document.getElementById('yolcu-sim-karti');
+  if(!area || !CP) return;
+
+  // Bu seferin SIM kartlarını çek
+  let simler = [];
+  try {
+    simler = await dbGet('sim_kartlar', { sefer_id: sv });
+  } catch(e){ area.innerHTML=''; return; }
+
+  // Bu yolcunun kendi talebi/satışı var mı?
+  const benimSim = simler.find(s => s.kabin && String(s.kabin).trim().toUpperCase() === String(CP.kabin).trim().toUpperCase());
+  const hazirVar = simler.some(s => s.durum === 'hazir');
+
+  // Eğer hiç SIM açılmamışsa kart gösterme
+  if(simler.length === 0){ area.innerHTML=''; return; }
+
+  let icerik = '';
+
+  if(benimSim){
+    // Yolcunun durumu var
+    const durumlar = {
+      talep: {ikon:'🔔', baslik:'SIM Talebiniz Alındı', renk:'#92400e', bg:'#fffbeb', mesaj:'Rehber en kısa sürede size ulaşacak. Ödeme rehbere yapılır.'},
+      satildi: {ikon:'✅', baslik:'SIM Kartınız Hazır', renk:'#15803d', bg:'#f0fdf4', mesaj:'E-Ship SIM kartınız aktif. İyi yolculuklar!'},
+      iade: {ikon:'↩️', baslik:'SIM İade Edildi', renk:'#991b1b', bg:'#fef2f2', mesaj:'SIM kartınız iade alındı.'}
+    };
+    const d = durumlar[benimSim.durum] || durumlar.talep;
+    icerik = `
+      <div style="background:${d.bg};border:1.5px solid ${d.renk}33;border-radius:14px;padding:14px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <span style="font-size:24px;">${d.ikon}</span>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:${d.renk};">${d.baslik}</div>
+            <div style="font-size:10px;color:${d.renk};opacity:.8;">📱 E-Ship · Yunan SIM</div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:#444;line-height:1.5;">${d.mesaj}</div>
+        ${benimSim.durum==='satildi' && benimSim.sim_no ? `<div style="font-size:11px;color:#15803d;margin-top:6px;font-family:'Courier New',monospace;font-weight:600;">SIM: ${escapeHTML(benimSim.sim_no)}</div>` : ''}
+      </div>
+    `;
+  } else {
+    // Talep formu
+    icerik = `
+      <div style="background:linear-gradient(135deg,#0891b2,#0e7490);border-radius:14px;padding:14px;color:white;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="font-size:26px;">📱</span>
+          <div>
+            <div style="font-size:15px;font-weight:700;font-family:'DM Serif Display',serif;">E-Ship SIM Kart</div>
+            <div style="font-size:10px;opacity:.9;">Yunan SIM · İnternet & arama</div>
+          </div>
+        </div>
+        <div style="background:rgba(255,255,255,.15);border-radius:10px;padding:10px;margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+            <span>SIM kart</span><span style="font-weight:700;">${SIM_SATIS_FIYAT}€</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;opacity:.9;">
+            <span>İade halinde geri ödeme</span><span>${SIM_IADE_FIYAT}€</span>
+          </div>
+        </div>
+        ${hazirVar ? `
+          <button onclick="yolcuSimTalep('${sv}')" 
+            style="width:100%;padding:12px;background:white;color:#0e7490;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+            📱 SIM Kart Talep Et
+          </button>
+          <div style="font-size:9px;opacity:.85;text-align:center;margin-top:6px;">Talep sonrası rehber size ulaşacak · Ödeme rehbere yapılır</div>
+        ` : `
+          <div style="background:rgba(255,255,255,.15);border-radius:8px;padding:10px;text-align:center;font-size:12px;">
+            ⚠️ Şu an stokta SIM yok. Lütfen rehbere danışın.
+          </div>
+        `}
+      </div>
+    `;
+  }
+
+  area.innerHTML = `<div style="margin-bottom:14px;">${icerik}</div>`;
+}
+
+// Yolcu SIM talep et
+async function yolcuSimTalep(sv){
+  if(!CP || !CP.kabin){ showToast('⚠️ Kabin bilgisi yok'); return; }
+  if(!confirm('E-Ship SIM kart talebi oluşturulsun mu?\n\n• Fiyat: ' + SIM_SATIS_FIYAT + '€\n• İade: ' + SIM_IADE_FIYAT + '€\n• Ödeme rehbere yapılır')) return;
+
+  try {
+    // Hazır bir SIM bul
+    const simler = await dbGet('sim_kartlar', { sefer_id: sv });
+    const hazir = (simler || []).find(s => s.durum === 'hazir');
+    if(!hazir){ showToast('⚠️ Şu an stokta SIM yok'); return; }
+
+    // Bu SIM'i talep durumuna al, kabini yaz
+    const { error } = await sb.from('sim_kartlar').update({
+      durum: 'talep',
+      kabin: CP.kabin,
+      talep_zamani: new Date().toISOString()
+    }).eq('id', hazir.id);
+    if(error) throw new Error(error.message);
+
+    showToast('✅ SIM talebiniz alındı! Rehber size ulaşacak 📱');
+    renderYolcuSimKarti(sv);
+  } catch(e){
+    showToast('⚠️ Hata: ' + (e?.message || ''));
+  }
+}
+
 function renderOneCikanlar(sv){
   const area = document.getElementById('one-cikan-area');
   if(!area) return;
@@ -4385,11 +4491,113 @@ function oneCikanDetay(idx){
   document.body.appendChild(modal);
 }
 
+// ═══════════════════════════════════════════════
+// 📱 YOLCU TARAFI - E-SHIP SIM KART TALEBİ
+// ═══════════════════════════════════════════════
+async function renderYolcuSimKarti(sv){
+  const area = document.getElementById('yolcu-sim-karti');
+  if(!area || !CP) return;
+
+  // SIM kartları yükle (yoksa)
+  if(!SIM_KARTLAR || SIM_KARTLAR.length === 0){
+    try { await simKartlariYukle(); } catch(e){}
+  }
+
+  // Bu yolcunun zaten talebi var mı?
+  const benimTalep = SIM_KARTLAR.find(k => 
+    k.talep_kabin && String(k.talep_kabin).trim().toUpperCase() === String(CP.kabin).trim().toUpperCase()
+  );
+
+  if(benimTalep){
+    // Talep durumu göster
+    let durumYazi, durumRenk, durumIkon;
+    if(benimTalep.iade_edildi){
+      durumYazi = 'İade edildi'; durumRenk = '#991b1b'; durumIkon = '↩️';
+    } else if(benimTalep.odeme_durumu === 'odendi'){
+      durumYazi = 'Aktif · Teslim edildi'; durumRenk = '#15803d'; durumIkon = '✅';
+    } else {
+      durumYazi = 'Talebiniz alındı · Rehber size ulaşacak'; durumRenk = '#92400e'; durumIkon = '🔔';
+    }
+    area.innerHTML = `
+      <div style="background:linear-gradient(135deg,#0891b2,#0e7490);border-radius:14px;padding:14px 16px;margin-bottom:14px;color:white;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <span style="font-size:22px;">📱</span>
+          <div style="font-family:'DM Serif Display',serif;font-size:16px;">e-ship SIM Kart</div>
+        </div>
+        <div style="background:rgba(255,255,255,.15);border-radius:10px;padding:10px;">
+          <div style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;">
+            ${durumIkon} ${durumYazi}
+          </div>
+          ${benimTalep.sim_no && benimTalep.odeme_durumu==='odendi' ? `<div style="font-size:11px;opacity:.9;margin-top:4px;">SIM No: ${escapeHTML(benimTalep.sim_no)}</div>` : ''}
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // Talep açma butonu
+  area.innerHTML = `
+    <div style="background:linear-gradient(135deg,#0891b2,#0e7490);border-radius:14px;padding:14px 16px;margin-bottom:14px;color:white;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="font-size:22px;">📱</span>
+        <div>
+          <div style="font-family:'DM Serif Display',serif;font-size:16px;">e-ship SIM Kart</div>
+          <div style="font-size:11px;opacity:.9;">Yunanistan'da internet & arama</div>
+        </div>
+      </div>
+      <div style="font-size:12px;opacity:.95;line-height:1.5;margin-bottom:10px;">
+        Gemide ve limanlarda kesintisiz bağlantı için Yunan SIM kartı. Sadece <b>30€</b> · İade durumunda <b>5€</b> geri ödeme.
+      </div>
+      <button onclick="yolcuSimTalep()" 
+        style="width:100%;padding:12px;background:white;color:#0891b2;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+        📱 SIM Kart Talep Et
+      </button>
+    </div>
+  `;
+}
+
+// Yolcu SIM talebi aç
+async function yolcuSimTalep(){
+  if(!CP){ showToast('Önce giriş yapın'); return; }
+  
+  // Hazır (satışta) bir kart var mı?
+  await simKartlariYukle();
+  const hazirKart = SIM_KARTLAR.find(k => k.durum === 'hazir' && !k.talep_kabin);
+  
+  if(!hazirKart){
+    showToast('⚠️ Şu an stokta SIM kart yok. Rehberinize danışın.');
+    return;
+  }
+
+  if(!confirm('e-ship SIM kart talebi göndermek istiyor musunuz?\n\n• Ücret: 30€\n• İade: 5€ geri ödeme\n\nRehberiniz size ulaşacak.')) return;
+
+  // Karta talebi işle
+  const guncelleme = {
+    durum: 'talep',
+    talep_kabin: CP.kabin,
+    talep_isim: CP.name || '',
+    talep_zamani: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+  try {
+    await dbUpdate('sim_kartlar', { id: hazirKart.id }, guncelleme);
+    Object.assign(hazirKart, guncelleme);
+    showToast('✅ SIM kart talebiniz alındı! Rehber size ulaşacak.');
+    renderYolcuSimKarti(CP.sefer);
+  } catch(e){
+    showToast('⚠️ Hata: ' + (e?.message || ''));
+  }
+}
+
 function renderProgramPage(sv){
   const d=getDailyForSefer(sv);
 
+  // 📱 E-Ship SIM kart render et
+  try { renderYolcuSimKarti(sv); } catch(e){}
+
   // ⭐ Öne çıkan aktiviteleri render et
   try { renderOneCikanlar(sv); } catch(e){}
+  try { renderYolcuSimKarti(sv); } catch(e){}
 
   // 🌅 Akıllı karşılama + 🗺️ Sefer haritası render et
   try { if(typeof renderAkilliKarsilama === 'function') renderAkilliKarsilama(sv); } catch(e){}
@@ -9845,6 +10053,586 @@ async function _sunumBroadcast(sunum, event){
   });
 }
 
+// ═══════════════════════════════════════════════
+// 📱 E-SHIP SIM KART YÖNETİMİ
+// ═══════════════════════════════════════════════
+// Rehber SIM açar (30€ satış, 5€ iade)
+// Yolcu kabin no ile talep eder
+// Ödeme/iade/kontör/kâr takibi
+let SIMKARTLAR = []; // {id, sefer_id, sim_no, durum, kabin, satis_fiyat, iade_fiyat, maliyet, odeme_durumu, talep_zamani, satis_zamani, iade_zamani, kontor_notu, kontor_zamani}
+const SIM_SATIS_FIYAT = 30;
+const SIM_IADE_FIYAT = 5;
+
+async function simKartlariYukle(sid){
+  if(!sid) return;
+  try {
+    const data = await dbGet('sim_kartlar', { sefer_id: sid });
+    SIMKARTLAR = data || [];
+  } catch(e){
+    console.log('SIM yükleme: ' + (e?.message || ''));
+    SIMKARTLAR = [];
+  }
+}
+
+function simKartModalAc(){
+  const aktif = VOYAGES.find(v => v.status !== 'archived' && v.visible);
+  if(!aktif){ showToast('⚠️ Aktif sefer yok'); return; }
+  const sid = aktif.id;
+
+  simKartlariYukle(sid).then(() => {
+    _simKartModalRender(sid, aktif);
+  });
+}
+
+function _simKartModalRender(sid, sefer){
+  const eski = document.getElementById('sim-kart-modal');
+  if(eski) eski.remove();
+
+  // İstatistikler
+  const simler = SIMKARTLAR.filter(s => s.sefer_id === sid);
+  const hazir = simler.filter(s => s.durum === 'hazir').length;
+  const talepEdilen = simler.filter(s => s.durum === 'talep').length;
+  const satilan = simler.filter(s => s.durum === 'satildi' || s.durum === 'iade').length;
+  const iadeEdilen = simler.filter(s => s.durum === 'iade').length;
+  const odenenler = simler.filter(s => (s.durum === 'satildi' || s.durum === 'iade') && s.odeme_durumu === 'odendi');
+  const bekleyenOdeme = simler.filter(s => s.durum === 'satildi' && s.odeme_durumu !== 'odendi').length;
+
+  // Gelir & kâr hesabı
+  let toplamGelir = 0, toplamIade = 0, toplamMaliyet = 0;
+  odenenler.forEach(s => {
+    toplamGelir += (s.satis_fiyat || SIM_SATIS_FIYAT);
+    toplamMaliyet += (s.maliyet || 0);
+    if(s.durum === 'iade') toplamIade += (s.iade_fiyat || SIM_IADE_FIYAT);
+  });
+  const netKar = toplamGelir - toplamIade - toplamMaliyet;
+
+  const modal = document.createElement('div');
+  modal.id = 'sim-kart-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99998;display:flex;align-items:stretch;justify-content:center;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e) => { if(e.target.id === 'sim-kart-modal') modal.remove(); };
+
+  // Sıralama: talep > satıldı(ödenmedi) > hazır > satıldı(ödendi) > iade
+  const siraDeger = s => {
+    if(s.durum === 'talep') return 0;
+    if(s.durum === 'satildi' && s.odeme_durumu !== 'odendi') return 1;
+    if(s.durum === 'hazir') return 2;
+    if(s.durum === 'satildi') return 3;
+    if(s.durum === 'iade') return 4;
+    return 5;
+  };
+  const sirali = [...simler].sort((a,b) => siraDeger(a) - siraDeger(b));
+
+  modal.innerHTML = `
+    <div style="background:white;width:100%;max-width:620px;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.4);overflow:hidden;">
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,#0891b2,#0e7490);padding:14px 18px;color:white;flex-shrink:0;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+          <div>
+            <div style="font-family:'DM Serif Display',serif;font-size:18px;">📱 E-Ship SIM Kart</div>
+            <div style="font-size:11px;opacity:.9;margin-top:2px;">${escapeHTML(sefer.label)} · Yunan SIM · ${SIM_SATIS_FIYAT}€ satış / ${SIM_IADE_FIYAT}€ iade</div>
+          </div>
+          <button onclick="document.getElementById('sim-kart-modal').remove()" 
+            style="background:rgba(255,255,255,.2);border:none;color:white;font-size:18px;cursor:pointer;width:30px;height:30px;border-radius:50%;flex-shrink:0;">×</button>
+        </div>
+      </div>
+
+      <!-- Özet kartları -->
+      <div style="padding:12px 16px;background:#fafafa;border-bottom:1px solid #f0f0f0;flex-shrink:0;">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px;">
+          <div style="background:#cffafe;border-radius:8px;padding:8px;text-align:center;">
+            <div style="font-size:17px;font-weight:700;color:#0e7490;">${hazir}</div>
+            <div style="font-size:9px;color:#0e7490;">HAZIR</div>
+          </div>
+          <div style="background:#fef3c7;border-radius:8px;padding:8px;text-align:center;">
+            <div style="font-size:17px;font-weight:700;color:#92400e;">${talepEdilen}</div>
+            <div style="font-size:9px;color:#92400e;">TALEP</div>
+          </div>
+          <div style="background:#dcfce7;border-radius:8px;padding:8px;text-align:center;">
+            <div style="font-size:17px;font-weight:700;color:#15803d;">${satilan}</div>
+            <div style="font-size:9px;color:#15803d;">SATILDI</div>
+          </div>
+          <div style="background:#fee2e2;border-radius:8px;padding:8px;text-align:center;">
+            <div style="font-size:17px;font-weight:700;color:#991b1b;">${iadeEdilen}</div>
+            <div style="font-size:9px;color:#991b1b;">İADE</div>
+          </div>
+        </div>
+        <!-- Kâr özeti -->
+        <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);border-radius:10px;padding:10px 12px;color:white;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:10px;opacity:.85;">NET KÂR</div>
+            <div style="font-size:22px;font-weight:700;font-family:'DM Serif Display',serif;">€${netKar}</div>
+          </div>
+          <div style="text-align:right;font-size:10px;opacity:.9;line-height:1.6;">
+            <div>Gelir: €${toplamGelir}</div>
+            <div>İade: -€${toplamIade}</div>
+            ${toplamMaliyet>0?`<div>Maliyet: -€${toplamMaliyet}</div>`:''}
+            ${bekleyenOdeme>0?`<div style="color:#fde68a;">⏳ ${bekleyenOdeme} ödeme bekliyor</div>`:''}
+          </div>
+        </div>
+      </div>
+
+      <div style="flex:1;overflow-y:auto;padding:14px 16px;">
+        <!-- + Yeni SIM aç -->
+        <div style="background:#ecfeff;border:1.5px dashed #67e8f9;border-radius:10px;padding:12px;margin-bottom:12px;">
+          <div style="font-size:11px;color:#0e7490;font-weight:700;margin-bottom:6px;">➕ Yeni SIM Kart Aç (satışa hazır)</div>
+          <div style="display:flex;gap:6px;">
+            <input id="sim-yeni-no" type="text" placeholder="SIM kart numarası" 
+              style="flex:1;padding:9px;border:1.5px solid #67e8f9;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;">
+            <input id="sim-yeni-maliyet" type="number" placeholder="Maliyet €" 
+              style="width:90px;padding:9px;border:1.5px solid #67e8f9;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;">
+          </div>
+          <div style="font-size:9px;color:#0e7490;margin-top:4px;">💡 Maliyet opsiyonel — gerçek kâr hesabı için (SIM\'in sana maliyeti)</div>
+          <button onclick="simKartAc('${sid}')" 
+            style="width:100%;margin-top:6px;padding:9px;background:#0891b2;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+            + SIM Aç
+          </button>
+        </div>
+
+        <!-- SIM listesi -->
+        ${sirali.length === 0 ? `
+          <div style="text-align:center;padding:30px;color:#999;">
+            <div style="font-size:40px;opacity:.4;margin-bottom:8px;">📱</div>
+            <div style="font-size:13px;">Henüz SIM kart yok</div>
+          </div>
+        ` : sirali.map(s => _simKarti(s)).join('')}
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function _simKarti(s){
+  const durumBilgi = {
+    hazir: {bg:'#ecfeff', border:'#67e8f9', etiket:'🟢 SATIŞA HAZIR', renk:'#0e7490'},
+    talep: {bg:'#fffbeb', border:'#f59e0b', etiket:'🔔 TALEP EDİLDİ', renk:'#92400e'},
+    satildi: {bg:'#f0fdf4', border:'#16a34a', etiket:'✅ SATILDI', renk:'#15803d'},
+    iade: {bg:'#fef2f2', border:'#dc2626', etiket:'↩️ İADE EDİLDİ', renk:'#991b1b'}
+  };
+  const d = durumBilgi[s.durum] || durumBilgi.hazir;
+  const talep = s.durum === 'talep';
+  const satildi = s.durum === 'satildi';
+  const iade = s.durum === 'iade';
+
+  return `
+    <div style="background:${d.bg};border:2px solid ${d.border};border-radius:12px;padding:11px;margin-bottom:8px;${talep?'animation:simPulse 1.5s ease-in-out infinite;':''}">
+      <style>@keyframes simPulse{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.4);}50%{box-shadow:0 0 0 6px rgba(245,158,11,0);}}</style>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <span style="background:${d.border};color:white;padding:2px 8px;border-radius:8px;font-size:9px;font-weight:700;">${d.etiket}</span>
+            ${s.kabin ? `<span style="font-size:11px;color:${d.renk};font-weight:600;">🏨 Kabin ${escapeHTML(s.kabin)}</span>` : ''}
+          </div>
+          <div style="font-size:14px;font-weight:700;color:#1a1a1a;margin-top:4px;font-family:'Courier New',monospace;">📱 ${escapeHTML(s.sim_no || '?')}</div>
+          ${s.maliyet ? `<div style="font-size:10px;color:#666;margin-top:1px;">Maliyet: €${s.maliyet}</div>` : ''}
+          ${s.kontor_notu ? `<div style="font-size:10px;color:#0891b2;margin-top:2px;">📶 ${escapeHTML(s.kontor_notu)}${s.kontor_zamani?' · '+new Date(s.kontor_zamani).toLocaleDateString('tr-TR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):''}</div>` : ''}
+          ${satildi || iade ? `
+            <div style="font-size:10px;margin-top:3px;color:${s.odeme_durumu==='odendi'?'#15803d':'#dc2626'};font-weight:600;">
+              ${s.odeme_durumu==='odendi'?'💰 Ödendi €'+(s.satis_fiyat||SIM_SATIS_FIYAT):'⏳ Ödeme bekliyor'}
+              ${iade?' · ↩️ İade €'+(s.iade_fiyat||SIM_IADE_FIYAT):''}
+            </div>
+          ` : ''}
+        </div>
+      </div>
+
+      <!-- Aksiyon butonları -->
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:9px;">
+        ${talep ? `
+          <button onclick="simOdemeIsaretle(${s.id},'odendi')" style="flex:1;padding:8px;background:#16a34a;color:white;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">💰 Ödedi</button>
+          <button onclick="simOdemeIsaretle(${s.id},'odemedi')" style="flex:1;padding:8px;background:#f59e0b;color:white;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">⏳ Ödemedi</button>
+          <button onclick="simTalepIptal(${s.id})" style="padding:8px 10px;background:#f3f4f6;color:#666;border:none;border-radius:7px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">✕</button>
+        ` : ''}
+        ${satildi ? `
+          ${s.odeme_durumu!=='odendi' ? `<button onclick="simOdemeIsaretle(${s.id},'odendi')" style="flex:1;padding:8px;background:#16a34a;color:white;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">💰 Ödendi İşaretle</button>` : ''}
+          <button onclick="simIadeAl(${s.id})" style="flex:1;padding:8px;background:#dc2626;color:white;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">↩️ İade Al (€${SIM_IADE_FIYAT})</button>
+          <button onclick="simKontorEkle(${s.id})" style="padding:8px 10px;background:#0891b2;color:white;border:none;border-radius:7px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">📶 Kontör</button>
+        ` : ''}
+        ${s.durum === 'hazir' ? `
+          <button onclick="simKontorEkle(${s.id})" style="flex:1;padding:8px;background:#0891b2;color:white;border:none;border-radius:7px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">📶 Kontör Notu</button>
+          <button onclick="simKartSil(${s.id})" style="padding:8px 10px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:7px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">🗑️</button>
+        ` : ''}
+        ${iade ? `<button onclick="simKontorEkle(${s.id})" style="flex:1;padding:8px;background:#f3f4f6;color:#666;border:none;border-radius:7px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">📶 Kontör Notu</button>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+// SIM aç (rehber)
+async function simKartAc(sid){
+  const no = document.getElementById('sim-yeni-no')?.value.trim();
+  const maliyet = parseFloat(document.getElementById('sim-yeni-maliyet')?.value) || 0;
+  if(!no){ showToast('⚠️ SIM numarası gir'); return; }
+  // Aynı no var mı?
+  if(SIMKARTLAR.some(s => s.sim_no === no && s.sefer_id === sid)){
+    showToast('⚠️ Bu SIM no zaten kayıtlı'); return;
+  }
+  try {
+    const yeni = {
+      sefer_id: sid, sim_no: no, durum: 'hazir',
+      satis_fiyat: SIM_SATIS_FIYAT, iade_fiyat: SIM_IADE_FIYAT, maliyet: maliyet,
+      odeme_durumu: null, kabin: null
+    };
+    const { data, error } = await sb.from('sim_kartlar').insert(yeni).select().single();
+    if(error) throw new Error(error.message);
+    SIMKARTLAR.push(data);
+    showToast('✓ SIM açıldı (satışa hazır)');
+    _simKartModalRender(sid, VOYAGES.find(v=>v.id===sid));
+  } catch(e){
+    showToast('⚠️ Hata: ' + (e?.message || ''));
+  }
+}
+
+// Ödeme işaretle (talep → satıldı)
+async function simOdemeIsaretle(simId, durum){
+  const s = SIMKARTLAR.find(x => x.id === simId);
+  if(!s) return;
+  const guncelleme = {
+    durum: 'satildi',
+    odeme_durumu: durum === 'odendi' ? 'odendi' : 'bekliyor',
+    satis_zamani: s.satis_zamani || new Date().toISOString()
+  };
+  try {
+    await dbUpdate('sim_kartlar', { id: simId }, guncelleme);
+    Object.assign(s, guncelleme);
+    showToast(durum === 'odendi' ? '💰 Ödendi olarak işaretlendi' : '⏳ Ödeme bekliyor olarak işaretlendi');
+    _simKartModalRender(s.sefer_id, VOYAGES.find(v=>v.id===s.sefer_id));
+  } catch(e){ showToast('⚠️ ' + (e?.message||'')); }
+}
+
+// İade al
+async function simIadeAl(simId){
+  const s = SIMKARTLAR.find(x => x.id === simId);
+  if(!s) return;
+  if(!confirm('Bu SIM iade alınsın mı?\n\nYolcuya €' + SIM_IADE_FIYAT + ' iade edilecek.')) return;
+  const guncelleme = {
+    durum: 'iade',
+    iade_fiyat: SIM_IADE_FIYAT,
+    iade_zamani: new Date().toISOString()
+  };
+  try {
+    await dbUpdate('sim_kartlar', { id: simId }, guncelleme);
+    Object.assign(s, guncelleme);
+    showToast('↩️ İade alındı (€' + SIM_IADE_FIYAT + ')');
+    _simKartModalRender(s.sefer_id, VOYAGES.find(v=>v.id===s.sefer_id));
+  } catch(e){ showToast('⚠️ ' + (e?.message||'')); }
+}
+
+// Talep iptal (yanlış talep)
+async function simTalepIptal(simId){
+  const s = SIMKARTLAR.find(x => x.id === simId);
+  if(!s) return;
+  if(!confirm('Bu talep iptal edilsin mi?\n\nSIM tekrar satışa hazır olur.')) return;
+  const guncelleme = { durum: 'hazir', kabin: null, talep_zamani: null };
+  try {
+    await dbUpdate('sim_kartlar', { id: simId }, guncelleme);
+    Object.assign(s, guncelleme);
+    showToast('✓ Talep iptal edildi, SIM satışa hazır');
+    _simKartModalRender(s.sefer_id, VOYAGES.find(v=>v.id===s.sefer_id));
+  } catch(e){ showToast('⚠️ ' + (e?.message||'')); }
+}
+
+// Kontör notu ekle
+async function simKontorEkle(simId){
+  const s = SIMKARTLAR.find(x => x.id === simId);
+  if(!s) return;
+  const not = prompt('Kontör/bakiye notu (örn: 10€ kontör yüklendi):', s.kontor_notu || '');
+  if(not === null) return;
+  const guncelleme = { kontor_notu: not.trim(), kontor_zamani: new Date().toISOString() };
+  try {
+    await dbUpdate('sim_kartlar', { id: simId }, guncelleme);
+    Object.assign(s, guncelleme);
+    showToast('📶 Kontör notu kaydedildi');
+    _simKartModalRender(s.sefer_id, VOYAGES.find(v=>v.id===s.sefer_id));
+  } catch(e){ showToast('⚠️ ' + (e?.message||'')); }
+}
+
+// SIM sil (sadece hazır olanlar)
+async function simKartSil(simId){
+  const s = SIMKARTLAR.find(x => x.id === simId);
+  if(!s) return;
+  if(!confirm('Bu SIM kartı silinsin mi?')) return;
+  try {
+    await sb.from('sim_kartlar').delete().eq('id', simId);
+    SIMKARTLAR = SIMKARTLAR.filter(x => x.id !== simId);
+    showToast('✓ Silindi');
+    _simKartModalRender(s.sefer_id, VOYAGES.find(v=>v.id===s.sefer_id));
+  } catch(e){ showToast('⚠️ ' + (e?.message||'')); }
+}
+
+// ═══════════════════════════════════════════════
+// 📱 E-SHIP SIM KART SATIŞ SİSTEMİ
+// ═══════════════════════════════════════════════
+// Yunan SIM kartları (e-ship). Rehber satar, yolcu kabin no ile talep açar.
+// Satış 30€, iade 5€. Kâr takibi + kontör notu.
+
+let SIM_KARTLAR = [];
+
+async function simKartlariYukle(){
+  try {
+    const data = await dbGet('sim_kartlar');
+    SIM_KARTLAR = data || [];
+    console.log('[SIM] ' + SIM_KARTLAR.length + ' kart yüklendi');
+  } catch(e){
+    console.log('SIM yükleme: ' + (e?.message || ''));
+    SIM_KARTLAR = [];
+  }
+}
+
+// Rehber ana modal
+function simKartModalAc(){
+  const aktif = VOYAGES.find(v => v.status !== 'archived' && v.visible);
+  const sid = aktif ? aktif.id : null;
+
+  simKartlariYukle().then(() => {
+    document.getElementById('sim-modal')?.remove();
+
+    // İstatistikler
+    const tumKartlar = SIM_KARTLAR;
+    const satilan = tumKartlar.filter(k => k.odeme_durumu === 'odendi').length;
+    const bekleyen = tumKartlar.filter(k => k.durum === 'talep' && k.odeme_durumu !== 'odendi').length;
+    const iadeEdilen = tumKartlar.filter(k => k.iade_edildi).length;
+    const hazir = tumKartlar.filter(k => k.durum === 'hazir').length;
+
+    // Kâr hesabı: satılanların (satış - maliyet) toplamı - iade edilenlerin iade tutarı
+    let toplamKar = 0;
+    tumKartlar.forEach(k => {
+      if(k.odeme_durumu === 'odendi'){
+        toplamKar += (parseFloat(k.satis_fiyat)||0) - (parseFloat(k.maliyet)||0);
+      }
+      if(k.iade_edildi){
+        toplamKar -= (parseFloat(k.iade_tutar)||0);
+      }
+    });
+
+    const modal = document.createElement('div');
+    modal.id = 'sim-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99998;display:flex;align-items:stretch;justify-content:center;font-family:"DM Sans",sans-serif;';
+    modal.onclick = (e) => { if(e.target.id === 'sim-modal') modal.remove(); };
+
+    modal.innerHTML = `
+      <div style="background:#f5f5f7;width:100%;max-width:620px;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;">
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg,#0891b2,#0e7490);padding:14px 18px;color:white;flex-shrink:0;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div>
+              <div style="font-family:'DM Serif Display',serif;font-size:19px;">📱 e-ship SIM Kart</div>
+              <div style="font-size:11px;opacity:.9;margin-top:2px;">Yunan SIM kartları · Satış & Takip</div>
+            </div>
+            <button onclick="document.getElementById('sim-modal').remove()" 
+              style="background:rgba(255,255,255,.2);border:none;color:white;font-size:18px;cursor:pointer;width:30px;height:30px;border-radius:50%;flex-shrink:0;">×</button>
+          </div>
+        </div>
+
+        <!-- Özet kartları -->
+        <div style="padding:12px 16px;background:white;border-bottom:1px solid #eee;flex-shrink:0;">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+            <div style="background:#dcfce7;border-radius:8px;padding:8px;text-align:center;">
+              <div style="font-size:18px;font-weight:700;color:#15803d;">${satilan}</div>
+              <div style="font-size:9px;color:#15803d;">SATILDI</div>
+            </div>
+            <div style="background:#fef3c7;border-radius:8px;padding:8px;text-align:center;">
+              <div style="font-size:18px;font-weight:700;color:#92400e;">${bekleyen}</div>
+              <div style="font-size:9px;color:#92400e;">BEKLEYEN</div>
+            </div>
+            <div style="background:#fee2e2;border-radius:8px;padding:8px;text-align:center;">
+              <div style="font-size:18px;font-weight:700;color:#991b1b;">${iadeEdilen}</div>
+              <div style="font-size:9px;color:#991b1b;">İADE</div>
+            </div>
+            <div style="background:#dbeafe;border-radius:8px;padding:8px;text-align:center;">
+              <div style="font-size:18px;font-weight:700;color:#1e40af;">€${toplamKar.toFixed(0)}</div>
+              <div style="font-size:9px;color:#1e40af;">KÂR</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:1;overflow-y:auto;padding:14px 16px;">
+          <!-- Yeni SIM aç -->
+          <div style="background:white;border:1.5px dashed #67e8f9;border-radius:10px;padding:12px;margin-bottom:14px;">
+            <div style="font-size:12px;color:#0e7490;font-weight:700;margin-bottom:8px;">+ Yeni SIM Kart Aç (satışa hazırla)</div>
+            <input id="sim-yeni-no" type="text" placeholder="SIM kart numarası (örn: 6985...)" 
+              style="width:100%;padding:9px;border:1.5px solid #67e8f9;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;margin-bottom:6px;box-sizing:border-box;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
+              <div>
+                <label style="font-size:10px;color:#666;font-weight:600;">Satış (€)</label>
+                <input id="sim-yeni-satis" type="number" value="30" 
+                  style="width:100%;padding:8px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;box-sizing:border-box;">
+              </div>
+              <div>
+                <label style="font-size:10px;color:#666;font-weight:600;">Maliyet (€)</label>
+                <input id="sim-yeni-maliyet" type="number" value="0" placeholder="alış fiyatı"
+                  style="width:100%;padding:8px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;box-sizing:border-box;">
+              </div>
+            </div>
+            <button onclick="simKartAc('${sid||''}')" 
+              style="width:100%;padding:9px;background:#0891b2;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+              + SIM Kartı Satışa Aç
+            </button>
+          </div>
+
+          <!-- Kart listesi -->
+          <div style="font-size:11px;color:#666;font-weight:700;margin-bottom:8px;">📋 SIM KARTLAR (${tumKartlar.length})</div>
+          ${tumKartlar.length === 0 ? `
+            <div style="text-align:center;padding:24px;color:#999;font-size:13px;">
+              Henüz SIM kart yok.<br><span style="font-size:11px;">Yukarıdan ekleyin.</span>
+            </div>
+          ` : tumKartlar.slice().reverse().map(k => _simKartKarti(k)).join('')}
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  });
+}
+
+// SIM kart kartı
+function _simKartKarti(k){
+  // Durum: hazir, talep, satildi, iade
+  let durumRozet, kenarRenk, bgRenk;
+  if(k.iade_edildi){
+    durumRozet = '<span style="background:#991b1b;color:white;padding:2px 8px;border-radius:8px;font-size:9px;font-weight:700;">↩️ İADE EDİLDİ</span>';
+    kenarRenk = '#991b1b'; bgRenk = '#fef2f2';
+  } else if(k.odeme_durumu === 'odendi'){
+    durumRozet = '<span style="background:#15803d;color:white;padding:2px 8px;border-radius:8px;font-size:9px;font-weight:700;">✅ SATILDI</span>';
+    kenarRenk = '#15803d'; bgRenk = '#f0fdf4';
+  } else if(k.durum === 'talep'){
+    durumRozet = '<span style="background:#f59e0b;color:white;padding:2px 8px;border-radius:8px;font-size:9px;font-weight:700;animation:simPulse 1.5s infinite;">🔔 TALEP EDİLDİ</span>';
+    kenarRenk = '#f59e0b'; bgRenk = '#fffbeb';
+  } else {
+    durumRozet = '<span style="background:#0891b2;color:white;padding:2px 8px;border-radius:8px;font-size:9px;font-weight:700;">🟢 SATIŞTA</span>';
+    kenarRenk = '#0891b2'; bgRenk = 'white';
+  }
+
+  const kar = (parseFloat(k.satis_fiyat)||0) - (parseFloat(k.maliyet)||0) - (k.iade_edildi ? (parseFloat(k.iade_tutar)||0) : 0);
+
+  return `
+    <div style="background:${bgRenk};border:2px solid ${kenarRenk};border-radius:12px;padding:11px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            ${durumRozet}
+            <span style="font-size:14px;font-weight:700;color:#1a1a1a;font-family:'Courier New',monospace;">${escapeHTML(k.sim_no)}</span>
+          </div>
+          ${k.talep_kabin ? `<div style="font-size:11px;color:#666;margin-top:4px;">🏨 Kabin ${escapeHTML(k.talep_kabin)}${k.talep_isim?' · '+escapeHTML(k.talep_isim):''}</div>` : ''}
+          <div style="font-size:10px;color:#888;margin-top:2px;">
+            Satış €${k.satis_fiyat}${(parseFloat(k.maliyet)||0)>0?' · Maliyet €'+k.maliyet:''}${k.odeme_durumu==='odendi'?' · <b style="color:#15803d;">Kâr €'+kar.toFixed(0)+'</b>':''}
+          </div>
+          ${k.kontor_notu ? `<div style="font-size:10px;color:#0891b2;margin-top:3px;">📶 ${escapeHTML(k.kontor_notu)}${k.kontor_zamani?' ('+new Date(k.kontor_zamani).toLocaleDateString('tr-TR',{day:'numeric',month:'short'})+')':''}</div>` : ''}
+        </div>
+      </div>
+
+      <!-- Aksiyon butonları -->
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        ${!k.iade_edildi && k.odeme_durumu !== 'odendi' ? `
+          <button onclick="simOdemeIsaretle(${k.id},'odendi')" style="padding:5px 10px;background:#16a34a;color:white;border:none;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">✅ Ödedi</button>
+          <button onclick="simOdemeIsaretle(${k.id},'odemedi')" style="padding:5px 10px;background:#dc2626;color:white;border:none;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">❌ Ödemedi</button>
+        ` : ''}
+        ${k.odeme_durumu === 'odendi' && !k.iade_edildi ? `
+          <button onclick="simIadeYap(${k.id})" style="padding:5px 10px;background:#f59e0b;color:white;border:none;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">↩️ İade Yaptı (€${k.iade_tutar})</button>
+        ` : ''}
+        <button onclick="simKontorNot(${k.id})" style="padding:5px 10px;background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">📶 Kontör Notu</button>
+        <button onclick="simKartSil(${k.id})" style="padding:5px 8px;background:transparent;color:#dc2626;border:1px solid #fecaca;border-radius:6px;font-size:10px;cursor:pointer;font-family:'DM Sans',sans-serif;">🗑️</button>
+      </div>
+    </div>
+    <style>@keyframes simPulse{0%,100%{opacity:1}50%{opacity:.5}}</style>
+  `;
+}
+
+// SIM kart aç
+async function simKartAc(sid){
+  const no = document.getElementById('sim-yeni-no')?.value.trim();
+  const satis = parseFloat(document.getElementById('sim-yeni-satis')?.value) || 30;
+  const maliyet = parseFloat(document.getElementById('sim-yeni-maliyet')?.value) || 0;
+  if(!no){ showToast('⚠️ SIM kart numarası gir'); return; }
+
+  // Aynı no var mı?
+  if(SIM_KARTLAR.some(k => k.sim_no === no)){
+    showToast('⚠️ Bu SIM no zaten kayıtlı'); return;
+  }
+
+  try {
+    const yeni = {
+      sefer_id: sid || '', sim_no: no, durum: 'hazir',
+      satis_fiyat: satis, maliyet: maliyet, iade_tutar: 5,
+      odeme_durumu: 'bekliyor', iade_edildi: false
+    };
+    const sonuc = await sb.from('sim_kartlar').insert(yeni).select().single();
+    if(sonuc.data){
+      SIM_KARTLAR.push(sonuc.data);
+      showToast('✓ SIM kart satışa açıldı');
+      simKartModalAc();
+    } else {
+      showToast('⚠️ Hata: ' + (sonuc.error?.message || ''));
+    }
+  } catch(e){ showToast('⚠️ Hata: ' + (e?.message || '')); }
+}
+
+// Ödeme işaretle
+async function simOdemeIsaretle(id, durum){
+  const k = SIM_KARTLAR.find(x => x.id === id);
+  if(!k) return;
+  const guncelleme = {
+    odeme_durumu: durum,
+    odeme_zamani: durum === 'odendi' ? new Date().toISOString() : null,
+    durum: durum === 'odendi' ? 'satildi' : k.durum,
+    updated_at: new Date().toISOString()
+  };
+  try {
+    await dbUpdate('sim_kartlar', { id }, guncelleme);
+    Object.assign(k, guncelleme);
+    showToast(durum === 'odendi' ? '✅ Ödendi olarak işaretlendi' : '❌ Ödemedi olarak işaretlendi');
+    simKartModalAc();
+  } catch(e){ showToast('⚠️ ' + (e?.message || '')); }
+}
+
+// İade yap
+async function simIadeYap(id){
+  const k = SIM_KARTLAR.find(x => x.id === id);
+  if(!k) return;
+  if(!confirm('Bu SIM kart iade edilsin mi?\n€' + k.iade_tutar + ' iade verilecek.')) return;
+  const guncelleme = {
+    iade_edildi: true,
+    iade_zamani: new Date().toISOString(),
+    durum: 'iade',
+    updated_at: new Date().toISOString()
+  };
+  try {
+    await dbUpdate('sim_kartlar', { id }, guncelleme);
+    Object.assign(k, guncelleme);
+    showToast('↩️ İade işlendi (€' + k.iade_tutar + ')');
+    simKartModalAc();
+  } catch(e){ showToast('⚠️ ' + (e?.message || '')); }
+}
+
+// Kontör notu
+async function simKontorNot(id){
+  const k = SIM_KARTLAR.find(x => x.id === id);
+  if(!k) return;
+  const not = prompt('Kontör notu (örn: "20€ kontör yüklendi"):', k.kontor_notu || '');
+  if(not === null) return;
+  const guncelleme = {
+    kontor_notu: not.trim(),
+    kontor_zamani: not.trim() ? new Date().toISOString() : null,
+    updated_at: new Date().toISOString()
+  };
+  try {
+    await dbUpdate('sim_kartlar', { id }, guncelleme);
+    Object.assign(k, guncelleme);
+    showToast('📶 Kontör notu kaydedildi');
+    simKartModalAc();
+  } catch(e){ showToast('⚠️ ' + (e?.message || '')); }
+}
+
+// SIM kart sil
+async function simKartSil(id){
+  const k = SIM_KARTLAR.find(x => x.id === id);
+  if(!k) return;
+  if(!confirm('Bu SIM kart (' + k.sim_no + ') silinsin mi?')) return;
+  try {
+    await sb.from('sim_kartlar').delete().eq('id', id);
+    SIM_KARTLAR = SIM_KARTLAR.filter(x => x.id !== id);
+    showToast('✓ Silindi');
+    simKartModalAc();
+  } catch(e){ showToast('⚠️ ' + (e?.message || '')); }
+}
+
 function renderDashboard(){
   const el = document.getElementById('dashboard-icerik');
   if(!el) return;
@@ -10205,6 +10993,8 @@ function renderDashboard(){
         <button onclick="krediKartiUyariModalAc()" style="padding:10px;background:linear-gradient(135deg,#dc2626,#991b1b);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">💳 Kredi Kartı Uyarısı (Resepsiyon)</button>
         <button onclick="gruplarModalAc()" style="padding:10px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">👥 Grup Yönetimi (Kapalı Gruplar)</button>
         <button onclick="sunumlarModalAc()" style="padding:10px;background:linear-gradient(135deg,#9333ea,#6b21a8);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">🎬 Canlı Tur Sunumları (Resimli Anlatım)</button>
+        <button onclick="simKartModalAc()" style="padding:10px;background:linear-gradient(135deg,#0891b2,#0e7490);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">📱 e-ship SIM Kart Satış</button>
+        <button onclick="simKartModalAc()" style="padding:10px;background:linear-gradient(135deg,#0891b2,#0e7490);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">📱 E-Ship SIM Kart Yönetimi</button>
       </div>
     </div>
 
