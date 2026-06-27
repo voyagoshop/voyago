@@ -4691,11 +4691,12 @@ function renderPwaYukleKarti(){
   const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   if(standalone){ area.innerHTML = ''; return; }
 
-  // localStorage'da "yüklendi" veya "kapatıldı" işareti varsa gösterme
+  // Sadece "yüklendi" işareti varsa kalıcı gizle (kapatma artık oturumluk)
   try {
     if(localStorage.getItem('pwa_yuklendi') === '1'){ area.innerHTML = ''; return; }
-    if(localStorage.getItem('pwa_karti_kapatildi') === '1'){ area.innerHTML = ''; return; }
   } catch(e){}
+  // Bu oturumda kapatıldıysa gösterme (ama yeni girişte tekrar görünür)
+  if(window._pwaKartiKapatildi){ area.innerHTML = ''; return; }
 
   const iOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
@@ -4719,7 +4720,7 @@ function renderPwaYukleKarti(){
 }
 
 function pwaKartiKapat(){
-  try { localStorage.setItem('pwa_karti_kapatildi', '1'); } catch(e){}
+  window._pwaKartiKapatildi = true;
   const area = document.getElementById('pwa-yukle-karti');
   if(area) area.innerHTML = '';
 }
@@ -29061,6 +29062,8 @@ const PWA_Android = /Android/i.test(navigator.userAgent);
 const PWA_Standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 let _pwaPromptYakaland = null;
 let _pwaBannerGosterilmis = false;
+// Eski kalıcı kapatma işaretini temizle (artık oturumluk)
+try { localStorage.removeItem('pwa_karti_kapatildi'); } catch(e){}
 
 // Browser otomatik install prompt'u yakala (Android Chrome)
 window.addEventListener('beforeinstallprompt', (e) => {
