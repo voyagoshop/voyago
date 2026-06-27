@@ -3006,6 +3006,7 @@ async function initDB() {
     }
 
     passengers = yolcularDB.map(y => ({
+      _dbId: y.id,  // 🔑 DB id - güncellemeler doğru kayda gitsin (aynı kabinde 2 kişi ezilmesin)
       name: y.ad, kabin: y.kabin, tel: y.telefon || '',
       sefer: y.sefer_id || '', adult: y.yetiskin || 1,
       child: y.cocuk || 0, baby: y.bebek || 0,
@@ -3384,8 +3385,20 @@ function enAktifYolcular(seferId, limit){
 }
 
 async function saveYolcuDB(p) {
-  // Kabini varsa kabin+sefer ile, yoksa isim+sefer ile eşleştir
+  // 🔑 Yolcunun DB id'si varsa ONUNLA eşleştir (aynı kabinde 2 kişi birbirini ezmesin)
   let mevcut;
+  if(p._dbId){
+    // Bu yolcunun kesin DB kaydı var → id ile güncelle
+    mevcut = await dbGet('yolcular', { id: p._dbId });
+    if(mevcut.length > 0){
+      await _yolcuDBYaz(p, { id: p._dbId });
+      _yolcuCacheTemizle();
+      return;
+    }
+    // id bulunamadı (silinmiş?) → aşağıdaki normal akışa düş
+  }
+
+  // Kabini varsa kabin+sefer ile, yoksa isim+sefer ile eşleştir
   if(p.kabin){
     mevcut = await dbGet('yolcular', { kabin: p.kabin, sefer_id: p.sefer });
   } else {
@@ -3397,43 +3410,62 @@ async function saveYolcuDB(p) {
       if(filtreli.length === 1) mevcut = filtreli;
     }
   }
-  if (mevcut.length > 0) {
-    // Update — eşleştirme kabini varsa kabin ile, yoksa id ile
-    if(p.kabin){
-      await dbUpdate('yolcular', { kabin: p.kabin, sefer_id: p.sefer }, {
-        ad: p.name, telefon: p.tel,
-        yetiskin: p.adult, cocuk: p.child, bebek: p.baby,
-        checkin: p.checkedIn, checkin_yapildi: p.checkinDone,
-        katildigi_turlar: p.joinedTours,
-        tur_katilim_detay: p.tur_katilim_detay || {},
-        email: p.email || null,
-        pazarlama_izni: p.pazarlama_izni || false,
-        ekstra_isimler: p.ekstra_isimler || [],
-        ekstra_telefonlar: p.ekstra_telefonlar || {},
-        dogum_tarihleri: p.dogum_tarihleri || null,
-        otobus_no: p.otobus_no || null
-      });
+
+  // ⚠️ AYNI KABİNDE BİRDEN FAZLA KAYIT VARSA: ad ile de eşleştir (ezme!)
+  if(mevcut.length > 1){
+    const adEslesen = mevcut.filter(m => isimNormalize(m.ad) === isimNormalize(p.name));
+    if(adEslesen.length >= 1){
+      mevcut = [adEslesen[0]]; // Aynı isimli kaydı güncelle
     } else {
-      // Kabinsiz — id ile güncelle (ilk eşleşeni)
-      const ilkId = mevcut[0].id;
-      if(ilkId){
-        await dbUpdate('yolcular', { id: ilkId }, {
-          ad: p.name, telefon: p.tel,
-          yetiskin: p.adult, cocuk: p.child, bebek: p.baby,
-          checkin: p.checkedIn, checkin_yapildi: p.checkinDone,
-          katildigi_turlar: p.joinedTours,
-          tur_katilim_detay: p.tur_katilim_detay || {},
-          email: p.email || null,
-          pazarlama_izni: p.pazarlama_izni || false,
-          ekstra_isimler: p.ekstra_isimler || [],
-          ekstra_telefonlar: p.ekstra_telefonlar || {},
-        dogum_tarihleri: p.dogum_tarihleri || null,
-          otobus_no: p.otobus_no || null
-        });
-      }
+      // Bu kabinde bu isim YOK → yeni kayıt olarak ekle (ezme)
+      mevcut = [];
+    }
+  }
+  // ⚠️ TEK eşleşme var ama kabin bazlı eşleşmede İSİM FARKLIYSA: aynı kabinde farklı kişi → yeni kayıt
+  else if(mevcut.length === 1 && p.kabin && !p._dbId){
+    if(isimNormalize(mevcut[0].ad) !== isimNormalize(p.name)){
+      // Aynı kabin numarası ama farklı isim → bu AYRI bir yolcu, ezme!
+      mevcut = [];
+    }
+  }
+
+  if (mevcut.length > 0) {
+    // Güncelle — id ile (en güvenli)
+    const hedefId = mevcut[0].id;
+    if(hedefId){
+      p._dbId = hedefId; // İleride hep bununla eşleşsin
+      await _yolcuDBYaz(p, { id: hedefId });
     }
   } else {
-    await dbInsert('yolcular', {
+    // Yeni kayıt
+    const yeniId = await _yolcuDBEkle(p);
+    if(yeniId) p._dbId = yeniId;
+  }
+
+  _yolcuCacheTemizle();
+}
+
+// Yolcu DB güncelle (ortak)
+async function _yolcuDBYaz(p, eslestir){
+  await dbUpdate('yolcular', eslestir, {
+    ad: p.name, kabin: p.kabin, telefon: p.tel,
+    yetiskin: p.adult, cocuk: p.child, bebek: p.baby,
+    checkin: p.checkedIn, checkin_yapildi: p.checkinDone,
+    katildigi_turlar: p.joinedTours,
+    tur_katilim_detay: p.tur_katilim_detay || {},
+    email: p.email || null,
+    pazarlama_izni: p.pazarlama_izni || false,
+    ekstra_isimler: p.ekstra_isimler || [],
+    ekstra_telefonlar: p.ekstra_telefonlar || {},
+    dogum_tarihleri: p.dogum_tarihleri || null,
+    otobus_no: p.otobus_no || null
+  });
+}
+
+// Yolcu DB ekle (ortak) - yeni id döndürür
+async function _yolcuDBEkle(p){
+  try {
+    const sonuc = await sb.from('yolcular').insert({
       ad: p.name, kabin: p.kabin, telefon: p.tel,
       sefer_id: p.sefer, yetiskin: p.adult,
       cocuk: p.child, bebek: p.baby,
@@ -3444,12 +3476,17 @@ async function saveYolcuDB(p) {
       pazarlama_izni: p.pazarlama_izni || false,
       ekstra_isimler: p.ekstra_isimler || [],
       ekstra_telefonlar: p.ekstra_telefonlar || {},
-        dogum_tarihleri: p.dogum_tarihleri || null,
+      dogum_tarihleri: p.dogum_tarihleri || null,
       otobus_no: p.otobus_no || null
-    });
+    }).select('id').single();
+    if(sonuc.error) throw new Error(sonuc.error.message);
+    return sonuc.data?.id || null;
+  } catch(e){
+    throw e;
   }
+}
 
-  // 🧹 Cache TEMİZLE - diğer cihazların taze veri çekmesi için
+function _yolcuCacheTemizle(){
   try {
     if(typeof _dbCache !== 'undefined'){
       Object.keys(_dbCache).forEach(k => {
@@ -3458,6 +3495,7 @@ async function saveYolcuDB(p) {
     }
   } catch(e){}
 }
+
 
 async function saveSeferDB(v) {
   const mevcut = await dbGet('seferler', { id: v.id });
@@ -12261,7 +12299,10 @@ function loadExcel(input){
         // Eşleştirme: kabin varsa kabin+sefer ile, yoksa esnek isim+sefer ile
         let ex;
         if(kabin){
-          ex = passengers.find(p=>p.kabin===kabin&&p.sefer===v.id);
+          // ⚠️ Aynı kabinde birden fazla kişi olabilir → isim ile birlikte eşleştir
+          ex = passengers.find(p=>p.kabin===kabin && p.sefer===v.id && isimNormalize(p.name)===isimNormalize(name));
+          // İsimle bulunamadıysa ama o kabinde TEK kişi varsa ve o da bu Excel'den yeni geliyorsa eşleştirme
+          // (farklı kişiyse yeni kayıt olarak eklenecek)
         } else {
           // Kabin yoksa, aynı isimli kabinsiz yolcu var mı bak (esnek eşleştirme)
           ex = passengers.find(p=>p.sefer===v.id && !p.kabin && isimEsnekEslesir(name, p.name));
