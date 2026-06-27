@@ -12199,6 +12199,7 @@ function loadExcel(input){
       const data=XLSX.utils.sheet_to_json(ws,{header:1});
       let added=0,updated=0,hata=0,eksikBilgi=0;
       const kayitListesi = []; // DB'ye gönderilecek
+      const atlanmislar = []; // Sefer bulunamadığı için atlanan satırlar
       for(let i=1;i<data.length;i++){
         const r=data[i];if(!r||!r[0])continue;
         const name=String(r[0]||'').trim(),kabin=String(r[1]||'').trim(),tel=String(r[2]||'').trim();
@@ -12207,7 +12208,7 @@ function loadExcel(input){
         // Sadece isim zorunlu — kabin/telefon olmadan da kaydedilir
         if(!name)continue;
         const v=VOYAGES.find(vv=>vv.label.includes(sl2.split('-')[0].trim()))||VOYAGES[0];
-        if(!v){ hata++; continue; }
+        if(!v){ hata++; atlanmislar.push(name); continue; }
         // Kabin yoksa eksik bilgili sayılır (yolcu sonradan tamamlayacak)
         if(!kabin) eksikBilgi++;
         // Eşleştirme: kabin varsa kabin+sefer ile, yoksa esnek isim+sefer ile
@@ -12219,6 +12220,7 @@ function loadExcel(input){
           ex = passengers.find(p=>p.sefer===v.id && !p.kabin && isimEsnekEslesir(name, p.name));
         }
         if(ex){
+          // ⚠️ Mevcut kaydı GÜNCELLE ama check-in/tur bilgilerini KORU (silme!)
           Object.assign(ex,{name,tel:tel||ex.tel,kabin:kabin||ex.kabin,adult,child,baby});
           updated++;
           kayitListesi.push(ex);
@@ -12231,28 +12233,63 @@ function loadExcel(input){
         }
       }
       setupAdmin();
-      showToast('⏳ ' + (added+updated) + ' yolcu DB\'ye kaydediliyor...');
-      // SIRAYLA kaydet (paralel rate limit'e takılabiliyor)
-      let basarili = 0, basarisiz = 0;
+
+      // DB'ye SIRAYLA kaydet - başarısızları topla, tekrar dene
+      showToast('⏳ ' + kayitListesi.length + ' kayıt DB\'ye yazılıyor...');
+      let basarili = 0;
+      let basarisizlar = [];
+
+      // 1. TUR
       for(const p of kayitListesi){
         try {
           await saveYolcuDB(p);
           basarili++;
         } catch(e){
-          basarisiz++;
-          console.error('Kayıt hatası ('+p.name+'):', e);
+          basarisizlar.push(p);
+          console.log('Kayıt hatası ('+p.name+'): ' + (e?.message||''));
         }
-        // Her 10 kayıttan sonra UI'yi güncelle
-        if(basarili % 10 === 0){
+        if(basarili % 20 === 0 && basarili > 0){
           showToast('⏳ ' + basarili + '/' + kayitListesi.length + ' kaydedildi...');
         }
       }
-      let msg = '✓ ' + added + ' yeni · ' + updated + ' güncellendi';
-      if(eksikBilgi > 0) msg += ' · ' + eksikBilgi + ' eksik bilgi';
-      if(basarisiz > 0) msg += ' · ⚠️ ' + basarisiz + ' KAYIT BAŞARISIZ (Console\'a bak)';
-      if(hata > 0) msg += ' · ' + hata + ' satır hatalı';
-      showToast(msg);
-    }catch(err){showToast('Hata: '+err.message);}
+
+      // 2. TUR - başarısızları tekrar dene (geçici hata/rate limit olabilir)
+      if(basarisizlar.length > 0){
+        showToast('🔄 ' + basarisizlar.length + ' başarısız kayıt tekrar deneniyor...');
+        await new Promise(r=>setTimeout(r, 1500)); // Biraz bekle
+        const halaBasarisiz = [];
+        for(const p of basarisizlar){
+          try {
+            await saveYolcuDB(p);
+            basarili++;
+          } catch(e){
+            halaBasarisiz.push(p);
+            console.log('2. deneme hata ('+p.name+'): ' + (e?.message||''));
+          }
+        }
+        basarisizlar = halaBasarisiz;
+      }
+
+      // Detaylı rapor
+      let msg = '✅ ' + basarili + '/' + kayitListesi.length + ' kayıt başarılı';
+      if(added > 0) msg += ' · ' + added + ' yeni';
+      if(updated > 0) msg += ' · ' + updated + ' güncellendi';
+      showToast(msg, 5000);
+
+      // Başarısız varsa UYAR (sessiz geçme!)
+      if(basarisizlar.length > 0){
+        setTimeout(() => {
+          alert('⚠️ DİKKAT: ' + basarisizlar.length + ' kayıt KAYDEDİLEMEDİ!\n\n' +
+            'Bu yolcular DB\'ye yazılamadı:\n' +
+            basarisizlar.slice(0,15).map(p=>'• '+p.name+(p.kabin?' (Kabin '+p.kabin+')':'')).join('\n') +
+            (basarisizlar.length>15?'\n... ve '+(basarisizlar.length-15)+' kişi daha':'') +
+            '\n\n🔄 ÇÖZÜM: Excel dosyasını tekrar yükleyin. Mevcut kayıtlar korunur, sadece eksikler eklenir.');
+        }, 1000);
+      }
+      if(hata > 0 && atlanmislar.length > 0){
+        console.log('Sefer bulunamayan: ' + atlanmislar.join(', '));
+      }
+    }catch(err){showToast('Hata: '+err.message); console.log('Excel yükleme: ' + err.message);}
   };
   reader.readAsArrayBuffer(file);
 }
@@ -24514,7 +24551,7 @@ async function anketPDFIndir(){
   setTimeout(()=>win.print(), 500);
 }
 
-function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);}
+function showToast(msg, sure){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'), sure || 3200);}
 
 // gc class fix
 const gcStyle=document.createElement('style');
