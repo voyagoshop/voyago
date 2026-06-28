@@ -2989,8 +2989,12 @@ async function initDB() {
     // Yolcuları yükle (arşivli olanlar da DB'de durur — rapor için)
     let yolcularDB = [];
     try {
-      yolcularDB = await dbGet('yolcular');
-    } catch(e){ console.log('Yolcular yükleme hatası:', e); }
+      // Limitsiz çek (varsayılan 1000 limit'i aş)
+      const { data, error } = await sb.from('yolcular').select('*').range(0, 9999);
+      if(error) throw new Error(error.message);
+      yolcularDB = data || [];
+      console.log('[INIT] ' + yolcularDB.length + ' yolcu DB\'den çekildi');
+    } catch(e){ console.log('Yolcular yükleme hatası:', e?.message||e); }
 
     // 📡 Offline fallback - DB'den boş geldiyse veya hata olduysa cache'i dene
     if(!yolcularDB?.length){
@@ -30259,9 +30263,39 @@ async function _rehberYolcuListesiniYenile(){
           if(k.startsWith('yolcular:')) delete _dbCache[k];
         });
       }
-      // DB'den yolcuları çek
-      const yolcularDB = await dbGet('yolcular');
-      if(yolcularDB?.length){
+      // 🔍 ÖNCE DB'deki gerçek count'u al (limit/eksik veri kontrolü)
+      let dbCount = -1;
+      try {
+        const { count } = await sb.from('yolcular').select('id', { count: 'exact', head: true });
+        dbCount = count || 0;
+      } catch(e){}
+
+      // DB'den yolcuları çek - LİMİTSİZ (varsayılan 1000 limit'i aş)
+      let yolcularDB = [];
+      try {
+        const { data, error } = await sb.from('yolcular').select('*').range(0, 9999);
+        if(error) throw new Error(error.message);
+        yolcularDB = data || [];
+      } catch(e){
+        console.log('[REHBER] Çekme hatası: ' + (e?.message||''));
+        return; // Hata varsa mevcut listeyi KORU (üzerine yazma!)
+      }
+
+      // 🛡️ GÜVENLİK: DB count ile çekilen sayı tutmuyorsa eksik çekilmiş, üzerine yazma
+      if(dbCount > 0 && yolcularDB.length < dbCount){
+        console.log('[REHBER] ⚠️ Eksik çekildi (' + yolcularDB.length + '/' + dbCount + ') - mevcut korunuyor');
+        return;
+      }
+
+      // 🛡️ GÜVENLİK: DB'den gelen, mevcuttakinin yarısından azsa şüpheli - üzerine yazma
+      const mevcutAktif = passengers.filter(p => !p.arsivli).length;
+      const yeniAktif = yolcularDB.filter(y => y.arsivli !== true).length;
+      if(mevcutAktif > 20 && yeniAktif < mevcutAktif * 0.6){
+        console.log('[REHBER] ⚠️ Şüpheli düşüş (' + mevcutAktif + '→' + yeniAktif + ') - mevcut korunuyor');
+        return;
+      }
+
+      if(yolcularDB.length){
         passengers = yolcularDB.map(y => ({
           _dbId: y.id,
           name: y.ad, kabin: y.kabin, tel: y.telefon || '',
@@ -30294,7 +30328,7 @@ async function _rehberYolcuListesiniYenile(){
             });
           }
         });
-        console.log('[REHBER] Yolcu listesi yenilendi:', passengers.length);
+        console.log('[REHBER] Yolcu listesi yenilendi: ' + passengers.length + ' (DB count: ' + dbCount + ')');
         // Aktif sayfayı yenile
         try {
           if(typeof renderPS === 'function') renderPS(CASF);
