@@ -3415,23 +3415,19 @@ async function saveYolcuDB(p) {
     }
   }
 
-  // ⚠️ AYNI KABİNDE BİRDEN FAZLA KAYIT VARSA: ad ile de eşleştir (ezme!)
+  // ⚠️ AYNI KABİNDE BİRDEN FAZLA KAYIT VARSA: ad ile eşleştirmeyi DENE
   if(mevcut.length > 1){
     const adEslesen = mevcut.filter(m => isimNormalize(m.ad) === isimNormalize(p.name));
     if(adEslesen.length >= 1){
       mevcut = [adEslesen[0]]; // Aynı isimli kaydı güncelle
     } else {
-      // Bu kabinde bu isim YOK → yeni kayıt olarak ekle (ezme)
-      mevcut = [];
+      // İsim eşleşmedi ama aynı kabinde kayıt var → İLK boş/eşleşmeyeni güncelle
+      // (yolcu kendi adıyla giriyor, Excel'de farklı yazılmış olabilir - yeni kayıt AÇMA)
+      mevcut = [mevcut[0]];
     }
   }
-  // ⚠️ TEK eşleşme var ama kabin bazlı eşleşmede İSİM FARKLIYSA: aynı kabinde farklı kişi → yeni kayıt
-  else if(mevcut.length === 1 && p.kabin && !p._dbId){
-    if(isimNormalize(mevcut[0].ad) !== isimNormalize(p.name)){
-      // Aynı kabin numarası ama farklı isim → bu AYRI bir yolcu, ezme!
-      mevcut = [];
-    }
-  }
+  // Tek eşleşmede: kabin eşleşti → o kaydı güncelle (isim farklı olsa bile - aynı kabin = aynı yolcu grubu)
+  // Bu sayede yolcu adını farklı yazsa da check-in çalışır
 
   if (mevcut.length > 0) {
     // Güncelle — id ile (en güvenli)
@@ -10810,6 +10806,139 @@ async function simKartSil(id){
   } catch(e){ showToast('⚠️ ' + (e?.message || '')); }
 }
 
+// 🔍 Yolcu veri teşhisi - DB ile UI tutarlı mı?
+async function yolcuVeriTanisi(){
+  showToast('🔍 DB kontrol ediliyor...');
+  let rapor = [];
+
+  // 1. DB'deki TOPLAM count (exact)
+  let dbCount = -1;
+  try {
+    const { count } = await sb.from('yolcular').select('id', { count: 'exact', head: true });
+    dbCount = count || 0;
+    rapor.push('📁 DB\'de TOPLAM kayıt: ' + dbCount);
+  } catch(e){ rapor.push('⚠️ Count hatası: ' + (e?.message||'')); }
+
+  // 2. Limitsiz çek, kaç geliyor?
+  let cekilenSayi = -1;
+  let cekilenVeri = [];
+  try {
+    const { data, error } = await sb.from('yolcular').select('*').range(0, 9999);
+    if(error) throw new Error(error.message);
+    cekilenVeri = data || [];
+    cekilenSayi = cekilenVeri.length;
+    rapor.push('📥 Çekilen (limitsiz): ' + cekilenSayi);
+  } catch(e){ rapor.push('⚠️ Çekme hatası: ' + (e?.message||'')); }
+
+  // 3. UI'deki sayı
+  const uiSayi = passengers.length;
+  const uiAktif = passengers.filter(p=>!p.arsivli).length;
+  rapor.push('📱 Ekranda (UI): ' + uiSayi + ' (' + uiAktif + ' aktif)');
+
+  // 4. Sefer dağılımı (DB'den)
+  if(cekilenVeri.length){
+    const seferDagilim = {};
+    cekilenVeri.forEach(y => {
+      const sid = y.sefer_id || '(sefersiz)';
+      seferDagilim[sid] = (seferDagilim[sid]||0)+1;
+    });
+    rapor.push('');
+    rapor.push('— SEFER DAĞILIMI (DB) —');
+    Object.entries(seferDagilim).forEach(([sid, n]) => {
+      const v = VOYAGES.find(vv=>vv.id===sid);
+      const ad = v ? (v.label||v.id).slice(0,25) : sid.slice(0,12);
+      rapor.push(ad + ': ' + n + ' kişi');
+    });
+  }
+
+  // Sonuç
+  rapor.push('');
+  if(dbCount >= 0 && cekilenSayi >= 0){
+    if(dbCount === cekilenSayi){
+      rapor.push('✅ DB tam çekiliyor (' + dbCount + ')');
+      if(uiSayi < dbCount){
+        rapor.push('⚠️ Ama ekranda az! "Onar" ile düzelt.');
+      }
+    } else {
+      rapor.push('❌ EKSİK ÇEKME! DB:' + dbCount + ' ama çekilen:' + cekilenSayi);
+    }
+  }
+
+  // Modal göster
+  document.getElementById('yolcu-tani-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'yolcu-tani-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:18px;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e)=>{ if(e.target.id==='yolcu-tani-modal') modal.remove(); };
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;max-width:460px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+      <div style="background:linear-gradient(135deg,#dc2626,#991b1b);padding:14px 18px;color:white;position:sticky;top:0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-family:'DM Serif Display',serif;font-size:17px;">🔍 Yolcu Veri Kontrolü</div>
+          <button onclick="document.getElementById('yolcu-tani-modal').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;font-size:18px;cursor:pointer;width:30px;height:30px;border-radius:50%;">×</button>
+        </div>
+      </div>
+      <div style="padding:16px 18px;">
+        <div style="font-family:'Courier New',monospace;font-size:12px;color:#1a1a1a;line-height:1.7;white-space:pre-wrap;margin-bottom:14px;">${rapor.join('\n')}</div>
+        ${(cekilenSayi > uiSayi) ? `
+          <button onclick="yolcuVeriOnar()" style="width:100%;padding:12px;background:#16a34a;color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+            🔧 Onar (DB'deki ${cekilenSayi} kişiyi ekrana yükle)
+          </button>
+        ` : `
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px;font-size:12px;color:#15803d;text-align:center;">
+            ${dbCount === uiSayi ? '✅ DB ve ekran tutarlı.' : 'Veri durumu yukarıda.'}
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+// 🔧 DB'deki tüm yolcuları ekrana zorla yükle
+async function yolcuVeriOnar(){
+  showToast('🔧 Onarılıyor...');
+  try {
+    const { data, error } = await sb.from('yolcular').select('*').range(0, 9999);
+    if(error) throw new Error(error.message);
+    const yolcularDB = data || [];
+    passengers = yolcularDB.map(y => ({
+      _dbId: y.id,
+      name: y.ad, kabin: y.kabin, tel: y.telefon || '',
+      sefer: y.sefer_id || '', adult: y.yetiskin || 1,
+      child: y.cocuk || 0, baby: y.bebek || 0,
+      checkedIn: y.checkin || false, checkinDone: y.checkin_yapildi || false,
+      joinedTours: y.katildigi_turlar || [],
+      tur_katilim_detay: y.tur_katilim_detay || {},
+      arsivli: y.arsivli === true,
+      email: y.email || '',
+      pazarlama_izni: y.pazarlama_izni || false,
+      ekstra_isimler: y.ekstra_isimler || [],
+      ekstra_telefonlar: y.ekstra_telefonlar || {},
+      dogum_tarihleri: y.dogum_tarihleri || { ana: '', ekstra: [] },
+      otobus_no: y.otobus_no ? parseInt(y.otobus_no) : null,
+      giris_sayisi: y.giris_sayisi || 0,
+      son_aktiflik: y.son_aktiflik || null,
+      giris_gunlugu: Array.isArray(y.giris_gunlugu) ? y.giris_gunlugu : []
+    }));
+    // kontrolDurum yeniden inşa
+    kontrolDurum = {};
+    passengers.forEach(p => {
+      if(p.tur_katilim_detay){
+        Object.keys(p.tur_katilim_detay).forEach(tid => {
+          const det = p.tur_katilim_detay[tid];
+          if(det && typeof det.geldi !== 'undefined' && det.geldi > 0){
+            kontrolDurum[p.kabin + '_' + p.sefer + '_' + tid] = det.geldi;
+          }
+        });
+      }
+    });
+    setupAdmin();
+    document.getElementById('yolcu-tani-modal')?.remove();
+    showToast('✅ ' + passengers.length + ' yolcu yüklendi!');
+  } catch(e){ showToast('⚠️ ' + (e?.message||'')); }
+}
+
 function renderDashboard(){
   const el = document.getElementById('dashboard-icerik');
   if(!el) return;
@@ -11171,6 +11300,7 @@ function renderDashboard(){
         <button onclick="gruplarModalAc()" style="padding:10px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">👥 Grup Yönetimi (Kapalı Gruplar)</button>
         <button onclick="sunumlarModalAc()" style="padding:10px;background:linear-gradient(135deg,#9333ea,#6b21a8);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">🎬 Canlı Tur Sunumları (Resimli Anlatım)</button>
         <button onclick="simKartModalAc()" style="padding:10px;background:linear-gradient(135deg,#0891b2,#0e7490);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">📱 e-ship SIM Kart Satış</button>
+        <button onclick="yolcuVeriTanisi()" style="padding:10px;background:linear-gradient(135deg,#dc2626,#991b1b);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">🔍 Yolcu Veri Kontrolü (Eksik mi?)</button>
         <button onclick="simKartModalAc()" style="padding:10px;background:linear-gradient(135deg,#0891b2,#0e7490);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">📱 E-Ship SIM Kart Yönetimi</button>
       </div>
     </div>
@@ -12366,7 +12496,8 @@ function loadExcel(input){
 
       // Yeni eklenecekler ve güncellenecekleri ayır
       const yeniler = kayitListesi.filter(p => !p._mevcut);
-      const guncellenecekler = kayitListesi.filter(p => p._mevcut && p._dbId);
+      // Mevcut olanlar (kabin eşleşmiş) → saveYolcuDB zaten doğru kaydı bulur (_dbId şart değil)
+      const guncellenecekler = kayitListesi.filter(p => p._mevcut);
 
       // 1. YENİLER → toplu insert (50'şer parça halinde)
       if(yeniler.length > 0){
