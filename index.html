@@ -3312,7 +3312,7 @@ async function yolcuAktiviteKaydet(p, yeniGiris){
       try {
         const { data: mevcut } = await sb.from('yolcular')
           .select('giris_sayisi, giris_gunlugu')
-          .eq('kabin', p.kabin).eq('sefer', p.sefer)
+          .eq('kabin', p.kabin).eq('sefer_id', p.sefer)
           .maybeSingle();
         if(mevcut){
           // DB'deki değeri baz al, +1 yap (en güncel sayı)
@@ -3335,7 +3335,7 @@ async function yolcuAktiviteKaydet(p, yeniGiris){
     if(yeniGiris) guncelleme.giris_gunlugu = dbGunluk;
 
     const { error } = await sb.from('yolcular').update(guncelleme)
-      .eq('kabin', p.kabin).eq('sefer', p.sefer);
+      .eq('kabin', p.kabin).eq('sefer_id', p.sefer);
     
     if(error){
       // Günlük kolonu yoksa, onsuz tekrar dene
@@ -3344,7 +3344,7 @@ async function yolcuAktiviteKaydet(p, yeniGiris){
           const { error: e2 } = await sb.from('yolcular').update({
             giris_sayisi: dbGirisSayisi,
             son_aktiflik: simdi
-          }).eq('kabin', p.kabin).eq('sefer', p.sefer);
+          }).eq('kabin', p.kabin).eq('sefer_id', p.sefer);
           if(e2){
             _aktiviteKolonuYok = true;
             console.log('[AKTİVİTE] Devre dışı: ' + (e2.message || e2.code || ''));
@@ -11167,7 +11167,7 @@ async function aktiflikTaniYap(sid){
   try {
     const { data, error } = await sb.from('yolcular')
       .select('kabin, giris_sayisi, son_aktiflik')
-      .eq('sefer', sid)
+      .eq('sefer_id', sid)
       .limit(1);
     if(error){
       dbHata = error.message || 'Bilinmeyen hata';
@@ -11184,7 +11184,7 @@ async function aktiflikTaniYap(sid){
       const girisli = (data||[]).filter(y => (y.giris_sayisi||0) > 0).length;
       const { data: tumData } = await sb.from('yolcular')
         .select('giris_sayisi')
-        .eq('sefer', sid)
+        .eq('sefer_id', sid)
         .gt('giris_sayisi', 0);
       rapor.push('📊 DB\'de ' + (tumData?.length||0) + ' yolcuda giriş kaydı var');
     }
