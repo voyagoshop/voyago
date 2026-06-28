@@ -3447,7 +3447,7 @@ async function saveYolcuDB(p) {
 
 // Yolcu DB güncelle (ortak)
 async function _yolcuDBYaz(p, eslestir){
-  await dbUpdate('yolcular', eslestir, {
+  const tamVeri = {
     ad: p.name, kabin: p.kabin, telefon: p.tel,
     yetiskin: p.adult, cocuk: p.child, bebek: p.baby,
     checkin: p.checkedIn, checkin_yapildi: p.checkinDone,
@@ -3459,29 +3459,54 @@ async function _yolcuDBYaz(p, eslestir){
     ekstra_telefonlar: p.ekstra_telefonlar || {},
     dogum_tarihleri: p.dogum_tarihleri || null,
     otobus_no: p.otobus_no || null
-  });
+  };
+  try {
+    const { error } = await sb.from('yolcular').update(tamVeri).match(eslestir);
+    if(error) throw new Error(error.message);
+  } catch(e){
+    // Kolon yoksa, sorunlu opsiyonel alanları çıkarıp tekrar dene
+    if((e?.message||'').includes('column') || (e?.message||'').includes('schema')){
+      const guvenliVeri = {...tamVeri};
+      delete guvenliVeri.ekstra_telefonlar;
+      delete guvenliVeri.dogum_tarihleri;
+      const { error: e2 } = await sb.from('yolcular').update(guvenliVeri).match(eslestir);
+      if(e2) throw new Error(e2.message);
+    } else {
+      throw e;
+    }
+  }
 }
 
 // Yolcu DB ekle (ortak) - yeni id döndürür
 async function _yolcuDBEkle(p){
+  const tamVeri = {
+    ad: p.name, kabin: p.kabin, telefon: p.tel,
+    sefer_id: p.sefer, yetiskin: p.adult,
+    cocuk: p.child, bebek: p.baby,
+    checkin: p.checkedIn, checkin_yapildi: p.checkinDone,
+    katildigi_turlar: p.joinedTours,
+    tur_katilim_detay: p.tur_katilim_detay || {},
+    email: p.email || null,
+    pazarlama_izni: p.pazarlama_izni || false,
+    ekstra_isimler: p.ekstra_isimler || [],
+    ekstra_telefonlar: p.ekstra_telefonlar || {},
+    dogum_tarihleri: p.dogum_tarihleri || null,
+    otobus_no: p.otobus_no || null
+  };
   try {
-    const sonuc = await sb.from('yolcular').insert({
-      ad: p.name, kabin: p.kabin, telefon: p.tel,
-      sefer_id: p.sefer, yetiskin: p.adult,
-      cocuk: p.child, bebek: p.baby,
-      checkin: p.checkedIn, checkin_yapildi: p.checkinDone,
-      katildigi_turlar: p.joinedTours,
-      tur_katilim_detay: p.tur_katilim_detay || {},
-      email: p.email || null,
-      pazarlama_izni: p.pazarlama_izni || false,
-      ekstra_isimler: p.ekstra_isimler || [],
-      ekstra_telefonlar: p.ekstra_telefonlar || {},
-      dogum_tarihleri: p.dogum_tarihleri || null,
-      otobus_no: p.otobus_no || null
-    }).select('id').single();
+    const sonuc = await sb.from('yolcular').insert(tamVeri).select('id').single();
     if(sonuc.error) throw new Error(sonuc.error.message);
     return sonuc.data?.id || null;
   } catch(e){
+    // Kolon yoksa, sorunlu opsiyonel alanları çıkarıp tekrar dene
+    if((e?.message||'').includes('column') || (e?.message||'').includes('schema')){
+      const guvenliVeri = {...tamVeri};
+      delete guvenliVeri.ekstra_telefonlar;
+      delete guvenliVeri.dogum_tarihleri;
+      const sonuc2 = await sb.from('yolcular').insert(guvenliVeri).select('id').single();
+      if(sonuc2.error) throw new Error(sonuc2.error.message);
+      return sonuc2.data?.id || null;
+    }
     throw e;
   }
 }
@@ -12344,14 +12369,13 @@ function loadExcel(input){
         const parcaBoyut = 50;
         for(let i = 0; i < yeniler.length; i += parcaBoyut){
           const parca = yeniler.slice(i, i + parcaBoyut);
+          // ⚠️ Sadece KESİN var olan kolonlar (ekstra_telefonlar gibi opsiyoneller hata verebilir)
           const insertVeri = parca.map(p => ({
             ad: p.name, kabin: p.kabin, telefon: p.tel,
             sefer_id: p.sefer, yetiskin: p.adult,
             cocuk: p.child, bebek: p.baby,
             checkin: false, checkin_yapildi: false,
-            katildigi_turlar: [], tur_katilim_detay: {},
-            email: null, pazarlama_izni: false,
-            ekstra_isimler: [], ekstra_telefonlar: {}
+            katildigi_turlar: [], tur_katilim_detay: {}
           }));
           try {
             const { data: eklenenler, error } = await sb.from('yolcular').insert(insertVeri).select('id, ad, kabin');
@@ -12397,6 +12421,22 @@ function loadExcel(input){
 
       // Cache temizle + UI yenile
       try { if(typeof _yolcuCacheTemizle === 'function') _yolcuCacheTemizle(); } catch(e){}
+
+      // ✅ DOĞRULAMA: DB'den gerçek sayıyı oku (UI ile DB tutarlı mı?)
+      let dbGercekSayi = -1;
+      try {
+        const sefer_ids = [...new Set(kayitListesi.map(p=>p.sefer))];
+        let toplam = 0;
+        for(const sid of sefer_ids){
+          const { count } = await sb.from('yolcular')
+            .select('id', { count: 'exact', head: true })
+            .eq('sefer_id', sid);
+          toplam += (count || 0);
+        }
+        dbGercekSayi = toplam;
+        console.log('[EXCEL] DB\'de gerçek yolcu sayısı: ' + dbGercekSayi + ' (UI: ' + passengers.filter(p=>!p.arsivli).length + ')');
+      } catch(e){ console.log('Doğrulama: ' + (e?.message||'')); }
+
       setupAdmin();
 
       // Detaylı rapor
@@ -23187,20 +23227,20 @@ async function turAnonsBildirimGonder(id){
   if(!a) return;
   if(!confirm('🔔 "' + a.tur_adi + '" anonsu için yolculara bildirim gönderilsin mi?\n\nYolcuların telefonunda bildirim belirecek.')) return;
 
-  // Anonsu aç (kapalıysa) + bildirim zamanı işaretle
+  // Anonsu aç (kapalıysa)
   a.aktif = true;
   try {
-    await dbUpdate('tur_anons', { id: a.id }, { aktif: true, bildirim_zamani: new Date().toISOString() });
+    await dbUpdate('tur_anons', { id: a.id }, { aktif: true });
     // Mesaj olarak da gönder (yolcu bildirim sekmesinde görsün + badge artsın)
     const bildirimMetni = '📢 ' + a.tur_adi + '\n⏰ Toplanma: ' + a.saat + '\n📍 ' + a.toplanma_noktasi + (a.arac_no ? '\n🚌 Araç: ' + a.arac_no : '');
     try {
       await dbInsert('mesajlar', {
         sefer_id: a.sefer_id,
+        gonderen: 'Rehber',
         gonderen_tip: 'rehber',
-        gonderen_ad: 'Tur Anonsu',
-        mesaj: bildirimMetni,
-        zaman: new Date().toISOString(),
-        okundu: false
+        alici: 'hepsi',
+        alici_tip: 'yolcu',
+        mesaj: bildirimMetni
       });
     } catch(e){ console.log('Anons mesajı: ' + (e?.message||'')); }
 
@@ -30209,6 +30249,7 @@ async function _rehberYolcuListesiniYenile(){
       const yolcularDB = await dbGet('yolcular');
       if(yolcularDB?.length){
         passengers = yolcularDB.map(y => ({
+          _dbId: y.id,
           name: y.ad, kabin: y.kabin, tel: y.telefon || '',
           sefer: y.sefer_id || '', adult: y.yetiskin || 1,
           child: y.cocuk || 0, baby: y.bebek || 0,
@@ -30219,8 +30260,12 @@ async function _rehberYolcuListesiniYenile(){
           email: y.email || '',
           pazarlama_izni: y.pazarlama_izni || false,
           ekstra_isimler: y.ekstra_isimler || [],
+          ekstra_telefonlar: y.ekstra_telefonlar || {},
           dogum_tarihleri: y.dogum_tarihleri || { ana: '', ekstra: [] },
-          otobus_no: y.otobus_no ? parseInt(y.otobus_no) : null
+          otobus_no: y.otobus_no ? parseInt(y.otobus_no) : null,
+          giris_sayisi: y.giris_sayisi || 0,
+          son_aktiflik: y.son_aktiflik || null,
+          giris_gunlugu: Array.isArray(y.giris_gunlugu) ? y.giris_gunlugu : []
         }));
         // kontrolDurum'u yeniden inşa et
         kontrolDurum = {};
