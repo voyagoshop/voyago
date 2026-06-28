@@ -2730,6 +2730,37 @@ async function loadTurGorselleri(){
 const _dbCache = {}; // { 'tablo:filtreKey': {data, ts} }
 const _DB_CACHE_TTL = 60000; // 1 dakika
 
+// 📥 TÜM kayıtları çek (Supabase 1000 limit'ini sayfalama ile aş)
+async function dbGetTumu(tablo, filtre = {}){
+  const SAYFA = 1000;
+  let tumVeri = [];
+  let baslangic = 0;
+  let dahaVar = true;
+  let guvenlik = 0; // sonsuz döngü önle (max 20 sayfa = 20000 kayıt)
+  while(dahaVar && guvenlik < 20){
+    guvenlik++;
+    try {
+      let q = sb.from(tablo).select('*');
+      Object.entries(filtre).forEach(([k,v]) => { q = q.eq(k, v); });
+      q = q.range(baslangic, baslangic + SAYFA - 1);
+      const { data, error } = await q;
+      if(error){ console.log('[dbGetTumu] ' + tablo + ' hata: ' + error.message); break; }
+      const gelen = data || [];
+      tumVeri = tumVeri.concat(gelen);
+      if(gelen.length < SAYFA){
+        dahaVar = false; // Son sayfa
+      } else {
+        baslangic += SAYFA;
+      }
+    } catch(e){
+      console.log('[dbGetTumu] ' + tablo + ' exception: ' + (e?.message||''));
+      break;
+    }
+  }
+  console.log('[dbGetTumu] ' + tablo + ': ' + tumVeri.length + ' kayıt (' + guvenlik + ' sayfa)');
+  return tumVeri;
+}
+
 async function dbGet(tablo, filtre = {}) {
   const cacheKey = tablo + ':' + JSON.stringify(filtre);
   // İlk önce taze cache var mı?
@@ -2989,10 +3020,8 @@ async function initDB() {
     // Yolcuları yükle (arşivli olanlar da DB'de durur — rapor için)
     let yolcularDB = [];
     try {
-      // Limitsiz çek (varsayılan 1000 limit'i aş)
-      const { data, error } = await sb.from('yolcular').select('*').range(0, 9999);
-      if(error) throw new Error(error.message);
-      yolcularDB = data || [];
+      // TÜM yolcuları çek (sayfalama ile 1000 limit aşılır)
+      yolcularDB = await dbGetTumu('yolcular');
       console.log('[INIT] ' + yolcularDB.length + ' yolcu DB\'den çekildi');
     } catch(e){ console.log('Yolcular yükleme hatası:', e?.message||e); }
 
@@ -10819,15 +10848,13 @@ async function yolcuVeriTanisi(){
     rapor.push('📁 DB\'de TOPLAM kayıt: ' + dbCount);
   } catch(e){ rapor.push('⚠️ Count hatası: ' + (e?.message||'')); }
 
-  // 2. Limitsiz çek, kaç geliyor?
+  // 2. Sayfalamalı çek (1000 limit aşılır), kaç geliyor?
   let cekilenSayi = -1;
   let cekilenVeri = [];
   try {
-    const { data, error } = await sb.from('yolcular').select('*').range(0, 9999);
-    if(error) throw new Error(error.message);
-    cekilenVeri = data || [];
+    cekilenVeri = await dbGetTumu('yolcular');
     cekilenSayi = cekilenVeri.length;
-    rapor.push('📥 Çekilen (limitsiz): ' + cekilenSayi);
+    rapor.push('📥 Çekilen (sayfalı): ' + cekilenSayi);
   } catch(e){ rapor.push('⚠️ Çekme hatası: ' + (e?.message||'')); }
 
   // 3. UI'deki sayı
@@ -10899,9 +10926,7 @@ async function yolcuVeriTanisi(){
 async function yolcuVeriOnar(){
   showToast('🔧 Onarılıyor...');
   try {
-    const { data, error } = await sb.from('yolcular').select('*').range(0, 9999);
-    if(error) throw new Error(error.message);
-    const yolcularDB = data || [];
+    const yolcularDB = await dbGetTumu('yolcular');
     passengers = yolcularDB.map(y => ({
       _dbId: y.id,
       name: y.ad, kabin: y.kabin, tel: y.telefon || '',
@@ -11093,6 +11118,11 @@ function renderDashboard(){
       <div style="font-family:'DM Serif Display',serif;font-size:20px;line-height:1.3;">Merhaba ${escapeHTML(rehberAdi)} 👋</div>
       <div style="font-size:13px;opacity:.9;margin-top:4px;">🚢 ${escapeHTML(v.ship||'')} · ${escapeHTML(v.label||'')}</div>
     </div>
+
+    <!-- 🔍 VERİ KONTROL BUTONU (her zaman görünür) -->
+    <button onclick="yolcuVeriTanisi()" style="width:100%;margin-top:10px;padding:12px;background:linear-gradient(135deg,#dc2626,#991b1b);color:white;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;box-shadow:0 4px 12px rgba(220,38,38,.25);">
+      🔍 Yolcu Veri Kontrolü (Eksik/Liste Sorunu)
+    </button>
 
     ${_bugunDogum.length > 0 ? `
     <!-- 🎂 BUGÜN DOĞUM GÜNÜ — DİKKAT ÇEKİCİ -->
@@ -11300,8 +11330,6 @@ function renderDashboard(){
         <button onclick="gruplarModalAc()" style="padding:10px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">👥 Grup Yönetimi (Kapalı Gruplar)</button>
         <button onclick="sunumlarModalAc()" style="padding:10px;background:linear-gradient(135deg,#9333ea,#6b21a8);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">🎬 Canlı Tur Sunumları (Resimli Anlatım)</button>
         <button onclick="simKartModalAc()" style="padding:10px;background:linear-gradient(135deg,#0891b2,#0e7490);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">📱 e-ship SIM Kart Satış</button>
-        <button onclick="yolcuVeriTanisi()" style="padding:10px;background:linear-gradient(135deg,#dc2626,#991b1b);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">🔍 Yolcu Veri Kontrolü (Eksik mi?)</button>
-        <button onclick="simKartModalAc()" style="padding:10px;background:linear-gradient(135deg,#0891b2,#0e7490);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">📱 E-Ship SIM Kart Yönetimi</button>
       </div>
     </div>
 
@@ -30401,12 +30429,10 @@ async function _rehberYolcuListesiniYenile(){
         dbCount = count || 0;
       } catch(e){}
 
-      // DB'den yolcuları çek - LİMİTSİZ (varsayılan 1000 limit'i aş)
+      // DB'den yolcuları çek - SAYFALAMA ile (1000 limit aşılır)
       let yolcularDB = [];
       try {
-        const { data, error } = await sb.from('yolcular').select('*').range(0, 9999);
-        if(error) throw new Error(error.message);
-        yolcularDB = data || [];
+        yolcularDB = await dbGetTumu('yolcular');
       } catch(e){
         console.log('[REHBER] Çekme hatası: ' + (e?.message||''));
         return; // Hata varsa mevcut listeyi KORU (üzerine yazma!)
