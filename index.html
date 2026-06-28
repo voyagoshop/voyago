@@ -12389,11 +12389,13 @@ function loadExcel(input){
             basarili += parca.length;
             showToast('⏳ ' + basarili + '/' + kayitListesi.length + ' kaydedildi...');
           } catch(e){
-            console.log('Toplu insert hatası: ' + (e?.message||''));
+            const hataMsg = e?.message || 'bilinmeyen';
+            console.log('Toplu insert hatası: ' + hataMsg);
+            window._sonInsertHatasi = hataMsg;  // Sonra göstermek için sakla
             // Parça başarısız → tek tek dene
             for(const p of parca){
               try { await saveYolcuDB(p); basarili++; }
-              catch(e2){ basarisizlar.push(p); }
+              catch(e2){ basarisizlar.push(p); window._sonInsertHatasi = e2?.message || hataMsg; }
             }
           }
           // Parçalar arası kısa bekleme (rate limit önle)
@@ -12439,22 +12441,34 @@ function loadExcel(input){
 
       setupAdmin();
 
-      // Detaylı rapor
-      let msg = '✅ ' + basarili + '/' + kayitListesi.length + ' kayıt başarılı';
-      if(added > 0) msg += ' · ' + added + ' yeni';
-      if(updated > 0) msg += ' · ' + updated + ' güncellendi';
+      // 📊 NET SONUÇ EKRANDA GÖSTER (Console'a bakmaya gerek yok)
+      const uiSayi = passengers.filter(p=>!p.arsivli).length;
+      setTimeout(() => {
+        let rapor = '📊 EXCEL YÜKLEME SONUCU\n\n';
+        rapor += '• Excel\'deki kayıt: ' + kayitListesi.length + '\n';
+        rapor += '• Yeni eklenen: ' + added + '\n';
+        rapor += '• Güncellenen: ' + updated + '\n';
+        rapor += '• Başarılı: ' + basarili + '\n';
+        rapor += '• Başarısız: ' + basarisizlar.length + '\n';
+        rapor += '\n📁 DB\'de toplam: ' + dbGercekSayi + ' kişi\n';
+        rapor += '📱 Ekranda: ' + uiSayi + ' kişi\n';
+        if(dbGercekSayi >= 0 && dbGercekSayi === uiSayi){
+          rapor += '\n✅ DB ve ekran TUTARLI! Veriler güvende.';
+        } else if(dbGercekSayi >= 0 && dbGercekSayi < uiSayi){
+          rapor += '\n⚠️ SORUN: DB\'de daha az kayıt var!\n';
+          rapor += (uiSayi - dbGercekSayi) + ' kişi DB\'ye YAZILAMADI.\n';
+          if(window._sonInsertHatasi){
+            rapor += '\n🔴 HATA SEBEBİ:\n' + window._sonInsertHatasi;
+          }
+        }
+        alert(rapor);
+        window._sonInsertHatasi = null;
+      }, 1200);
+
+      // Detaylı rapor (toast)
+      let msg = '✅ ' + basarili + '/' + kayitListesi.length + ' kayıt';
       showToast(msg, 5000);
 
-      // Başarısız varsa UYAR (sessiz geçme!)
-      if(basarisizlar.length > 0){
-        setTimeout(() => {
-          alert('⚠️ DİKKAT: ' + basarisizlar.length + ' kayıt KAYDEDİLEMEDİ!\n\n' +
-            'Bu yolcular DB\'ye yazılamadı:\n' +
-            basarisizlar.slice(0,15).map(p=>'• '+p.name+(p.kabin?' (Kabin '+p.kabin+')':'')).join('\n') +
-            (basarisizlar.length>15?'\n... ve '+(basarisizlar.length-15)+' kişi daha':'') +
-            '\n\n🔄 ÇÖZÜM: Excel dosyasını tekrar yükleyin. Mevcut kayıtlar korunur, sadece eksikler eklenir.');
-        }, 1000);
-      }
       if(hata > 0 && atlanmislar.length > 0){
         console.log('Sefer bulunamayan: ' + atlanmislar.join(', '));
       }
