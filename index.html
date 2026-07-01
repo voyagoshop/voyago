@@ -3418,17 +3418,17 @@ function enAktifYolcular(seferId, limit){
 }
 
 async function saveYolcuDB(p) {
-  // 🔑 Yolcunun DB id'si varsa ONUNLA eşleştir (aynı kabinde 2 kişi birbirini ezmesin)
+  // 🔑 Yolcunun DB id'si varsa DİREKT güncelle (gereksiz dbGet yapma - hızlı)
   let mevcut;
   if(p._dbId){
-    // Bu yolcunun kesin DB kaydı var → id ile güncelle
-    mevcut = await dbGet('yolcular', { id: p._dbId });
-    if(mevcut.length > 0){
+    try {
       await _yolcuDBYaz(p, { id: p._dbId });
       _yolcuCacheTemizle();
       return;
+    } catch(e){
+      // id ile güncelleme başarısızsa (silinmiş olabilir) normal akışa düş
+      console.log('[saveYolcuDB] id güncelleme hatası, kabin ile deneniyor: ' + (e?.message||''));
     }
-    // id bulunamadı (silinmiş?) → aşağıdaki normal akışa düş
   }
 
   // Kabini varsa kabin+sefer ile, yoksa isim+sefer ile eşleştir
@@ -16974,6 +16974,13 @@ function yolcuDuzenleAc(kabin, sid){
         <button onclick="document.getElementById('yolcu-duzenle-modal').remove()" style="background:transparent;border:none;color:#999;font-size:24px;cursor:pointer;line-height:1;">×</button>
       </div>
 
+      <!-- Kabin -->
+      <div style="margin-bottom:10px;">
+        <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;">🏨 Kabin No</label>
+        <input type="text" id="ydt-kabin" value="${escapeHTML(kabin||'')}" placeholder="Örn: 4180"
+          style="width:100%;padding:10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;">
+      </div>
+
       <!-- Ad -->
       <div style="margin-bottom:10px;">
         <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:4px;">👤 Ana yolcu adı</label>
@@ -17092,6 +17099,7 @@ async function yolcuDuzenleKaydet(kabin, sid){
   const p = passengers.find(x => x.kabin === kabin && x.sefer === sid && !x.arsivli);
   if(!p){ showToast('Yolcu bulunamadı'); return; }
 
+  const yeniKabin = (document.getElementById('ydt-kabin')?.value || '').trim();
   const yeniName = (document.getElementById('ydt-name')?.value || '').trim();
   const yeniTel = (document.getElementById('ydt-tel')?.value || '').trim();
   const yeniY = parseInt(document.getElementById('ydt-y')?.textContent || '1');
@@ -17101,26 +17109,40 @@ async function yolcuDuzenleKaydet(kabin, sid){
   if(!yeniName){ showToast('⚠️ Ad boş olamaz'); return; }
   if(yeniY < 1){ showToast('⚠️ En az 1 yetişkin olmalı'); return; }
 
+  // Kabin değişiyorsa: aynı sefer + yeni kabinde başka yolcu var mı uyar (ama engelleme - aynı kabinde 2 kişi olabilir)
+  const kabinDegisti = yeniKabin && yeniKabin !== kabin;
+
   // Ek isimler
   const ekInputs = document.querySelectorAll('#ydt-ek-isimler input[type="text"]');
   const ekler = Array.from(ekInputs).map(i => (i.value || '').trim()).filter(x => x);
 
-  // Güncelle
+  // Yeni telefon eklendi mi? (check-in için)
+  const eskiTel = p.tel || '';
+  const telYeniEklendi = !eskiTel && yeniTel;
+
+  // Güncelle (memory)
+  if(kabinDegisti) p.kabin = yeniKabin;
   p.name = yeniName;
   p.tel = yeniTel;
   p.adult = yeniY;
   p.child = yeniC;
   p.baby = yeniB;
   p.ekstra_isimler = ekler;
+  if(telYeniEklendi){ p.checkedIn = true; p.checkinDone = true; }
 
-  try {
-    if(typeof saveYolcuDB === 'function') await saveYolcuDB(p);
-  } catch(e){ console.error(e); }
-
-  showToast('✓ Güncellendi');
+  // ⚡ ANINDA tepki: modalı kapat + UI yenile (DB arka planda)
+  showToast(kabinDegisti ? ('✓ Güncellendi (Kabin → ' + yeniKabin + ')') : '✓ Güncellendi');
   document.getElementById('yolcu-duzenle-modal')?.remove();
   if(typeof renderKontrolListesi === 'function') renderKontrolListesi();
   if(typeof renderOtobusPaneli === 'function') renderOtobusPaneli();
+
+  // DB'ye arka planda kaydet (kullanıcı beklemesin)
+  if(typeof saveYolcuDB === 'function'){
+    saveYolcuDB(p).catch(e => {
+      console.log('Yolcu kaydet hatası: ' + (e?.message||''));
+      showToast('⚠️ Kaydedilirken sorun oldu, tekrar deneyin');
+    });
+  }
 }
 
 function renderKontrolListesi(){
@@ -28104,22 +28126,34 @@ async function ydKaydet(){
     });
   }
 
-  // DB'ye kaydet — eğer kabin değiştiyse önce eski kaydı sil, yenisini yaz
+  // DB'ye kaydet — _dbId varsa tek update (sil/insert YAPMA, çakışma/takılma önle)
   try{
-    if(eskiKabin !== p.kabin){
-      // Eski kaydı sil
-      await sb.from('yolcular').delete()
-        .eq('kabin', eskiKabin)
-        .eq('sefer_id', p.sefer);
-      // Yeni kabin ile insert et
-      await dbInsert('yolcular', {
-        ad: p.name, kabin: p.kabin, telefon: p.tel,
-        sefer_id: p.sefer, yetiskin: p.adult,
-        cocuk: p.child, bebek: p.baby,
-        checkin: p.checkedIn, checkin_yapildi: p.checkinDone,
-        katildigi_turlar: p.joinedTours || [],
-        tur_katilim_detay: p.tur_katilim_detay || {}
-      });
+    if(p._dbId){
+      // En güvenli: id ile güncelle (kabin değişse bile)
+      await _yolcuDBYaz(p, { id: p._dbId });
+    } else if(eskiKabin !== p.kabin){
+      // _dbId yoksa ve kabin değiştiyse: eski kabin+sefer+isim ile bul, güncelle
+      const eskiKayit = await dbGet('yolcular', { kabin: eskiKabin, sefer_id: p.sefer });
+      if(eskiKayit && eskiKayit.length === 1){
+        // Tek kayıt → güncelle (sil/insert değil)
+        p._dbId = eskiKayit[0].id;
+        await _yolcuDBYaz(p, { id: eskiKayit[0].id });
+      } else if(eskiKayit && eskiKayit.length > 1){
+        // Birden fazla → isimle eşleşeni bul
+        const hedef = eskiKayit.find(k => isimNormalize(k.ad) === isimNormalize(YD_HEDEF.name || p.name));
+        if(hedef){
+          p._dbId = hedef.id;
+          await _yolcuDBYaz(p, { id: hedef.id });
+        } else {
+          // Bulunamadı → yeni ekle
+          const yid = await _yolcuDBEkle(p);
+          if(yid) p._dbId = yid;
+        }
+      } else {
+        // Eski kayıt yok → yeni ekle
+        const yid = await _yolcuDBEkle(p);
+        if(yid) p._dbId = yid;
+      }
     } else {
       await saveYolcuDB(p);
     }
@@ -28129,35 +28163,37 @@ async function ydKaydet(){
     return;
   }
 
-  // Realtime broadcast — yolcunun açık uygulamasına haber ver
-  try{
-    const kanal = sb.channel('voyago-yolcu-guncelleme');
-    await kanal.subscribe();
-    await kanal.send({
-      type: 'broadcast',
-      event: 'yolcu-guncellendi',
-      payload: {
-        eski_kabin: eskiKabin,
-        yeni_kabin: p.kabin,
-        sefer: p.sefer,
-        yolcu: {
-          name: p.name, kabin: p.kabin, tel: p.tel,
-          adult: p.adult, child: p.child, baby: p.baby,
-          joinedTours: p.joinedTours || [],
-          tur_katilim_detay: p.tur_katilim_detay || {}
-        }
-      }
-    });
-    setTimeout(()=>{ try{ sb.removeChannel(kanal); }catch(e){} }, 1500);
-  } catch(e){ console.log('Realtime broadcast:', e); }
-
-  // Modal kapat ve listeyi yenile
+  // Modal kapat ve listeyi yenile (ÖNCE kapat — kullanıcı beklemesin)
   document.getElementById('yd-modal').classList.remove('active');
   if(typeof renderPS === 'function' && typeof CASF !== 'undefined') renderPS(CASF);
   if(typeof renderTA === 'function' && typeof CTSF !== 'undefined') renderTA(CTSF);
-
+  if(typeof renderKontrolListesi === 'function') renderKontrolListesi();
   showToast('✓ Yolcu bilgileri güncellendi');
   YD_HEDEF = null;
+
+  // Realtime broadcast — ARKA PLANDA (await YOK, takılmasın)
+  try{
+    const kanal = sb.channel('voyago-yolcu-guncelleme');
+    kanal.subscribe();
+    setTimeout(() => {
+      try {
+        kanal.send({
+          type: 'broadcast',
+          event: 'yolcu-guncellendi',
+          payload: {
+            eski_kabin: eskiKabin, yeni_kabin: p.kabin, sefer: p.sefer,
+            yolcu: {
+              name: p.name, kabin: p.kabin, tel: p.tel,
+              adult: p.adult, child: p.child, baby: p.baby,
+              joinedTours: p.joinedTours || [],
+              tur_katilim_detay: p.tur_katilim_detay || {}
+            }
+          }
+        });
+      } catch(e){}
+      setTimeout(()=>{ try{ sb.removeChannel(kanal); }catch(e){} }, 1500);
+    }, 300);
+  } catch(e){ console.log('Realtime broadcast:', e); }
 }
 
 function ydModalKapat(e){
