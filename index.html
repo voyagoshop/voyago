@@ -22894,9 +22894,29 @@ async function autoLogin() {
       if(!DB_READY){
         await initDB();
       }
-      // Admin hoşgeldin kartı göster (otomatik giriş yapma)
-      adminHosgeldinGoster(key);
-      return;
+      // 🚀 OTOMATİK GİRİŞ YAP (tıklama bekleme) — oturum zaten kayıtlı
+      try {
+        CU = {key, ...USERS[key]};
+        // Oturumu tazele
+        try{ localStorage.setItem('voyago_admin', JSON.stringify({key, time:Date.now()})); }catch(e){}
+        try{ document.cookie = 'voyago_admin=' + encodeURIComponent(key) + '; max-age=' + (90*24*60*60) + '; path=/; SameSite=Lax'; }catch(e){}
+        // ACTIVE_SHIP belirle
+        if(CU.role==='voyago' || CU.role==='acente'){
+          ACTIVE_SHIP = SHIPS[0] || VOYAGES[0]?.ship || '';
+        } else {
+          const rehberSeferi = VOYAGES.find(v=>v.guide===CU.key && v.status!=='archived');
+          ACTIVE_SHIP = rehberSeferi?.ship || CU.ship || VOYAGES[0]?.ship || '';
+        }
+        await setupAdmin();
+        showScreen('sc');
+        console.log('[AUTO-LOGIN] Admin otomatik giriş: ' + key);
+        return;
+      } catch(e){
+        console.log('[AUTO-LOGIN] Otomatik giriş hatası, kart gösteriliyor: ' + (e?.message||''));
+        // Hata olursa yine de kartı göster (fallback)
+        adminHosgeldinGoster(key);
+        return;
+      }
     }
   }catch(e){console.log('autoLogin hatası:',e);}
   // Yolcu oturumu kontrolü
