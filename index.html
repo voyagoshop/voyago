@@ -15181,9 +15181,20 @@ function bildirimBadgeArtir(adet){
 }
 
 // Bildirimleri okundu işaretle (bildirim sekmesi açılınca)
-function bildirimBadgeTemizle(){
+async function bildirimBadgeTemizle(){
   bildirimBadgeGuncelle(0);
   _bildirimBadgeKaydet();
+  // 🔖 Şu anki mesaj+anons sayısını "görüldü" olarak kaydet
+  try {
+    if(CP){
+      const mesajlar = await dbGet('mesajlar', { sefer_id: CP.sefer });
+      const rehberMesaj = (mesajlar||[]).filter(m => !m.silindi && m.gonderen_tip !== 'yolcu').length;
+      const anonslar = await dbGet('tur_anons', { sefer_id: CP.sefer });
+      const acikAnons = (anonslar||[]).filter(a => a.aktif !== false).length;
+      const gorulen = rehberMesaj + acikAnons;
+      localStorage.setItem('voyago_gorulen_' + CP.sefer + '_' + CP.kabin, String(gorulen));
+    }
+  } catch(e){}
 }
 
 // localStorage'a kaydet (sayfa yenilense de kalsın)
@@ -15193,16 +15204,43 @@ function _bildirimBadgeKaydet(){
   } catch(e){}
 }
 
-// localStorage'dan oku
-function _bildirimBadgeOku(){
+// 🔔 AÇILIŞTA KONTROL: DB'den güncel sayıyı çek, görülenle karşılaştır
+async function _bildirimBadgeOku(){
+  if(!CP) return;
   try {
-    if(CP){
-      const s = localStorage.getItem('voyago_okunmamis_' + CP.sefer + '_' + CP.kabin);
-      if(s != null){
-        bildirimBadgeGuncelle(parseInt(s) || 0);
-      }
+    // DB'den güncel rehber mesajı + açık anons sayısı
+    const mesajlar = await dbGet('mesajlar', { sefer_id: CP.sefer });
+    const rehberMesaj = (mesajlar||[]).filter(m => !m.silindi && m.gonderen_tip !== 'yolcu').length;
+    const anonslar = await dbGet('tur_anons', { sefer_id: CP.sefer });
+    const acikAnons = (anonslar||[]).filter(a => a.aktif !== false).length;
+    const guncelToplam = rehberMesaj + acikAnons;
+
+    // Daha önce görülen sayı
+    let gorulen = 0;
+    try {
+      const g = localStorage.getItem('voyago_gorulen_' + CP.sefer + '_' + CP.kabin);
+      if(g != null) gorulen = parseInt(g) || 0;
+    } catch(e){}
+
+    // İlk kez giriyorsa (görülen kaydı yok) → hepsini görülmüş say (badge'i patlatma)
+    if(localStorage.getItem('voyago_gorulen_' + CP.sefer + '_' + CP.kabin) == null){
+      localStorage.setItem('voyago_gorulen_' + CP.sefer + '_' + CP.kabin, String(guncelToplam));
+      bildirimBadgeGuncelle(0);
+      return;
     }
-  } catch(e){}
+
+    // Okunmamış = güncel - görülen (negatifse 0)
+    const okunmamis = Math.max(0, guncelToplam - gorulen);
+    bildirimBadgeGuncelle(okunmamis);
+    console.log('[BADGE] Açılış kontrolü: güncel=' + guncelToplam + ' görülen=' + gorulen + ' okunmamış=' + okunmamis);
+  } catch(e){
+    console.log('[BADGE] Açılış kontrol hatası: ' + (e?.message||''));
+    // Hata olursa localStorage'daki eski değeri kullan
+    try {
+      const s = localStorage.getItem('voyago_okunmamis_' + CP.sefer + '_' + CP.kabin);
+      if(s != null) bildirimBadgeGuncelle(parseInt(s) || 0);
+    } catch(e2){}
+  }
 }
 
 function pushNotif(t,b){
@@ -18347,14 +18385,170 @@ function renderOtobusPaneli(){
           style="width:100%;margin-top:8px;padding:11px;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;">
           🚀 <span>HIZLI DOLDURMA — Yolcuları Buton Olarak Gör</span>
         </button>
+        <button onclick="otobusSayacModuAc('${sid}')" 
+          style="width:100%;margin-top:6px;padding:11px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;">
+          🔢 <span>HIZLI SAYAÇ — Bilet Bazlı (kabin sorma!)</span>
+        </button>
       ` : ''}
       <div style="margin-top:8px;padding:8px;background:#f0f9ff;border-radius:8px;font-size:10px;color:#0d3b6e;line-height:1.5;">
-        💡 <b>"🎯 Bu Otobüsü Doldur"</b> bas → yeni gelen yolcular SADECE buraya atanır.<br>
-        <b>"🚀 Hızlı Doldurma"</b> → tüm yolcular kart olarak, tek tıkla aktif otobüse ekle.
+        💡 <b>"🚀 Hızlı Doldurma"</b> → yolcular kart, tek tıkla otobüse ekle (kabin bazlı).<br>
+        🔢 <b>"Hızlı Sayaç"</b> → otobüs ağzında, bilet gösteren her yolcuya +1. Kabin/isim sorma, en hızlısı.
       </div>
       <style>@keyframes aktifPulse { 0%,100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.05); } }</style>
     </div>
   `;
+}
+
+// ═══════════════════════════════════════════════
+// 🔢 HIZLI SAYAÇ MODU (bilet bazlı, kabin sorma)
+// ═══════════════════════════════════════════════
+let _sayacSid = null;
+let _sayacAktifOtobus = null;
+
+function otobusSayacModuAc(sid){
+  _sayacSid = sid;
+  const otobusler = seferOtobusleriAl(sid);
+  if(!otobusler.length){ showToast('Önce otobüs tanımlayın'); return; }
+  if(_sayacAktifOtobus === null || !otobusler.some(o=>o.no===_sayacAktifOtobus)){
+    _sayacAktifOtobus = otobusler[0].no;
+  }
+  document.getElementById('sayac-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'sayac-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:#0f172a;z-index:99999;display:flex;flex-direction:column;font-family:"DM Sans",sans-serif;';
+  document.body.appendChild(modal);
+  sayacRender();
+}
+
+function sayacRender(){
+  const modal = document.getElementById('sayac-modal');
+  if(!modal || !_sayacSid) return;
+  const otobusler = seferOtobusleriAl(_sayacSid);
+  const aktif = otobusler.find(o => o.no === _sayacAktifOtobus) || otobusler[0];
+  if(!aktif) return;
+  _sayacAktifOtobus = aktif.no;
+
+  const hizliBinen = parseInt(aktif.hizli_binen) || 0;
+  const kabinBinen = otobusDolulukHesaplaSefer(_sayacSid, aktif.no);
+  const toplamBinen = hizliBinen + kabinBinen;
+  const kapasite = aktif.kapasite || 40;
+  const kalan = kapasite - toplamBinen;
+  const oran = kapasite > 0 ? Math.round(toplamBinen/kapasite*100) : 0;
+  const renk = oran >= 100 ? '#dc2626' : oran >= 90 ? '#f59e0b' : '#22c55e';
+
+  const toplamTumBinen = otobusler.reduce((a,o)=>a+(parseInt(o.hizli_binen)||0)+otobusDolulukHesaplaSefer(_sayacSid,o.no),0);
+  const beklenen = passengers.filter(p=>p.sefer===_sayacSid && !p.arsivli && p.joinedTours?.length>0)
+    .reduce((a,p)=>a+(p.adult||0)+(p.child||0)+(p.baby||0),0);
+
+  modal.innerHTML = `
+    <div style="background:#1e293b;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+      <div style="color:white;font-size:15px;font-weight:700;">🔢 Hızlı Sayaç</div>
+      <button onclick="sayacKapat()" style="background:rgba(255,255,255,.15);border:none;color:white;font-size:18px;cursor:pointer;width:34px;height:34px;border-radius:50%;">×</button>
+    </div>
+
+    <div style="background:#1e293b;padding:0 12px 12px;display:flex;gap:6px;overflow-x:auto;flex-shrink:0;">
+      ${otobusler.map(o => {
+        const b = (parseInt(o.hizli_binen)||0) + otobusDolulukHesaplaSefer(_sayacSid, o.no);
+        const aktifMi = o.no === _sayacAktifOtobus;
+        const dolu = b >= (o.kapasite||40);
+        return `
+          <button onclick="sayacOtobusSec(${o.no})" style="flex-shrink:0;padding:8px 14px;border-radius:10px;border:2px solid ${aktifMi?'#4f46e5':(dolu?'#dc2626':'#475569')};background:${aktifMi?'#4f46e5':'#334155'};color:white;cursor:pointer;font-family:'DM Sans',sans-serif;min-width:64px;">
+            <div style="font-size:9px;opacity:.8;">${dolu?'🔴':'🚌'}</div>
+            <div style="font-size:14px;font-weight:700;">${escapeHTML(otobusAdiAl(o))}</div>
+            <div style="font-size:10px;opacity:.9;">${b}/${o.kapasite||40}</div>
+          </button>
+        `;
+      }).join('')}
+    </div>
+
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;">
+      <div style="color:#94a3b8;font-size:14px;font-weight:600;margin-bottom:4px;">🚌 ${escapeHTML(otobusAdiAl(aktif))}</div>
+      <div style="color:#64748b;font-size:12px;margin-bottom:20px;">Kapasite: ${kapasite} · Kalan: ${kalan > 0 ? kalan : 0}</div>
+      <div style="font-size:96px;font-weight:800;color:${renk};line-height:1;font-family:'DM Serif Display',serif;">${toplamBinen}</div>
+      <div style="color:#94a3b8;font-size:13px;margin-top:4px;">kişi bindi ${kabinBinen>0?`(${kabinBinen} kabinli + ${hizliBinen} sayaç)`:''}</div>
+      <div style="width:100%;max-width:280px;height:8px;background:#334155;border-radius:4px;margin-top:16px;overflow:hidden;">
+        <div style="width:${Math.min(100,oran)}%;height:100%;background:${renk};transition:width .3s;"></div>
+      </div>
+      <div style="color:${renk};font-size:12px;font-weight:700;margin-top:6px;">%${oran} dolu</div>
+      ${kalan <= 0 ? '<div style="background:#7f1d1d;color:#fca5a5;padding:8px 16px;border-radius:10px;font-size:12px;font-weight:600;margin-top:12px;">⚠️ Otobüs dolu! Başka otobüs seçin.</div>' : ''}
+    </div>
+
+    <div style="padding:16px;flex-shrink:0;">
+      <div style="display:flex;gap:10px;margin-bottom:10px;">
+        <button onclick="sayacEksilt()" style="width:70px;height:64px;background:#334155;border:none;border-radius:14px;color:white;font-size:28px;font-weight:700;cursor:pointer;">−</button>
+        <button onclick="sayacArtir()" style="flex:1;height:64px;background:linear-gradient(135deg,#22c55e,#16a34a);border:none;border-radius:14px;color:white;font-size:22px;font-weight:800;cursor:pointer;font-family:'DM Sans',sans-serif;box-shadow:0 4px 16px rgba(34,197,94,.4);">
+          + BİNDİ 🎫
+        </button>
+      </div>
+      <button onclick="sayacIsimEkle()" style="width:100%;padding:10px;background:transparent;border:1.5px dashed #475569;color:#94a3b8;border-radius:10px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">
+        ✏️ İsimle ekle (bilet kaybeden / sistemsiz yolcu)
+      </button>
+      <div style="display:flex;justify-content:space-around;margin-top:14px;padding-top:12px;border-top:1px solid #334155;">
+        <div style="text-align:center;">
+          <div style="color:#22c55e;font-size:20px;font-weight:700;">${toplamTumBinen}</div>
+          <div style="color:#64748b;font-size:10px;">Toplam Binen</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="color:#94a3b8;font-size:20px;font-weight:700;">${beklenen}</div>
+          <div style="color:#64748b;font-size:10px;">Beklenen</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="color:${beklenen-toplamTumBinen>0?'#f59e0b':'#22c55e'};font-size:20px;font-weight:700;">${Math.max(0,beklenen-toplamTumBinen)}</div>
+          <div style="color:#64748b;font-size:10px;">Gelmeyen</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function sayacOtobusSec(no){ _sayacAktifOtobus = no; sayacRender(); }
+
+async function sayacArtir(){
+  const otobusler = seferOtobusleriAl(_sayacSid);
+  const aktif = otobusler.find(o => o.no === _sayacAktifOtobus);
+  if(!aktif) return;
+  aktif.hizli_binen = (parseInt(aktif.hizli_binen)||0) + 1;
+  sayacRender();
+  seferOtobusleriKaydet(_sayacSid, otobusler);
+  try { if(navigator.vibrate) navigator.vibrate(30); } catch(e){}
+}
+
+async function sayacEksilt(){
+  const otobusler = seferOtobusleriAl(_sayacSid);
+  const aktif = otobusler.find(o => o.no === _sayacAktifOtobus);
+  if(!aktif) return;
+  aktif.hizli_binen = Math.max(0, (parseInt(aktif.hizli_binen)||0) - 1);
+  sayacRender();
+  seferOtobusleriKaydet(_sayacSid, otobusler);
+}
+
+async function sayacIsimEkle(){
+  const isim = prompt('Yolcu adı (bilete yazdığınız):');
+  if(!isim || !isim.trim()) return;
+  const otobusler = seferOtobusleriAl(_sayacSid);
+  const aktif = otobusler.find(o => o.no === _sayacAktifOtobus);
+  if(!aktif) return;
+  try {
+    const yeniId = await _yolcuDBEkle({
+      name: isim.trim(), kabin: '', tel: '', sefer: _sayacSid,
+      adult: 1, child: 0, baby: 0, checkedIn: true, checkinDone: true,
+      joinedTours: [], tur_katilim_detay: {}, otobus_no: aktif.no
+    });
+    if(yeniId){
+      passengers.push({
+        _dbId: yeniId, name: isim.trim(), kabin: '', tel: '', sefer: _sayacSid,
+        adult: 1, child: 0, baby: 0, checkedIn: true, checkinDone: true,
+        joinedTours: [], tur_katilim_detay: {}, otobus_no: aktif.no, arsivli: false
+      });
+    }
+    showToast('✓ ' + isim.trim() + ' → ' + otobusAdiAl(aktif));
+    sayacRender();
+  } catch(e){ showToast('⚠️ ' + (e?.message||'')); }
+}
+
+function sayacKapat(){
+  document.getElementById('sayac-modal')?.remove();
+  try { if(typeof renderOtobusPaneli === 'function') renderOtobusPaneli(); } catch(e){}
 }
 
 // ═══════════════════════════════════════════════
@@ -28961,6 +29155,18 @@ async function yolcuOdakYenile(){
     try{ if(typeof renderHosgeldinKart === 'function') renderHosgeldinKart(); }catch(e){}
     try{ if(typeof brYukle === 'function') await brYukle(); }catch(e){}
     try{ if(typeof waLinkleriYukle === 'function') await waLinkleriYukle(); }catch(e){}
+    // 🔔 Bildirim badge'ini güncelle (uygulama öne gelince yeni mesaj/anons var mı?)
+    try{
+      const aktifTabEl = document.querySelector('#sa .tp.active');
+      const bildirimAcik = aktifTabEl && aktifTabEl.id === 'tab-bildirim';
+      if(bildirimAcik){
+        // Bildirim sekmesindeyse okundu say
+        if(typeof bildirimBadgeTemizle === 'function') await bildirimBadgeTemizle();
+      } else {
+        // Değilse okunmamış kontrol et
+        if(typeof _bildirimBadgeOku === 'function') await _bildirimBadgeOku();
+      }
+    }catch(e){}
     // Sayfanın aktif sekmesine göre o sekmeyi yenile
     try{
       const aktifTab = document.querySelector('#sa .tp.active');
