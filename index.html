@@ -10019,14 +10019,27 @@ function sunumDetayAc(sunumId){
 
         <!-- + Slide ekle -->
         ${!aktifMi ? `
+          <!-- 🚀 ÇOKLU RESİM - hepsini birden seç -->
+          <div style="background:#ecfdf5;border:1.5px dashed #6ee7b7;border-radius:10px;padding:11px;margin-top:8px;">
+            <div style="font-size:11px;color:#059669;font-weight:700;margin-bottom:6px;">🚀 Toplu Resim Ekle (en hızlı)</div>
+            <div style="font-size:10px;color:#047857;margin-bottom:7px;line-height:1.4;">Birden fazla resmi <b>aynı anda</b> seç → her biri otomatik slayt olur. Sırayla eklenir.</div>
+            <label style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;border:2px dashed #6ee7b7;border-radius:10px;cursor:pointer;background:white;">
+              <span style="font-size:26px;">🖼️</span>
+              <span style="font-size:12px;color:#059669;margin-top:5px;font-weight:700;">Resimleri Seç (çoklu)</span>
+              <span style="font-size:10px;color:#10b981;margin-top:2px;">Galeriden birden fazla seçebilirsin</span>
+              <input id="sunum-coklu-resim" type="file" accept="image/*" multiple style="display:none;" onchange="sunumCokluSlideEkle(${sunumId}, this)">
+            </label>
+          </div>
+
+          <!-- Tek slide (başlık + açıklama ile) -->
           <div style="background:#f5f3ff;border:1.5px dashed #c4b5fd;border-radius:10px;padding:11px;margin-top:8px;">
-            <div style="font-size:11px;color:#5b21b6;font-weight:700;margin-bottom:6px;">+ Yeni Slide Ekle</div>
+            <div style="font-size:11px;color:#5b21b6;font-weight:700;margin-bottom:6px;">+ Tek Slide (başlık/açıklama ile)</div>
             <input id="sunum-slide-baslik" type="text" placeholder="Başlık (örn: Knossos Antik Hali)"
-              style="width:100%;padding:8px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;margin-bottom:5px;">
+              style="width:100%;padding:8px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;margin-bottom:5px;box-sizing:border-box;">
             <textarea id="sunum-slide-aciklama" placeholder="Açıklama (opsiyonel - yolcuya gösterilecek metin)"
-              style="width:100%;padding:8px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;min-height:50px;resize:vertical;margin-bottom:5px;"></textarea>
+              style="width:100%;padding:8px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;min-height:50px;resize:vertical;margin-bottom:5px;box-sizing:border-box;"></textarea>
             <input id="sunum-slide-resim" type="file" accept="image/*" 
-              style="width:100%;padding:7px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:11px;font-family:'DM Sans',sans-serif;margin-bottom:6px;background:white;">
+              style="width:100%;padding:7px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:11px;font-family:'DM Sans',sans-serif;margin-bottom:6px;background:white;box-sizing:border-box;">
             <button onclick="sunumSlideEkle(${sunumId})" 
               style="width:100%;padding:9px;background:#9333ea;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
               + Slide Ekle
@@ -10355,6 +10368,78 @@ async function sunumKabinKaydet(sunumId){
 }
 
 // Slide ekle
+// 🖼️ Tek resmi Storage'a yükle - URL döndür (ortak helper)
+async function _sunumResimYukle(dosya, sunumId){
+  const dosyaAdi = 'sunum-' + sunumId + '-' + Date.now() + '-' + Math.random().toString(36).slice(2,7) + '-' + dosya.name.replace(/[^a-z0-9.]/gi, '_');
+  let bucket = 'sunum-resimleri';
+  let yol = dosyaAdi;
+  let urlData = null;
+  // 1. sunum-resimleri bucket
+  try {
+    const { error } = await sb.storage.from(bucket).upload(yol, dosya);
+    if(!error){
+      urlData = sb.storage.from(bucket).getPublicUrl(yol).data;
+      return urlData?.publicUrl;
+    }
+  } catch(e){}
+  // 2. fallback: hikaye-resimleri
+  bucket = 'hikaye-resimleri';
+  yol = 'sunumlar/' + dosyaAdi;
+  const { error } = await sb.storage.from(bucket).upload(yol, dosya);
+  if(error) throw new Error('Bucket erişimi yok. Supabase Storage\'da "sunum-resimleri" bucket\'ı oluştur (Public).');
+  urlData = sb.storage.from(bucket).getPublicUrl(yol).data;
+  return urlData?.publicUrl;
+}
+
+// 🚀 Çoklu slide ekle - seçilen tüm resimleri sırayla yükle
+async function sunumCokluSlideEkle(sunumId, input){
+  const dosyalar = Array.from(input.files || []);
+  if(dosyalar.length === 0) return;
+  const s = SUNUMLAR.find(x => x.id === sunumId);
+  if(!s) return;
+  if(!s.slidelar) s.slidelar = [];
+
+  showToast('⏳ ' + dosyalar.length + ' resim yükleniyor...');
+  let basarili = 0;
+  let basarisiz = 0;
+
+  for(let i = 0; i < dosyalar.length; i++){
+    const dosya = dosyalar[i];
+    try {
+      const url = await _sunumResimYukle(dosya, sunumId);
+      s.slidelar.push({
+        id: Date.now() + i,
+        baslik: '',
+        aciklama: '',
+        resim_url: url
+      });
+      basarili++;
+      showToast('⏳ ' + basarili + '/' + dosyalar.length + ' yüklendi...');
+    } catch(e){
+      basarisiz++;
+      console.log('Resim yükleme hatası: ' + (e?.message || ''));
+      // Bucket hatası ise dur (hepsi başarısız olur)
+      if((e?.message||'').includes('Bucket')){
+        showToast('⚠️ ' + (e?.message || ''));
+        break;
+      }
+    }
+  }
+
+  // DB'ye kaydet
+  try {
+    await dbUpdate('tur_sunumlari', { id: sunumId }, { slidelar: s.slidelar, updated_at: new Date().toISOString() });
+    if(basarili > 0){
+      showToast('✅ ' + basarili + ' slayt eklendi' + (basarisiz > 0 ? ' · ' + basarisiz + ' başarısız' : ''), 4000);
+    } else {
+      showToast('⚠️ Hiç resim eklenemedi');
+    }
+    sunumDetayAc(sunumId);
+  } catch(e){
+    showToast('⚠️ Kaydetme hatası: ' + (e?.message || ''));
+  }
+}
+
 async function sunumSlideEkle(sunumId){
   const baslik = document.getElementById('sunum-slide-baslik')?.value.trim();
   const aciklama = document.getElementById('sunum-slide-aciklama')?.value.trim();
@@ -10371,40 +10456,7 @@ async function sunumSlideEkle(sunumId){
   let resim_url = null;
   if(dosya){
     try {
-      // Storage'a yükle - mevcut bucket'lardan birini kullan
-      const dosyaAdi = 'sunum-' + sunumId + '-' + Date.now() + '-' + dosya.name.replace(/[^a-z0-9.]/gi, '_');
-      
-      // Önce 'sunum-resimleri' bucket'ını dene, yoksa 'hikaye-resimleri'
-      let bucket = 'sunum-resimleri';
-      let yol = dosyaAdi;
-      let yuklemeBasarili = false;
-      let urlData = null;
-      
-      try {
-        const { data, error } = await sb.storage.from(bucket).upload(yol, dosya);
-        if(!error){
-          yuklemeBasarili = true;
-          const r = sb.storage.from(bucket).getPublicUrl(yol);
-          urlData = r.data;
-        }
-      } catch(e){}
-      
-      // Fallback: hikaye-resimleri bucket'ı
-      if(!yuklemeBasarili){
-        bucket = 'hikaye-resimleri';
-        yol = 'sunumlar/' + dosyaAdi;
-        try {
-          const { data, error } = await sb.storage.from(bucket).upload(yol, dosya);
-          if(error) throw error;
-          yuklemeBasarili = true;
-          const r = sb.storage.from(bucket).getPublicUrl(yol);
-          urlData = r.data;
-        } catch(e2){
-          throw new Error('Bucket erişimi yok. Supabase Storage\'da "sunum-resimleri" bucket\'ı oluştur (Public).');
-        }
-      }
-      
-      resim_url = urlData?.publicUrl;
+      resim_url = await _sunumResimYukle(dosya, sunumId);
     } catch(e){
       console.log('Resim yükleme: ' + (e?.message || ''));
       showToast('⚠️ Resim yüklenemedi: ' + (e?.message || ''));
