@@ -13302,6 +13302,7 @@ function renderTA(s){
               <button onclick="turSiraasagi('${t.id}')" style="width:28px;height:28px;border-radius:8px;border:1.5px solid var(--border);background:white;color:var(--t2);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;">▼</button>
             </div>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--blue);color:var(--blue);background:transparent;" onclick="turDuzenle('${t.id}')">Düzenle</button>
+            <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid #059669;color:#059669;background:transparent;" onclick="turKabinleriKopyala('${t.id}')">📋 Kabinleri Kopyala</button>
             <button class="brad-buton-admin ${BROSURLER && BROSURLER[t.id] ? 'dolu' : ''}" onclick="bradAc('${t.id}')">📖 Broşür</button>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid ${aktif?'var(--amber)':'var(--green)'};color:${aktif?'var(--amber)':'var(--green)'};background:transparent;" onclick="turAktifToggle('${t.id}')">${aktif?'Kapat':'Aç'}</button>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid ${t.uyari_aktif?'var(--red)':'var(--purple)'};color:${t.uyari_aktif?'var(--red)':'var(--purple)'};background:${t.uyari_aktif?'var(--rl)':'transparent'};" onclick="turUyariToggle('${t.id}')">${t.uyari_aktif?'⚠️ Uyarı Açık':'⚠️ Uyarı'}</button>
@@ -13448,6 +13449,62 @@ function turAktifToggle(tid){
   saveTurDB(t);
   renderTA(CTSF);
   showToast(t.aktif?'Tur açıldı — yolcular kayıt yapabilir.':'Tur kapatıldı — yeni kayıt alınmıyor.');
+}
+
+// 📋 Tura katılan kabinleri virgülle kopyala (canlı sunuma yapıştırmak için)
+async function turKabinleriKopyala(tid){
+  const t = TOURS.find(x => x.id === tid);
+  if(!t){ showToast('Tur bulunamadı'); return; }
+
+  // Bu tura katılan yolcuların kabinleri (tekil + boş olmayan)
+  const kabinler = [...new Set(
+    passengers
+      .filter(p => !p.arsivli && p.joinedTours?.includes(tid) && p.kabin && String(p.kabin).trim())
+      .map(p => String(p.kabin).trim())
+  )];
+
+  if(kabinler.length === 0){
+    showToast('⚠️ Bu tura kayıtlı kabin yok');
+    return;
+  }
+
+  // Sayısal sıralama (kabin numaraları)
+  kabinler.sort((a,b) => {
+    const na = parseInt(a), nb = parseInt(b);
+    if(!isNaN(na) && !isNaN(nb)) return na - nb;
+    return a.localeCompare(b, 'tr');
+  });
+
+  const metin = kabinler.join(', ');
+
+  // Panoya kopyala
+  try {
+    await navigator.clipboard.writeText(metin);
+    showToast('📋 ' + kabinler.length + ' kabin kopyalandı! Sunuma yapıştır.');
+  } catch(e){
+    // Clipboard API başarısızsa fallback: seçilebilir kutu göster
+    _kabinKopyaFallback(t.name, metin, kabinler.length);
+  }
+}
+
+// Clipboard çalışmazsa manuel kopyalama kutusu
+function _kabinKopyaFallback(turAdi, metin, sayi){
+  document.getElementById('kabin-kopya-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'kabin-kopya-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e)=>{ if(e.target.id==='kabin-kopya-modal') modal.remove(); };
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:18px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+      <div style="font-size:15px;font-weight:700;color:#1a1a1a;margin-bottom:4px;">📋 ${escapeHTML(turAdi)}</div>
+      <div style="font-size:12px;color:#888;margin-bottom:12px;">${sayi} kabin — aşağıdaki kutuyu seçip kopyalayın</div>
+      <textarea readonly onclick="this.select()" style="width:100%;height:90px;padding:10px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:13px;font-family:monospace;resize:none;box-sizing:border-box;">${escapeHTML(metin)}</textarea>
+      <button onclick="document.getElementById('kabin-kopya-modal').remove()" style="width:100%;margin-top:10px;padding:11px;background:#059669;color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">Tamam</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  // Otomatik seç
+  setTimeout(()=>{ const ta = modal.querySelector('textarea'); if(ta){ ta.select(); } }, 100);
 }
 
 function turDuzenle(tid){
