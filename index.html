@@ -3950,6 +3950,27 @@ function startClock(){
             }
           }
         }catch(e){}
+
+        // 📸 Foto yarışması kontrolü - yeni yarışma başladıysa bildir
+        try{
+          const yarismalar = await dbGet('foto_yarisma', {sefer_id:CP.sefer});
+          const aktifYarisma = (yarismalar||[]).filter(y=>y.durum==='aktif');
+          const enSonAktif = aktifYarisma.length ? aktifYarisma[aktifYarisma.length-1] : null;
+          if(enSonAktif){
+            // Daha önce bu yarışmayı görmediyse → yeni!
+            if(window._sonGorulenYarismaId !== undefined && window._sonGorulenYarismaId !== null && window._sonGorulenYarismaId !== enSonAktif.id){
+              bildirimSesi('duyuru');
+              showToast('📸 Yeni foto yarışması başladı!');
+              if(_aktifTab !== 'bildirim'){
+                try { bildirimBadgeArtir(1); } catch(e){}
+              }
+            }
+            window._sonGorulenYarismaId = enSonAktif.id;
+            renderYolcuYarismaKarti();
+          } else {
+            window._sonGorulenYarismaId = null;
+          }
+        }catch(e){}
       }
     }catch(e){}
   }, 120000);
@@ -4727,6 +4748,11 @@ async function renderYolcuYarismaKarti(){
     const bitenler = (data || []).filter(y => y.durum === 'bitti');
     const yarisma = aktifler.length ? aktifler[aktifler.length-1] : null;
     const sonBiten = bitenler.length ? bitenler[bitenler.length-1] : null;
+
+    // İlk açılışta mevcut yarışmayı "görülmüş" say (bildirim patlatma)
+    if(window._sonGorulenYarismaId === undefined){
+      window._sonGorulenYarismaId = yarisma ? yarisma.id : null;
+    }
 
     if(yarisma){
       const suresiDoldu = yarisma.bitis && new Date(yarisma.bitis).getTime() < Date.now();
