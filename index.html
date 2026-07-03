@@ -3917,16 +3917,21 @@ function startClock(){
           const yeniMesajlar=await dbGet('mesajlar',{sefer_id:CP.sefer});
           const filtred=yeniMesajlar.filter(m=>!m.silindi);
           if(filtred.length>MESAJLAR_DB.length){
-            // Yeni gelen mesajlardan rehberden olanları say (yolcunun kendi mesajı badge artırmasın)
+            // Yeni gelenler
             const yeniGelenSayi = filtred.length - MESAJLAR_DB.length;
             const yeniGelenler = filtred.slice(0, yeniGelenSayi);
-            const rehberdenGelen = yeniGelenler.filter(m => m.gonderen_tip !== 'yolcu').length;
-            bildirimSesi('mesaj');
+            // Sadece BU yolcuya gelen (kabin/hepsi) + rehberden olanlar badge artırsın
+            const banaGelen = yeniGelenler.filter(m =>
+              m.gonderen_tip !== 'yolcu' &&
+              (m.alici === CP.kabin || m.alici_tip === 'hepsi')
+            ).length;
             MESAJLAR_DB=filtred;
             renderMesajlar(CP.sefer);
-            // Bildirim sekmesinde değilse badge artır
-            if(rehberdenGelen > 0 && _aktifTab !== 'bildirim' && _aktifTab !== 'rehber'){
-              try { bildirimBadgeArtir(rehberdenGelen); } catch(e){}
+            if(banaGelen > 0){
+              bildirimSesi('mesaj');
+              if(_aktifTab !== 'bildirim' && _aktifTab !== 'rehber'){
+                try { bildirimBadgeArtir(banaGelen); } catch(e){}
+              }
             }
           }
         }catch(e){}
@@ -13437,6 +13442,7 @@ function renderTA(s){
             </div>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--blue);color:var(--blue);background:transparent;" onclick="turDuzenle('${t.id}')">Düzenle</button>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid #059669;color:#059669;background:transparent;" onclick="turKabinleriKopyala('${t.id}')">📋 Kabinleri Kopyala</button>
+            <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid #0891b2;color:#0891b2;background:transparent;" onclick="turMesajModalAc('${t.id}')">📨 Toplu Mesaj</button>
             <button class="brad-buton-admin ${BROSURLER && BROSURLER[t.id] ? 'dolu' : ''}" onclick="bradAc('${t.id}')">📖 Broşür</button>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid ${aktif?'var(--amber)':'var(--green)'};color:${aktif?'var(--amber)':'var(--green)'};background:transparent;" onclick="turAktifToggle('${t.id}')">${aktif?'Kapat':'Aç'}</button>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid ${t.uyari_aktif?'var(--red)':'var(--purple)'};color:${t.uyari_aktif?'var(--red)':'var(--purple)'};background:${t.uyari_aktif?'var(--rl)':'transparent'};" onclick="turUyariToggle('${t.id}')">${t.uyari_aktif?'⚠️ Uyarı Açık':'⚠️ Uyarı'}</button>
@@ -13583,6 +13589,130 @@ function turAktifToggle(tid){
   saveTurDB(t);
   renderTA(CTSF);
   showToast(t.aktif?'Tur açıldı — yolcular kayıt yapabilir.':'Tur kapatıldı — yeni kayıt alınmıyor.');
+}
+
+// 📨 Toplu mesaj modalı - tura göre gruplar
+function turMesajModalAc(tid){
+  const t = TOURS.find(x => x.id === tid);
+  if(!t) return;
+  const sid = getCurrentSeferId();
+
+  // Grup hesapla
+  const seferYolcu = passengers.filter(p => p.sefer === sid && !p.arsivli && p.kabin);
+  const katilanlar = seferYolcu.filter(p => p.joinedTours?.includes(tid));
+  const almayanlar = seferYolcu.filter(p => !p.joinedTours?.includes(tid));
+  const odemesizler = katilanlar.filter(p => {
+    const det = p.tur_katilim_detay?.[tid];
+    return det && det.odeme_durumu === 'bekliyor';
+  });
+  const kartProblemli = seferYolcu.filter(p => {
+    const det = p.tur_katilim_detay?.[tid];
+    return det && (det.kart_problem === true || det.odeme_durumu === 'kart_problem');
+  });
+
+  // Hazır mesaj şablonu
+  const varsayilanMesaj = '📢 ' + t.name + '\n' +
+    (t.saat ? '⏰ Tur saati: ' + t.saat + '\n' : '') +
+    (t.liman ? '📍 ' + t.liman + '\n' : '') +
+    (t.detaylar?.toplanma_yeri ? '🚩 Toplanma: ' + t.detaylar.toplanma_yeri + '\n' : '') +
+    '\nDetaylar ve güncellemeler için uygulamayı kontrol edin.';
+
+  document.getElementById('tur-mesaj-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'tur-mesaj-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e)=>{ if(e.target.id==='tur-mesaj-modal') modal.remove(); };
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;max-width:440px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+      <div style="background:linear-gradient(135deg,#0891b2,#0e7490);padding:14px 18px;color:white;position:sticky;top:0;z-index:2;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-family:'DM Serif Display',serif;font-size:17px;">📨 Toplu Mesaj</div>
+            <div style="font-size:11px;opacity:.9;">${escapeHTML(t.name)}</div>
+          </div>
+          <button onclick="document.getElementById('tur-mesaj-modal').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;font-size:18px;cursor:pointer;width:30px;height:30px;border-radius:50%;">×</button>
+        </div>
+      </div>
+      <div style="padding:16px 18px;">
+        <div style="font-size:12px;font-weight:700;color:#1a1a1a;margin-bottom:8px;">👥 Kime gönderilsin?</div>
+        <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:14px;">
+          <label style="display:flex;align-items:center;gap:9px;padding:10px;background:#f0fdfa;border:1.5px solid #99f6e4;border-radius:10px;cursor:pointer;">
+            <input type="radio" name="mesaj-grup" value="katilanlar" checked style="width:16px;height:16px;">
+            <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#0f766e;">🎫 Tura Katılanlar</div><div style="font-size:11px;color:#0d9488;">${katilanlar.length} kabin</div></div>
+          </label>
+          <label style="display:flex;align-items:center;gap:9px;padding:10px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;cursor:pointer;">
+            <input type="radio" name="mesaj-grup" value="almayanlar" style="width:16px;height:16px;">
+            <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#475569;">📭 Tur Almayanlar</div><div style="font-size:11px;color:#64748b;">${almayanlar.length} kabin</div></div>
+          </label>
+          <label style="display:flex;align-items:center;gap:9px;padding:10px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;cursor:pointer;">
+            <input type="radio" name="mesaj-grup" value="odemesizler" style="width:16px;height:16px;">
+            <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#b45309;">💳 Ödeme Yapmamışlar</div><div style="font-size:11px;color:#d97706;">${odemesizler.length} kabin</div></div>
+          </label>
+          <label style="display:flex;align-items:center;gap:9px;padding:10px;background:#fef2f2;border:1.5px solid #fecaca;border-radius:10px;cursor:pointer;">
+            <input type="radio" name="mesaj-grup" value="kartproblem" style="width:16px;height:16px;">
+            <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#dc2626;">⚠️ Kart Problemli</div><div style="font-size:11px;color:#ef4444;">${kartProblemli.length} kabin</div></div>
+          </label>
+        </div>
+
+        <div style="font-size:12px;font-weight:700;color:#1a1a1a;margin-bottom:6px;">✍️ Mesaj</div>
+        <textarea id="tur-mesaj-metin" rows="6" style="width:100%;padding:11px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif;resize:vertical;box-sizing:border-box;line-height:1.5;">${escapeHTML(varsayilanMesaj)}</textarea>
+        <div style="font-size:10px;color:#94a3b8;margin-top:4px;line-height:1.4;">💡 Yolcular bu mesajı uygulamada bildirim olarak görecek (🔔 ses + Bildirim sekmesi).</div>
+
+        <button onclick="turMesajGonder('${tid}')" style="width:100%;margin-top:14px;padding:13px;background:linear-gradient(135deg,#0891b2,#0e7490);color:white;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          📨 Mesajı Gönder
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+// Toplu mesajı gönder
+async function turMesajGonder(tid){
+  const grup = document.querySelector('input[name="mesaj-grup"]:checked')?.value || 'katilanlar';
+  const metin = document.getElementById('tur-mesaj-metin')?.value.trim();
+  if(!metin){ showToast('⚠️ Mesaj boş olamaz'); return; }
+  const sid = getCurrentSeferId();
+
+  // Hedef kabinleri belirle
+  const seferYolcu = passengers.filter(p => p.sefer === sid && !p.arsivli && p.kabin);
+  let hedefler = [];
+  if(grup === 'katilanlar'){
+    hedefler = seferYolcu.filter(p => p.joinedTours?.includes(tid));
+  } else if(grup === 'almayanlar'){
+    hedefler = seferYolcu.filter(p => !p.joinedTours?.includes(tid));
+  } else if(grup === 'odemesizler'){
+    hedefler = seferYolcu.filter(p => { const d = p.tur_katilim_detay?.[tid]; return d && d.odeme_durumu === 'bekliyor'; });
+  } else if(grup === 'kartproblem'){
+    hedefler = seferYolcu.filter(p => { const d = p.tur_katilim_detay?.[tid]; return d && (d.kart_problem === true || d.odeme_durumu === 'kart_problem'); });
+  }
+
+  // Tekil kabinler
+  const kabinler = [...new Set(hedefler.map(p => String(p.kabin).trim()).filter(x => x))];
+  if(kabinler.length === 0){ showToast('⚠️ Bu grupta kabin yok'); return; }
+
+  if(!confirm('📨 ' + kabinler.length + ' kabine mesaj gönderilsin mi?\n\nYolcular uygulamada bildirim olarak görecek.')) return;
+
+  showToast('⏳ ' + kabinler.length + ' kabine gönderiliyor...');
+  document.getElementById('tur-mesaj-modal')?.remove();
+
+  // Her kabine mesaj kaydet (tek DB insert ile hepsi - toplu)
+  try {
+    const kayitlar = kabinler.map(kabin => ({
+      sefer_id: sid,
+      gonderen: 'Rehber',
+      gonderen_tip: 'rehber',
+      alici: kabin,
+      alici_tip: 'yolcu',
+      mesaj: metin
+    }));
+    // Toplu insert (tek sorgu)
+    const { error } = await sb.from('mesajlar').insert(kayitlar);
+    if(error) throw new Error(error.message);
+    showToast('✅ ' + kabinler.length + ' kabine mesaj gönderildi!', 4000);
+  } catch(e){
+    showToast('⚠️ Hata: ' + (e?.message || ''));
+  }
 }
 
 // 📋 Tura katılan kabinleri virgülle kopyala (canlı sunuma yapıştırmak için)
