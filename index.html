@@ -5047,40 +5047,61 @@ function renderYolcuKabinKarti(){  const area = document.getElementById('yolcu-k
   `;
 }
 
-// 🏨 Yolcu kabin bilgisi kartı - kabindeki herkesi göster (eski tanım üstte)
-// 📱 Uygulamayı telefona yükle kartı
+// 📱 Uygulamayı telefona yükle + WhatsApp grup kartı
 function renderPwaYukleKarti(){
   const area = document.getElementById('pwa-yukle-karti');
   if(!area) return;
 
-  // Zaten PWA olarak açılıyorsa (yüklü) → gösterme
   const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-  if(standalone){ area.innerHTML = ''; return; }
+  let pwaYuklu = standalone;
+  try { if(localStorage.getItem('pwa_yuklendi') === '1') pwaYuklu = true; } catch(e){}
+  const pwaKapatildi = window._pwaKartiKapatildi;
 
-  // Sadece "yüklendi" işareti varsa kalıcı gizle (kapatma artık oturumluk)
-  try {
-    if(localStorage.getItem('pwa_yuklendi') === '1'){ area.innerHTML = ''; return; }
-  } catch(e){}
-  // Bu oturumda kapatıldıysa gösterme (ama yeni girişte tekrar görünür)
-  if(window._pwaKartiKapatildi){ area.innerHTML = ''; return; }
+  // WhatsApp grup linki var mı?
+  let waLink = '';
+  try { if(typeof waLinkBul === 'function') waLink = waLinkBul() || ''; } catch(e){}
 
   const iOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
+  // PWA butonu gösterilecek mi? (yüklü değilse ve kapatılmadıysa)
+  const pwaGoster = !pwaYuklu && !pwaKapatildi;
+
+  // İkisi de yoksa kart hiç gösterme
+  if(!pwaGoster && !waLink){ area.innerHTML = ''; return; }
+
+  let butonlar = '';
+
+  // PWA butonu
+  if(pwaGoster){
+    butonlar += `
+      <button onclick="pwaYukle()" style="flex:1;min-width:130px;padding:12px;background:white;color:#0d3b6e;border:none;border-radius:11px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;">
+        ${iOS ? '📲 Uygulamayı Ekle' : '⬇️ Uygulamayı Ekle'}
+      </button>
+    `;
+  }
+
+  // WhatsApp butonu
+  if(waLink){
+    butonlar += `
+      <a href="${escapeHTML(waLink)}" target="_blank" rel="noopener" style="flex:1;min-width:130px;padding:12px;background:#25D366;color:white;border:none;border-radius:11px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;">
+        💬 WhatsApp Grubu
+      </a>
+    `;
+  }
+
   area.innerHTML = `
     <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);border-radius:14px;padding:13px 15px;margin-bottom:14px;color:white;position:relative;box-shadow:0 4px 14px rgba(13,59,110,.25);">
-      <button onclick="pwaKartiKapat()" style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,.2);border:none;color:white;width:24px;height:24px;border-radius:50%;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">×</button>
-      <div style="display:flex;align-items:center;gap:11px;">
-        <div style="background:white;width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.15);">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="#1a5fa8"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01z" opacity="0"/><path d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.2L19 8v8l-7 3.5L5 16V8l7-3.8z"/><path d="M12 6.5l-4.5 2.3v4.4l4.5 2.3 4.5-2.3V8.8L12 6.5z"/></svg>
-        </div>
-        <div style="flex:1;min-width:0;padding-right:18px;">
-          <div style="font-size:14px;font-weight:700;line-height:1.2;">📱 Uygulamayı Telefona Ekle</div>
-          <div style="font-size:11px;opacity:.9;margin-top:2px;line-height:1.4;">Daha hızlı erişim · Bildirimler · Çevrimdışı kullanım</div>
+      ${pwaGoster ? '<button onclick="pwaKartiKapat()" style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,.2);border:none;color:white;width:24px;height:24px;border-radius:50%;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">×</button>' : ''}
+      <div style="display:flex;align-items:center;gap:11px;margin-bottom:11px;">
+        <div style="background:white;width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.15);font-size:22px;">⚓</div>
+        <div style="flex:1;min-width:0;padding-right:${pwaGoster?'18px':'0'};">
+          <div style="font-size:14px;font-weight:700;line-height:1.2;">${pwaGoster ? '📱 Hızlı Erişim & Bildirimler' : '💬 Bize Katılın'}</div>
+          <div style="font-size:11px;opacity:.9;margin-top:2px;line-height:1.4;">${pwaGoster ? 'Uygulamayı ekleyin, WhatsApp grubuna katılın' : 'WhatsApp duyuru grubuna katılın'}</div>
         </div>
       </div>
-      <button onclick="pwaYukle()" style="width:100%;margin-top:11px;padding:11px;background:white;color:#0d3b6e;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;">
-        ${iOS ? '📲 Nasıl Eklenir? (Göster)' : '⬇️ Ana Ekrana Ekle'}
-      </button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${butonlar}
+      </div>
     </div>
   `;
 }
@@ -29307,6 +29328,8 @@ function waGrupButonGuncelle(){
   } else {
     btn.style.display = 'none';
   }
+  // WhatsApp linki yüklenince ana sayfadaki kartı da yenile (buton görünsün)
+  try { if(typeof renderPwaYukleKarti === 'function') renderPwaYukleKarti(); } catch(e){}
 }
 
 // ── Yolcu: Modal aç ──
