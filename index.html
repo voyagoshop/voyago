@@ -2713,22 +2713,32 @@ async function dbGetSelect(tablo, kolonlar) {
 async function loadTurGorselleri(){
   try{
     const t0 = Date.now();
-    const {data, error} = await sb.from('turlar').select('id,gorsel');
-    if(error||!data) return;
+    // Sayfalama ile TÜM tur görsellerini çek (1000 limit + büyük base64 için)
+    let tumGorseller = [];
+    let bas = 0;
+    const SAYFA = 200; // base64 büyük olabilir, küçük sayfa
+    let guv = 0;
+    while(guv < 30){
+      guv++;
+      const {data, error} = await sb.from('turlar').select('id,gorsel').range(bas, bas + SAYFA - 1);
+      if(error){ console.log('Tur görsel çekme hatası: ' + error.message); break; }
+      const gelen = data || [];
+      tumGorseller = tumGorseller.concat(gelen);
+      if(gelen.length < SAYFA) break;
+      bas += SAYFA;
+    }
     let yuklenen = 0;
-    data.forEach(row=>{
+    tumGorseller.forEach(row=>{
       if(!row.gorsel) return;
       const tur = TOURS.find(t=>t.id===row.id);
       if(tur){ tur.img = row.gorsel; yuklenen++; }
     });
-    console.log('Tur görselleri yüklendi:', yuklenen, 'tur,', (Date.now()-t0)+'ms');
+    console.log('[TUR GÖRSEL] ' + yuklenen + '/' + tumGorseller.length + ' tur görseli yüklendi, ' + (Date.now()-t0)+'ms');
     // Aktif sekme tur sekmesi ise re-render — görseller görünür
     try {
-      // Yolcu turlar sekmesi açıksa
       if(typeof CP !== 'undefined' && CP && typeof renderPassTours === 'function'){
         renderPassTours(CP.sefer);
       }
-      // Rehber turlar sekmesi açıksa
       if(typeof renderTA === 'function' && typeof CTSF !== 'undefined'){
         renderTA(CTSF);
       }
@@ -3128,7 +3138,7 @@ async function initDB() {
 
     // Turları yükle (görsel hariç — sonra ayrı çekilir, performans için)
     let turlarDB = [];
-    try { turlarDB = await dbGetSelect('turlar', 'id,ad,liman,saat,gun,tarih,fiyat_yetiskin,fiyat_cocuk,fiyat_bebek,fiyat_normal_yetiskin,fiyat_normal_cocuk,fiyat_normal_bebek,gemi,sefer_listesi,max_kisi,uyari_esigi,aktif,uyari_mesaji,uyari_aktif,sira'); } catch(e) { console.log('turlar hatası:', e); }
+    try { turlarDB = await dbGetSelect('turlar', 'id,ad,liman,saat,gun,tarih,fiyat_yetiskin,fiyat_cocuk,fiyat_bebek,fiyat_normal_yetiskin,fiyat_normal_cocuk,fiyat_normal_bebek,gemi,sefer_listesi,max_kisi,uyari_esigi,aktif,uyari_mesaji,uyari_aktif,sira,detaylar'); } catch(e) { console.log('turlar hatası:', e); }
 
     // 📡 Offline fallback - DB'den boş geldiyse cache'i dene
     if(!turlarDB?.length){
