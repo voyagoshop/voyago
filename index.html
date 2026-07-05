@@ -10330,10 +10330,21 @@ async function sunumSlideDrop(e, sunumId, hedefIdx){
 function sunumKabinDuzenle(sunumId){
   const s = SUNUMLAR.find(x => x.id === sunumId);
   if(!s) return;
-  const sid = s.sefer_id;
-  const aktifSefer = VOYAGES.find(v => v.id === sid) || VOYAGES.find(v => v.status !== 'archived' && v.visible);
+  // 🔑 Sunum sabit ama kabin ekleme AKTİF seferin turlarını göstermeli (yeni sefer = yeni satışlar)
+  const aktifSefer = VOYAGES.find(v => v.id === getCurrentSeferId()) 
+    || VOYAGES.find(v => v.status !== 'archived' && v.visible) 
+    || VOYAGES.find(v => v.status !== 'archived');
+  const sid = aktifSefer?.id || s.sefer_id;  // aktif sefer öncelikli
+  // Bu seferin turları
   const turlar = TOURS.filter(t => t.seferler && t.seferler.includes(sid));
-  const fallbackTurlar = turlar.length ? turlar : TOURS.filter(t => t.aktif !== false);
+  // Katılımcısı olan turlar da (atanmamış olsa bile)
+  const katilimliTurIds = new Set();
+  passengers.filter(p => p.sefer === sid && !p.arsivli).forEach(p => {
+    (p.joinedTours||[]).forEach(tid => katilimliTurIds.add(tid));
+  });
+  const katilimliTurlar = TOURS.filter(t => katilimliTurIds.has(t.id) && !turlar.some(x=>x.id===t.id));
+  const fallbackTurlar = [...turlar, ...katilimliTurlar];
+  const gosterTurlar = fallbackTurlar.length ? fallbackTurlar : TOURS.filter(t => t.aktif !== false);
 
   const eski = document.getElementById('sunum-kabin-modal');
   if(eski) eski.remove();
@@ -10360,11 +10371,11 @@ function sunumKabinDuzenle(sunumId){
         <textarea id="sunum-duzenle-kabinler" 
           style="width:100%;padding:9px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:13px;font-family:'Courier New',monospace;outline:none;resize:vertical;min-height:80px;margin-bottom:8px;">${(s.kabinler||[]).join(', ')}</textarea>
         
-        ${fallbackTurlar.length > 0 ? `
+        ${gosterTurlar.length > 0 ? `
           <div style="background:#f5f3ff;border:1.5px dashed #c4b5fd;border-radius:10px;padding:9px;margin-bottom:10px;">
-            <div style="font-size:10px;color:#5b21b6;font-weight:700;margin-bottom:5px;">⚡ HIZLI EKLE: Bir turun TÜM yolcularını ekle</div>
+            <div style="font-size:10px;color:#5b21b6;font-weight:700;margin-bottom:5px;">⚡ HIZLI EKLE: Bu seferin turundan yolcu ekle <span style="color:#9333ea;">(${escapeHTML(aktifSefer?.label||'aktif sefer')})</span></div>
             <div style="display:flex;flex-wrap:wrap;gap:4px;">
-              ${fallbackTurlar.map(t => {
+              ${gosterTurlar.map(t => {
                 const kayitliSayi = passengers.filter(p => 
                   p.sefer === sid && !p.arsivli && p.joinedTours?.includes(t.id)
                 ).length;
