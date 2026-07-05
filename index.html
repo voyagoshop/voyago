@@ -1124,6 +1124,9 @@ textarea.ai2{resize:none;}
     <div id="tab-sunumlar" class="tp">
       <div id="yolcu-sunumlar-icerik"></div>
     </div>
+    <div id="tab-haberler" class="tp">
+      <div id="yolcu-haberler-icerik"></div>
+    </div>
     <div id="tab-gazete" class="tp">
       <div class="gazete-date" id="gazete-tarih"></div>
       <div class="gazete-grid" id="gazete-display"></div>
@@ -1236,6 +1239,7 @@ textarea.ai2{resize:none;}
   <div class="bn">
     <div class="bni">
       <button class="nb active" id="nb-program" onclick="switchTab('program')"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="17" rx="2"/><path d="M16 2.5v4M8 2.5v4M3 10h18"/></svg></span><span data-t="program">Program</span></button>
+      <button class="nb" id="nb-haberler" onclick="switchTab('haberler')" style="position:relative;"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span id="haberler-badge" style="display:none;position:absolute;top:-4px;right:-6px;background:#dc2626;color:white;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center;padding:0 4px;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.3);">0</span></span><span style="font-size:9px;">Son Haberler</span></button>
       <button class="nb" id="nb-turlar" onclick="switchTab('turlar')"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span><span data-t="turlar">Turlar</span></button>
       <button class="nb" id="nb-sunumlar" onclick="switchTab('sunumlar')" style="position:relative;"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span id="sunum-badge" style="display:none;position:absolute;top:-4px;right:-6px;background:#dc2626;color:white;font-size:8px;font-weight:700;min-width:14px;height:14px;border-radius:7px;align-items:center;justify-content:center;padding:0 3px;border:2px solid white;">●</span></span><span style="font-size:9px;">Sunumlar</span></button>
       <button class="nb" id="nb-gazete" onclick="switchTab('gazete')"><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8z"/></svg></span><span data-t="gazete">Gazete</span></button>
@@ -3986,6 +3990,9 @@ function startClock(){
             window._sonGorulenYarismaId = null;
           }
         }catch(e){}
+
+        // 🔔 Son Haberler badge kontrolü
+        try { if(typeof haberlerBadgeKontrol === 'function') await haberlerBadgeKontrol(); } catch(e){}
       }
     }catch(e){}
   }, 120000);
@@ -4365,6 +4372,8 @@ function doPL(){
   startClock();
   // 🔔 Kayıtlı okunmamış bildirim sayısını yükle
   try{ if(typeof _bildirimBadgeOku === 'function') _bildirimBadgeOku(); }catch(e){}
+  // 🔔 Son Haberler badge kontrolü
+  try{ if(typeof haberlerBadgeKontrol === 'function') haberlerBadgeKontrol(); }catch(e){}
   // 🌤️ Hava durumu yükle
   try{ if(typeof havaDurumBaslat==='function') havaDurumBaslat(sv); }catch(e){console.log('hava:', e);}
   // ⭐ Flash etkinlik popup kontrolü (eğer rehber yayınladıysa)
@@ -4875,9 +4884,141 @@ function _yolcuYarismaSayacBaslat(bitis){
   _yolcuYarismaSayacTimer = setInterval(guncelle, 1000);
 }
 
+// ═══════════════════════════════════════════════
+// 🔔 SON HABERLER (aktivite log) - rehber aksiyonları
+// ═══════════════════════════════════════════════
+// Rehber bir şey yapınca buraya kayıt düşer, yolcu "Son Haberler"de görür
+
+// Rehber tarafı: aktivite kaydı ekle
+async function aktiviteEkle(tip, baslik, aciklama, hedefTab, ikon){
+  try {
+    const sid = getCurrentSeferId();
+    if(!sid) return;
+    await sb.from('aktivite_log').insert({
+      sefer_id: sid,
+      tip: tip || 'genel',
+      baslik: baslik || '',
+      aciklama: aciklama || '',
+      hedef_tab: hedefTab || 'program',
+      ikon: ikon || '🔔',
+      zaman: new Date().toISOString()
+    });
+  } catch(e){ console.log('Aktivite log: ' + (e?.message||'')); }
+}
+
+// Yolcu tarafı: Son Haberler sekmesi render
+async function renderYolcuHaberler(){
+  const area = document.getElementById('yolcu-haberler-icerik');
+  if(!area || !CP) return;
+  area.innerHTML = '<div style="text-align:center;padding:30px;color:#999;font-size:13px;">Yükleniyor...</div>';
+  try {
+    const data = await dbGet('aktivite_log', { sefer_id: CP.sefer });
+    const haberler = (data || []).sort((a,b) => new Date(b.zaman) - new Date(a.zaman));
+
+    // Görüldü işaretle (badge sıfırla)
+    if(haberler.length > 0){
+      try { localStorage.setItem('voyago_haber_gorulen_' + CP.sefer + '_' + CP.kabin, String(haberler.length)); } catch(e){}
+    }
+    haberlerBadgeGuncelle(0);
+
+    let html = `
+      <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);border-radius:16px;padding:16px 18px;color:white;margin-bottom:14px;">
+        <div style="font-family:'DM Serif Display',serif;font-size:20px;">🔔 Son Haberler</div>
+        <div style="font-size:12px;opacity:.9;margin-top:2px;">Rehberinizin tüm güncellemeleri</div>
+      </div>
+    `;
+
+    if(haberler.length === 0){
+      html += `
+        <div style="text-align:center;padding:40px 20px;color:#999;">
+          <div style="font-size:44px;margin-bottom:10px;">🔔</div>
+          <div style="font-size:14px;font-weight:600;color:#666;">Henüz güncelleme yok</div>
+          <div style="font-size:12px;margin-top:6px;line-height:1.5;">Rehberiniz bir şey eklediğinde<br>burada göreceksiniz.</div>
+        </div>
+      `;
+    } else {
+      html += '<div style="position:relative;padding-left:8px;">';
+      haberler.forEach((h, i) => {
+        const zamanStr = h.zaman ? _haberZaman(h.zaman) : '';
+        html += `
+          <div style="display:flex;gap:11px;margin-bottom:12px;position:relative;">
+            <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">
+              <div style="width:38px;height:38px;background:#f0f4ff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:2px solid #dbeafe;z-index:1;">${h.ikon||'🔔'}</div>
+              ${i < haberler.length-1 ? '<div style="width:2px;flex:1;background:#e5e7eb;margin-top:2px;min-height:16px;"></div>' : ''}
+            </div>
+            <div onclick="haberGit('${h.hedef_tab||'program'}')" style="flex:1;min-width:0;background:white;border:1px solid #e5e7eb;border-radius:12px;padding:11px 13px;cursor:pointer;">
+              <div style="font-size:13px;font-weight:700;color:#1a1a1a;">${escapeHTML(h.baslik||'')}</div>
+              ${h.aciklama ? `<div style="font-size:12px;color:#666;margin-top:3px;line-height:1.4;">${escapeHTML(h.aciklama)}</div>` : ''}
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+                <div style="font-size:10px;color:#94a3b8;">${zamanStr}</div>
+                <div style="font-size:11px;color:#1a5fa8;font-weight:600;">Git →</div>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      html += '</div>';
+    }
+
+    area.innerHTML = html;
+  } catch(e){
+    area.innerHTML = '<div style="text-align:center;padding:30px;color:#999;font-size:13px;">Haberler yüklenemedi.</div>';
+  }
+}
+
+// Habere tıkla → ilgili sekmeye git
+function haberGit(hedefTab){
+  if(typeof switchTab === 'function') switchTab(hedefTab);
+}
+
+// Zaman formatı (x dk önce, x saat önce, tarih)
+function _haberZaman(iso){
+  const fark = Date.now() - new Date(iso).getTime();
+  const dk = Math.floor(fark / 60000);
+  if(dk < 1) return 'Az önce';
+  if(dk < 60) return dk + ' dakika önce';
+  const sa = Math.floor(dk / 60);
+  if(sa < 24) return sa + ' saat önce';
+  return new Date(iso).toLocaleString('tr-TR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+
+// Haberler badge güncelle
+function haberlerBadgeGuncelle(sayi){
+  const badge = document.getElementById('haberler-badge');
+  if(!badge) return;
+  if(sayi > 0){
+    badge.textContent = sayi > 99 ? '99+' : sayi;
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// Açılışta/odakta okunmamış haber kontrolü
+async function haberlerBadgeKontrol(){
+  if(!CP) return;
+  try {
+    const data = await dbGet('aktivite_log', { sefer_id: CP.sefer });
+    const guncelSayi = (data || []).length;
+    let gorulen = 0;
+    try {
+      const g = localStorage.getItem('voyago_haber_gorulen_' + CP.sefer + '_' + CP.kabin);
+      if(g != null) gorulen = parseInt(g) || 0;
+    } catch(e){}
+    // İlk kez → hepsi görülmüş say
+    if(localStorage.getItem('voyago_haber_gorulen_' + CP.sefer + '_' + CP.kabin) == null){
+      localStorage.setItem('voyago_haber_gorulen_' + CP.sefer + '_' + CP.kabin, String(guncelSayi));
+      haberlerBadgeGuncelle(0);
+      return;
+    }
+    const okunmamis = Math.max(0, guncelSayi - gorulen);
+    // Son Haberler sekmesi açık değilse badge göster
+    if(_aktifTab !== 'haberler') haberlerBadgeGuncelle(okunmamis);
+  } catch(e){}
+}
+
 // 🎬 Yolcu Sunumlar sekmesi - canlı + arşiv birlikte
-async function renderYolcuSunumlar(){
-  const area = document.getElementById('yolcu-sunumlar-icerik');
+async function renderYolcuSunumlar(){  const area = document.getElementById('yolcu-sunumlar-icerik');
   if(!area || !CP) return;
   area.innerHTML = '<div style="text-align:center;padding:30px;color:#999;font-size:13px;">Yükleniyor...</div>';
   try {
@@ -10596,6 +10737,8 @@ async function sunumBaslat(sunumId){
     _sunumBroadcast(s, 'baslatildi');
     showToast('🔴 Canlı yayın başladı!');
     sunumDetayAc(sunumId);
+    // 🔔 Son Haberler'e kaydet
+    try { aktiviteEkle('sunum', '🔴 Canlı sunum başladı', s.ad, 'sunumlar', '🎬'); } catch(e){}
   } catch(e){
     showToast('⚠️ Hata: ' + (e?.message || ''));
   }
@@ -10612,6 +10755,8 @@ async function sunumArsivAcKapat(sunumId){
     await dbUpdate('tur_sunumlari', { id: sunumId }, { arsiv_aktif: yeni });
     showToast(yeni ? '📚 Arşiv açıldı — kabinler artık bakabilir' : '⚪ Arşiv kapatıldı');
     sunumDetayAc(sunumId);
+    // 🔔 Son Haberler'e kaydet (sadece açılınca)
+    if(yeni){ try { aktiviteEkle('sunum', '📚 Sunum slaytları hazır', s.ad + ' · İstediğiniz zaman bakabilirsiniz', 'sunumlar', '🖼️'); } catch(e){} }
   } catch(e){
     // Kolon yoksa uyar
     if((e?.message||'').includes('column') || (e?.message||'').includes('arsiv_aktif')){
@@ -11630,6 +11775,8 @@ async function fotoYarismaBaslat(){
 
     showToast('🚀 Yarışma başladı! Yolculara bildirildi.');
     fotoYarismaModalAc();
+    // 🔔 Son Haberler'e kaydet
+    try { aktiviteEkle('yarisma', '📸 Foto yarışması başladı', baslik + ' · Ödül: ' + odul, 'program', '📸'); } catch(e){}
   } catch(e){ showToast('⚠️ ' + (e?.message||'')); }
 }
 
@@ -13822,6 +13969,9 @@ async function turMesajGonder(tid){
     const { error } = await sb.from('mesajlar').insert(kayitlar);
     if(error) throw new Error(error.message);
     showToast('✅ ' + kabinler.length + ' kabine mesaj gönderildi!', 4000);
+    // 🔔 Son Haberler'e kaydet
+    const t2 = TOURS.find(x => x.id === tid);
+    try { aktiviteEkle('mesaj', '💬 Rehberden duyuru', (t2?t2.name+' · ':'') + metin.slice(0,60) + (metin.length>60?'...':''), 'bildirim', '💬'); } catch(e){}
   } catch(e){
     showToast('⚠️ Hata: ' + (e?.message || ''));
   }
@@ -14047,6 +14197,8 @@ function addTour(){
   const allT=TOURS.filter(t=>t.ship===activeShip);
   document.getElementById('tur-ekle-tur').innerHTML=allT.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
   showToast('Tur eklendi!');
+  // 🔔 Son Haberler'e kaydet
+  try { aktiviteEkle('tur', '🗺️ Yeni tur eklendi', yeniTur.name + (yeniTur.liman?' · '+yeniTur.liman:''), 'turlar', '🗺️'); } catch(e){}
 }
 function turSefereEkle(){const tid=document.getElementById('tur-ekle-tur').value,sid=document.getElementById('tur-ekle-sefer').value;const t=TOURS.find(t=>t.id===tid);if(!t)return;if(t.seferler.includes(sid)){showToast('Zaten bu seferde.');return;}t.seferler.push(sid);renderTA(CTSF);showToast('Sefere eklendi!');}
 function turSeferdenCikar(){const tid=document.getElementById('tur-ekle-tur').value,sid=document.getElementById('tur-ekle-sefer').value;const t=TOURS.find(t=>t.id===tid);if(!t)return;const i=t.seferler.indexOf(sid);if(i<0){showToast('Bu seferde degil.');return;}t.seferler.splice(i,1);renderTA(CTSF);showToast('Seferden cikarildi.');}
@@ -17003,6 +17155,7 @@ function switchTab(name){
   }
   if(name==='turlar'&&CP){renderTurAnonsPano(CP.sefer);}
   if(name==='sunumlar'&&CP){ if(typeof renderYolcuSunumlar==='function') renderYolcuSunumlar(); }
+  if(name==='haberler'&&CP){ if(typeof renderYolcuHaberler==='function') renderYolcuHaberler(); }
 }
 function sendMsg(){
   const input=document.getElementById('ci'),val=input.value.trim();if(!val)return;
@@ -24748,6 +24901,8 @@ async function turAnonsBildirimGonder(id){
 
     renderTurAnonsAdmin();
     showToast('🔔 Bildirim gönderildi! Yolcular anonsu görecek.');
+    // 🔔 Son Haberler'e kaydet
+    try { aktiviteEkle('anons', '📢 Tur anonsu', a.tur_adi + ' · Toplanma: ' + a.saat + (a.toplanma_noktasi?' · '+a.toplanma_noktasi:''), 'turlar', '📢'); } catch(e){}
   } catch(e){ showToast('⚠️ ' + (e?.message||'')); }
 }
 
@@ -29862,6 +30017,8 @@ async function yolcuOdakYenile(){
         if(typeof _bildirimBadgeOku === 'function') await _bildirimBadgeOku();
       }
     }catch(e){}
+    // 🔔 Son Haberler badge kontrolü
+    try { if(typeof haberlerBadgeKontrol === 'function') await haberlerBadgeKontrol(); } catch(e){}
     // Sayfanın aktif sekmesine göre o sekmeyi yenile
     try{
       const aktifTab = document.querySelector('#sa .tp.active');
