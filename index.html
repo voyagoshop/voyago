@@ -11727,13 +11727,15 @@ function renderDashboard(){
     (p.joinedTours||[]).forEach(tid => turIDleriKatilimciOlan.add(tid));
   });
   const seferTurlari = TOURS.filter(t => {
-    if(t.aktif === false) return false;
     // Bu sefere atanmış mı?
-    if(!t.seferler || !Array.isArray(t.seferler) || t.seferler.length === 0) return true;
-    if(t.seferler.includes(sid)) return true;
-    // Atanmamış ama katılımcısı varsa yine göster (Gold Paket bug fix)
-    if(turIDleriKatilimciOlan.has(t.id)) return true;
-    return false;
+    const buSefere = (!t.seferler || !Array.isArray(t.seferler) || t.seferler.length === 0 || t.seferler.includes(sid));
+    // Katılımcısı var mı?
+    const katilimciVar = turIDleriKatilimciOlan.has(t.id);
+    // Kapalı tur olsa BİLE katılımcısı varsa dahil et (gelir/istatistik düşmesin)
+    if(katilimciVar) return buSefere || true; // katılımcı varsa her halükarda göster
+    // Katılımcısı yoksa: kapalıysa gizle
+    if(t.aktif === false) return false;
+    return buSefere;
   });
   const toplamTur = seferTurlari.length;
 
