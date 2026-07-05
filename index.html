@@ -11941,6 +11941,9 @@ function renderDashboard(){
       </div>
     </div>
 
+    <!-- 📱 Uygulamadan Alınan Turlar -->
+    <div id="uygulamadan-turlar-alan"></div>
+
     ${enPopuler ? `
     <!-- En Popüler Tur -->
     <div style="background:linear-gradient(135deg,#fbbf24,#f59e0b);border-radius:14px;padding:14px 16px;color:white;">
@@ -12090,6 +12093,71 @@ function renderDashboard(){
     <!-- Footer info -->
     <div style="text-align:center;padding:8px;color:#aaa;font-size:11px;">
       🔄 Sayfa yenile: ${saatStr} · ${gunBilgisi || 'Bugün'}
+    </div>
+  `;
+
+  // 📱 Uygulamadan alınan turları render et
+  try { renderUygulamadanTurlar(sid); } catch(e){}
+}
+
+// 📱 Uygulamadan alınan turlar listesi
+function renderUygulamadanTurlar(sid){
+  const alan = document.getElementById('uygulamadan-turlar-alan');
+  if(!alan) return;
+
+  // Uygulamadan (kaynak='uygulama') alınan tüm tur kayıtlarını topla
+  const kayitlar = [];
+  passengers.filter(p => p.sefer === sid && !p.arsivli).forEach(p => {
+    if(!p.tur_katilim_detay) return;
+    Object.keys(p.tur_katilim_detay).forEach(tid => {
+      const det = p.tur_katilim_detay[tid];
+      if(det && det.kaynak === 'uygulama'){
+        const t = TOURS.find(x => x.id === tid);
+        kayitlar.push({
+          kabin: p.kabin,
+          isim: p.name || '',
+          turAdi: t ? t.name : tid,
+          kisi: det.kisi || 0,
+          ucret: det.ucret || 0,
+          zaman: det.onay_zamani || ''
+        });
+      }
+    });
+  });
+
+  if(kayitlar.length === 0){
+    alan.innerHTML = '';
+    return;
+  }
+
+  // En yeni üstte
+  kayitlar.sort((a,b) => new Date(b.zaman) - new Date(a.zaman));
+  const toplamGelir = kayitlar.reduce((s,k) => s + k.ucret, 0);
+
+  alan.innerHTML = `
+    <div style="background:white;border-radius:14px;padding:14px;border:1px solid #f0f0f0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="font-size:13px;font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:6px;">
+          📱 <span>Uygulamadan Alınan Turlar</span>
+        </div>
+        <div style="font-size:11px;color:#16a34a;font-weight:700;">${kayitlar.length} kayıt · €${toplamGelir}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto;">
+        ${kayitlar.map(k => {
+          const zamanStr = k.zaman ? new Date(k.zaman).toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+          return `
+            <div style="display:flex;align-items:center;gap:9px;padding:9px 11px;background:#f8fafc;border-radius:9px;border-left:3px solid #7c3aed;">
+              <div style="flex-shrink:0;width:38px;height:38px;background:#f3e8ff;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;">🎫</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:12px;font-weight:600;color:#1a1a1a;">${escapeHTML(k.turAdi)}</div>
+                <div style="font-size:11px;color:#666;">🏨 Kabin ${escapeHTML(k.kabin)}${k.isim ? ' · ' + escapeHTML(k.isim) : ''} · 👥 ${k.kisi}</div>
+                <div style="font-size:10px;color:#94a3b8;">📅 ${zamanStr}</div>
+              </div>
+              <div style="flex-shrink:0;font-size:13px;font-weight:700;color:#16a34a;">€${k.ucret}</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
     </div>
   `;
 }
@@ -26914,13 +26982,27 @@ async function tkOnayla(){
     bebek: beb,
     ucret: ucret,
     onay_zamani: new Date().toISOString(),
-    e_imza: CP.name + ' (Kabin ' + CP.kabin + ')'
+    e_imza: CP.name + ' (Kabin ' + CP.kabin + ')',
+    kaynak: 'uygulama'  // 📱 Yolcu uygulamadan aldı (rehber eklemesi değil)
   };
 
   // DB'ye kaydet
   await saveYolcuDB(CP);
   renderPassTours(CP.sefer);
   bildirimSesi('mesaj');
+
+  // 🔔 Rehbere bildirim gönder (uygulamadan tur alındı)
+  try {
+    await dbInsert('mesajlar', {
+      sefer_id: CP.sefer,
+      gonderen: CP.kabin,
+      gonderen_tip: 'yolcu',
+      alici: 'rehber',
+      alici_tip: 'rehber',
+      mesaj: '🎫 YENİ TUR KAYDI (uygulamadan)\n🏨 Kabin ' + CP.kabin + ' · ' + (CP.name||'') +
+             '\n📍 ' + t.name + '\n👥 ' + toplam + ' kişi · 💰 €' + ucret
+    });
+  } catch(e){ console.log('Rehber bildirim: ' + (e?.message||'')); }
 
   // Modal kapat
   document.getElementById('tk-modal').classList.remove('active');
