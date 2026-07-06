@@ -4917,8 +4917,8 @@ function _yolcuYarismaSayacBaslat(bitis){
 async function aktiviteEkle(tip, baslik, aciklama, hedefTab, ikon){
   try {
     const sid = getCurrentSeferId();
-    if(!sid) return;
-    await sb.from('aktivite_log').insert({
+    if(!sid){ console.log('[AKTİVİTE] Sefer bulunamadı, kayıt atlandı'); return; }
+    const { error } = await sb.from('aktivite_log').insert({
       sefer_id: sid,
       tip: tip || 'genel',
       baslik: baslik || '',
@@ -4927,7 +4927,16 @@ async function aktiviteEkle(tip, baslik, aciklama, hedefTab, ikon){
       ikon: ikon || '🔔',
       zaman: new Date().toISOString()
     });
-  } catch(e){ console.log('Aktivite log: ' + (e?.message||'')); }
+    if(error){
+      console.log('[AKTİVİTE] Kayıt hatası: ' + error.message);
+      // Tablo yoksa uyar
+      if((error.message||'').includes('aktivite_log') || (error.message||'').includes('does not exist') || (error.message||'').includes('relation')){
+        console.log('[AKTİVİTE] ⚠️ aktivite_log tablosu yok! SQL çalıştırılmalı.');
+      }
+    } else {
+      console.log('[AKTİVİTE] ✓ Kaydedildi: ' + baslik + ' (sefer: ' + sid + ')');
+    }
+  } catch(e){ console.log('[AKTİVİTE] Hata: ' + (e?.message||'')); }
 }
 
 // Yolcu tarafı: Son Haberler sekmesi render
@@ -4938,6 +4947,17 @@ async function renderYolcuHaberler(){
   try {
     const data = await dbGet('aktivite_log', { sefer_id: CP.sefer });
     const haberler = (data || []).sort((a,b) => new Date(b.zaman) - new Date(a.zaman));
+
+    console.log('[HABERLER] Yolcu sefer: ' + CP.sefer + ' · Bulunan haber: ' + haberler.length);
+    if(haberler.length === 0){
+      // Tüm aktiviteleri kontrol et (sefer uyuşmazlığı var mı?)
+      try {
+        const tumu = await dbGet('aktivite_log');
+        if((tumu||[]).length > 0){
+          console.log('[HABERLER] ⚠️ Bu seferde haber yok ama DB\'de ' + tumu.length + ' haber var. Seferler:', [...new Set(tumu.map(h=>h.sefer_id))]);
+        }
+      } catch(e){}
+    }
 
     // Görüldü işaretle (badge sıfırla)
     if(haberler.length > 0){
