@@ -3993,6 +3993,30 @@ function startClock(){
 
         // 🔔 Son Haberler badge kontrolü
         try { if(typeof haberlerBadgeKontrol === 'function') await haberlerBadgeKontrol(); } catch(e){}
+
+        // 🎬 Aktif canlı sunum kontrolü (broadcast kaçsa bile DB'den yakala)
+        try {
+          if(!_yolcuAktifSunum || _yolcuAktifSunum.durum !== 'aktif'){
+            const sunumData = await dbGet('tur_sunumlari');
+            const kabinN = String(CP.kabin||'').trim().toUpperCase();
+            const aktifSunum = (sunumData||[]).find(s => {
+              if(s.durum !== 'aktif') return false;
+              const kbnlr = s.kabinler || [];
+              if(kbnlr.length > 0) return kbnlr.map(k=>String(k).trim().toUpperCase()).includes(kabinN);
+              return s.tur_id && (CP.joinedTours||[]).includes(s.tur_id);
+            });
+            if(aktifSunum){
+              _yolcuAktifSunum = {
+                sunum_id: aktifSunum.id, tur_id: aktifSunum.tur_id,
+                aktif_slide_index: aktifSunum.aktif_slide_index ?? 0,
+                slidelar: aktifSunum.slidelar || [], durum: aktifSunum.durum,
+                ad: aktifSunum.ad, kabinler: aktifSunum.kabinler || []
+              };
+              bildirimSesi('duyuru');
+              if(typeof yolcuSunumGoruntule === 'function') yolcuSunumGoruntule();
+            }
+          }
+        } catch(e){}
       }
     }catch(e){}
   }, 120000);
@@ -5018,16 +5042,32 @@ async function haberlerBadgeKontrol(){
 }
 
 // 🎬 Yolcu Sunumlar sekmesi - canlı + arşiv birlikte
-async function renderYolcuSunumlar(){  const area = document.getElementById('yolcu-sunumlar-icerik');
+async function renderYolcuSunumlar(){
+  const area = document.getElementById('yolcu-sunumlar-icerik');
   if(!area || !CP) return;
   area.innerHTML = '<div style="text-align:center;padding:30px;color:#999;font-size:13px;">Yükleniyor...</div>';
   try {
-    const data = await dbGet('tur_sunumlari', { sefer_id: CP.sefer });
+    // 🔑 Sunumlar KALICI - sefer filtresiz çek (eski seferde açılan da görünür)
+    const data = await dbGet('tur_sunumlari');
     const kabinNorm = String(CP.kabin).trim().toUpperCase();
     const benim = (data||[]).filter(s => (s.kabinler||[]).some(k => String(k).trim().toUpperCase() === kabinNorm));
 
-    const canli = benim.filter(s => s.durum === 'aktif' && (s.slidelar||[]).length > 0);
+    const canli = benim.filter(s => {
+      if(s.durum !== 'aktif' || !(s.slidelar||[]).length) return false;
+      // Eski seferden takılı kalmış aktif sunumları gösterme (son 24 saat içinde başlamış olmalı)
+      if(s.baslangic_zamani){
+        const gecen = Date.now() - new Date(s.baslangic_zamani).getTime();
+        if(gecen > 24*60*60*1000) return false; // 24 saatten eski canlı = geçersiz
+      }
+      return true;
+    });
     const arsiv = benim.filter(s => s.arsiv_aktif && (s.slidelar||[]).length > 0);
+
+    // Teşhis logu
+    console.log('[SUNUM] Kabin: ' + kabinNorm + ' · Toplam sunum: ' + (data||[]).length + ' · Benim: ' + benim.length + ' · Canlı: ' + canli.length + ' · Arşiv: ' + arsiv.length);
+    if(benim.length === 0 && (data||[]).length > 0){
+      console.log('[SUNUM] ⚠️ Kabin eşleşmedi! Sunum kabinleri:', (data||[]).map(s => (s.kabinler||[]).join(',')));
+    }
 
     let html = '';
 
@@ -5094,7 +5134,7 @@ async function renderYolcuSunumlar(){  const area = document.getElementById('yol
 
 // Canlı sunuma katıl (yolcu)
 function yolcuCanliSunumAc(sunumId){
-  dbGet('tur_sunumlari', { sefer_id: CP.sefer }).then(data => {
+  dbGet('tur_sunumlari').then(data => {
     const s = (data||[]).find(x => x.id === sunumId);
     if(!s){ showToast('Sunum bulunamadı'); return; }
     _yolcuAktifSunum = {
@@ -5117,7 +5157,7 @@ async function renderYolcuSunumArsivi(){
 let _arsivSunum = null;
 let _arsivSlideIdx = 0;
 function yolcuSunumArsivAc(sunumId){
-  dbGet('tur_sunumlari', { sefer_id: CP.sefer }).then(data => {
+  dbGet('tur_sunumlari').then(data => {
     const s = (data||[]).find(x => x.id === sunumId);
     if(!s || !(s.slidelar||[]).length){ showToast('Sunum bulunamadı'); return; }
     _arsivSunum = s;
@@ -5445,13 +5485,13 @@ async function yolcuSunumDinleBaslat(){
 
   // 1. Aktif sunumları DB'den çek
   try {
-    const data = await dbGet('tur_sunumlari', { sefer_id: CP.sefer });
+    const data = await dbGet('tur_sunumlari');
     const aktifSunumlar = (data || []).filter(s => {
       if(s.durum !== 'aktif') return false;
       // 🏨 ÖNCELİK: Kabin listesinde var mı?
       const kabinler = s.kabinler || [];
       if(kabinler.length > 0){
-        return kabinler.map(k => String(k).toUpperCase()).includes(yolcuKabin);
+        return kabinler.map(k => String(k).trim().toUpperCase()).includes(yolcuKabin);
       }
       // Fallback (eski): tur kayıtlı yolcular
       if(s.tur_id && (CP.joinedTours || []).includes(s.tur_id)) return true;
@@ -5466,13 +5506,13 @@ async function yolcuSunumDinleBaslat(){
   // 2. Yolcunun kabinine atanmış tüm sunumlar için kanal aç
   // (Tüm sunum tur_id'lerinin kanallarını dinle)
   try {
-    const data = await dbGet('tur_sunumlari', { sefer_id: CP.sefer });
+    const data = await dbGet('tur_sunumlari');
     const kanalIdleri = new Set();
     
     (data || []).forEach(s => {
       const kabinler = s.kabinler || [];
       const kabinUyusuyor = kabinler.length > 0 && 
-        kabinler.map(k => String(k).toUpperCase()).includes(yolcuKabin);
+        kabinler.map(k => String(k).trim().toUpperCase()).includes(yolcuKabin);
       const turUyusuyor = !kabinler.length && s.tur_id && (CP.joinedTours || []).includes(s.tur_id);
       
       if(kabinUyusuyor || turUyusuyor){
@@ -5490,14 +5530,14 @@ async function yolcuSunumDinleBaslat(){
           // Kabin kontrolü
           const pyld = msg.payload;
           const kabinler = pyld.kabinler || [];
-          if(kabinler.length > 0 && !kabinler.map(k => String(k).toUpperCase()).includes(yolcuKabin)) return;
+          if(kabinler.length > 0 && !kabinler.map(k => String(k).trim().toUpperCase()).includes(yolcuKabin)) return;
           _yolcuAktifSunum = pyld;
           yolcuSunumGoruntule();
         });
         kanal.on('broadcast', { event: 'slide_degisti' }, (msg) => {
           const pyld = msg.payload;
           const kabinler = pyld.kabinler || [];
-          if(kabinler.length > 0 && !kabinler.map(k => String(k).toUpperCase()).includes(yolcuKabin)) return;
+          if(kabinler.length > 0 && !kabinler.map(k => String(k).trim().toUpperCase()).includes(yolcuKabin)) return;
           if(!_yolcuAktifSunum || _yolcuAktifSunum.sunum_id !== pyld.sunum_id){
             _yolcuAktifSunum = pyld;
           } else {
