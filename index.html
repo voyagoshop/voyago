@@ -13504,6 +13504,7 @@ async function addPassenger(){
     mevcut.checkinDone = true;
 
     try { await saveYolcuDB(mevcut); } catch(e){ console.error(e); }
+    try { if(typeof bildirimSesi === 'function') bildirimSesi('eklendi'); } catch(e){}
     showToast('✓ ' + name + ' check-in tamamlandı!');
   } else {
     // Yeni yolcu — manifest'te yoktu
@@ -13512,6 +13513,7 @@ async function addPassenger(){
     try {
       await saveYolcuDB(yeni);
       console.log('[YOLCU EKLE] ✓ Kaydedildi: ' + name + ' (id: ' + (yeni._dbId||'?') + ')');
+      try { if(typeof bildirimSesi === 'function') bildirimSesi('eklendi'); } catch(e){}
       showToast(name+' eklendi ve check-in yapıldı!');
     } catch(e){
       console.log('[YOLCU EKLE] ⚠️ DB kayıt hatası: ' + (e?.message||''));
@@ -19413,6 +19415,7 @@ async function sayacArtir(){
   aktif.hizli_binen = (parseInt(aktif.hizli_binen)||0) + 1;
   sayacRender(); // Hemen göster (v.otobusler zaten güncellendi)
   try { if(navigator.vibrate) navigator.vibrate(30); } catch(e){}
+  try { if(typeof bildirimSesi === 'function') bildirimSesi('eklendi'); } catch(e){}
   // DB'ye arka planda kaydet
   seferOtobusleriKaydet(_sayacSid, v.otobusler);
 }
@@ -19447,6 +19450,7 @@ async function sayacIsimEkle(){
       });
     }
     showToast('✓ ' + isim.trim() + ' → ' + otobusAdiAl(aktif));
+    try { if(typeof bildirimSesi === 'function') bildirimSesi('eklendi'); } catch(e){}
     sayacRender();
   } catch(e){ showToast('⚠️ ' + (e?.message||'')); }
 }
@@ -25302,6 +25306,11 @@ function bildirimSesi(tip='mesaj'){
       [0, 0.25, 0.5, 0.75].forEach(t=>{
         nota(1320, t, 0.18, 0.7);
       });
+    }
+    else if(tip==='eklendi'){
+      // Yolcu eklendi — kısa keyifli onay (iki yükselen nota)
+      nota(659, 0,    0.10, 0.5);
+      nota(988, 0.10, 0.20, 0.5);
     }
     else if(tip==='uyari'){
       // Tehlike — alçak-yüksek tekrar
