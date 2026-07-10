@@ -11967,7 +11967,8 @@ function renderDashboard(){
   });
   const toplamTur = seferTurlari.length;
 
-  // Tur katılımları + DETAYLI Y/Ç/B dağılımı
+  // 🔍 Gelir teşhis: passengers tam mı, ucret'ler yerinde mi?
+  console.log('[GELİR] Sefer: ' + sid + ' · Toplam passengers: ' + passengers.length + ' · Bu sefer yolcu: ' + seferYolculari.length + ' · Bu seferin turları: ' + seferTurlari.length);
   let toplamKatilim = 0;
   let toplamGelir = 0;
   let turDolulukOranlari = [];
@@ -12010,6 +12011,25 @@ function renderDashboard(){
       turDolulukOranlari.push({ t, kisi, oran });
     }
   });
+  // 🔍 Gelir sonuç logu
+  console.log('[GELİR] Hesaplanan toplam: €' + toplamGelir + ' · Toplam katılım: ' + toplamKatilim + ' kabin');
+
+  // 🔒 GÜVENLİ GELİR: Yolcu detayındaki TÜM ücretleri doğrudan topla (tura bağlı değil)
+  // Bir tur TOURS'ta bulunamasa bile geliri kaybolmasın
+  let guvenliGelir = 0;
+  seferYolculari.forEach(p => {
+    if(p.tur_katilim_detay){
+      Object.values(p.tur_katilim_detay).forEach(det => {
+        if(det && typeof det.ucret === 'number') guvenliGelir += det.ucret;
+      });
+    }
+  });
+  // İki hesaptan YÜKSEK olanı kullan (eksik kalmasın)
+  if(guvenliGelir > toplamGelir){
+    console.log('[GELİR] ⚠️ Tur bazlı hesap eksikti! Tur bazlı: €' + toplamGelir + ' → Yolcu detay bazlı: €' + guvenliGelir);
+    toplamGelir = guvenliGelir;
+  }
+
   // Tur detaylarını kişi sayısına göre sırala (çoktan aza)
   turDetaylari.sort((a,b) => b.toplamKisi - a.toplamKisi);
 
