@@ -19333,16 +19333,17 @@ function sayacRender(){
     ${seferTurlari.length > 0 ? `
     <!-- 🎫 Tur seçici -->
     <div style="background:#1e293b;padding:0 12px 10px;flex-shrink:0;">
-      <div style="font-size:10px;color:#64748b;margin-bottom:5px;font-weight:600;">🎫 TUR SEÇ (hangi turdan olduğunu bil):</div>
+      <div style="font-size:10px;color:#64748b;margin-bottom:5px;font-weight:600;">🎫 TUR SEÇ <span style="color:#7dd3fc;">(birden fazla seçebilirsin)</span>:</div>
       <div style="display:flex;gap:5px;overflow-x:auto;padding-bottom:2px;">
-        <button onclick="sayacTurSec('hepsi')" style="flex-shrink:0;padding:6px 12px;border-radius:8px;border:1.5px solid ${!seciliTurVar?'#22c55e':'#475569'};background:${!seciliTurVar?'#22c55e':'#334155'};color:white;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">Tümü</button>
+        <button onclick="sayacTurSec('hepsi')" style="flex-shrink:0;padding:7px 13px;border-radius:8px;border:2px solid ${!seciliTurVar?'#22c55e':'#475569'};background:${!seciliTurVar?'#22c55e':'#334155'};color:white;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">${!seciliTurVar?'✓ ':''}Tümü</button>
         ${seferTurlari.map(t => {
           const sec = _sayacSecilenTurlar.has(t.id);
           const kisiSay = passengers.filter(p=>p.sefer===_sayacSid && !p.arsivli && p.joinedTours?.includes(t.id))
             .reduce((a,p)=>a+(p.adult||0)+(p.child||0)+(p.baby||0),0);
-          return `<button onclick="sayacTurSec('${t.id}')" style="flex-shrink:0;padding:6px 12px;border-radius:8px;border:1.5px solid ${sec?'#4f46e5':'#475569'};background:${sec?'#4f46e5':'#334155'};color:white;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;">${escapeHTML(t.name.length>16?t.name.slice(0,16)+'…':t.name)} <span style="opacity:.7;">(${kisiSay})</span></button>`;
+          return `<button onclick="sayacTurSec('${t.id}')" style="flex-shrink:0;padding:7px 13px;border-radius:8px;border:2px solid ${sec?'#22c55e':'#475569'};background:${sec?'#16a34a':'#334155'};color:white;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;">${sec?'✓ ':''}${escapeHTML(t.name.length>16?t.name.slice(0,16)+'…':t.name)} <span style="opacity:.75;font-weight:400;">(${kisiSay})</span></button>`;
         }).join('')}
       </div>
+      ${seciliTurVar ? `<div style="font-size:10px;color:#4ade80;margin-top:5px;">✓ ${_sayacSecilenTurlar.size} tur seçili · tekrar dokun = kaldır</div>` : ''}
     </div>
     ` : ''}
 
@@ -19404,22 +19405,26 @@ function sayacTurSec(tid){
 function sayacOtobusSec(no){ _sayacAktifOtobus = no; sayacRender(); }
 
 async function sayacArtir(){
-  const otobusler = seferOtobusleriAl(_sayacSid);
-  const aktif = otobusler.find(o => o.no === _sayacAktifOtobus);
+  const v = VOYAGES.find(x => x.id === _sayacSid);
+  if(!v || !Array.isArray(v.otobusler)) return;
+  // Doğrudan v.otobusler üzerinde çalış (kopya değil) → render taze görsün
+  const aktif = v.otobusler.find(o => parseInt(o.no) === parseInt(_sayacAktifOtobus));
   if(!aktif) return;
   aktif.hizli_binen = (parseInt(aktif.hizli_binen)||0) + 1;
-  sayacRender();
-  seferOtobusleriKaydet(_sayacSid, otobusler);
+  sayacRender(); // Hemen göster (v.otobusler zaten güncellendi)
   try { if(navigator.vibrate) navigator.vibrate(30); } catch(e){}
+  // DB'ye arka planda kaydet
+  seferOtobusleriKaydet(_sayacSid, v.otobusler);
 }
 
 async function sayacEksilt(){
-  const otobusler = seferOtobusleriAl(_sayacSid);
-  const aktif = otobusler.find(o => o.no === _sayacAktifOtobus);
+  const v = VOYAGES.find(x => x.id === _sayacSid);
+  if(!v || !Array.isArray(v.otobusler)) return;
+  const aktif = v.otobusler.find(o => parseInt(o.no) === parseInt(_sayacAktifOtobus));
   if(!aktif) return;
   aktif.hizli_binen = Math.max(0, (parseInt(aktif.hizli_binen)||0) - 1);
   sayacRender();
-  seferOtobusleriKaydet(_sayacSid, otobusler);
+  seferOtobusleriKaydet(_sayacSid, v.otobusler);
 }
 
 async function sayacIsimEkle(){
