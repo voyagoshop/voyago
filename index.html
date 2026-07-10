@@ -13463,11 +13463,27 @@ function deletePassenger(kabin,sefer,isim){
   }
 }
 async function addPassenger(){
-  const name=document.getElementById('ye-name').value.trim();
-  const kabin=document.getElementById('ye-kabin').value.trim();
-  const tel=document.getElementById('ye-tel').value.trim();
-  const sefer=document.getElementById('ye-sefer').value;
+  const nameEl = document.getElementById('ye-name');
+  const kabinEl = document.getElementById('ye-kabin');
+  const telEl = document.getElementById('ye-tel');
+  const seferEl = document.getElementById('ye-sefer');
+
+  // Form elemanları var mı kontrol
+  if(!nameEl || !kabinEl || !seferEl){
+    console.log('[YOLCU EKLE] ⚠️ Form elemanı bulunamadı: name=' + !!nameEl + ' kabin=' + !!kabinEl + ' sefer=' + !!seferEl);
+    showToast('⚠️ Form yüklenemedi, sayfayı yenileyin');
+    return;
+  }
+
+  const name=nameEl.value.trim();
+  const kabin=kabinEl.value.trim();
+  const tel=telEl ? telEl.value.trim() : '';
+  const sefer=seferEl.value;
+
+  console.log('[YOLCU EKLE] Deneniyor: ' + name + ' · Kabin: ' + kabin + ' · Sefer: ' + sefer);
+
   if(!name||!kabin){showToast('Ad ve kabin gereklidir.');return;}
+  if(!sefer){ showToast('⚠️ Önce bir sefer seçin'); console.log('[YOLCU EKLE] ⚠️ Sefer seçili değil'); return; }
 
   // Mevcut kayıt var mı? (Manifest'ten gelmiş olabilir - check-in yapılmamış)
   const mevcut = passengers.find(p => p.kabin === kabin && p.sefer === sefer);
@@ -13491,10 +13507,16 @@ async function addPassenger(){
     showToast('✓ ' + name + ' check-in tamamlandı!');
   } else {
     // Yeni yolcu — manifest'te yoktu
-    const yeni = {name,kabin,tel,sefer,adult:adminKisi.ya,child:adminKisi.yc,baby:adminKisi.yb,checkedIn:true,checkinDone:true,joinedTours:[]};
+    const yeni = {name,kabin,tel,sefer,adult:adminKisi.ya,child:adminKisi.yc,baby:adminKisi.yb,checkedIn:true,checkinDone:true,joinedTours:[],tur_katilim_detay:{}};
     passengers.push(yeni);
-    try { await saveYolcuDB(yeni); } catch(e){ console.error(e); }
-    showToast(name+' eklendi ve check-in yapıldı!');
+    try {
+      await saveYolcuDB(yeni);
+      console.log('[YOLCU EKLE] ✓ Kaydedildi: ' + name + ' (id: ' + (yeni._dbId||'?') + ')');
+      showToast(name+' eklendi ve check-in yapıldı!');
+    } catch(e){
+      console.log('[YOLCU EKLE] ⚠️ DB kayıt hatası: ' + (e?.message||''));
+      showToast('⚠️ Kaydedilemedi: ' + (e?.message||''));
+    }
   }
 
   // Formu temizle
