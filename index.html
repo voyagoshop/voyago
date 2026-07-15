@@ -4945,16 +4945,37 @@ async function renderYolcuHaberler(){
   if(!area || !CP) return;
   area.innerHTML = '<div style="text-align:center;padding:30px;color:#999;font-size:13px;">Yükleniyor...</div>';
   try {
-    const data = await dbGet('aktivite_log', { sefer_id: CP.sefer });
-    const haberler = (data || []).sort((a,b) => new Date(b.zaman) - new Date(a.zaman));
+    // Doğrudan Supabase'e sor (tablo var mı net görelim)
+    const { data: rawData, error } = await sb.from('aktivite_log').select('*').eq('sefer_id', CP.sefer);
 
-    console.log('[HABERLER] Yolcu sefer: ' + CP.sefer + ' · Bulunan haber: ' + haberler.length);
+    if(error){
+      console.log('[HABERLER] ⚠️ DB HATASI: ' + error.message);
+      // Tablo yoksa net uyarı göster
+      const tabloYok = (error.message||'').includes('does not exist') || (error.message||'').includes('relation') || (error.message||'').includes('schema cache');
+      area.innerHTML = `
+        <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);border-radius:16px;padding:16px 18px;color:white;margin-bottom:14px;">
+          <div style="font-family:'DM Serif Display',serif;font-size:20px;">🔔 Son Haberler</div>
+        </div>
+        <div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:12px;padding:16px;text-align:center;">
+          <div style="font-size:32px;margin-bottom:8px;">⚠️</div>
+          <div style="font-size:14px;font-weight:700;color:#991b1b;margin-bottom:6px;">${tabloYok ? 'Veritabanı tablosu eksik' : 'Bağlantı hatası'}</div>
+          <div style="font-size:12px;color:#7f1d1d;line-height:1.5;">${tabloYok ? 'Rehberin <b>aktivite_log</b> tablosunu oluşturması gerekiyor.' : escapeHTML(error.message||'')}</div>
+        </div>
+      `;
+      return;
+    }
+
+    const data = rawData || [];
+    const haberler = data.sort((a,b) => new Date(b.zaman) - new Date(a.zaman));
+
+    console.log('[HABERLER] ✓ Tablo OK · Yolcu sefer: ' + CP.sefer + ' · Bulunan haber: ' + haberler.length);
     if(haberler.length === 0){
-      // Tüm aktiviteleri kontrol et (sefer uyuşmazlığı var mı?)
       try {
-        const tumu = await dbGet('aktivite_log');
+        const { data: tumu } = await sb.from('aktivite_log').select('sefer_id');
         if((tumu||[]).length > 0){
           console.log('[HABERLER] ⚠️ Bu seferde haber yok ama DB\'de ' + tumu.length + ' haber var. Seferler:', [...new Set(tumu.map(h=>h.sefer_id))]);
+        } else {
+          console.log('[HABERLER] Tablo boş — rehber henüz aktivite yapmadı (veya kayıt düşmüyor)');
         }
       } catch(e){}
     }
@@ -13807,6 +13828,7 @@ function renderTA(s){
             </div>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid var(--blue);color:var(--blue);background:transparent;" onclick="turDuzenle('${t.id}')">Düzenle</button>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid #059669;color:#059669;background:transparent;" onclick="turKabinleriKopyala('${t.id}')">📋 Kabinleri Kopyala</button>
+            <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid #7c3aed;color:#7c3aed;background:transparent;font-weight:700;" onclick="turKabinYapistirModalAc('${t.id}')">📥 Kabin Yapıştır</button>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid #0891b2;color:#0891b2;background:transparent;" onclick="turMesajModalAc('${t.id}')">📨 Toplu Mesaj</button>
             <button class="brad-buton-admin ${BROSURLER && BROSURLER[t.id] ? 'dolu' : ''}" onclick="bradAc('${t.id}')">📖 Broşür</button>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid ${aktif?'var(--amber)':'var(--green)'};color:${aktif?'var(--amber)':'var(--green)'};background:transparent;" onclick="turAktifToggle('${t.id}')">${aktif?'Kapat':'Aç'}</button>
@@ -14081,6 +14103,146 @@ async function turMesajGonder(tid){
   } catch(e){
     showToast('⚠️ Hata: ' + (e?.message || ''));
   }
+}
+
+// 📥 Tura kabin yapıştır (virgülle ayrılmış) → o kabinlerdeki yolcuları direkt kaydet
+function turKabinYapistirModalAc(tid){
+  const t = TOURS.find(x => x.id === tid);
+  if(!t) return;
+  document.getElementById('tur-kabin-yapistir-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'tur-kabin-yapistir-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e)=>{ if(e.target.id==='tur-kabin-yapistir-modal') modal.remove(); };
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#7c3aed,#6b21a8);padding:14px 18px;color:white;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-family:'DM Serif Display',serif;font-size:17px;">📥 Kabin Yapıştır</div>
+            <div style="font-size:11px;opacity:.9;">${escapeHTML(t.name)}</div>
+          </div>
+          <button onclick="document.getElementById('tur-kabin-yapistir-modal').remove()" style="background:rgba(255,255,255,.2);border:none;color:white;font-size:18px;cursor:pointer;width:30px;height:30px;border-radius:50%;">×</button>
+        </div>
+      </div>
+      <div style="padding:16px 18px;">
+        <div style="font-size:12px;color:#666;line-height:1.5;margin-bottom:10px;">
+          Kabin numaralarını <b>virgülle</b> ayırarak yapıştırın. Bu kabinlerdeki yolcular <b>direkt bu tura</b> kaydedilir.
+        </div>
+        <textarea id="tur-yapistir-kabinler" placeholder="4180, 5156, 6230, 7245..."
+          style="width:100%;min-height:100px;padding:11px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:'Courier New',monospace;outline:none;resize:vertical;box-sizing:border-box;"></textarea>
+
+        <div style="margin-top:12px;">
+          <div style="font-size:11px;color:#666;font-weight:700;margin-bottom:6px;">💳 Ödeme durumu:</div>
+          <div style="display:flex;gap:8px;">
+            <label style="flex:1;display:flex;align-items:center;gap:6px;padding:9px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:9px;cursor:pointer;">
+              <input type="radio" name="yapistir-odeme" value="odendi" checked style="width:15px;height:15px;">
+              <span style="font-size:12px;font-weight:600;color:#15803d;">✓ Ödendi</span>
+            </label>
+            <label style="flex:1;display:flex;align-items:center;gap:6px;padding:9px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:9px;cursor:pointer;">
+              <input type="radio" name="yapistir-odeme" value="bekliyor" style="width:15px;height:15px;">
+              <span style="font-size:12px;font-weight:600;color:#b45309;">⏳ Bekliyor</span>
+            </label>
+          </div>
+        </div>
+
+        <button onclick="turKabinYapistirKaydet('${tid}')" 
+          style="width:100%;margin-top:14px;padding:13px;background:linear-gradient(135deg,#7c3aed,#6b21a8);color:white;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          🚀 Yolcuları Tura Kaydet
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  setTimeout(()=>{ document.getElementById('tur-yapistir-kabinler')?.focus(); }, 100);
+}
+
+// Yapıştırılan kabinleri tura kaydet
+async function turKabinYapistirKaydet(tid){
+  const t = TOURS.find(x => x.id === tid);
+  if(!t) return;
+  const metin = document.getElementById('tur-yapistir-kabinler')?.value || '';
+  const odemeDurumu = document.querySelector('input[name="yapistir-odeme"]:checked')?.value || 'odendi';
+  const sid = getCurrentSeferId();
+
+  // Kabinleri ayır (virgül, boşluk, yeni satır, noktalı virgül hepsi ayraç)
+  const kabinler = [...new Set(
+    metin.split(/[,;\s\n]+/).map(k => k.trim()).filter(k => k)
+  )];
+
+  if(kabinler.length === 0){ showToast('⚠️ Kabin numarası girin'); return; }
+
+  // Her kabin için yolcuları bul
+  let eklenen = 0, zatenVar = 0, bulunamayan = [];
+  const bulunanYolcular = [];
+
+  kabinler.forEach(kabin => {
+    const kabinNorm = String(kabin).trim().toUpperCase();
+    // Bu kabindeki tüm yolcular (aynı kabinde birden fazla olabilir)
+    const kabinYolculari = passengers.filter(p => 
+      !p.arsivli && p.sefer === sid && String(p.kabin).trim().toUpperCase() === kabinNorm
+    );
+    if(kabinYolculari.length === 0){
+      bulunamayan.push(kabin);
+    } else {
+      kabinYolculari.forEach(p => {
+        if(p.joinedTours?.includes(tid)){ zatenVar++; }
+        else bulunanYolcular.push(p);
+      });
+    }
+  });
+
+  if(bulunanYolcular.length === 0){
+    let mesaj = '⚠️ Eklenecek yolcu yok.';
+    if(zatenVar > 0) mesaj += ' (' + zatenVar + ' zaten kayıtlı)';
+    if(bulunamayan.length > 0) mesaj += '\n\nBulunamayan kabinler: ' + bulunamayan.join(', ');
+    alert(mesaj);
+    return;
+  }
+
+  // Onay
+  let onayMesaj = bulunanYolcular.length + ' yolcu "' + t.name + '" turuna kaydedilecek.\n';
+  onayMesaj += 'Ödeme: ' + (odemeDurumu === 'odendi' ? 'Ödendi ✓' : 'Bekliyor ⏳') + '\n';
+  if(zatenVar > 0) onayMesaj += '\n(' + zatenVar + ' yolcu zaten kayıtlı, atlanacak)';
+  if(bulunamayan.length > 0) onayMesaj += '\n⚠️ Bulunamayan kabinler: ' + bulunamayan.join(', ');
+  onayMesaj += '\n\nDevam edilsin mi?';
+  if(!confirm(onayMesaj)) return;
+
+  showToast('⏳ Kaydediliyor...');
+  document.getElementById('tur-kabin-yapistir-modal')?.remove();
+
+  // Kaydet
+  for(const p of bulunanYolcular){
+    if(!p.joinedTours) p.joinedTours = [];
+    p.joinedTours.push(tid);
+    const y = p.adult || 0, c = p.child || 0, b = p.baby || 0;
+    const kisi = y + c + b;
+    let ucret = 0;
+    if(t.paketFiyat && t.paketFiyat > 0) ucret = t.paketFiyat;
+    else if(kisi > 0) ucret = (y * (t.ap||0)) + (c * (t.cp||0)) + (b * (t.bp||0));
+
+    if(!p.tur_katilim_detay) p.tur_katilim_detay = {};
+    p.tur_katilim_detay[tid] = {
+      yetiskin: y, cocuk: c, bebek: b,
+      kisi: kisi, ucret: ucret,
+      e_imza: 'Kabin yapıştır ile eklendi',
+      zaman: new Date().toISOString(),
+      onay_zamani: new Date().toISOString(),
+      odeme_durumu: odemeDurumu,
+      odeme_zamani: odemeDurumu === 'odendi' ? new Date().toISOString() : null
+    };
+    try { await saveYolcuDB(p); eklenen++; }
+    catch(e){ console.log('Kabin yapıştır kayıt: ' + (e?.message||'')); }
+  }
+
+  try { if(typeof bildirimSesi === 'function') bildirimSesi('eklendi'); } catch(e){}
+  let sonuc = '✅ ' + eklenen + ' yolcu tura kaydedildi';
+  if(bulunamayan.length > 0) sonuc += ' · ' + bulunamayan.length + ' kabin bulunamadı';
+  showToast(sonuc, 4000);
+
+  // Ekranları yenile
+  try { if(typeof renderTA === 'function') renderTA(CTSF); } catch(e){}
+  try { if(typeof renderDashboard === 'function') renderDashboard(); } catch(e){}
 }
 
 // 📋 Tura katılan kabinleri virgülle kopyala (canlı sunuma yapıştırmak için)
