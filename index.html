@@ -1888,6 +1888,21 @@ textarea.ai2{resize:none;}
         <div style="font-size:12px;opacity:.8;">Önceden hazırlanmış ses kayıtlarını anlık olarak tüm aktif yolculara dinletin</div>
       </div>
 
+      <div class="fs2" style="margin-bottom:14px;">
+        <div class="fst">🎙️ Canlı Anlatım</div>
+        <div style="font-size:11px;color:var(--t2);margin-bottom:10px;line-height:1.5;">Mikrofonunuzdan konuşun, aktif seferdeki yolcular telefonlarından anında dinlesin. Kulaklık/Bluetooth hoparlör de otomatik çalışır.</div>
+        <button id="canli-yayin-btn" onclick="canliAnlatimBaslat()" style="width:100%;padding:14px;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">🎙️ Canlı Yayını Başlat</button>
+        <div id="canli-yayin-durum" style="display:none;margin-top:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="width:8px;height:8px;border-radius:50%;background:#dc2626;display:inline-block;animation:canliPulseNokta 1.2s infinite;"></span>
+            <span style="font-size:12px;font-weight:700;color:#991b1b;">CANLI</span>
+            <span style="font-size:12px;color:#991b1b;" id="canli-yayin-sure">00:00</span>
+          </div>
+          <div style="font-size:12px;color:#991b1b;">🎧 <b id="canli-dinleyici-sayisi">0</b> dinliyor</div>
+        </div>
+      </div>
+      <style>@keyframes canliPulseNokta{0%,100%{opacity:1;}50%{opacity:.25;}}</style>
+
       <div class="fs2">
         <div class="fst">Yeni Anons Yükle</div>
         <input class="ai2" type="text" id="sa-baslik" placeholder="Anons başlığı — Örn: Akşam Programı Duyurusu" style="margin-bottom:10px;">
@@ -4404,6 +4419,8 @@ function doPL(){
   try{ if(typeof flashYolcuKontrol==='function') flashYolcuKontrol(sv); }catch(e){console.log('flash:', e);}
   // Sesli anons kanalını başlat
   try{ sesAnonsKanaliBaslat(); }catch(e){console.log('ses kanal:', e);}
+  // 🎙️ Canlı anlatım dinleme kanalını başlat
+  try{ if(typeof canliAnlatimDinlemeKanaliBaslat==='function') canliAnlatimDinlemeKanaliBaslat(sv); }catch(e){console.log('canli kanal:', e);}
   // Push bildirim sistemi başlat — RANDOM DELAY (200 yolcu birden açarsa Supabase patlar)
   try{ 
     if(typeof pushYolcuBaslat==='function'){
@@ -23710,6 +23727,8 @@ function offlineSistemKur(){
   window.addEventListener('beforeunload', () => {
     try{ if(typeof sesAnonsKanaliKapat==='function') sesAnonsKanaliKapat(); }catch(e){}
     try{ if(typeof ydRealtimeKapat==='function') ydRealtimeKapat(); }catch(e){}
+    try{ if(typeof canliAnlatimDurdur==='function' && _caYayinAktif) canliAnlatimDurdur(); }catch(e){}
+    try{ if(typeof canliAnlatimDinlemeKanaliKapat==='function') canliAnlatimDinlemeKanaliKapat(); }catch(e){}
   });
   // Tab arka plana gidince de kanalları kapat (mobilde özellikle önemli)
   document.addEventListener('visibilitychange', () => {
@@ -23717,10 +23736,14 @@ function offlineSistemKur(){
       // Sayfa gizli — kanalları kapat (mobilde batarya + Supabase yükü)
       try{ if(typeof sesAnonsKanaliKapat==='function') sesAnonsKanaliKapat(); }catch(e){}
       try{ if(typeof ydRealtimeKapat==='function') ydRealtimeKapat(); }catch(e){}
+      // 🎙️ Ekran/tab arka plana düşünce mikrofon zaten kesileceği için yayını temiz durdur
+      try{ if(typeof canliAnlatimDurdur==='function' && _caYayinAktif) canliAnlatimDurdur(); }catch(e){}
+      try{ if(typeof canliAnlatimDinlemeKanaliKapat==='function') canliAnlatimDinlemeKanaliKapat(); }catch(e){}
     } else if(CP) {
       // Sayfa görünür oldu - kanalları geri aç
       try{ if(typeof sesAnonsKanaliBaslat==='function') sesAnonsKanaliBaslat(); }catch(e){}
       try{ if(typeof ydRealtimeBaslat==='function') ydRealtimeBaslat(); }catch(e){}
+      try{ if(typeof canliAnlatimDinlemeKanaliBaslat==='function') canliAnlatimDinlemeKanaliBaslat(CP.sefer); }catch(e){}
     }
   });
 
@@ -24108,6 +24131,8 @@ function doLogout() {
   try{ if(typeof sesAnonsKanaliKapat==='function') sesAnonsKanaliKapat(); }catch(e){}
   try{ if(typeof ydRealtimeKapat==='function') ydRealtimeKapat(); }catch(e){}
   try{ if(typeof rehberRealtimeDinleDurdur==='function') rehberRealtimeDinleDurdur(); }catch(e){}
+  try{ if(typeof canliAnlatimDurdur==='function' && _caYayinAktif) canliAnlatimDurdur(); }catch(e){}
+  try{ if(typeof canliAnlatimDinlemeKanaliKapat==='function') canliAnlatimDinlemeKanaliKapat(); }catch(e){}
   // Yeni kayıt badge'i temizle
   try{
     const badge = document.getElementById('yeni-kayit-badge');
@@ -24458,6 +24483,8 @@ async function devamEt() {
     startClock();
     // Sesli anons kanalını başlat
     try{ sesAnonsKanaliBaslat(); }catch(e){console.log('ses kanal:', e);}
+    // 🎙️ Canlı anlatım dinleme kanalını başlat
+    try{ if(typeof canliAnlatimDinlemeKanaliBaslat==='function') canliAnlatimDinlemeKanaliBaslat(p.sefer); }catch(e){console.log('canli kanal:', e);}
     // Yolcu güncelleme realtime kanalı
     try{ if(typeof ydRealtimeBaslat==='function') ydRealtimeBaslat(); }catch(e){console.log('yd realtime:', e);}
     // WhatsApp grup butonunu güncelle
@@ -27282,6 +27309,29 @@ document.head.appendChild(gcStyle);
     <button class="ses-modal-btn-2" onclick="sesAnonsModalKapat()">Kapat</button>
   </div>
 </div>
+
+<!-- 🎙️ CANLI ANLATIM — yüzen banner + dinleme modalı (yolcu) -->
+<div id="canli-yayin-banner" onclick="canliAnlatimModalAc()" style="display:none;position:fixed;left:12px;right:12px;bottom:86px;z-index:9500;background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;border-radius:14px;padding:10px 14px;box-shadow:0 8px 24px rgba(0,0,0,.35);align-items:center;gap:10px;cursor:pointer;font-family:'DM Sans',sans-serif;">
+  <span style="width:10px;height:10px;border-radius:50%;background:white;flex-shrink:0;animation:canliBannerPulse 1.2s infinite;"></span>
+  <div style="flex:1;min-width:0;">
+    <div style="font-size:13px;font-weight:700;">🔴 Rehber Canlı Anlatıyor</div>
+    <div style="font-size:11px;opacity:.85;">Dinlemek için dokunun</div>
+  </div>
+  <div style="font-size:20px;flex-shrink:0;">🎧</div>
+</div>
+<style>@keyframes canliBannerPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.35;transform:scale(1.35);}}</style>
+
+<div id="canli-dinle-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;align-items:flex-end;justify-content:center;" onclick="if(event.target.id==='canli-dinle-modal') canliAnlatimModalKapat()">
+  <div style="background:white;border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:22px 20px 30px;text-align:center;font-family:'DM Sans',sans-serif;" onclick="event.stopPropagation()">
+    <div style="width:40px;height:4px;background:#e5e7eb;border-radius:2px;margin:0 auto 18px;"></div>
+    <div style="font-size:38px;margin-bottom:6px;">🎙️</div>
+    <div style="font-family:'DM Serif Display',serif;font-size:20px;color:#1a1a1a;margin-bottom:4px;">Rehber Canlı Anlatıyor</div>
+    <div style="font-size:12px;color:#666;margin-bottom:20px;">Dinlemek için başlatın · isterseniz kulaklık takabilirsiniz</div>
+    <button id="canli-dinle-btn" onclick="canliAnlatimDinlemeToggle()" style="width:100%;padding:16px;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">🎧 Dinlemeye Başla</button>
+    <button onclick="canliAnlatimModalKapat()" style="margin-top:12px;background:none;border:none;color:#999;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">Kapat</button>
+  </div>
+</div>
+<audio id="canli-dinle-audio" style="display:none;"></audio>
 
 <!-- (Eski PWA Banner kaldırıldı — yeni sürüm sayfa başında) -->
 
@@ -31830,6 +31880,268 @@ function sesAnonsModalKapat(e){
     };
   }
 })();
+
+// ═══════════════════════════════════════════════
+// 🎙️ CANLI ANLATIM — rehber mikrofonundan yolculara canlı ses
+// Mimari: rehber sesi ~1.5sn'lik parçalara böler, Supabase Realtime
+// broadcast kanalıyla (base64) yolculara yollar, yolcu sırayla çalar.
+// ═══════════════════════════════════════════════
+
+// ── REHBER TARAFI ──
+let _caKanal = null;
+let _caStream = null;
+let _caRecorder = null;
+let _caMime = '';
+let _caSid = null;
+let _caYayinAktif = false;
+let _caSeq = 0;
+let _caBaslangic = null;
+let _caTimerInt = null;
+let _caDinleyiciSayisi = 0;
+
+function caMimeSec(){
+  if(!window.MediaRecorder) return '';
+  const adaylar = ['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg;codecs=opus'];
+  for(const m of adaylar){
+    try{ if(MediaRecorder.isTypeSupported(m)) return m; }catch(e){}
+  }
+  return '';
+}
+
+async function canliAnlatimBaslat(){
+  if(_caYayinAktif) return;
+  const sid = (typeof getCurrentSeferId === 'function') ? getCurrentSeferId() : null;
+  if(!sid){ showToast('Aktif sefer bulunamadı, önce bir sefer seçin'); return; }
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    showToast('Bu cihaz/tarayıcı mikrofon erişimini desteklemiyor'); return;
+  }
+  try{
+    _caStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true}});
+  }catch(e){
+    showToast('🎙️ Mikrofon izni verilmedi'); return;
+  }
+  _caMime = caMimeSec();
+  _caSid = sid;
+  _caSeq = 0;
+  _caDinleyiciSayisi = 0;
+  _caYayinAktif = true;
+
+  try{
+    _caKanal = sb.channel('voyago-canli-' + sid);
+    _caKanal.on('presence', {event:'sync'}, () => {
+      try{
+        const state = _caKanal.presenceState();
+        _caDinleyiciSayisi = Object.keys(state).length;
+        caDinleyiciSayisiGuncelle();
+      }catch(e){}
+    });
+    await new Promise((resolve) => {
+      let done = false;
+      const t = setTimeout(() => { if(!done){ done = true; resolve(); } }, 1500);
+      _caKanal.subscribe((status) => {
+        if(status === 'SUBSCRIBED' && !done){ done = true; clearTimeout(t); resolve(); }
+      });
+    });
+    _caKanal.send({type:'broadcast', event:'baslatildi', payload:{zaman:Date.now()}});
+  }catch(e){
+    console.log('Canlı anlatım kanal hatası:', e);
+  }
+
+  _caBaslangic = Date.now();
+  caYayinUIGuncelle(true);
+  _caTimerInt = setInterval(caYayinSureGuncelle, 1000);
+  caParcaCevrimiBaslat();
+}
+
+// Ses parçalarını ayrı ayrı start/stop ile alıyoruz ki her parça
+// KENDİ BAŞINA çalınabilir tam bir dosya olsun (tarayıcı uyumluluğu için şart)
+function caParcaCevrimiBaslat(){
+  if(!_caYayinAktif || !_caStream) return;
+  let parcalar = [];
+  let rec;
+  try{
+    rec = _caMime ? new MediaRecorder(_caStream, {mimeType:_caMime, audioBitsPerSecond:32000}) : new MediaRecorder(_caStream);
+  }catch(e){
+    try{ rec = new MediaRecorder(_caStream); }catch(e2){
+      console.log('Canlı anlatım recorder hatası:', e2);
+      canliAnlatimDurdur();
+      return;
+    }
+  }
+  _caRecorder = rec;
+  rec.ondataavailable = (e) => { if(e.data && e.data.size > 0) parcalar.push(e.data); };
+  rec.onstop = () => {
+    if(parcalar.length){
+      const blob = new Blob(parcalar, {type: parcalar[0].type || _caMime || 'audio/webm'});
+      caParcaGonder(blob);
+    }
+    parcalar = [];
+    if(_caYayinAktif) caParcaCevrimiBaslat();
+  };
+  try{ rec.start(); }catch(e){ console.log('Canlı anlatım start hatası:', e); return; }
+  setTimeout(() => { try{ if(rec.state === 'recording') rec.stop(); }catch(e){} }, 1500);
+}
+
+async function caParcaGonder(blob){
+  if(!_caKanal) return;
+  try{
+    const buf = await blob.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let bin = '';
+    const ADIM = 0x8000;
+    for(let i=0; i<bytes.length; i+=ADIM){
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i+ADIM));
+    }
+    const b64 = btoa(bin);
+    _caSeq++;
+    await _caKanal.send({type:'broadcast', event:'ses-parca', payload:{seq:_caSeq, mime: blob.type, data: b64}});
+  }catch(e){ console.log('Canlı anlatım parça gönderim hatası:', e); }
+}
+
+function canliAnlatimDurdur(){
+  _caYayinAktif = false;
+  try{ if(_caRecorder && _caRecorder.state !== 'inactive') _caRecorder.stop(); }catch(e){}
+  try{ if(_caStream) _caStream.getTracks().forEach(t => t.stop()); }catch(e){}
+  try{
+    if(_caKanal){
+      _caKanal.send({type:'broadcast', event:'bitti', payload:{}});
+      const kEski = _caKanal;
+      setTimeout(() => { try{ sb.removeChannel(kEski); }catch(e){} }, 900);
+    }
+  }catch(e){}
+  _caKanal = null; _caStream = null; _caRecorder = null; _caSid = null;
+  if(_caTimerInt){ clearInterval(_caTimerInt); _caTimerInt = null; }
+  caYayinUIGuncelle(false);
+}
+
+function caYayinUIGuncelle(aktif){
+  const btn = document.getElementById('canli-yayin-btn');
+  const durum = document.getElementById('canli-yayin-durum');
+  if(!btn) return;
+  if(aktif){
+    btn.innerHTML = '⏹️ Yayını Durdur';
+    btn.style.background = '#dc2626';
+    btn.setAttribute('onclick', 'canliAnlatimDurdur()');
+    if(durum) durum.style.display = 'flex';
+  } else {
+    btn.innerHTML = '🎙️ Canlı Yayını Başlat';
+    btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
+    btn.setAttribute('onclick', 'canliAnlatimBaslat()');
+    if(durum) durum.style.display = 'none';
+    const sureEl = document.getElementById('canli-yayin-sure'); if(sureEl) sureEl.textContent = '00:00';
+    const dinlEl = document.getElementById('canli-dinleyici-sayisi'); if(dinlEl) dinlEl.textContent = '0';
+  }
+}
+function caYayinSureGuncelle(){
+  const el = document.getElementById('canli-yayin-sure');
+  if(!el || !_caBaslangic) return;
+  const s = Math.floor((Date.now() - _caBaslangic) / 1000);
+  el.textContent = String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+}
+function caDinleyiciSayisiGuncelle(){
+  const el = document.getElementById('canli-dinleyici-sayisi');
+  if(el) el.textContent = String(_caDinleyiciSayisi || 0);
+}
+
+// ── YOLCU TARAFI ──
+let _caDinleKanal = null;
+let _caDinleSid = null;
+let _caDinliyor = false;
+let _caKuyruk = [];
+let _caCaliyor = false;
+let _caAudioEl = null;
+
+function canliAnlatimDinlemeKanaliBaslat(sid){
+  if(!sid) return;
+  if(_caDinleKanal){ try{ sb.removeChannel(_caDinleKanal); }catch(e){} _caDinleKanal = null; }
+  _caDinleSid = sid;
+  try{
+    _caDinleKanal = sb.channel('voyago-canli-' + sid)
+      .on('broadcast', {event:'baslatildi'}, () => { caBannerGoster(true); })
+      .on('broadcast', {event:'bitti'}, () => { caBannerGoster(false); caDinlemeyiSifirla(); })
+      .on('broadcast', {event:'ses-parca'}, (msg) => { caSesParcaGeldi(msg?.payload); })
+      .subscribe();
+  }catch(e){ console.log('Canlı anlatım dinleme kanalı hatası:', e); }
+}
+function canliAnlatimDinlemeKanaliKapat(){
+  if(_caDinliyor){ try{ _caDinleKanal.untrack(); }catch(e){} }
+  if(_caDinleKanal){ try{ sb.removeChannel(_caDinleKanal); }catch(e){} _caDinleKanal = null; }
+  caDinlemeyiSifirla();
+  caBannerGoster(false);
+}
+function caBannerGoster(goster){
+  const b = document.getElementById('canli-yayin-banner');
+  if(b) b.style.display = goster ? 'flex' : 'none';
+  if(!goster) canliAnlatimModalKapat();
+}
+function caDinlemeyiSifirla(){
+  _caDinliyor = false;
+  _caKuyruk.forEach(u => { try{ URL.revokeObjectURL(u); }catch(e){} });
+  _caKuyruk = [];
+  _caCaliyor = false;
+  try{ if(_caAudioEl){ _caAudioEl.pause(); _caAudioEl.src = ''; } }catch(e){}
+  const btn = document.getElementById('canli-dinle-btn');
+  if(btn){ btn.textContent = '🎧 Dinlemeye Başla'; btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)'; }
+}
+function caSesParcaGeldi(payload){
+  if(!_caDinliyor || !payload || !payload.data) return;
+  try{
+    const bin = atob(payload.data);
+    const len = bin.length;
+    const bytes = new Uint8Array(len);
+    for(let i=0; i<len; i++) bytes[i] = bin.charCodeAt(i);
+    const blob = new Blob([bytes], {type: payload.mime || 'audio/webm'});
+    const url = URL.createObjectURL(blob);
+    _caKuyruk.push(url);
+    // Gecikme birikmesin diye kuyruk şişerse en eski parçaları at
+    if(_caKuyruk.length > 5){
+      const atilacak = _caKuyruk.splice(0, _caKuyruk.length - 2);
+      atilacak.forEach(u => { try{ URL.revokeObjectURL(u); }catch(e){} });
+    }
+    caKuyrukOynat();
+  }catch(e){ console.log('Canlı anlatım parça işleme hatası:', e); }
+}
+function caKuyrukOynat(){
+  if(_caCaliyor || _caKuyruk.length === 0) return;
+  if(!_caAudioEl) _caAudioEl = document.getElementById('canli-dinle-audio');
+  if(!_caAudioEl) return;
+  _caCaliyor = true;
+  const url = _caKuyruk.shift();
+  _caAudioEl.src = url;
+  _caAudioEl.onended = () => { try{ URL.revokeObjectURL(url); }catch(e){} _caCaliyor = false; caKuyrukOynat(); };
+  _caAudioEl.onerror = () => { try{ URL.revokeObjectURL(url); }catch(e){} _caCaliyor = false; caKuyrukOynat(); };
+  _caAudioEl.play().catch(() => { _caCaliyor = false; });
+}
+function canliAnlatimModalAc(){
+  const m = document.getElementById('canli-dinle-modal');
+  if(m) m.style.display = 'flex';
+}
+function canliAnlatimModalKapat(){
+  const m = document.getElementById('canli-dinle-modal');
+  if(m) m.style.display = 'none';
+}
+function canliAnlatimDinlemeToggle(){
+  const btn = document.getElementById('canli-dinle-btn');
+  if(!_caAudioEl) _caAudioEl = document.getElementById('canli-dinle-audio');
+  if(!_caDinliyor){
+    _caDinliyor = true;
+    // iOS/Safari autoplay kilidini kullanıcı jesti içinde aç
+    try{
+      _caAudioEl.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+      _caAudioEl.play().then(() => { try{ _caAudioEl.pause(); }catch(e){} }).catch(() => {});
+    }catch(e){}
+    try{ if(_caDinleKanal) _caDinleKanal.track({dinliyor:true, ts:Date.now()}); }catch(e){}
+    if(btn){ btn.textContent = '⏸️ Dinlemeyi Durdur'; btn.style.background = '#dc2626'; }
+    if(navigator.vibrate) navigator.vibrate(100);
+  } else {
+    _caDinliyor = false;
+    try{ if(_caDinleKanal) _caDinleKanal.untrack(); }catch(e){}
+    try{ _caAudioEl.pause(); }catch(e){}
+    _caKuyruk.forEach(u => { try{ URL.revokeObjectURL(u); }catch(e){} });
+    _caKuyruk = []; _caCaliyor = false;
+    if(btn){ btn.textContent = '🎧 Dinlemeye Başla'; btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)'; }
+  }
+}
 </script>
 
 <!-- ══ PUSH BİLDİRİM SİSTEMİ ══ -->
