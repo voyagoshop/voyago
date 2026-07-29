@@ -1290,6 +1290,7 @@ textarea.ai2{resize:none;}
       <button class="att" id="ratab-mesaj" onclick="adminTab('mesaj')"><span class="aico">💬</span><span>Mesajlar</span></button>
       <button class="att" id="ratab-turanons" onclick="adminTab('turanons')"><span class="aico">📢</span><span>Tur Anonsu</span></button>
       <button class="att" id="ratab-sesanons" onclick="adminTab('sesanons')"><span class="aico">🔊</span><span>Sesli Anons</span></button>
+      <button class="att" id="ratab-turcanli" onclick="adminTab('turcanli')"><span class="aico">🚌</span><span>Tur Canlı Yayın</span></button>
       <button class="att" id="ratab-bil" onclick="adminTab('bil')"><span class="aico">🔔</span><span>Bildirim</span></button>
       <button class="att" id="ratab-anketyonet" onclick="adminTab('anketyonet')"><span class="aico">📊</span><span>Anket</span></button>
       <button class="att" id="ratab-sef" onclick="adminTab('sef')"><span class="aico">🚢</span><span>Seferler</span></button>
@@ -1918,6 +1919,18 @@ textarea.ai2{resize:none;}
 
       <div class="sl2">Kayıtlı Anonslar</div>
       <div id="ses-anons-liste"><div class="no-data">Henüz anons yok. Yukarıdan ses dosyası yükleyin.</div></div>
+    </div>
+
+    <!-- TUR CANLI YAYIN (otobüs bazlı) -->
+    <div id="admin-turcanli" class="apg">
+      <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);border-radius:16px;padding:16px;margin-bottom:14px;color:white;">
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:4px;">🚌 Tur Canlı Yayın</div>
+        <div style="font-size:12px;opacity:.8;">Sadece o otobüse atanmış kabinler dinler — diğer otobüsler duymaz</div>
+      </div>
+      <div id="turcanli-otobus-liste"><div class="no-data">Yükleniyor...</div></div>
+      <div style="margin-top:4px;padding:10px 12px;background:#f0f9ff;border-radius:10px;font-size:11px;color:#0d3b6e;line-height:1.5;">
+        💡 Bir otobüse yayın başlattığınızda, o kabine daha önce atanmış tüm yolcular (kabinde kaç kişi varsa hepsi) telefonlarından dinleyebilir. Aynı anda tek otobüse yayın yapılabilir — başka bir otobüse başlatırsanız öncekini otomatik durdurur.
+      </div>
     </div>
 
     <!-- BİLDİRİM -->
@@ -4420,7 +4433,7 @@ function doPL(){
   // Sesli anons kanalını başlat
   try{ sesAnonsKanaliBaslat(); }catch(e){console.log('ses kanal:', e);}
   // 🎙️ Canlı anlatım dinleme kanalını başlat
-  try{ if(typeof canliAnlatimDinlemeKanaliBaslat==='function') canliAnlatimDinlemeKanaliBaslat(sv); }catch(e){console.log('canli kanal:', e);}
+  try{ if(typeof canliAnlatimDinlemeKanaliBaslat==='function') canliAnlatimDinlemeKanaliBaslat(sv, CP?.otobus_no); }catch(e){console.log('canli kanal:', e);}
   // Push bildirim sistemi başlat — RANDOM DELAY (200 yolcu birden açarsa Supabase patlar)
   try{ 
     if(typeof pushYolcuBaslat==='function'){
@@ -23743,7 +23756,7 @@ function offlineSistemKur(){
       // Sayfa görünür oldu - kanalları geri aç
       try{ if(typeof sesAnonsKanaliBaslat==='function') sesAnonsKanaliBaslat(); }catch(e){}
       try{ if(typeof ydRealtimeBaslat==='function') ydRealtimeBaslat(); }catch(e){}
-      try{ if(typeof canliAnlatimDinlemeKanaliBaslat==='function') canliAnlatimDinlemeKanaliBaslat(CP.sefer); }catch(e){}
+      try{ if(typeof canliAnlatimDinlemeKanaliBaslat==='function') canliAnlatimDinlemeKanaliBaslat(CP.sefer, CP.otobus_no); }catch(e){}
     }
   });
 
@@ -24484,7 +24497,7 @@ async function devamEt() {
     // Sesli anons kanalını başlat
     try{ sesAnonsKanaliBaslat(); }catch(e){console.log('ses kanal:', e);}
     // 🎙️ Canlı anlatım dinleme kanalını başlat
-    try{ if(typeof canliAnlatimDinlemeKanaliBaslat==='function') canliAnlatimDinlemeKanaliBaslat(p.sefer); }catch(e){console.log('canli kanal:', e);}
+    try{ if(typeof canliAnlatimDinlemeKanaliBaslat==='function') canliAnlatimDinlemeKanaliBaslat(p.sefer, p.otobus_no); }catch(e){console.log('canli kanal:', e);}
     // Yolcu güncelleme realtime kanalı
     try{ if(typeof ydRealtimeBaslat==='function') ydRealtimeBaslat(); }catch(e){console.log('yd realtime:', e);}
     // WhatsApp grup butonunu güncelle
@@ -27314,7 +27327,7 @@ document.head.appendChild(gcStyle);
 <div id="canli-yayin-banner" onclick="canliAnlatimModalAc()" style="display:none;position:fixed;left:12px;right:12px;bottom:86px;z-index:9500;background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;border-radius:14px;padding:10px 14px;box-shadow:0 8px 24px rgba(0,0,0,.35);align-items:center;gap:10px;cursor:pointer;font-family:'DM Sans',sans-serif;">
   <span style="width:10px;height:10px;border-radius:50%;background:white;flex-shrink:0;animation:canliBannerPulse 1.2s infinite;"></span>
   <div style="flex:1;min-width:0;">
-    <div style="font-size:13px;font-weight:700;">🔴 Rehber Canlı Anlatıyor</div>
+    <div style="font-size:13px;font-weight:700;" id="canli-banner-baslik">🔴 Rehber Canlı Anlatıyor</div>
     <div style="font-size:11px;opacity:.85;">Dinlemek için dokunun</div>
   </div>
   <div style="font-size:20px;flex-shrink:0;">🎧</div>
@@ -27325,7 +27338,7 @@ document.head.appendChild(gcStyle);
   <div style="background:white;border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:22px 20px 30px;text-align:center;font-family:'DM Sans',sans-serif;" onclick="event.stopPropagation()">
     <div style="width:40px;height:4px;background:#e5e7eb;border-radius:2px;margin:0 auto 18px;"></div>
     <div style="font-size:38px;margin-bottom:6px;">🎙️</div>
-    <div style="font-family:'DM Serif Display',serif;font-size:20px;color:#1a1a1a;margin-bottom:4px;">Rehber Canlı Anlatıyor</div>
+    <div style="font-family:'DM Serif Display',serif;font-size:20px;color:#1a1a1a;margin-bottom:4px;" id="canli-modal-baslik">Rehber Canlı Anlatıyor</div>
     <div style="font-size:12px;color:#666;margin-bottom:20px;">Dinlemek için başlatın · isterseniz kulaklık takabilirsiniz</div>
     <button id="canli-dinle-btn" onclick="canliAnlatimDinlemeToggle()" style="width:100%;padding:16px;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">🎧 Dinlemeye Başla</button>
     <button onclick="canliAnlatimModalKapat()" style="margin-top:12px;background:none;border:none;color:#999;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">Kapat</button>
@@ -31876,6 +31889,9 @@ function sesAnonsModalKapat(e){
       if(tab === 'sesanons'){
         sesAnonsYukleListe();
       }
+      if(tab === 'turcanli'){
+        renderTurCanliPaneli();
+      }
       return r;
     };
   }
@@ -31883,8 +31899,11 @@ function sesAnonsModalKapat(e){
 
 // ═══════════════════════════════════════════════
 // 🎙️ CANLI ANLATIM — rehber mikrofonundan yolculara canlı ses
+// İki mod: (1) sefer-geneli — sefer'deki HERKES dinler
+//          (2) otobüs-özel (Tur Canlı Yayın) — sadece o otobüse
+//              atanmış kabinler dinler (kabinde kaç kişi varsa hepsi)
 // Mimari: rehber sesi ~1.5sn'lik parçalara böler, Supabase Realtime
-// broadcast kanalıyla (base64) yolculara yollar, yolcu sırayla çalar.
+// broadcast kanalıyla (base64) yollar, yolcu sırayla çalar.
 // ═══════════════════════════════════════════════
 
 // ── REHBER TARAFI ──
@@ -31892,7 +31911,7 @@ let _caKanal = null;
 let _caStream = null;
 let _caRecorder = null;
 let _caMime = '';
-let _caSid = null;
+let _caHedef = null; // {tip:'sefer', sid} veya {tip:'otobus', sid, otobusNo}
 let _caYayinAktif = false;
 let _caSeq = 0;
 let _caBaslangic = null;
@@ -31907,11 +31926,34 @@ function caMimeSec(){
   }
   return '';
 }
+function caKanalAdiUret(hedef){
+  return hedef.tip === 'otobus'
+    ? 'voyago-canli-otobus-' + hedef.sid + '-' + hedef.otobusNo
+    : 'voyago-canli-' + hedef.sid;
+}
 
+// Sefer-geneli yayın (Sesli Anons sekmesindeki buton)
 async function canliAnlatimBaslat(){
-  if(_caYayinAktif) return;
   const sid = (typeof getCurrentSeferId === 'function') ? getCurrentSeferId() : null;
   if(!sid){ showToast('Aktif sefer bulunamadı, önce bir sefer seçin'); return; }
+  await caYayinBaslatOrtak({tip:'sefer', sid});
+}
+
+// Otobüs-özel yayın (Tur Canlı Yayın sekmesi)
+async function canliAnlatimOtobusToggle(otobusNo){
+  const sid = (typeof getCurrentSeferId === 'function') ? getCurrentSeferId() : null;
+  if(!sid){ showToast('Aktif sefer bulunamadı'); return; }
+  const suAktifMi = _caYayinAktif && _caHedef && _caHedef.tip === 'otobus' && _caHedef.sid === sid && _caHedef.otobusNo === otobusNo;
+  if(suAktifMi){ canliAnlatimDurdur(); return; }
+  await caYayinBaslatOrtak({tip:'otobus', sid, otobusNo});
+}
+
+async function caYayinBaslatOrtak(hedef){
+  // Zaten başka bir hedefe yayın açıksa önce temiz durdur (tek mikrofon, tek yayın)
+  if(_caYayinAktif){
+    canliAnlatimDurdur();
+    await new Promise(r => setTimeout(r, 300));
+  }
   if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
     showToast('Bu cihaz/tarayıcı mikrofon erişimini desteklemiyor'); return;
   }
@@ -31921,18 +31963,18 @@ async function canliAnlatimBaslat(){
     showToast('🎙️ Mikrofon izni verilmedi'); return;
   }
   _caMime = caMimeSec();
-  _caSid = sid;
+  _caHedef = hedef;
   _caSeq = 0;
   _caDinleyiciSayisi = 0;
   _caYayinAktif = true;
 
   try{
-    _caKanal = sb.channel('voyago-canli-' + sid);
+    _caKanal = sb.channel(caKanalAdiUret(hedef));
     _caKanal.on('presence', {event:'sync'}, () => {
       try{
         const state = _caKanal.presenceState();
         _caDinleyiciSayisi = Object.keys(state).length;
-        caDinleyiciSayisiGuncelle();
+        caYayinUIGuncelle();
       }catch(e){}
     });
     await new Promise((resolve) => {
@@ -31948,8 +31990,8 @@ async function canliAnlatimBaslat(){
   }
 
   _caBaslangic = Date.now();
-  caYayinUIGuncelle(true);
-  _caTimerInt = setInterval(caYayinSureGuncelle, 1000);
+  caYayinUIGuncelle();
+  _caTimerInt = setInterval(caYayinUIGuncelle, 1000);
   caParcaCevrimiBaslat();
 }
 
@@ -32009,69 +32051,136 @@ function canliAnlatimDurdur(){
       setTimeout(() => { try{ sb.removeChannel(kEski); }catch(e){} }, 900);
     }
   }catch(e){}
-  _caKanal = null; _caStream = null; _caRecorder = null; _caSid = null;
+  _caKanal = null; _caStream = null; _caRecorder = null; _caHedef = null;
   if(_caTimerInt){ clearInterval(_caTimerInt); _caTimerInt = null; }
-  caYayinUIGuncelle(false);
+  caYayinUIGuncelle();
 }
 
-function caYayinUIGuncelle(aktif){
+// Hem Sesli Anons sekmesindeki (sefer-geneli) hem Tur Canlı Yayın
+// sekmesindeki (otobüs-özel) durumu her çağrıda tazeler.
+function caYayinUIGuncelle(){
+  const seferAktifMi = _caYayinAktif && _caHedef && _caHedef.tip === 'sefer';
   const btn = document.getElementById('canli-yayin-btn');
   const durum = document.getElementById('canli-yayin-durum');
-  if(!btn) return;
-  if(aktif){
-    btn.innerHTML = '⏹️ Yayını Durdur';
-    btn.style.background = '#dc2626';
-    btn.setAttribute('onclick', 'canliAnlatimDurdur()');
-    if(durum) durum.style.display = 'flex';
-  } else {
-    btn.innerHTML = '🎙️ Canlı Yayını Başlat';
-    btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
-    btn.setAttribute('onclick', 'canliAnlatimBaslat()');
-    if(durum) durum.style.display = 'none';
-    const sureEl = document.getElementById('canli-yayin-sure'); if(sureEl) sureEl.textContent = '00:00';
-    const dinlEl = document.getElementById('canli-dinleyici-sayisi'); if(dinlEl) dinlEl.textContent = '0';
+  if(btn){
+    if(seferAktifMi){
+      btn.innerHTML = '⏹️ Yayını Durdur';
+      btn.style.background = '#dc2626';
+      btn.setAttribute('onclick', 'canliAnlatimDurdur()');
+      if(durum) durum.style.display = 'flex';
+      const sureEl = document.getElementById('canli-yayin-sure');
+      if(sureEl && _caBaslangic){
+        const s = Math.floor((Date.now() - _caBaslangic) / 1000);
+        sureEl.textContent = String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+      }
+      const dinlEl = document.getElementById('canli-dinleyici-sayisi');
+      if(dinlEl) dinlEl.textContent = String(_caDinleyiciSayisi || 0);
+    } else {
+      btn.innerHTML = '🎙️ Canlı Yayını Başlat';
+      btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
+      btn.setAttribute('onclick', 'canliAnlatimBaslat()');
+      if(durum) durum.style.display = 'none';
+      const sureEl = document.getElementById('canli-yayin-sure'); if(sureEl) sureEl.textContent = '00:00';
+      const dinlEl = document.getElementById('canli-dinleyici-sayisi'); if(dinlEl) dinlEl.textContent = '0';
+    }
   }
+  if(document.getElementById('turcanli-otobus-liste')) renderTurCanliPaneli();
 }
-function caYayinSureGuncelle(){
-  const el = document.getElementById('canli-yayin-sure');
-  if(!el || !_caBaslangic) return;
-  const s = Math.floor((Date.now() - _caBaslangic) / 1000);
-  el.textContent = String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
-}
-function caDinleyiciSayisiGuncelle(){
-  const el = document.getElementById('canli-dinleyici-sayisi');
-  if(el) el.textContent = String(_caDinleyiciSayisi || 0);
+
+// Tur Canlı Yayın sekmesi — otobüs listesi + yayın butonları
+function renderTurCanliPaneli(){
+  const el = document.getElementById('turcanli-otobus-liste');
+  if(!el) return;
+  const sid = (typeof getCurrentSeferId === 'function') ? getCurrentSeferId() : null;
+  if(!sid){ el.innerHTML = '<div class="no-data">Aktif sefer bulunamadı.</div>'; return; }
+  const otobusler = (typeof seferOtobusleriAl === 'function') ? seferOtobusleriAl(sid) : [];
+  if(!otobusler.length){
+    el.innerHTML = '<div class="no-data">Bu seferde henüz otobüs tanımlanmamış. Önce otobüs kurulumundan (Hızlı Sayaç ekranı) otobüs ekleyin.</div>';
+    return;
+  }
+  let sureStr = '00:00';
+  if(_caBaslangic){
+    const s = Math.floor((Date.now() - _caBaslangic) / 1000);
+    sureStr = String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+  }
+  el.innerHTML = otobusler.map(o => {
+    const aktifMi = !!(_caYayinAktif && _caHedef && _caHedef.tip === 'otobus' && _caHedef.sid === sid && _caHedef.otobusNo === o.no);
+    const kisiSayisi = (typeof otobusDolulukHesaplaSefer === 'function' ? otobusDolulukHesaplaSefer(sid, o.no) : 0) + (parseInt(o.hizli_binen) || 0);
+    return `
+      <div style="background:white;border:1.5px solid ${aktifMi ? '#dc2626' : '#eee'};border-radius:14px;padding:12px 14px;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-size:14px;font-weight:700;color:#1a1a1a;">🚌 ${escapeHTML(otobusAdiAl(o))}</div>
+          <div style="font-size:11px;color:#666;">${kisiSayisi} kişi</div>
+        </div>
+        <button onclick="canliAnlatimOtobusToggle(${o.no})" style="width:100%;padding:11px;background:${aktifMi ? '#dc2626' : 'linear-gradient(135deg,#16a34a,#15803d)'};color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          ${aktifMi ? '⏹️ Yayını Durdur' : '🎙️ Bu Otobüse Yayın Başlat'}
+        </button>
+        ${aktifMi ? `
+          <div style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#991b1b;">
+            <span>🔴 CANLI · ${sureStr}</span>
+            <span>🎧 <b>${_caDinleyiciSayisi || 0}</b> dinliyor</span>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
 }
 
 // ── YOLCU TARAFI ──
-let _caDinleKanal = null;
+let _caDinleKanalSefer = null;
+let _caDinleKanalOtobus = null;
 let _caDinleSid = null;
+let _caDinleOtobusNo = null;
 let _caDinliyor = false;
 let _caKuyruk = [];
 let _caCaliyor = false;
 let _caAudioEl = null;
+let _caBannerEtiket = 'Rehber Canlı Anlatıyor';
 
-function canliAnlatimDinlemeKanaliBaslat(sid){
+function canliAnlatimDinlemeKanaliBaslat(sid, otobusNo){
   if(!sid) return;
-  if(_caDinleKanal){ try{ sb.removeChannel(_caDinleKanal); }catch(e){} _caDinleKanal = null; }
+  // Sefer-geneli kanal (herkes)
+  if(_caDinleKanalSefer){ try{ sb.removeChannel(_caDinleKanalSefer); }catch(e){} _caDinleKanalSefer = null; }
   _caDinleSid = sid;
   try{
-    _caDinleKanal = sb.channel('voyago-canli-' + sid)
-      .on('broadcast', {event:'baslatildi'}, () => { caBannerGoster(true); })
+    _caDinleKanalSefer = sb.channel('voyago-canli-' + sid)
+      .on('broadcast', {event:'baslatildi'}, () => { caBannerGoster(true, 'Rehber Canlı Anlatıyor'); })
       .on('broadcast', {event:'bitti'}, () => { caBannerGoster(false); caDinlemeyiSifirla(); })
       .on('broadcast', {event:'ses-parca'}, (msg) => { caSesParcaGeldi(msg?.payload); })
       .subscribe();
   }catch(e){ console.log('Canlı anlatım dinleme kanalı hatası:', e); }
+
+  // Otobüse özel kanal (kabin bir otobüse atanmışsa — kabindeki herkes bu koşulu paylaşır)
+  if(_caDinleKanalOtobus){ try{ sb.removeChannel(_caDinleKanalOtobus); }catch(e){} _caDinleKanalOtobus = null; }
+  _caDinleOtobusNo = otobusNo || null;
+  if(_caDinleOtobusNo){
+    try{
+      _caDinleKanalOtobus = sb.channel('voyago-canli-otobus-' + sid + '-' + _caDinleOtobusNo)
+        .on('broadcast', {event:'baslatildi'}, () => { caBannerGoster(true, 'Otobüsünüzün Rehberi Canlı Anlatıyor'); })
+        .on('broadcast', {event:'bitti'}, () => { caBannerGoster(false); caDinlemeyiSifirla(); })
+        .on('broadcast', {event:'ses-parca'}, (msg) => { caSesParcaGeldi(msg?.payload); })
+        .subscribe();
+    }catch(e){ console.log('Canlı anlatım otobüs kanalı hatası:', e); }
+  }
 }
 function canliAnlatimDinlemeKanaliKapat(){
-  if(_caDinliyor){ try{ _caDinleKanal.untrack(); }catch(e){} }
-  if(_caDinleKanal){ try{ sb.removeChannel(_caDinleKanal); }catch(e){} _caDinleKanal = null; }
+  if(_caDinliyor){
+    try{ if(_caDinleKanalSefer) _caDinleKanalSefer.untrack(); }catch(e){}
+    try{ if(_caDinleKanalOtobus) _caDinleKanalOtobus.untrack(); }catch(e){}
+  }
+  if(_caDinleKanalSefer){ try{ sb.removeChannel(_caDinleKanalSefer); }catch(e){} _caDinleKanalSefer = null; }
+  if(_caDinleKanalOtobus){ try{ sb.removeChannel(_caDinleKanalOtobus); }catch(e){} _caDinleKanalOtobus = null; }
   caDinlemeyiSifirla();
   caBannerGoster(false);
 }
-function caBannerGoster(goster){
+function caBannerGoster(goster, etiket){
+  if(goster && etiket) _caBannerEtiket = etiket;
   const b = document.getElementById('canli-yayin-banner');
-  if(b) b.style.display = goster ? 'flex' : 'none';
+  if(b){
+    b.style.display = goster ? 'flex' : 'none';
+    const baslikEl = document.getElementById('canli-banner-baslik');
+    if(baslikEl) baslikEl.textContent = '🔴 ' + (_caBannerEtiket || 'Rehber Canlı Anlatıyor');
+  }
   if(!goster) canliAnlatimModalKapat();
 }
 function caDinlemeyiSifirla(){
@@ -32114,6 +32223,8 @@ function caKuyrukOynat(){
 }
 function canliAnlatimModalAc(){
   const m = document.getElementById('canli-dinle-modal');
+  const baslikEl = document.getElementById('canli-modal-baslik');
+  if(baslikEl) baslikEl.textContent = _caBannerEtiket || 'Rehber Canlı Anlatıyor';
   if(m) m.style.display = 'flex';
 }
 function canliAnlatimModalKapat(){
@@ -32130,12 +32241,14 @@ function canliAnlatimDinlemeToggle(){
       _caAudioEl.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
       _caAudioEl.play().then(() => { try{ _caAudioEl.pause(); }catch(e){} }).catch(() => {});
     }catch(e){}
-    try{ if(_caDinleKanal) _caDinleKanal.track({dinliyor:true, ts:Date.now()}); }catch(e){}
+    try{ if(_caDinleKanalSefer) _caDinleKanalSefer.track({dinliyor:true, ts:Date.now()}); }catch(e){}
+    try{ if(_caDinleKanalOtobus) _caDinleKanalOtobus.track({dinliyor:true, ts:Date.now()}); }catch(e){}
     if(btn){ btn.textContent = '⏸️ Dinlemeyi Durdur'; btn.style.background = '#dc2626'; }
     if(navigator.vibrate) navigator.vibrate(100);
   } else {
     _caDinliyor = false;
-    try{ if(_caDinleKanal) _caDinleKanal.untrack(); }catch(e){}
+    try{ if(_caDinleKanalSefer) _caDinleKanalSefer.untrack(); }catch(e){}
+    try{ if(_caDinleKanalOtobus) _caDinleKanalOtobus.untrack(); }catch(e){}
     try{ _caAudioEl.pause(); }catch(e){}
     _caKuyruk.forEach(u => { try{ URL.revokeObjectURL(u); }catch(e){} });
     _caKuyruk = []; _caCaliyor = false;
