@@ -1929,7 +1929,7 @@ textarea.ai2{resize:none;}
       </div>
       <div id="turcanli-otobus-liste"><div class="no-data">Yükleniyor...</div></div>
       <div style="margin-top:4px;padding:10px 12px;background:#f0f9ff;border-radius:10px;font-size:11px;color:#0d3b6e;line-height:1.5;">
-        💡 Bir otobüse yayın başlattığınızda, o kabine daha önce atanmış tüm yolcular (kabinde kaç kişi varsa hepsi) telefonlarından dinleyebilir. Aynı anda tek otobüse yayın yapılabilir — başka bir otobüse başlatırsanız öncekini otomatik durdurur.
+        💡 Her otobüsün altındaki "👥 Kabinler" ile o otobüse kabin ekleyip çıkarabilir, telefonu kayıtlı kabinlere direkt WhatsApp'tan yazabilirsiniz. Kabinde kaç kişi varsa hepsi otomatik dinler. Aynı anda tek otobüse yayın yapılabilir — başka bir otobüse başlatırsanız öncekini otomatik durdurur.
       </div>
     </div>
 
@@ -31961,6 +31961,8 @@ let _caSeq = 0;
 let _caBaslangic = null;
 let _caTimerInt = null;
 let _caDinleyiciSayisi = 0;
+let _caDinleyenKabinler = [];
+let _caAcikOtobusler = new Set(); // Tur Canlı Yayın'da genişletilmiş otobüs kartları
 
 function caMimeSec(){
   if(!window.MediaRecorder) return '';
@@ -32018,6 +32020,7 @@ async function caYayinBaslatOrtak(hedef){
       try{
         const state = _caKanal.presenceState();
         _caDinleyiciSayisi = Object.keys(state).length;
+        _caDinleyenKabinler = Object.values(state).flat().map(m => m.kabin).filter(Boolean);
         caYayinUIGuncelle();
       }catch(e){}
     });
@@ -32147,14 +32150,46 @@ function renderTurCanliPaneli(){
     const s = Math.floor((Date.now() - _caBaslangic) / 1000);
     sureStr = String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
   }
-  el.innerHTML = otobusler.map(o => {
+
+  // Bu sefere ait, hiçbir otobüse atanmamış kabin sayısı (uyarı amaçlı)
+  const atanmamisSayi = passengers.filter(p => p.sefer===sid && !p.arsivli && p.kabin && !p.otobus_no).length;
+  const uyariHTML = atanmamisSayi > 0 ? `
+    <div style="padding:8px 12px;background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;font-size:11px;color:#92400e;margin-bottom:10px;">
+      ⚠️ ${atanmamisSayi} kabin henüz hiçbir otobüse atanmamış — o kabinler otobüs-özel yayını duymaz.
+    </div>
+  ` : '';
+
+  el.innerHTML = uyariHTML + otobusler.map(o => {
     const aktifMi = !!(_caYayinAktif && _caHedef && _caHedef.tip === 'otobus' && _caHedef.sid === sid && _caHedef.otobusNo === o.no);
-    const kisiSayisi = (typeof otobusDolulukHesaplaSefer === 'function' ? otobusDolulukHesaplaSefer(sid, o.no) : 0) + (parseInt(o.hizli_binen) || 0);
+    const atananlar = passengers.filter(p => p.sefer===sid && !p.arsivli && p.otobus_no === o.no)
+      .sort((a,b) => (typeof _kabinSiraKarsi==='function') ? _kabinSiraKarsi(a.kabin,b.kabin) : 0);
+    const kisiSayisi = atananlar.reduce((s,p)=>s+(p.adult||0)+(p.child||0)+(p.baby||0), 0);
+    const acikMi = _caAcikOtobusler.has(o.no);
+
+    const dinleyenKabinlerHTML = (aktifMi && _caDinleyenKabinler.length) ? `
+      <div style="margin-top:6px;font-size:10px;color:#991b1b;">🎧 Dinleyen kabinler: ${_caDinleyenKabinler.map(k=>escapeHTML(String(k))).join(', ')}</div>
+    ` : '';
+
+    const kabinListHTML = atananlar.length ? atananlar.map(p => {
+      const kisi = (p.adult||0)+(p.child||0)+(p.baby||0);
+      const kabinEsc = escapeHTML(String(p.kabin)).replace(/'/g,"\\'");
+      return `
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 9px;background:#f9fafb;border-radius:8px;margin-bottom:5px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:700;color:#1a1a1a;">Kabin ${escapeHTML(String(p.kabin))} <span style="font-weight:400;color:#666;">· ${kisi} kişi</span></div>
+            <div style="font-size:11px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHTML(p.name||'')}</div>
+          </div>
+          ${p.tel ? `<button onclick="caOtobusKabinWhatsapp('${kabinEsc}','${sid}')" title="WhatsApp gönder" style="padding:6px 8px;background:#dcfce7;border:none;border-radius:8px;font-size:13px;cursor:pointer;flex-shrink:0;">💬</button>` : ''}
+          <button onclick="caOtobusKabinCikar('${sid}',${o.no},'${kabinEsc}')" title="Otobüsten çıkar" style="padding:6px 8px;background:#fef2f2;color:#dc2626;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">✕</button>
+        </div>
+      `;
+    }).join('') : '<div style="text-align:center;padding:10px;color:#999;font-size:11px;">Henüz kabin atanmamış</div>';
+
     return `
       <div style="background:white;border:1.5px solid ${aktifMi ? '#dc2626' : '#eee'};border-radius:14px;padding:12px 14px;margin-bottom:10px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
           <div style="font-size:14px;font-weight:700;color:#1a1a1a;">🚌 ${escapeHTML(otobusAdiAl(o))}</div>
-          <div style="font-size:11px;color:#666;">${kisiSayisi} kişi</div>
+          <div style="font-size:11px;color:#666;">${kisiSayisi} kişi · ${atananlar.length} kabin</div>
         </div>
         <button onclick="canliAnlatimOtobusToggle(${o.no})" style="width:100%;padding:11px;background:${aktifMi ? '#dc2626' : 'linear-gradient(135deg,#16a34a,#15803d)'};color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
           ${aktifMi ? '⏹️ Yayını Durdur' : '🎙️ Bu Otobüse Yayın Başlat'}
@@ -32164,10 +32199,84 @@ function renderTurCanliPaneli(){
             <span>🔴 CANLI · ${sureStr}</span>
             <span>🎧 <b>${_caDinleyiciSayisi || 0}</b> dinliyor</span>
           </div>
+          ${dinleyenKabinlerHTML}
+        ` : ''}
+        <button onclick="caOtobusPaneliToggle(${o.no})" style="width:100%;margin-top:8px;padding:8px;background:transparent;border:1.5px solid #e5e7eb;color:#4f46e5;border-radius:9px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          👥 Kabinler (${atananlar.length}) ${acikMi ? '▲' : '▼'}
+        </button>
+        ${acikMi ? `
+          <div style="margin-top:8px;">
+            ${kabinListHTML}
+            <div style="display:flex;gap:6px;margin-top:6px;">
+              <input type="text" id="ca-otobus-ekle-${o.no}" placeholder="Kabin no (birden fazlaysa boşlukla ayır)" autocomplete="off"
+                onkeydown="if(event.key==='Enter') caOtobusKabinEkle('${sid}',${o.no})"
+                style="flex:1;padding:8px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:12px;outline:none;font-family:'DM Sans',sans-serif;box-sizing:border-box;">
+              <button onclick="caOtobusKabinEkle('${sid}',${o.no})" style="padding:8px 12px;background:#16a34a;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0;">+ Ekle</button>
+            </div>
+          </div>
         ` : ''}
       </div>
     `;
   }).join('');
+}
+
+function caOtobusPaneliToggle(no){
+  if(_caAcikOtobusler.has(no)) _caAcikOtobusler.delete(no);
+  else _caAcikOtobusler.add(no);
+  renderTurCanliPaneli();
+}
+
+// Kabin(ler)i otobüse ekle — birden fazla kabin no'su boşluk/virgülle ayrılabilir
+async function caOtobusKabinEkle(sid, otobusNo){
+  const inp = document.getElementById('ca-otobus-ekle-' + otobusNo);
+  const ham = (inp?.value || '').trim();
+  if(!ham){ showToast('⚠️ Kabin no yazın'); return; }
+  const kabinler = ham.split(/[,\s]+/).map(k => k.trim()).filter(Boolean);
+  let eklenen = 0;
+  const bulunamadi = [];
+  for(const kabin of kabinler){
+    const p = passengers.find(px =>
+      px.sefer === sid && !px.arsivli && px.kabin &&
+      px.kabin.toString().trim().toUpperCase() === kabin.toUpperCase()
+    );
+    if(!p){ bulunamadi.push(kabin); continue; }
+    p.otobus_no = otobusNo;
+    try{ if(typeof saveYolcuDB==='function') await saveYolcuDB(p); }catch(e){ console.error(e); }
+    eklenen++;
+  }
+  if(eklenen) showToast('✓ ' + eklenen + ' kabin eklendi' + (bulunamadi.length ? ' · bulunamadı: ' + bulunamadi.join(', ') : ''));
+  else showToast('❌ Kabin bulunamadı: ' + bulunamadi.join(', '));
+  if(inp) inp.value = '';
+  renderTurCanliPaneli();
+  if(typeof renderOtobusPaneli === 'function') renderOtobusPaneli();
+}
+
+// Kabini otobüsten çıkar
+async function caOtobusKabinCikar(sid, otobusNo, kabin){
+  const p = passengers.find(px =>
+    px.sefer === sid && !px.arsivli && px.kabin &&
+    px.kabin.toString().trim().toUpperCase() === String(kabin).trim().toUpperCase()
+  );
+  if(!p || p.otobus_no !== otobusNo) return;
+  p.otobus_no = null;
+  try{ if(typeof saveYolcuDB==='function') await saveYolcuDB(p); }catch(e){ console.error(e); }
+  showToast('✓ Kabin ' + kabin + ' çıkarıldı');
+  renderTurCanliPaneli();
+  if(typeof renderOtobusPaneli === 'function') renderOtobusPaneli();
+}
+
+// Kabine WhatsApp'tan yaz
+function caOtobusKabinWhatsapp(kabin, sid){
+  const p = passengers.find(px =>
+    px.sefer === sid && !px.arsivli && px.kabin &&
+    px.kabin.toString().trim().toUpperCase() === String(kabin).trim().toUpperCase()
+  );
+  if(!p || !p.tel){ showToast('⚠️ Bu kabin için telefon kayıtlı değil'); return; }
+  const otobus = (typeof otobusBulSefer==='function') ? otobusBulSefer(sid, p.otobus_no) : null;
+  const otobusAdi = otobus ? otobusAdiAl(otobus) : ('Otobüs ' + p.otobus_no);
+  const mesaj = 'Merhaba ' + (p.name||'') + ', siz ' + otobusAdi + ' otobüsündesiniz. Canlı anlatımı dinlemek için uygulamayı açık tutabilirsiniz. 🚌🎙️';
+  const ham = (p.tel || '').replace(/[^0-9]/g, '');
+  window.open('https://wa.me/' + ham + '?text=' + encodeURIComponent(mesaj), '_blank');
 }
 
 // ── YOLCU TARAFI ──
@@ -32285,8 +32394,8 @@ function canliAnlatimDinlemeToggle(){
       _caAudioEl.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
       _caAudioEl.play().then(() => { try{ _caAudioEl.pause(); }catch(e){} }).catch(() => {});
     }catch(e){}
-    try{ if(_caDinleKanalSefer) _caDinleKanalSefer.track({dinliyor:true, ts:Date.now()}); }catch(e){}
-    try{ if(_caDinleKanalOtobus) _caDinleKanalOtobus.track({dinliyor:true, ts:Date.now()}); }catch(e){}
+    try{ if(_caDinleKanalSefer) _caDinleKanalSefer.track({dinliyor:true, kabin: CP?.kabin || null, ts:Date.now()}); }catch(e){}
+    try{ if(_caDinleKanalOtobus) _caDinleKanalOtobus.track({dinliyor:true, kabin: CP?.kabin || null, ts:Date.now()}); }catch(e){}
     if(btn){ btn.textContent = '⏸️ Dinlemeyi Durdur'; btn.style.background = '#dc2626'; }
     if(navigator.vibrate) navigator.vibrate(100);
   } else {
