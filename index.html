@@ -4721,6 +4721,10 @@ async function renderYolcuSimKarti(sv){
   const area = document.getElementById('yolcu-sim-karti');
   if(!area || !CP) return;
 
+  // 👁️ Rehber gizlemişse hiç gösterme
+  if(!_simGorunurlukYuklendi){ try{ await simGorunurlukYukle(); }catch(e){} }
+  if(!SIM_KART_GORUNUR){ area.innerHTML = ''; return; }
+
   // SIM kartları yükle (yoksa)
   if(!SIM_KARTLAR || SIM_KARTLAR.length === 0){
     try { await simKartlariYukle(); } catch(e){}
@@ -11269,6 +11273,35 @@ async function simKartSil(simId){
 // Satış 30€, iade 5€. Kâr takibi + kontör notu.
 
 let SIM_KARTLAR = [];
+let SIM_KART_GORUNUR = true; // Rehberin yolculara gösterip gizlemesi
+let _simGorunurlukYuklendi = false;
+
+async function simGorunurlukYukle(){
+  try{
+    const { data, error } = await sb.from('ayarlar').select('deger').eq('anahtar','sim_kart_gorunur').maybeSingle();
+    if(!error && data && data.deger !== null && data.deger !== undefined){
+      SIM_KART_GORUNUR = (data.deger === true || data.deger === 'true');
+    }
+  }catch(e){ console.log('[SIM] görünürlük yükleme hatası:', e?.message || e); }
+  _simGorunurlukYuklendi = true;
+  return SIM_KART_GORUNUR;
+}
+
+// Rehber: göster/gizle değiştir
+async function simGorunurlukDegistir(){
+  const yeni = !SIM_KART_GORUNUR;
+  SIM_KART_GORUNUR = yeni;
+  _simGorunurlukYuklendi = true;
+  try{
+    const { error } = await sb.from('ayarlar').upsert({anahtar:'sim_kart_gorunur', deger: yeni}, {onConflict:'anahtar'});
+    if(error) throw error;
+    showToast(yeni ? '👁️ Yolculara gösteriliyor' : '🙈 Yolculardan gizlendi');
+  }catch(e){
+    console.log('[SIM] görünürlük kaydetme hatası:', e?.message || e);
+    showToast('⚠️ Kaydedilemedi — Supabase\'de "ayarlar" tablosu eksik olabilir');
+  }
+  simKartModalAc();
+}
 
 async function simKartlariYukle(){
   try {
@@ -11286,7 +11319,8 @@ function simKartModalAc(){
   const aktif = VOYAGES.find(v => v.status !== 'archived' && v.visible);
   const sid = aktif ? aktif.id : null;
 
-  simKartlariYukle().then(() => {
+  simKartlariYukle().then(async () => {
+    await simGorunurlukYukle();
     document.getElementById('sim-modal')?.remove();
 
     // İstatistikler
@@ -11324,6 +11358,16 @@ function simKartModalAc(){
             <button onclick="document.getElementById('sim-modal').remove()" 
               style="background:rgba(255,255,255,.2);border:none;color:white;font-size:18px;cursor:pointer;width:30px;height:30px;border-radius:50%;flex-shrink:0;">×</button>
           </div>
+        </div>
+
+        <!-- 👁️ Görünürlük -->
+        <div style="padding:10px 16px;background:${SIM_KART_GORUNUR ? '#f0fdf4' : '#fef2f2'};border-bottom:1px solid #eee;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div style="font-size:12px;font-weight:600;color:${SIM_KART_GORUNUR ? '#15803d' : '#991b1b'};">
+            ${SIM_KART_GORUNUR ? '👁️ Yolcular şu an görüyor' : '🙈 Yolculardan gizli'}
+          </div>
+          <button onclick="simGorunurlukDegistir()" style="padding:7px 14px;background:${SIM_KART_GORUNUR ? '#dc2626' : '#16a34a'};color:white;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0;">
+            ${SIM_KART_GORUNUR ? 'Gizle' : 'Göster'}
+          </button>
         </div>
 
         <!-- Özet kartları -->
