@@ -4434,6 +4434,8 @@ function doPL(){
   try{ sesAnonsKanaliBaslat(); }catch(e){console.log('ses kanal:', e);}
   // 🎙️ Canlı anlatım dinleme kanalını başlat
   try{ if(typeof canliAnlatimDinlemeKanaliBaslat==='function') canliAnlatimDinlemeKanaliBaslat(sv, CP?.otobus_no); }catch(e){console.log('canli kanal:', e);}
+  // 🔗 ?tur=ID linkiyle açıldıysa o turu direkt göster
+  try{ if(typeof turDeepLinkKontrolEt==='function') turDeepLinkKontrolEt(); }catch(e){}
   // Push bildirim sistemi başlat — RANDOM DELAY (200 yolcu birden açarsa Supabase patlar)
   try{ 
     if(typeof pushYolcuBaslat==='function'){
@@ -6004,6 +6006,24 @@ function turDetayAc(tid){
   const modal=document.getElementById('tur-detay-modal');
   modal.style.display='flex';
   document.body.style.overflow='hidden';
+}
+
+// ══ TUR LİNKİ İLE DOĞRUDAN AÇMA ══
+// Rehber bir turun linkini paylaştığında (?tur=ID) yolcu giriş yaptıktan sonra o tur direkt açılır
+let _bekleyenTurLinkId = (function(){
+  try{ return new URL(window.location.href).searchParams.get('tur'); }catch(e){ return null; }
+})();
+
+function turDeepLinkKontrolEt(){
+  if(!_bekleyenTurLinkId) return;
+  const tid = _bekleyenTurLinkId;
+  _bekleyenTurLinkId = null;
+  try{
+    const url = new URL(window.location.href);
+    url.searchParams.delete('tur');
+    window.history.replaceState({}, '', url.toString());
+  }catch(e){}
+  setTimeout(() => { try{ turDetayAc(tid); }catch(e){} }, 500);
 }
 
 function turDetayKapat(e){
@@ -13904,6 +13924,8 @@ function renderTA(s){
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid #059669;color:#059669;background:transparent;" onclick="turKabinleriKopyala('${t.id}')">📋 Kabinleri Kopyala</button>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid #7c3aed;color:#7c3aed;background:transparent;font-weight:700;" onclick="turKabinYapistirModalAc('${t.id}')">📥 Kabin Yapıştır</button>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid #0891b2;color:#0891b2;background:transparent;" onclick="turMesajModalAc('${t.id}')">📨 Toplu Mesaj</button>
+            <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid #16a34a;color:#16a34a;background:transparent;font-weight:700;" onclick="turLinkKopyala('${t.id}')">🔗 Link Kopyala</button>
+            <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid #25d366;color:#128c7e;background:transparent;font-weight:700;" onclick="turLinkWhatsapp('${t.id}')">💬 WhatsApp'tan Paylaş</button>
             <button class="brad-buton-admin ${BROSURLER && BROSURLER[t.id] ? 'dolu' : ''}" onclick="bradAc('${t.id}')">📖 Broşür</button>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid ${aktif?'var(--amber)':'var(--green)'};color:${aktif?'var(--amber)':'var(--green)'};background:transparent;" onclick="turAktifToggle('${t.id}')">${aktif?'Kapat':'Aç'}</button>
             <button style="padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1.5px solid ${t.uyari_aktif?'var(--red)':'var(--purple)'};color:${t.uyari_aktif?'var(--red)':'var(--purple)'};background:${t.uyari_aktif?'var(--rl)':'transparent'};" onclick="turUyariToggle('${t.id}')">${t.uyari_aktif?'⚠️ Uyarı Açık':'⚠️ Uyarı'}</button>
@@ -13920,6 +13942,32 @@ function renderTA(s){
     </div>`;
   }).join('') || '<div class="es">Tur bulunamadi.</div>';
 }
+// 🔗 Bu turun linkini oluştur (?tur=ID) — sadece bu turu açar
+function _turLinkOlustur(tid){
+  return window.location.origin + window.location.pathname + '?tur=' + encodeURIComponent(tid);
+}
+
+async function turLinkKopyala(tid){
+  const t = TOURS.find(x=>x.id===tid);
+  if(!t){ showToast('Tur bulunamadı'); return; }
+  const link = _turLinkOlustur(tid);
+  try{
+    await navigator.clipboard.writeText(link);
+    showToast('🔗 Link kopyalandı! Yolcuya WhatsApp/SMS ile gönderebilirsiniz.');
+  }catch(e){
+    prompt('Linki kopyalayın:', link);
+  }
+}
+
+function turLinkWhatsapp(tid){
+  const t = TOURS.find(x=>x.id===tid);
+  if(!t){ showToast('Tur bulunamadı'); return; }
+  const link = _turLinkOlustur(tid);
+  const mesaj = '🗺️ *' + t.name + '*\n📍 ' + (t.liman||'') + ' · ' + (t.saat||'') +
+    '\n\nDetayları görüp kayıt olmak için tıklayın:\n' + link;
+  window.open('https://wa.me/?text=' + encodeURIComponent(mesaj), '_blank');
+}
+
 function turUyariToggle(tid){
   const t=TOURS.find(t=>t.id===tid);
   if(!t)return;
@@ -24542,6 +24590,8 @@ async function devamEt() {
     try{ sesAnonsKanaliBaslat(); }catch(e){console.log('ses kanal:', e);}
     // 🎙️ Canlı anlatım dinleme kanalını başlat
     try{ if(typeof canliAnlatimDinlemeKanaliBaslat==='function') canliAnlatimDinlemeKanaliBaslat(p.sefer, p.otobus_no); }catch(e){console.log('canli kanal:', e);}
+    // 🔗 ?tur=ID linkiyle açıldıysa o turu direkt göster
+    try{ if(typeof turDeepLinkKontrolEt==='function') turDeepLinkKontrolEt(); }catch(e){}
     // Yolcu güncelleme realtime kanalı
     try{ if(typeof ydRealtimeBaslat==='function') ydRealtimeBaslat(); }catch(e){console.log('yd realtime:', e);}
     // WhatsApp grup butonunu güncelle
