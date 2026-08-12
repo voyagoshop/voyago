@@ -4511,8 +4511,6 @@ function doPL(){
   } catch(e) {}
   if(isFirst) {
     showToast('Check-in yapildi! Hos geldiniz, '+name.split(' ')[0]+'!');
-    // 🎉 İlk kez geldi — karşılama modal'ını aç (1 saniye gecikme)
-    setTimeout(()=>{ if(typeof karsilamaGoster === 'function') karsilamaGoster(p); }, 1000);
   }
   else showToast('Hos geldiniz, '+name.split(' ')[0]+'!');
 }
@@ -11334,6 +11332,161 @@ async function simKartlariYukle(){
   }
 }
 
+// ═══════════════════════════════════════════════
+// 📊 SEZON ÖZETİ — tur + SIM kart gelirlerinin toplu görünümü
+// ═══════════════════════════════════════════════
+async function sezonOzetiModalAc(){
+  const iS = CU?.role === 'super';
+  const activeShip = iS ? ACTIVE_SHIP : CU?.ship;
+
+  // İlgili seferler — ARŞİVLİ DAHİL, sezon boyunca tüm seferler
+  const ilgiliSeferler = VOYAGES.filter(v => !activeShip || v.ship === activeShip);
+  const seferIdSet = new Set(ilgiliSeferler.map(v => v.id));
+
+  // İlgili yolcular — arşivli filtresi YOK (geçmiş seferler de sayılsın)
+  const ilgiliYolcular = passengers.filter(p => seferIdSet.has(p.sefer));
+
+  // İlgili turlar
+  const ilgiliTurlar = TOURS.filter(t => !activeShip || t.ship === activeShip || !t.ship);
+
+  // Tur bazlı gelir
+  const turGelirleri = ilgiliTurlar.map(t => {
+    const katilan = ilgiliYolcular.filter(p => (p.joinedTours||[]).includes(t.id));
+    const gelir = katilan.reduce((s,p) => s + (p.adult||0)*(t.ap||0) + (p.child||0)*(t.cp||0) + (p.baby||0)*(t.bp||0), 0);
+    const kisi = katilan.reduce((s,p) => s + (p.adult||0)+(p.child||0)+(p.baby||0), 0);
+    return {tur: t, gelir, kisi, kabin: katilan.length};
+  }).filter(x => x.kabin > 0).sort((a,b) => b.gelir - a.gelir);
+
+  const toplamTurGeliri = turGelirleri.reduce((s,x) => s + x.gelir, 0);
+  const toplamTurKisi = turGelirleri.reduce((s,x) => s + x.kisi, 0);
+  const toplamKayitliKabin = ilgiliYolcular.filter(p => (p.joinedTours||[]).length > 0).length;
+
+  // Sefer bazlı gelir
+  const seferGelirleri = ilgiliSeferler.map(v => {
+    const vYolcular = ilgiliYolcular.filter(p => p.sefer === v.id);
+    let vGelir = 0;
+    vYolcular.forEach(p => {
+      (p.joinedTours||[]).forEach(tid => {
+        const t = TOURS.find(x => x.id === tid);
+        if(t) vGelir += (p.adult||0)*(t.ap||0) + (p.child||0)*(t.cp||0) + (p.baby||0)*(t.bp||0);
+      });
+    });
+    return {sefer: v, gelir: vGelir, kabin: vYolcular.length};
+  }).filter(x => x.kabin > 0).sort((a,b) => (b.sefer.startDate||'').localeCompare(a.sefer.startDate||''));
+
+  // SIM kart özeti (global — tüm gemiler/seferler)
+  try{ await simKartlariYukle(); }catch(e){}
+  const simler = SIM_KARTLAR || [];
+  const simSatilanSayi = simler.filter(k => k.odeme_durumu === 'odendi').length;
+  let simKar = 0;
+  simler.forEach(k => {
+    if(k.odeme_durumu === 'odendi') simKar += (parseFloat(k.satis_fiyat)||0) - (parseFloat(k.maliyet)||0);
+    if(k.iade_edildi) simKar -= (parseFloat(k.iade_tutar)||0);
+  });
+
+  const genelToplam = toplamTurGeliri + simKar;
+
+  document.getElementById('sezon-ozet-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'sezon-ozet-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99998;display:flex;align-items:stretch;justify-content:center;font-family:"DM Sans",sans-serif;';
+  modal.onclick = (e) => { if(e.target.id === 'sezon-ozet-modal') modal.remove(); };
+
+  const turSatirlari = turGelirleri.length ? turGelirleri.map((x,i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 11px;background:white;border-radius:10px;margin-bottom:6px;">
+      <div style="width:22px;height:22px;border-radius:50%;background:#f0f4ff;color:#4f46e5;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:10px;flex-shrink:0;">${i+1}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:600;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHTML(x.tur.name)}</div>
+        <div style="font-size:10px;color:#666;">${x.kabin} kabin · ${x.kisi} kişi</div>
+      </div>
+      <div style="font-size:14px;font-weight:700;color:#15803d;flex-shrink:0;">€${x.gelir.toFixed(0)}</div>
+    </div>
+  `).join('') : '<div style="text-align:center;padding:16px;color:#999;font-size:12px;">Henüz tur kaydı yok.</div>';
+
+  const seferSatirlari = seferGelirleri.length > 1 ? seferGelirleri.map(x => `
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 11px;background:white;border-radius:10px;margin-bottom:6px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:600;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHTML(x.sefer.label||x.sefer.id)}</div>
+        <div style="font-size:10px;color:#666;">${x.kabin} kabin</div>
+      </div>
+      <div style="font-size:14px;font-weight:700;color:#15803d;flex-shrink:0;">€${x.gelir.toFixed(0)}</div>
+    </div>
+  `).join('') : '';
+
+  modal.innerHTML = `
+    <div style="background:#f5f5f7;width:100%;max-width:620px;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);padding:16px 18px;color:white;flex-shrink:0;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <div style="font-family:'DM Serif Display',serif;font-size:19px;">📊 Sezon Özeti</div>
+            <div style="font-size:11px;opacity:.85;margin-top:2px;">${activeShip ? escapeHTML(activeShip) : 'Tüm gemiler'} · ${ilgiliSeferler.length} sefer</div>
+          </div>
+          <button onclick="document.getElementById('sezon-ozet-modal').remove()"
+            style="background:rgba(255,255,255,.2);border:none;color:white;font-size:18px;cursor:pointer;width:30px;height:30px;border-radius:50%;flex-shrink:0;">×</button>
+        </div>
+        <div style="margin-top:14px;background:rgba(255,255,255,.15);border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:11px;opacity:.85;">GENEL TOPLAM</div>
+          <div style="font-size:30px;font-weight:700;">€${genelToplam.toFixed(0)}</div>
+        </div>
+      </div>
+
+      <div style="padding:12px 16px;background:white;border-bottom:1px solid #eee;flex-shrink:0;">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+          <div style="background:#dcfce7;border-radius:8px;padding:8px;text-align:center;">
+            <div style="font-size:15px;font-weight:700;color:#15803d;">€${toplamTurGeliri.toFixed(0)}</div>
+            <div style="font-size:8px;color:#15803d;">TUR GELİRİ</div>
+          </div>
+          <div style="background:#dbeafe;border-radius:8px;padding:8px;text-align:center;">
+            <div style="font-size:15px;font-weight:700;color:#1e40af;">€${simKar.toFixed(0)}</div>
+            <div style="font-size:8px;color:#1e40af;">SIM KÂR</div>
+          </div>
+          <div style="background:#fef3c7;border-radius:8px;padding:8px;text-align:center;">
+            <div style="font-size:15px;font-weight:700;color:#92400e;">${toplamKayitliKabin}</div>
+            <div style="font-size:8px;color:#92400e;">KAYITLI KABİN</div>
+          </div>
+          <div style="background:#f3e8ff;border-radius:8px;padding:8px;text-align:center;">
+            <div style="font-size:15px;font-weight:700;color:#7c3aed;">${simSatilanSayi}</div>
+            <div style="font-size:8px;color:#7c3aed;">SIM SATILDI</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex:1;overflow-y:auto;padding:14px 16px;">
+        <div style="font-size:11px;color:#666;font-weight:700;margin-bottom:8px;">🗺️ TUR BAZLI GELİR (${turGelirleri.length})</div>
+        ${turSatirlari}
+
+        ${seferGelirleri.length > 1 ? `
+          <div style="font-size:11px;color:#666;font-weight:700;margin:16px 0 8px;">🚢 SEFER BAZLI GELİR</div>
+          ${seferSatirlari}
+        ` : ''}
+
+        <button onclick="sezonOzetiKopyala()" style="width:100%;margin-top:14px;padding:11px;background:#0d3b6e;color:white;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 Özeti Metin Olarak Kopyala</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  // Kopyalama için özeti sakla
+  window._sezonOzetMetni = '📊 SEZON ÖZETİ\n' + (activeShip || 'Tüm gemiler') + ' · ' + ilgiliSeferler.length + ' sefer\n' +
+    '━━━━━━━━━━━━━━━━━━\n' +
+    'GENEL TOPLAM: €' + genelToplam.toFixed(0) + '\n' +
+    '  Tur geliri: €' + toplamTurGeliri.toFixed(0) + '\n' +
+    '  SIM kâr: €' + simKar.toFixed(0) + '\n' +
+    '━━━━━━━━━━━━━━━━━━\n' +
+    'TUR BAZLI:\n' +
+    turGelirleri.map((x,i) => (i+1) + '. ' + x.tur.name + ' — €' + x.gelir.toFixed(0) + ' (' + x.kabin + ' kabin, ' + x.kisi + ' kişi)').join('\n');
+}
+
+function sezonOzetiKopyala(){
+  const metin = window._sezonOzetMetni || '';
+  if(!metin){ showToast('⚠️ Önce özeti açın'); return; }
+  navigator.clipboard.writeText(metin).then(() => {
+    showToast('📋 Özet kopyalandı!');
+  }).catch(() => {
+    prompt('Özeti kopyalayın:', metin);
+  });
+}
+
 // Rehber ana modal
 function simKartModalAc(){
   const aktif = VOYAGES.find(v => v.status !== 'archived' && v.visible);
@@ -12427,6 +12580,7 @@ function renderDashboard(){
         <button onclick="sunumlarModalAc()" style="padding:10px;background:linear-gradient(135deg,#9333ea,#6b21a8);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">🎬 Canlı Tur Sunumları (Resimli Anlatım)</button>
         <button onclick="simKartModalAc()" style="padding:10px;background:linear-gradient(135deg,#0891b2,#0e7490);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">📱 e-ship SIM Kart Satış</button>
         <button onclick="fotoYarismaModalAc()" style="padding:10px;background:linear-gradient(135deg,#db2777,#9333ea);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">📸 Foto Yarışması (Aynı Kareyi Yakala!)</button>
+        <button onclick="sezonOzetiModalAc()" style="padding:10px;background:linear-gradient(135deg,#0d3b6e,#1a5fa8);color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;grid-column:span 2;">📊 Sezon Özeti (Gelir Raporu)</button>
       </div>
     </div>
 
