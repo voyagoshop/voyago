@@ -6142,6 +6142,15 @@ async function doAL(){
   const err=document.getElementById('ale');
   if(!USERS[u]||USERS[u].pass!==p){err.style.display='block';return;}
   err.style.display='none';
+  // 🚦 Veriler (yolcular/gelir) henüz tam yüklenmediyse bekle —
+  // yoksa Dashboard'daki toplam gelir eksik/düşük görünür (giriş çok hızlı yapılırsa)
+  if(!DB_READY){
+    const girisBtn = document.querySelector('#sal button[onclick="doAL()"]');
+    const girisBtnOrijinal = girisBtn ? girisBtn.innerHTML : null;
+    if(girisBtn) girisBtn.innerHTML = '⏳ Veriler yükleniyor...';
+    try{ await initDB(); }catch(e){ console.log('doAL initDB bekleme hatası:', e); }
+    if(girisBtn && girisBtnOrijinal !== null) girisBtn.innerHTML = girisBtnOrijinal;
+  }
   CU={key:u,...USERS[u]};
   // 📝 Kullanıcı adını HER ZAMAN hatırla (şifre hariç) - bir daha yazmasın
   try{ localStorage.setItem('voyago_son_kullanici', u); }catch(e){}
@@ -16758,12 +16767,15 @@ function adminOfflineDataUygula(){
     const passCache = _adminOfflineYukle('passengers');
     const toursCache = _adminOfflineYukle('tours');
     const dailyCache = _adminOfflineYukle('daily');
-    if(passCache?.length){
+    // 🚦 SADECE henüz hiç veri yoksa (passengers boşsa) cache'i uygula.
+    // initDB() zaten bitmiş ve taze veri yüklemişse ASLA üzerine yazma —
+    // yoksa Dashboard'daki gelir/istatistikler eski (düşük) cache'e döner.
+    if(passCache?.length && passengers.length === 0){
       passengers.length = 0;
       passCache.forEach(p => passengers.push(p));
-      console.log('[OFFLINE-ADMIN] ' + passCache.length + ' yolcu cache\'ten yüklendi');
+      console.log('[OFFLINE-ADMIN] ' + passCache.length + ' yolcu cache\'ten yüklendi (geçici, DB henüz hazır değildi)');
     }
-    if(toursCache?.length){
+    if(toursCache?.length && TOURS.length === 0){
       TOURS.length = 0;
       toursCache.forEach(t => TOURS.push(t));
     }
