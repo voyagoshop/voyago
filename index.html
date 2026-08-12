@@ -3693,6 +3693,15 @@ const T = {
   varis:           {tr:'Varış', en:'Arrival', es:'Llegada', de:'Ankunft', ru:'Прибытие', el:'Άφιξη', pt:'Chegada'},
   ayrilik:         {tr:'Ayrılış', en:'Departure', es:'Salida', de:'Abfahrt', ru:'Отплытие', el:'Αναχώρηση', pt:'Partida'},
   bugun:           {tr:'Bugün', en:'Today', es:'Hoy', de:'Heute', ru:'Сегодня', el:'Σήμερα', pt:'Hoje'},
+  haritada_gor:    {tr:'📍 Haritada Gör', en:'📍 View on Map', es:'📍 Ver en el Mapa', de:'📍 Auf Karte ansehen', ru:'📍 Смотреть на карте', el:'📍 Προβολή στον Χάρτη', pt:'📍 Ver no Mapa'},
+  liman_rehberi:   {tr:'Liman Rehberi', en:'Port Guide', es:'Guía del Puerto', de:'Hafenführer', ru:'Гид по порту', el:'Οδηγός Λιμανιού', pt:'Guia do Porto'},
+  para:            {tr:'Para', en:'Money', es:'Dinero', de:'Geld', ru:'Деньги', el:'Χρήματα', pt:'Dinheiro'},
+  ulasim:          {tr:'Ulaşım', en:'Transport', es:'Transporte', de:'Transport', ru:'Транспорт', el:'Μεταφορά', pt:'Transporte'},
+  guvenlik:        {tr:'Güvenlik', en:'Safety', es:'Seguridad', de:'Sicherheit', ru:'Безопасность', el:'Ασφάλεια', pt:'Segurança'},
+  oneri:           {tr:'öneri', en:'tip', es:'consejo', de:'Tipp', ru:'совет', el:'συμβουλή', pt:'dica'},
+  liman_yukleniyor:{tr:'Liman bilgisi yükleniyor...', en:'Loading port information...', es:'Cargando información del puerto...', de:'Hafeninformationen werden geladen...', ru:'Загрузка информации о порте...', el:'Φόρτωση πληροφοριών λιμανιού...', pt:'Carregando informações do porto...'},
+  liman_yok:       {tr:'Liman bilgisi henüz girilmemiş.', en:'Port information not entered yet.', es:'Información del puerto aún no ingresada.', de:'Hafeninformationen noch nicht eingegeben.', ru:'Информация о порте ещё не введена.', el:'Δεν έχουν εισαχθεί πληροφορίες λιμανιού.', pt:'Informações do porto ainda não inseridas.'},
+  program_yukleniyor:{tr:'Program yükleniyor...', en:'Loading program...', es:'Cargando programa...', de:'Programm wird geladen...', ru:'Загрузка программы...', el:'Φόρτωση προγράμματος...', pt:'Carregando programa...'},
   // Tur
   tura_katil:      {tr:'Tura Katıl', en:'Join Tour', es:'Unirse al Tour', de:'Tour beitreten', ru:'Присоединиться', el:'Συμμετοχή', pt:'Participar'},
   katiliyorum:     {tr:'✓ Katılıyorum', en:'✓ Joined', es:'✓ Unido', de:'✓ Dabei', ru:'✓ Участвую', el:'✓ Συμμετέχω', pt:'✓ Participando'},
@@ -3754,7 +3763,7 @@ const T = {
   gunluk_icerik:   {tr:'Günlük', en:'Daily', es:'Diario', de:'Täglich', ru:'Ежедневно', el:'Ημερήσιο', pt:'Diário'},
   kaydet:          {tr:'Kaydet', en:'Save', es:'Guardar', de:'Speichern', ru:'Сохранить', el:'Αποθήκευση', pt:'Salvar'},
   ekle:            {tr:'Ekle', en:'Add', es:'Agregar', de:'Hinzufügen', ru:'Добавить', el:'Προσθήκη', pt:'Adicionar'},
-  sil:             {tr:'Sil', en:'Delete', es:'Eliminar', de:'Löschen', ru:'Удалить', el:'Διαγραφή', pt:'Διαγραφή'},
+  sil:             {tr:'Sil', en:'Delete', es:'Eliminar', de:'Löschen', ru:'Удалить', el:'Διαγραφή', pt:'Excluir'},
   ara:             {tr:'Ara...', en:'Search...', es:'Buscar...', de:'Suchen...', ru:'Поиск...', el:'Αναζήτηση...', pt:'Buscar...'},
 };
 
@@ -5406,11 +5415,11 @@ function renderProgramPage(sv){
   const ma=document.getElementById('meeting-area');
   if(d.meeting?.saat||d.meeting?.yer){
     ma.innerHTML=`<div class="meeting-card">
-      <div class="meeting-badge">ÖNEMLI — KATILIM ZORUNLU</div>
-      <div class="meeting-title">${d.meeting.konu||'Genel Bilgilendirme Toplantisi'}</div>
+      <div class="meeting-badge">⚠️ ${tr('katilim_zorunlu')}</div>
+      <div class="meeting-title">${d.meeting.konu||tr('bilgilendirme')}</div>
       <div class="meeting-row">
-        ${d.meeting.saat?`<div class="meeting-info"><div class="meeting-info-label">Saat</div><div class="meeting-info-val">&#9200; ${d.meeting.saat}</div></div>`:''}
-        ${d.meeting.yer?`<div class="meeting-info"><div class="meeting-info-label">Yer</div><div class="meeting-info-val">&#128205; ${d.meeting.yer}</div></div>`:''}
+        ${d.meeting.saat?`<div class="meeting-info"><div class="meeting-info-label">${tr('saat')}</div><div class="meeting-info-val">&#9200; ${d.meeting.saat}</div></div>`:''}
+        ${d.meeting.yer?`<div class="meeting-info"><div class="meeting-info-label">${tr('yer')}</div><div class="meeting-info-val">&#128205; ${d.meeting.yer}</div></div>`:''}
       </div>
     </div>`;
   } else ma.innerHTML='';
@@ -5426,12 +5435,12 @@ function renderProgramPage(sv){
           <div class="pco">${d.port.country||''}</div>
         </div>
         <a href="${mapsUrl}" target="_blank" style="display:flex;align-items:center;gap:5px;background:#1a73e8;color:white;padding:7px 12px;border-radius:20px;font-size:12px;font-weight:500;text-decoration:none;flex-shrink:0;margin-top:4px;">
-          📍 Haritada Gör
+          ${tr('haritada_gor')}
         </a>
       </div>
       <div class="pts">
-        <div class="pt"><div class="ptl">Varis</div><div class="ptv">${d.port.arival||'--:--'}</div><div class="pts2">Bugün</div></div>
-        <div class="pt"><div class="ptl">Ayrilis</div><div class="ptv">${d.port.depart||'--:--'}</div><div class="pts2">Bugün</div></div>
+        <div class="pt"><div class="ptl">${tr('varis')}</div><div class="ptv">${d.port.arival||'--:--'}</div><div class="pts2">${tr('bugun')}</div></div>
+        <div class="pt"><div class="ptl">${tr('ayrilik')}</div><div class="ptv">${d.port.depart||'--:--'}</div><div class="pts2">${tr('bugun')}</div></div>
       </div>
     </div>`;
 
@@ -5468,9 +5477,9 @@ function renderProgramPage(sv){
         <div style="background:linear-gradient(135deg,#0d3b6e,#1a5fa8);border-radius:16px;padding:14px 16px;color:white;margin-top:10px;cursor:pointer;" onclick="limanBilgiAc('${limanBilgi.id}')">
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <div>
-              <div style="font-size:11px;opacity:.85;margin-bottom:2px;">🗽 Liman Rehberi</div>
+              <div style="font-size:11px;opacity:.85;margin-bottom:2px;">🗽 ${tr('liman_rehberi')}</div>
               <div style="font-size:15px;font-weight:700;">${escapeHTML(limanBilgi.liman_adi||'')}</div>
-              <div style="font-size:11px;opacity:.85;margin-top:2px;">💸 Para · 🚕 Ulaşım · ⚠️ Güvenlik · ⭐ ${(limanBilgi.oneriler||[]).length} öneri</div>
+              <div style="font-size:11px;opacity:.85;margin-top:2px;">💸 ${tr('para')} · 🚕 ${tr('ulasim')} · ⚠️ ${tr('guvenlik')} · ⭐ ${(limanBilgi.oneriler||[]).length} ${tr('oneri')}</div>
             </div>
             <div style="font-size:22px;">→</div>
           </div>
@@ -5479,9 +5488,9 @@ function renderProgramPage(sv){
     }
   } else {
     if(!DB_READY){
-      pa.innerHTML='<div class="no-data" style="text-align:center;padding:20px;"><div style="font-size:24px;opacity:.5;margin-bottom:6px;">⏳</div><div>Liman bilgisi yükleniyor...</div></div>';
+      pa.innerHTML='<div class="no-data" style="text-align:center;padding:20px;"><div style="font-size:24px;opacity:.5;margin-bottom:6px;">⏳</div><div>'+tr('liman_yukleniyor')+'</div></div>';
     } else {
-      pa.innerHTML='<div class="no-data">Liman bilgisi henüz girilmemis.</div>';
+      pa.innerHTML='<div class="no-data">'+tr('liman_yok')+'</div>';
     }
   }
 
@@ -5508,7 +5517,7 @@ function renderProgramPage(sv){
     if(!DB_READY){
       pra.innerHTML=`<div class="sl2">${tr('gunun_programi')}</div><div class="no-data" style="text-align:center;padding:30px 20px;">
         <div style="font-size:24px;margin-bottom:8px;opacity:.5;">⏳</div>
-        <div>Program yükleniyor...</div>
+        <div>${tr('program_yukleniyor')}</div>
       </div>`;
     } else {
       pra.innerHTML=`<div class="sl2">${tr('gunun_programi')}</div><div class="no-data">${tr('program_yok')}</div>`;
