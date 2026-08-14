@@ -6157,7 +6157,17 @@ async function doAL(){
     const girisBtn = document.querySelector('#sal button[onclick="doAL()"]');
     const girisBtnOrijinal = girisBtn ? girisBtn.innerHTML : null;
     if(girisBtn) girisBtn.innerHTML = '⏳ Veriler yükleniyor...';
-    try{ await initDB(); }catch(e){ console.log('doAL initDB bekleme hatası:', e); }
+    // ⚠️ initDB() muhtemelen sayfa açılışında zaten arka planda çalışıyor —
+    // TEKRAR ÇAĞIRMIYORUZ (initDB çift çalışırsa veriler sıfırlanıp çakışabilir,
+    // uygulama askıda kalabilir). Sadece bitmesini bekliyoruz, en fazla 8 saniye.
+    const beklemeBaslangic = Date.now();
+    while(!DB_READY && (Date.now() - beklemeBaslangic) < 8000){
+      await new Promise(r => setTimeout(r, 150));
+    }
+    // 8 saniyede hâlâ hazır değilse (initDB hiç tetiklenmemiş olabilir) son çare
+    if(!DB_READY){
+      try{ await initDB(); }catch(e){ console.log('doAL initDB hatası:', e); }
+    }
     if(girisBtn && girisBtnOrijinal !== null) girisBtn.innerHTML = girisBtnOrijinal;
   }
   CU={key:u,...USERS[u]};
@@ -26735,9 +26745,9 @@ function anketSoruSil(id){
   renderAnketSorular();
 }
 
-function anketAcKapat(){
+async function anketAcKapat(){
   ANKET_AKTIF = !ANKET_AKTIF;
-  anketDB_Kaydet();
+  await anketDB_Kaydet();
   renderAnketSorular();
   renderAnketDurum();
   showToast(ANKET_AKTIF?'Anket açıldı! Yolcular şimdi görebilir.':'Anket kapatıldı.');
@@ -26939,6 +26949,7 @@ async function anketGonder(sv){
 
 async function anketDB_Kaydet(){
   // Sorular GLOBAL — sefer bağımsız, hiç silinmez
+  let basarili = false;
   try {
     const { error } = await sb.from('anket_sorular_global')
       .upsert({
@@ -26947,17 +26958,29 @@ async function anketDB_Kaydet(){
         aktif: ANKET_AKTIF,
         guncelleme: new Date().toISOString()
       });
-    if(error) console.error('Anket kayıt hatası:', error);
+    if(error){ console.error('Anket kayıt hatası:', error); }
+    else { basarili = true; }
   } catch(e) {
     console.error('Anket kayıt:', e);
-    // Fallback: gunluk tablosuna eski sistemde kaydet (yedek)
-    const sv = getCurrentSeferId()||VOYAGES.find(v=>v.status!=='archived')?.id||'genel';
-    const mevcut = await dbGet('gunluk',{sefer_id:sv});
-    const veri = {anket_sorular: ANKET_SORULAR, anket_aktif: ANKET_AKTIF};
-    if(mevcut&&mevcut.length>0){
-      await dbUpdate('gunluk',{sefer_id:sv},veri);
-    } else {
-      await dbInsert('gunluk',{sefer_id:sv,...veri});
+  }
+  // ⚠️ Ana kayıt (yukarıdaki upsert) Supabase hatası döndürürse throw ETMEZ,
+  // sadece {error} ile döner — bu yüzden `basarili` kontrolüyle ayrıca
+  // yedek sisteme yazıyoruz VE rehberi uyarıyoruz (eskiden sessizce başarısız oluyordu,
+  // yolcu tarafı anketin açıldığını hiç göremiyordu).
+  if(!basarili){
+    try{
+      const sv = getCurrentSeferId()||VOYAGES.find(v=>v.status!=='archived')?.id||'genel';
+      const mevcut = await dbGet('gunluk',{sefer_id:sv});
+      const veri = {anket_sorular: ANKET_SORULAR, anket_aktif: ANKET_AKTIF};
+      if(mevcut&&mevcut.length>0){
+        await dbUpdate('gunluk',{sefer_id:sv},veri);
+      } else {
+        await dbInsert('gunluk',{sefer_id:sv,...veri});
+      }
+      showToast('⚠️ "anket_sorular_global" tablosu eksik görünüyor — yedek sisteme kaydedildi, Claude\'a haber verin');
+    }catch(e2){
+      console.error('Anket yedek kayıt hatası:', e2);
+      showToast('❌ Anket kaydedilemedi! Lütfen tekrar deneyin.');
     }
   }
 }
