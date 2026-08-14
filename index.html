@@ -6151,22 +6151,20 @@ async function doAL(){
   const err=document.getElementById('ale');
   if(!USERS[u]||USERS[u].pass!==p){err.style.display='block';return;}
   err.style.display='none';
-  // 🚦 Veriler (yolcular/gelir) henüz tam yüklenmediyse bekle —
+  // 🚦 Veriler (yolcular/gelir) henüz tam yüklenmediyse kısa süre bekle —
   // yoksa Dashboard'daki toplam gelir eksik/düşük görünür (giriş çok hızlı yapılırsa)
   if(!DB_READY){
     const girisBtn = document.querySelector('#sal button[onclick="doAL()"]');
     const girisBtnOrijinal = girisBtn ? girisBtn.innerHTML : null;
     if(girisBtn) girisBtn.innerHTML = '⏳ Veriler yükleniyor...';
-    // ⚠️ initDB() muhtemelen sayfa açılışında zaten arka planda çalışıyor —
-    // TEKRAR ÇAĞIRMIYORUZ (initDB çift çalışırsa veriler sıfırlanıp çakışabilir,
-    // uygulama askıda kalabilir). Sadece bitmesini bekliyoruz, en fazla 8 saniye.
+    // ⚠️ initDB() sayfa açılışında zaten arka planda çalışıyor — TEKRAR ÇAĞIRMIYORUZ.
+    // Zayıf bağlantıda (gemi/otobüs) tek bir istek uzun süre askıda kalabilir;
+    // initDB()'yi burada tekrar beklemek girişi TAMAMEN kilitleyebilirdi.
+    // Bunun yerine EN FAZLA 5 saniye bekliyoruz, hazır olmasa bile içeri alıyoruz —
+    // arka plandaki initDB bitince veriler zaten kendiliğinden tamamlanır.
     const beklemeBaslangic = Date.now();
-    while(!DB_READY && (Date.now() - beklemeBaslangic) < 8000){
+    while(!DB_READY && (Date.now() - beklemeBaslangic) < 5000){
       await new Promise(r => setTimeout(r, 150));
-    }
-    // 8 saniyede hâlâ hazır değilse (initDB hiç tetiklenmemiş olabilir) son çare
-    if(!DB_READY){
-      try{ await initDB(); }catch(e){ console.log('doAL initDB hatası:', e); }
     }
     if(girisBtn && girisBtnOrijinal !== null) girisBtn.innerHTML = girisBtnOrijinal;
   }
