@@ -1949,6 +1949,8 @@ textarea.ai2{resize:none;}
         </div>
       </div>
 
+      <div id="anket-uyari-banner" style="display:none;background:#fef2f2;border:1.5px solid #fecaca;border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:12px;color:#991b1b;line-height:1.5;"></div>
+
       <!-- Soru Ekle -->
       <div class="fs2" style="margin-bottom:12px;">
         <div class="fst">Soru Ekle</div>
@@ -17612,7 +17614,11 @@ function adminTab(name){
         // ÖNCE global anket sorularını çek
         let buldu = false;
         try {
-          const { data: globalData } = await sb.from('anket_sorular_global').select('*').eq('id', 'main').single();
+          const { data: globalData, error: globalErr } = await sb.from('anket_sorular_global').select('*').eq('id', 'main').single();
+          if(globalErr && globalErr.code !== 'PGRST116'){
+            // PGRST116 = satır yok (normal, ilk kullanım) — başka her şey gerçek bir sorun
+            if(typeof anketUyariGoster==='function') anketUyariGoster('⚠️ "anket_sorular_global" tablosu eksik görünüyor — SQL Editor\'da oluşturana kadar yedek sistem kullanılacak.');
+          } else if(typeof anketUyariGizle==='function') anketUyariGizle();
           if(globalData && globalData.sorular && Array.isArray(globalData.sorular) && globalData.sorular.length > 0){
             ANKET_SORULAR = globalData.sorular;
             if(globalData.aktif !== undefined) ANKET_AKTIF = globalData.aktif;
@@ -17620,10 +17626,11 @@ function adminTab(name){
           }
         } catch(e) { console.log('Global anket okuma:', e); }
 
-        // Fallback: eski gunluk sisteminden
+        // Fallback: sabit anahtarlı gunluk kaydı (kaydederken kullanılanla AYNI anahtar)
         if(!buldu){
           try {
-            const rows = await dbGet('gunluk',{sefer_id:sv});
+            const YEDEK_ID = (typeof ANKET_YEDEK_ID!=='undefined') ? ANKET_YEDEK_ID : '__anket_global__';
+            const rows = await dbGet('gunluk',{sefer_id:YEDEK_ID});
             if(rows&&rows.length){
               const g=rows[0];
               if(g.anket_sorular && Array.isArray(g.anket_sorular) && g.anket_sorular.length>0){
@@ -17631,16 +17638,6 @@ function adminTab(name){
                 buldu = true;
               }
               if(g.anket_aktif!==undefined) ANKET_AKTIF=g.anket_aktif;
-            }
-            if(!buldu){
-              const tum = await dbGet('gunluk');
-              if(tum && tum.length){
-                const son = tum.filter(g => g.anket_sorular && Array.isArray(g.anket_sorular) && g.anket_sorular.length>0)
-                  .sort((a,b) => (b.guncelleme||'').localeCompare(a.guncelleme||''))[0];
-                if(son && son.anket_sorular){
-                  ANKET_SORULAR = son.anket_sorular;
-                }
-              }
             }
           } catch(e) { console.log('Anket rehber fallback:', e); }
         }
@@ -17685,38 +17682,31 @@ function switchTab(name){
     if(CP){
       // ÖNCE global anket sorularını çek (sefer bağımsız, kalıcı)
       (async () => {
+        let buldu = false;
         try {
-          const { data: globalData } = await sb.from('anket_sorular_global').select('*').eq('id', 'main').single();
-          if(globalData && globalData.sorular && Array.isArray(globalData.sorular) && globalData.sorular.length > 0){
-            ANKET_SORULAR = globalData.sorular;
+          const { data: globalData, error: globalErr } = await sb.from('anket_sorular_global').select('*').eq('id', 'main').single();
+          if(globalData){
             if(globalData.aktif !== undefined) ANKET_AKTIF = globalData.aktif;
-            renderAnketYolcu(CP.sefer);
-            return;
+            if(Array.isArray(globalData.sorular) && globalData.sorular.length > 0){
+              ANKET_SORULAR = globalData.sorular;
+            }
+            buldu = true;
           }
         } catch(e) { console.log('Global anket okuma:', e); }
-        // Fallback: eski gunluk sisteminden
-        try {
-          const rows = await dbGet('gunluk',{sefer_id:CP.sefer});
-          let buldu = false;
-          if(rows&&rows.length){
-            const g=rows[0];
-            if(g.anket_sorular && Array.isArray(g.anket_sorular) && g.anket_sorular.length>0){
-              ANKET_SORULAR=g.anket_sorular;
-              buldu = true;
-            }
-            if(g.anket_aktif!==undefined) ANKET_AKTIF=g.anket_aktif;
-          }
-          if(!buldu){
-            const tum = await dbGet('gunluk');
-            if(tum && tum.length){
-              const son = tum.filter(g => g.anket_sorular && Array.isArray(g.anket_sorular) && g.anket_sorular.length>0)
-                .sort((a,b) => (b.guncelleme||'').localeCompare(a.guncelleme||''))[0];
-              if(son && son.anket_sorular){
-                ANKET_SORULAR = son.anket_sorular;
+        // Fallback: sabit anahtarlı gunluk kaydı (kaydederken kullanılanla AYNI anahtar)
+        if(!buldu){
+          try {
+            const YEDEK_ID = (typeof ANKET_YEDEK_ID!=='undefined') ? ANKET_YEDEK_ID : '__anket_global__';
+            const rows = await dbGet('gunluk',{sefer_id:YEDEK_ID});
+            if(rows&&rows.length){
+              const g=rows[0];
+              if(g.anket_sorular && Array.isArray(g.anket_sorular) && g.anket_sorular.length>0){
+                ANKET_SORULAR=g.anket_sorular;
               }
+              if(g.anket_aktif!==undefined) ANKET_AKTIF=g.anket_aktif;
             }
-          }
-        } catch(e) { console.log('Anket fallback:', e); }
+          } catch(e) { console.log('Anket fallback:', e); }
+        }
         renderAnketYolcu(CP.sefer);
       })();
     } else renderAnketYolcu('');
@@ -26718,7 +26708,7 @@ document.addEventListener('change', e=>{
   }
 });
 
-function anketSoruEkle(){
+async function anketSoruEkle(){
   const metin = document.getElementById('anket-soru-metin')?.value.trim();
   const tip = document.getElementById('anket-soru-tip')?.value || 'yildiz';
   const seceneklerStr = document.getElementById('anket-secenekler')?.value.trim();
@@ -26730,16 +26720,16 @@ function anketSoruEkle(){
     secenekler: tip==='secmeli' ? seceneklerStr.split(',').map(s=>s.trim()).filter(Boolean) : []
   };
   ANKET_SORULAR.push(soru);
-  anketDB_Kaydet();
+  await anketDB_Kaydet();
   document.getElementById('anket-soru-metin').value='';
   document.getElementById('anket-secenekler').value='';
   renderAnketSorular();
   showToast('Soru eklendi!');
 }
 
-function anketSoruSil(id){
+async function anketSoruSil(id){
   ANKET_SORULAR = ANKET_SORULAR.filter(s=>s.id!==id);
-  anketDB_Kaydet();
+  await anketDB_Kaydet();
   renderAnketSorular();
 }
 
@@ -26945,6 +26935,21 @@ async function anketGonder(sv){
   showToast('Anketiniz gönderildi! Teşekkürler 🙏');
 }
 
+// Yedek sistemde her zaman AYNI sabit anahtarı kullan — sefer seçimine göre
+// değişmesin, yoksa kaydederken seçili olan sefer ile okurken seçili olan
+// sefer farklı olursa (dropdown değişmişse) veri "kayboluyormuş" gibi görünür.
+const ANKET_YEDEK_ID = '__anket_global__';
+
+function anketUyariGoster(mesaj){
+  const b = document.getElementById('anket-uyari-banner');
+  if(b){ b.style.display='block'; b.textContent = mesaj; }
+  showToast(mesaj);
+}
+function anketUyariGizle(){
+  const b = document.getElementById('anket-uyari-banner');
+  if(b) b.style.display='none';
+}
+
 async function anketDB_Kaydet(){
   // Sorular GLOBAL — sefer bağımsız, hiç silinmez
   let basarili = false;
@@ -26963,23 +26968,30 @@ async function anketDB_Kaydet(){
   }
   // ⚠️ Ana kayıt (yukarıdaki upsert) Supabase hatası döndürürse throw ETMEZ,
   // sadece {error} ile döner — bu yüzden `basarili` kontrolüyle ayrıca
-  // yedek sisteme yazıyoruz VE rehberi uyarıyoruz (eskiden sessizce başarısız oluyordu,
-  // yolcu tarafı anketin açıldığını hiç göremiyordu).
+  // yedek sisteme yazıyoruz VE rehberi görünür şekilde uyarıyoruz (eskiden
+  // sessizce başarısız oluyordu, yolcu tarafı anketin açıldığını hiç göremiyordu).
   if(!basarili){
     try{
-      const sv = getCurrentSeferId()||VOYAGES.find(v=>v.status!=='archived')?.id||'genel';
-      const mevcut = await dbGet('gunluk',{sefer_id:sv});
+      const mevcut = await dbGet('gunluk',{sefer_id:ANKET_YEDEK_ID});
       const veri = {anket_sorular: ANKET_SORULAR, anket_aktif: ANKET_AKTIF};
+      let yedekTamam = false;
       if(mevcut&&mevcut.length>0){
-        await dbUpdate('gunluk',{sefer_id:sv},veri);
+        yedekTamam = await dbUpdate('gunluk',{sefer_id:ANKET_YEDEK_ID},veri);
       } else {
-        await dbInsert('gunluk',{sefer_id:sv,...veri});
+        const sonuc = await dbInsert('gunluk',{sefer_id:ANKET_YEDEK_ID,...veri});
+        yedekTamam = !!sonuc;
       }
-      showToast('⚠️ "anket_sorular_global" tablosu eksik görünüyor — yedek sisteme kaydedildi, Claude\'a haber verin');
+      if(yedekTamam){
+        anketUyariGoster('⚠️ "anket_sorular_global" tablosu eksik — yedek sisteme kaydedildi (geçici). SQL Editor\'da tabloyu oluşturana kadar bu uyarı çıkmaya devam edecek.');
+      } else {
+        anketUyariGoster('❌ Anket KAYDEDİLEMEDİ (ne ana ne yedek sistem yazılabildi). İnternet bağlantınızı kontrol edip tekrar deneyin.');
+      }
     }catch(e2){
       console.error('Anket yedek kayıt hatası:', e2);
-      showToast('❌ Anket kaydedilemedi! Lütfen tekrar deneyin.');
+      anketUyariGoster('❌ Anket kaydedilemedi! Lütfen tekrar deneyin.');
     }
+  } else {
+    anketUyariGizle();
   }
 }
 
