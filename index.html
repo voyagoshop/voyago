@@ -17611,7 +17611,8 @@ function adminTab(name){
     const sv=getCurrentSeferId()||VOYAGES.find(v=>v.status!=='archived')?.id;
     if(sv){
       (async () => {
-        await anketVeriYukle();
+        await anketSorularYukle();
+        await anketAktifYukle(sv);
         // Cevapları yükle (bu sefere ait)
         try {
           const crows = await dbGet('anketler',{sefer_id:sv});
@@ -17651,7 +17652,8 @@ function switchTab(name){
   if(name==='anket'){
     if(CP){
       (async () => {
-        await anketVeriYukle();
+        await anketSorularYukle();
+        await anketAktifYukle(CP.sefer);
         renderAnketYolcu(CP.sefer);
       })();
     } else renderAnketYolcu('');
@@ -26665,7 +26667,7 @@ async function anketSoruEkle(){
     secenekler: tip==='secmeli' ? seceneklerStr.split(',').map(s=>s.trim()).filter(Boolean) : []
   };
   ANKET_SORULAR.push(soru);
-  await anketDB_Kaydet();
+  await anketSorularKaydet();
   document.getElementById('anket-soru-metin').value='';
   document.getElementById('anket-secenekler').value='';
   renderAnketSorular();
@@ -26674,16 +26676,18 @@ async function anketSoruEkle(){
 
 async function anketSoruSil(id){
   ANKET_SORULAR = ANKET_SORULAR.filter(s=>s.id!==id);
-  await anketDB_Kaydet();
+  await anketSorularKaydet();
   renderAnketSorular();
 }
 
 async function anketAcKapat(){
+  const sid = (typeof getCurrentSeferId==='function' ? getCurrentSeferId() : null) || VOYAGES.find(v=>v.status!=='archived')?.id;
+  if(!sid){ showToast('⚠️ Aktif sefer bulunamadı, önce bir sefer seçin'); return; }
   ANKET_AKTIF = !ANKET_AKTIF;
-  await anketDB_Kaydet();
+  await anketAktifKaydet(sid);
   renderAnketSorular();
   renderAnketDurum();
-  showToast(ANKET_AKTIF?'Anket açıldı! Yolcular şimdi görebilir.':'Anket kapatıldı.');
+  showToast(ANKET_AKTIF?'Anket açıldı! Bu seferin yolcuları şimdi görebilir.':'Anket kapatıldı.');
 }
 
 function renderAnketDurum(){
@@ -26895,41 +26899,69 @@ function anketUyariGizle(){
   if(b) b.style.display='none';
 }
 
-async function anketDB_Kaydet(){
+// ── SORULAR: GLOBAL — tüm seferlerde aynı, 'ayarlar' tablosunda tek satır ──
+async function anketSorularKaydet(){
   try {
     const { error } = await sb.from('ayarlar')
-      .upsert({ anahtar: 'anket_data', deger: { sorular: ANKET_SORULAR, aktif: ANKET_AKTIF } }, { onConflict: 'anahtar' });
+      .upsert({ anahtar: 'anket_sorular', deger: ANKET_SORULAR }, { onConflict: 'anahtar' });
     if(error){
-      console.error('Anket kayıt hatası:', error);
-      anketUyariGoster('❌ Anket kaydedilemedi: ' + (error.message||'bilinmeyen hata') + ' — "ayarlar" tablosunu Supabase\'de kontrol edin');
+      console.error('Anket soru kayıt hatası:', error);
+      anketUyariGoster('❌ Sorular kaydedilemedi: ' + (error.message||'bilinmeyen hata') + ' — "ayarlar" tablosunu Supabase\'de kontrol edin');
     } else {
       anketUyariGizle();
     }
   } catch(e) {
-    console.error('Anket kayıt:', e);
-    anketUyariGoster('❌ Anket kaydedilemedi: ' + (e?.message || 'bağlantı hatası'));
+    console.error('Anket soru kayıt:', e);
+    anketUyariGoster('❌ Sorular kaydedilemedi: ' + (e?.message || 'bağlantı hatası'));
   }
 }
 
-async function anketVeriYukle(){
+async function anketSorularYukle(){
   try {
-    const { data, error } = await sb.from('ayarlar').select('deger').eq('anahtar','anket_data').maybeSingle();
+    const { data, error } = await sb.from('ayarlar').select('deger').eq('anahtar','anket_sorular').maybeSingle();
     if(error){
-      console.log('Anket yükleme hatası:', error);
-      anketUyariGoster('❌ Anket yüklenemedi: ' + (error.message||'bilinmeyen hata') + ' — "ayarlar" tablosunu Supabase\'de kontrol edin');
+      console.log('Anket soru yükleme hatası:', error);
+      anketUyariGoster('❌ Sorular yüklenemedi: ' + (error.message||'bilinmeyen hata') + ' — "ayarlar" tablosunu Supabase\'de kontrol edin');
       return false;
     }
     anketUyariGizle();
-    if(data && data.deger){
-      if(Array.isArray(data.deger.sorular)) ANKET_SORULAR = data.deger.sorular;
-      if(data.deger.aktif !== undefined) ANKET_AKTIF = data.deger.aktif;
+    if(data && Array.isArray(data.deger)){
+      ANKET_SORULAR = data.deger;
       return true;
     }
-    return false; // Henüz hiç kayıt yok — normal, ilk kullanım
+    return false; // Henüz hiç soru kaydedilmemiş — normal, ilk kullanım
   } catch(e) {
-    console.log('Anket yükleme:', e);
-    anketUyariGoster('❌ Anket yüklenemedi: ' + (e?.message || 'bağlantı hatası'));
+    console.log('Anket soru yükleme:', e);
+    anketUyariGoster('❌ Sorular yüklenemedi: ' + (e?.message || 'bağlantı hatası'));
     return false;
+  }
+}
+
+// ── AKTİF (açık/kapalı): SEFER BAZLI — her sefer kendi durumuna sahip,
+// yeni sefer her zaman KAPALI başlar. 'gunluk' tablosunda sefer_id ile saklanır.
+async function anketAktifKaydet(sid){
+  if(!sid) return;
+  try {
+    const mevcut = await dbGet('gunluk',{sefer_id:sid});
+    if(mevcut && mevcut.length > 0){
+      await dbUpdate('gunluk',{sefer_id:sid},{anket_aktif:ANKET_AKTIF});
+    } else {
+      await dbInsert('gunluk',{sefer_id:sid,anket_aktif:ANKET_AKTIF});
+    }
+  } catch(e){
+    console.error('Anket aktif kayıt hatası:', e);
+    anketUyariGoster('❌ Açık/kapalı durumu kaydedilemedi: ' + (e?.message||'bağlantı hatası'));
+  }
+}
+
+async function anketAktifYukle(sid){
+  if(!sid){ ANKET_AKTIF = false; return; }
+  try {
+    const rows = await dbGet('gunluk',{sefer_id:sid});
+    ANKET_AKTIF = !!(rows && rows.length && rows[0].anket_aktif);
+  } catch(e){
+    console.log('Anket aktif yükleme:', e);
+    ANKET_AKTIF = false;
   }
 }
 
